@@ -124,7 +124,7 @@ namespace TestTag
 ```
 Source/
 │  ├─ Core/
-│  │  ├─ Build시스템/
+│  │  ├─ BuildSystem/
 │  │  ├─ KeyAndEscape/
 │  │  └─ Match/
 │  │
