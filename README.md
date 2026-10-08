@@ -133,8 +133,8 @@ Source/
 │  ├─ GAS/
 │  │  ├─ Abilities/
 │  │  ├─ Attributes/
-│  │  ├─ Core/
-│  │  │  └─ ProjectAbilitySystemComponent.h
+│  │  ├─ Foundation/
+│  │  │  └─ NF_AbilitySystemComponent.h
 │  │  ├─ Cue/
 │  │  ├─ Effects/
 │  │  ├─ Tags/
