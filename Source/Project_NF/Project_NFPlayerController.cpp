@@ -7,6 +7,7 @@
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
 #include "Project_NF.h"
+#include "UI/NF_MatchmakingWidget.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
 void AProject_NFPlayerController::BeginPlay()
@@ -30,6 +31,21 @@ void AProject_NFPlayerController::BeginPlay()
 
 		}
 
+	}
+
+	if (IsLocalPlayerController())
+	{
+		MatchmakingWidget = CreateWidget<UNF_MatchmakingWidget>(this, UNF_MatchmakingWidget::StaticClass());
+		if (MatchmakingWidget)
+		{
+			MatchmakingWidget->AddToPlayerScreen(10);
+			bShowMouseCursor = true;
+			FInputModeGameAndUI InputMode;
+			InputMode.SetWidgetToFocus(MatchmakingWidget->TakeWidget());
+			InputMode.SetHideCursorDuringCapture(false);
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(InputMode);
+		}
 	}
 }
 

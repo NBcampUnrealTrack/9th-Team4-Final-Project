@@ -8,6 +8,7 @@
 
 class UInputMappingContext;
 class UUserWidget;
+class UNF_MatchmakingWidget;
 
 /**
  *  Basic PlayerController class for a third person game
@@ -35,6 +36,10 @@ protected:
 	/** Pointer to the mobile controls widget */
 	UPROPERTY()
 	TObjectPtr<UUserWidget> MobileControlsWidget;
+
+	/** Runtime matchmaking queue controls and status panel. */
+	UPROPERTY()
+	TObjectPtr<UNF_MatchmakingWidget> MatchmakingWidget;
 
 	/** If true, the player will use UMG touch controls even if not playing on mobile platforms */
 	UPROPERTY(EditAnywhere, Config, Category = "Input|Touch Controls")
