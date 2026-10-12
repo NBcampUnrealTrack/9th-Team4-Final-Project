@@ -60,15 +60,15 @@
 			"Enabled": true
 		},
 		{
-<<<<<<< HEAD
 			"Name": "AnimationLocomotionLibrary",
 			"Enabled": true
 		},
 		{
 			"Name": "MotionWarping",
-=======
+			"Enabled": true
+		},
+		{
 			"Name": "OnlineSubsystemSteam",
->>>>>>> dev
 			"Enabled": true
 		}
 	]
