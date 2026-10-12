@@ -22,12 +22,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Core|ID")
 	int32 NF_PlayerID;
 	
-	
+
 	//GAS
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS|ASC")
-	TObjectPtr<UNF_AbilitySystemComponent> NF_ASC;
+	TObjectPtr<UNF_AbilitySystemComponent> PlayerASC;
 	
 	
 	

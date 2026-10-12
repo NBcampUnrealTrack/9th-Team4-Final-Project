@@ -1,17 +1,21 @@
 #include "NF_Player.h"
 
 #include "AbilitySystemComponent.h"
+#include "GA_Test.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Component/MotionMatchingComponent.h"
 #include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
+#include "Data/HelperFunction/NF_GASFunctionLibraryComponent.h"
 #include "Player/State/NF_PlayerState.h"
 
 
 ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UMotionMatchingCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
+	
+	//CameraSet
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComponent->SetupAttachment(GetRootComponent());
 	SpringArmComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 20.0f));
@@ -25,10 +29,14 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	CameraComponent->SetFieldOfView(100.0f);
 	CameraComponent->bUsePawnControlRotation = false;
 
+	
 	//MotionMatching
 	MotionMatchingComponent = CreateDefaultSubobject<UMotionMatchingComponent>(TEXT("MotionMatchingComponent"));
 	CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
 
+	
+	//Helper
+	NF_GASFunctionLibraryComponent = CreateDefaultSubobject<UNF_GASFunctionLibraryComponent>(TEXT("NF_GASFunctionLibraryComponent"));
 }
 
 
@@ -36,7 +44,7 @@ void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
 	
-
+	
 }
 
 
@@ -54,6 +62,7 @@ void ANF_Player::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 	
 	InitAbilitySystem();
+	
 }
 
 
@@ -75,4 +84,19 @@ void ANF_Player::InitAbilitySystem()
 	if (IsValid(ASC) == false) return;
 
 	ASC->InitAbilityActorInfo(NF_PlayerState, this);
+	
+	
+	if (HasAuthority() == true)
+	{
+		GameplayAbilityArray.Add(UGA_Test::StaticClass());
+	
+		for (const auto& EachAbility : GameplayAbilityArray)
+		{
+			if (IsValid(EachAbility) == false) continue;
+			if (ASC->FindAbilitySpecFromClass(EachAbility) == nullptr)
+			{
+				ASC->GiveAbility(FGameplayAbilitySpec(EachAbility));
+			}
+		}
+	}
 }

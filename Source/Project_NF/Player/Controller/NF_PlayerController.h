@@ -1,19 +1,34 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/PlayerController.h"
 #include "NF_PlayerController.generated.h"
 
-class UMotionMatchingInputDataAsset; // [MotionMatchingInstaller]
+struct FInputActionValue;
+class UInputActionDataAsset;
+class UMotionMatchingInputDataAsset;
 
 UCLASS()
 class PROJECT_NF_API ANF_PlayerController : public APlayerController
 {
 	GENERATED_BODY()
+	
+public:
+	
 protected:
-	// [MotionMatchingInstaller] 입력 에셋 묶음 (DA_MotionMatchingInputConfig_Default)
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MotionMatching")
-	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputConfig;
 	virtual void SetupInputComponent() override;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|MotionMatching")
+	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputDataAsset;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputActionDataAsset> InputActionDataAsset;
+	
 
+
+	
+private:
+	void BindInputActions(UEnhancedInputComponent* EnhancedInputComponent);
+	void TrySkillActionA();
 };
