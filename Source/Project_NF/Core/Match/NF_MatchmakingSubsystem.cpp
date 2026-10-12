@@ -4,6 +4,7 @@
 
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "Project_NF.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
 #include "OnlineSubsystemUtils.h"
@@ -17,6 +18,8 @@ namespace
 	const FName PartyLeaderKey(TEXT("NF_PARTY_LEADER"));
 	const FName MatchmakingSessionKey(TEXT("NF_MATCHMAKING"));
 	const FName LobbyKindKey(TEXT("NF_LOBBY_KIND"));
+	const FName MatchQueueIdKey(TEXT("NF_QUEUE_ID"));
+	const FName MatchRulesVersionKey(TEXT("NF_RULES_VERSION"));
 	const ANSICHAR* MemberPartyIdKey = "NF_PARTY_ID";
 	const ANSICHAR* MemberPartyLeaderKey = "NF_PARTY_LEADER";
 	const ANSICHAR* MemberQueueStartKey = "NF_QUEUE_START_UTC";
@@ -24,6 +27,7 @@ namespace
 	const ANSICHAR* LobbyPartyCanceledKey = "NF_CANCELED_PARTY_ID";
 	const ANSICHAR* LobbyMatchStateKey = "NF_MATCH_STATE";
 	const ANSICHAR* LobbyMatchTeamsKey = "NF_MATCH_TEAMS";
+	const ANSICHAR* LobbyQueueIdKey = "NF_QUEUE_ID";
 
 	uint64 GetSteamLobbyId(IOnlineSessionPtr Sessions, FName SessionName)
 	{
@@ -65,19 +69,19 @@ namespace
 		return FString::Join(SerializedTeams, TEXT("|"));
 	}
 
-	bool DeserializeTeams(const FString& Value, TArray<FNFMatchTeamAssignment>& OutTeams)
+	bool DeserializeTeams(const FString& Value, const FNFMatchQueueDefinition& Definition, TArray<FNFMatchTeamAssignment>& OutTeams)
 	{
 		OutTeams.Reset();
 		TArray<FString> SerializedTeams;
 		Value.ParseIntoArray(SerializedTeams, TEXT("|"), false);
-		if (SerializedTeams.Num() != NF_MatchRules::TeamCount) return false;
+		if (!NF_IsValidMatchQueueDefinition(Definition) || SerializedTeams.Num() != Definition.TeamCount) return false;
 		TArray<FNFQueuedPlayer> AllPlayers;
 		for (const FString& SerializedTeam : SerializedTeams)
 		{
 			FNFMatchTeamAssignment& Team = OutTeams.AddDefaulted_GetRef();
 			TArray<FString> SerializedMembers;
 			SerializedTeam.ParseIntoArray(SerializedMembers, TEXT(";"), false);
-			if (SerializedMembers.Num() != NF_MatchRules::PlayersPerTeam) return false;
+			if (SerializedMembers.Num() != Definition.PlayersPerTeam) return false;
 			for (const FString& SerializedMember : SerializedMembers)
 			{
 				TArray<FString> Fields;
@@ -91,7 +95,7 @@ namespace
 			}
 		}
 		TArray<FNFMatchTeamAssignment> ValidatedTeams;
-		if (!NF_AssignMatchTeams(AllPlayers, ValidatedTeams))
+		if (!NF_AssignMatchTeams(Definition, AllPlayers, ValidatedTeams))
 		{
 			OutTeams.Reset();
 			return false;
@@ -119,6 +123,7 @@ namespace
 void UNF_MatchmakingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	RegisterMatchQueueDefinition(FNFMatchQueueDefinition());
 	if (IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld()))
 	{
 		SessionInterface = OnlineSubsystem->GetSessionInterface();
@@ -281,17 +286,30 @@ bool UNF_MatchmakingSubsystem::LeaveParty(const FString& PlayerId)
 
 bool UNF_MatchmakingSubsystem::StartMatchmaking(const FString& PlayerId)
 {
+	return StartMatchmakingInQueue(PlayerId, NF_MatchRules::DefaultQueueId);
+}
+
+bool UNF_MatchmakingSubsystem::StartMatchmakingInQueue(const FString& PlayerId, FName QueueId)
+{
+	const FNFMatchQueueDefinition* QueueDefinition = MatchQueueDefinitions.Find(QueueId);
+	if (!QueueDefinition)
+	{
+		OnMatchmakingFailed.Broadcast(FString::Printf(TEXT("등록되지 않은 매치 대기열입니다: %s"), *QueueId.ToString()));
+		return false;
+	}
 	if (!SessionInterface.IsValid() || PlayerId.IsEmpty() || PlayerId != MakeLocalPlayerId() || (MatchState != ENFMatchState::Ended && MatchState != ENFMatchState::Canceled))
 	{
 		return false;
 	}
+	ActiveQueueDefinition = *QueueDefinition;
 	if (!LocalPartyId.IsEmpty()) RefreshPartyRoster();
 
 	FNFMatchQueueEntry Entry;
+	Entry.QueueId = ActiveQueueDefinition.QueueId;
 	if (const FString* PartyId = PlayerToParty.Find(PlayerId))
 	{
 		FPartyRecord* Party = Parties.Find(*PartyId);
-		if (!Party || Party->LeaderId != PlayerId || Party->Members.Num() > NF_MatchRules::MaxPartySize || !SessionInterface->GetNamedSession(PartySessionName))
+		if (!Party || Party->LeaderId != PlayerId || Party->Members.Num() > ActiveQueueDefinition.MaxPartySize || !SessionInterface->GetNamedSession(PartySessionName))
 		{
 			return false;
 		}
@@ -307,6 +325,8 @@ bool UNF_MatchmakingSubsystem::StartMatchmaking(const FString& PlayerId)
 	}
 	LocalPartyId = Entry.PartyId;
 	bTeamsAssigned = false;
+	bMatchLobbyAdmissionClosed = false;
+	PendingDedicatedServerAddress.Reset();
 
 	const FDateTime Now = FDateTime::UtcNow();
 	MatchQueueStartUtc = LexToString(Now.ToUnixTimestamp());
@@ -322,7 +342,7 @@ bool UNF_MatchmakingSubsystem::StartMatchmaking(const FString& PlayerId)
 		PlayerPartyLeaderId.Add(MemberId, Entry.PartyLeaderId);
 		PlayerQueueJoinTime.Add(MemberId, Now);
 	}
-	QueueDeadline = Now + FTimespan::FromSeconds(NF_MatchRules::QueueTimeoutSeconds);
+	QueueDeadline = Now + FTimespan::FromSeconds(ActiveQueueDefinition.QueueTimeoutSeconds);
 	QueueEntries.Add(MoveTemp(Entry));
 	SearchRetryCount = 0;
 	SetMatchState(ENFMatchState::Queueing);
@@ -330,7 +350,7 @@ bool UNF_MatchmakingSubsystem::StartMatchmaking(const FString& PlayerId)
 
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(QueueTimeoutTimerHandle, this, &ThisClass::HandleQueueTimeout, static_cast<float>(NF_MatchRules::QueueTimeoutSeconds), false);
+		World->GetTimerManager().SetTimer(QueueTimeoutTimerHandle, this, &ThisClass::HandleQueueTimeout, static_cast<float>(ActiveQueueDefinition.QueueTimeoutSeconds), false);
 	}
 
 	FUniqueNetIdPtr LocalUserId;
@@ -388,6 +408,74 @@ void UNF_MatchmakingSubsystem::CancelMatchmaking(const FString& PlayerId)
 	LobbyOwnerId.Reset();
 }
 
+bool UNF_MatchmakingSubsystem::StartLocalMatchmaking()
+{
+	const FString LocalPlayerId = MakeLocalPlayerId();
+	return !LocalPlayerId.IsEmpty() && StartMatchmaking(LocalPlayerId);
+}
+
+bool UNF_MatchmakingSubsystem::StartLocalMatchmakingInQueue(FName QueueId)
+{
+	const FString LocalPlayerId = MakeLocalPlayerId();
+	return !LocalPlayerId.IsEmpty() && StartMatchmakingInQueue(LocalPlayerId, QueueId);
+}
+
+bool UNF_MatchmakingSubsystem::RegisterMatchQueueDefinition(const FNFMatchQueueDefinition& Definition)
+{
+	if (!NF_IsValidMatchQueueDefinition(Definition))
+	{
+		UE_LOG(LogProject_NF, Warning, TEXT("Rejected invalid matchmaking queue definition: %s"), *Definition.QueueId.ToString());
+		return false;
+	}
+	MatchQueueDefinitions.Add(Definition.QueueId, Definition);
+	return true;
+}
+
+TArray<FNFMatchQueueDefinition> UNF_MatchmakingSubsystem::GetAvailableMatchQueues() const
+{
+	TArray<FNFMatchQueueDefinition> Definitions;
+	MatchQueueDefinitions.GenerateValueArray(Definitions);
+	Definitions.Sort([](const FNFMatchQueueDefinition& A, const FNFMatchQueueDefinition& B)
+	{
+		return A.QueueId.ToString() < B.QueueId.ToString();
+	});
+	return Definitions;
+}
+
+void UNF_MatchmakingSubsystem::CancelLocalMatchmaking()
+{
+	CancelMatchmaking(MakeLocalPlayerId());
+}
+
+bool UNF_MatchmakingSubsystem::HandleDedicatedServerReady(const FString& ConnectAddress)
+{
+	if (MatchState != ENFMatchState::ServerPreparing || !bTeamsAssigned)
+	{
+		UE_LOG(LogProject_NF, Warning, TEXT("Dedicated server allocation arrived before this match was ready."));
+		return false;
+	}
+
+	if (ConnectAddress.IsEmpty())
+	{
+		UE_LOG(LogProject_NF, Warning, TEXT("Dedicated server allocation returned an empty connect address."));
+		return false;
+	}
+
+	PendingDedicatedServerAddress = ConnectAddress;
+	UE_LOG(LogProject_NF, Display, TEXT("Dedicated server address stored for match handoff. Player travel is not implemented yet: %s"), *PendingDedicatedServerAddress);
+	return true;
+}
+
+int32 UNF_MatchmakingSubsystem::GetQueueElapsedSeconds() const
+{
+	if (MatchState != ENFMatchState::Queueing && MatchState != ENFMatchState::LobbyWaiting && MatchState != ENFMatchState::ServerPreparing)
+	{
+		return 0;
+	}
+	const FDateTime QueueStart = QueueDeadline - FTimespan::FromSeconds(ActiveQueueDefinition.QueueTimeoutSeconds);
+	return FMath::Max(0, static_cast<int32>((FDateTime::UtcNow() - QueueStart).GetTotalSeconds()));
+}
+
 void UNF_MatchmakingSubsystem::SetMatchState(ENFMatchState NewState)
 {
 	if (MatchState != NewState)
@@ -404,9 +492,9 @@ void UNF_MatchmakingSubsystem::RecalculateQueue()
 	{
 		QueuedPlayerCount += Entry.PlayerIds.Num();
 	}
-	OnQueueCountChanged.Broadcast(QueuedPlayerCount, NF_MatchRules::PlayerCount);
+	OnQueueCountChanged.Broadcast(QueuedPlayerCount, ActiveQueueDefinition.PlayerCount);
 
-	if (QueuedPlayerCount >= NF_MatchRules::PlayerCount)
+	if (QueuedPlayerCount >= ActiveQueueDefinition.PlayerCount)
 	{
 		// Lobby member metadata must be validated by the owner before any client enters preparation.
 		return;
@@ -548,7 +636,7 @@ void UNF_MatchmakingSubsystem::HandleJoinSessionComplete(FName SessionName, EOnJ
 		if (!LocalQueueStart.IsEmpty())
 		{
 			MatchQueueStartUtc = LocalQueueStart;
-			QueueDeadline = FDateTime::FromUnixTimestamp(FCString::Atoi64(*LocalQueueStart)) + FTimespan::FromSeconds(NF_MatchRules::QueueTimeoutSeconds);
+			QueueDeadline = FDateTime::FromUnixTimestamp(FCString::Atoi64(*LocalQueueStart)) + FTimespan::FromSeconds(ActiveQueueDefinition.QueueTimeoutSeconds);
 		}
 		SetMatchState(ENFMatchState::LobbyWaiting);
 		PublishCurrentLobbyMemberData(MatchSessionName, MatchQueueStartUtc);
@@ -643,6 +731,8 @@ void UNF_MatchmakingSubsystem::BeginLobbySearchOrCreate()
 	SessionSearch->bIsLanQuery = false;
 	SessionSearch->MaxSearchResults = 100;
 	SessionSearch->QuerySettings.Set(MatchmakingSessionKey, true, EOnlineComparisonOp::Equals);
+	SessionSearch->QuerySettings.Set(MatchQueueIdKey, ActiveQueueDefinition.QueueId.ToString(), EOnlineComparisonOp::Equals);
+	SessionSearch->QuerySettings.Set(MatchRulesVersionKey, LexToString(ActiveQueueDefinition.RulesVersion), EOnlineComparisonOp::Equals);
 	FindSessionsCompleteHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(
 		FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::HandleFindSessionsComplete));
 	if (!SessionInterface->FindSessions(0, SessionSearch.ToSharedRef()))
@@ -703,8 +793,14 @@ void UNF_MatchmakingSubsystem::HandleFindSessionsComplete(bool bWasSuccessful)
 		for (const FOnlineSessionSearchResult& Result : SessionSearch->SearchResults)
 		{
 			bool bIsMatchmakingLobby = false;
+			FString FoundMatchState;
+			FString FoundQueueId;
+			FString FoundRulesVersion;
 			Result.Session.SessionSettings.Get(MatchmakingSessionKey, bIsMatchmakingLobby);
-			if (!bIsMatchmakingLobby || Result.Session.NumOpenPublicConnections < RequiredConnections)
+			Result.Session.SessionSettings.Get(LobbyMatchStateKey, FoundMatchState);
+			Result.Session.SessionSettings.Get(MatchQueueIdKey, FoundQueueId);
+			Result.Session.SessionSettings.Get(MatchRulesVersionKey, FoundRulesVersion);
+			if (!bIsMatchmakingLobby || FoundQueueId != ActiveQueueDefinition.QueueId.ToString() || FoundRulesVersion != LexToString(ActiveQueueDefinition.RulesVersion) || FoundMatchState != TEXT("LobbyWaiting") || Result.Session.NumOpenPublicConnections < RequiredConnections)
 			{
 				continue;
 			}
@@ -741,7 +837,7 @@ void UNF_MatchmakingSubsystem::HandleFindSessionsComplete(bool bWasSuccessful)
 	SearchRetryCount = 0;
 
 	FOnlineSessionSettings Settings;
-	Settings.NumPublicConnections = NF_MatchRules::PlayerCount;
+	Settings.NumPublicConnections = ActiveQueueDefinition.PlayerCount;
 	Settings.NumPrivateConnections = 0;
 	Settings.bShouldAdvertise = true;
 	Settings.bAllowJoinInProgress = true;
@@ -749,6 +845,8 @@ void UNF_MatchmakingSubsystem::HandleFindSessionsComplete(bool bWasSuccessful)
 	Settings.bUsesPresence = true;
 	Settings.bUseLobbiesIfAvailable = true;
 	Settings.Set(MatchmakingSessionKey, true, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+	Settings.Set(MatchQueueIdKey, ActiveQueueDefinition.QueueId.ToString(), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+	Settings.Set(MatchRulesVersionKey, LexToString(ActiveQueueDefinition.RulesVersion), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	Settings.Set(LobbyKindKey, FString(TEXT("Match")), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	Settings.Set(PartyIdKey, LocalPartyId, EOnlineDataAdvertisementType::ViaOnlineService);
 	Settings.Set(PartyLeaderKey, PlayerPartyLeaderId.FindRef(MakeLocalPlayerId()), EOnlineDataAdvertisementType::ViaOnlineService);
@@ -784,6 +882,28 @@ void UNF_MatchmakingSubsystem::HandleSessionInviteAccepted(const bool bWasSucces
 	{
 		OnMatchmakingFailed.Broadcast(TEXT("Steam 초대에 로비 유형 정보가 없습니다."));
 		return;
+	}
+	if (TargetSessionName == MatchSessionName)
+	{
+		FString InvitedMatchState;
+		FString InvitedQueueId;
+		FString InvitedRulesVersion;
+		InviteResult.Session.SessionSettings.Get(LobbyMatchStateKey, InvitedMatchState);
+		InviteResult.Session.SessionSettings.Get(MatchQueueIdKey, InvitedQueueId);
+		InviteResult.Session.SessionSettings.Get(MatchRulesVersionKey, InvitedRulesVersion);
+		const FName QueueId(*InvitedQueueId);
+		const FNFMatchQueueDefinition* QueueDefinition = MatchQueueDefinitions.Find(QueueId);
+		if (!QueueDefinition || QueueDefinition->RulesVersion != FCString::Atoi(*InvitedRulesVersion))
+		{
+			OnMatchmakingFailed.Broadcast(TEXT("초대받은 매치 대기열 규칙을 현재 클라이언트에서 찾지 못했습니다."));
+			return;
+		}
+		ActiveQueueDefinition = *QueueDefinition;
+		if (InvitedMatchState != TEXT("LobbyWaiting") || InviteResult.Session.NumOpenPublicConnections <= 0)
+		{
+			OnMatchmakingFailed.Broadcast(TEXT("매치 Lobby가 이미 시작 준비 중이거나 빈 자리가 없습니다."));
+			return;
+		}
 	}
 	if (SessionInterface->GetNamedSession(TargetSessionName))
 	{
@@ -824,12 +944,13 @@ void UNF_MatchmakingSubsystem::HandleSessionInviteAccepted(const bool bWasSucces
 		LobbyOwnerId = InviteResult.Session.OwningUserId.IsValid() ? InviteResult.Session.OwningUserId->ToString() : FString();
 		const FString LocalId = MakeLocalPlayerId();
 		FNFMatchQueueEntry PartyQueueEntry;
+		PartyQueueEntry.QueueId = ActiveQueueDefinition.QueueId;
 		PartyQueueEntry.PartyId = PartyId.IsEmpty() ? LocalId : PartyId;
 		PartyQueueEntry.PartyLeaderId = PartyLeaderId.IsEmpty() ? LocalId : PartyLeaderId;
 		PartyQueueEntry.PlayerIds.Add(LocalId);
 		const int64 QueueStartTimestamp = FCString::Atoi64(*MatchQueueStartUtc);
 		const FDateTime QueueStartTime = FDateTime::FromUnixTimestamp(QueueStartTimestamp);
-		const double RemainingSeconds = (QueueStartTime + FTimespan::FromSeconds(NF_MatchRules::QueueTimeoutSeconds) - FDateTime::UtcNow()).GetTotalSeconds();
+		const double RemainingSeconds = (QueueStartTime + FTimespan::FromSeconds(ActiveQueueDefinition.QueueTimeoutSeconds) - FDateTime::UtcNow()).GetTotalSeconds();
 		if (RemainingSeconds <= 0.0)
 		{
 			bJoiningPartyMatchInvite = false;
@@ -846,7 +967,7 @@ void UNF_MatchmakingSubsystem::HandleSessionInviteAccepted(const bool bWasSucces
 		{
 			World->GetTimerManager().SetTimer(QueueTimeoutTimerHandle, this, &ThisClass::HandleQueueTimeout, static_cast<float>(RemainingSeconds), false);
 		}
-		QueueDeadline = QueueStartTime + FTimespan::FromSeconds(NF_MatchRules::QueueTimeoutSeconds);
+		QueueDeadline = QueueStartTime + FTimespan::FromSeconds(ActiveQueueDefinition.QueueTimeoutSeconds);
 		SetMatchState(ENFMatchState::Queueing);
 		RecalculateQueue();
 		if (MatchState == ENFMatchState::ServerPreparing)
@@ -886,6 +1007,7 @@ void UNF_MatchmakingSubsystem::PublishCurrentLobbyMemberData(FName SessionName, 
 		SetSteamLobbyData(LobbyId, "NF_MATCHMAKING", TEXT("1"));
 		SetSteamLobbyData(LobbyId, "NF_LOBBY_KIND", TEXT("Match"));
 		SetSteamLobbyData(LobbyId, LobbyMatchStateKey, TEXT("LobbyWaiting"));
+		SetSteamLobbyData(LobbyId, LobbyQueueIdKey, ActiveQueueDefinition.QueueId.ToString());
 	}
 	if (LobbyId != 0 && SteamMatchmaking())
 	{
@@ -1034,8 +1156,8 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 		}
 	}
 	PreviousMatchMembers = MoveTemp(CurrentMatchMembers);
-	QueuedPlayerCount = FMath::Clamp(SteamMatchmaking()->GetNumLobbyMembers(CSteamID(LobbyId)), 0, NF_MatchRules::PlayerCount);
-	OnQueueCountChanged.Broadcast(QueuedPlayerCount, NF_MatchRules::PlayerCount);
+	QueuedPlayerCount = FMath::Clamp(SteamMatchmaking()->GetNumLobbyMembers(CSteamID(LobbyId)), 0, ActiveQueueDefinition.PlayerCount);
+	OnQueueCountChanged.Broadcast(QueuedPlayerCount, ActiveQueueDefinition.PlayerCount);
 	MatchMemberPartyIds.Reset();
 	if (LobbyId != 0 && SteamMatchmaking())
 	{
@@ -1071,8 +1193,26 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 			}
 		}
 	}
-	if (QueuedPlayerCount >= NF_MatchRules::PlayerCount)
+	if (QueuedPlayerCount >= ActiveQueueDefinition.PlayerCount)
 	{
+		if (bIsLobbyLeader && !bMatchLobbyAdmissionClosed)
+		{
+			const bool bSteamLobbyClosed = SteamMatchmaking()->SetLobbyJoinable(CSteamID(LobbyId), false);
+			if (!bSteamLobbyClosed)
+			{
+				UE_LOG(LogProject_NF, Warning, TEXT("Steam refused to close the full match lobby to new members."));
+			}
+			FOnlineSessionSettings ClosedSettings = NamedSession->SessionSettings;
+			ClosedSettings.bAllowJoinInProgress = false;
+			ClosedSettings.bAllowJoinViaPresence = false;
+			ClosedSettings.bShouldAdvertise = false;
+			const bool bSessionUpdateStarted = SessionInterface->UpdateSession(MatchSessionName, ClosedSettings, true);
+			if (!bSessionUpdateStarted)
+			{
+				UE_LOG(LogProject_NF, Warning, TEXT("Failed to update the full match session to reject new members."));
+			}
+			bMatchLobbyAdmissionClosed = bSteamLobbyClosed || bSessionUpdateStarted;
+		}
 		if (!bTeamsAssigned && bIsLobbyLeader)
 		{
 			TArray<FNFQueuedPlayer> MatchRoster;
@@ -1093,7 +1233,7 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 					return;
 				}
 				const int64 QueueStartTimestamp = FCString::Atoi64(*QueueStartUtc);
-				if (QueueStartTimestamp <= 0 || FDateTime::FromUnixTimestamp(QueueStartTimestamp) + FTimespan::FromSeconds(NF_MatchRules::QueueTimeoutSeconds) <= FDateTime::UtcNow())
+				if (QueueStartTimestamp <= 0 || FDateTime::FromUnixTimestamp(QueueStartTimestamp) + FTimespan::FromSeconds(ActiveQueueDefinition.QueueTimeoutSeconds) <= FDateTime::UtcNow())
 				{
 					OnMatchmakingFailed.Broadcast(TEXT("참가자별 3분 대기 시간이 만료되어 매칭을 취소했습니다."));
 					CancelMatchmaking(MakeLocalPlayerId());
@@ -1105,7 +1245,7 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 				Player.PartyLeaderId = PartyLeaderId;
 			}
 			TArray<FNFMatchTeamAssignment> Teams;
-			if (!NF_AssignMatchTeams(MatchRoster, Teams))
+			if (!NF_AssignMatchTeams(ActiveQueueDefinition, MatchRoster, Teams))
 			{
 				OnMatchmakingFailed.Broadcast(TEXT("Steam Lobby의 8인 명단 또는 파티 정보가 유효하지 않아 매칭을 취소했습니다."));
 				CancelMatchmaking(MakeLocalPlayerId());
@@ -1120,10 +1260,6 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 				return;
 			}
 			OnMatchTeamsAssigned.Broadcast(Teams);
-			FOnlineSessionSettings UpdatedSettings = NamedSession->SessionSettings;
-			UpdatedSettings.bAllowJoinInProgress = false;
-			UpdatedSettings.bShouldAdvertise = false;
-			SessionInterface->UpdateSession(MatchSessionName, UpdatedSettings, true);
 		}
 		if (bIsLobbyLeader)
 		{
@@ -1137,7 +1273,7 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 		else if (!bTeamsAssigned && GetSteamLobbyData(LobbyId, LobbyMatchStateKey) == TEXT("ServerPreparing"))
 		{
 			TArray<FNFMatchTeamAssignment> PublishedTeams;
-			if (!DeserializeTeams(GetSteamLobbyData(LobbyId, LobbyMatchTeamsKey), PublishedTeams))
+			if (!DeserializeTeams(GetSteamLobbyData(LobbyId, LobbyMatchTeamsKey), ActiveQueueDefinition, PublishedTeams))
 			{
 				OnMatchmakingFailed.Broadcast(TEXT("매치 Lobby의 팀 편성 정보가 없거나 유효하지 않습니다."));
 				CancelMatchmaking(MakeLocalPlayerId());
@@ -1160,7 +1296,7 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 	else if (MatchState == ENFMatchState::ServerPreparing && !bIsLobbyLeader)
 	{
 		TArray<FNFMatchTeamAssignment> PublishedTeams;
-		if (DeserializeTeams(GetSteamLobbyData(GetSteamLobbyId(SessionInterface, MatchSessionName), LobbyMatchTeamsKey), PublishedTeams))
+		if (DeserializeTeams(GetSteamLobbyData(GetSteamLobbyId(SessionInterface, MatchSessionName), LobbyMatchTeamsKey), ActiveQueueDefinition, PublishedTeams))
 		{
 			bTeamsAssigned = true;
 			OnMatchTeamsAssigned.Broadcast(PublishedTeams);
