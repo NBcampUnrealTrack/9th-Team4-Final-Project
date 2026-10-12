@@ -2257,6 +2257,9 @@ Content/__ExternalActors__/ProjectNF/Persnal/Myunghyun/Level/InstanceLevel/TestL
 Content/__ExternalActors__/ProjectNF/Persnal/Myunghyun/Level/InstanceLevel/TestLevel_Instance/8/I6/DWCFELJWEA3NZ2PMVBZ9UH.uasset
 Content/__ExternalActors__/ProjectNF/Persnal/Myunghyun/Level/InstanceLevel/TestLevel_Instance/8/NL/DU76RSW4P35OTC90AAJM10.uasset
 Content/__ExternalActors__/ProjectNF/Persnal/Myunghyun/Level/InstanceLevel/TestLevel_Instance/8/OF/ICQUHWRNJBYWA6E9S63APN.uasset
+
+# Local project guidance and design document
+/AGENTS.md
 CLAUDE.md
 ProjectNF_Game_Design_Document.md
 Claude outputs/TIL_GAS_PlayerState_ASC_초기화.md
