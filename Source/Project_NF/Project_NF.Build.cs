@@ -6,6 +6,9 @@ public class Project_NF : ModuleRules
 {
 	public Project_NF(ReadOnlyTargetRules Target) : base(Target)
 	{
+		//PublicDependencyModuleNames.AddRange(new string[] { "EnhancedInput", "AnimGraphRuntime", "Chooser", "PoseSearch", "MotionWarping", "AnimationWarpingRuntime" });
+		PublicIncludePaths.Add(System.IO.Path.Combine(ModuleDirectory, "Player/MotionMatching"));
+
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(new string[] {
@@ -25,8 +28,13 @@ public class Project_NF : ModuleRules
 			"ModelViewViewModel",
 			"FieldNotification",
 			"ContextualAnimation",
+			"Chooser",
 			"PoseSearch",
-			"AnimationModifierLibrary"
+			"MotionWarping",
+			"AnimGraphRuntime",
+			"AnimGraphRuntime",
+			"AnimationModifierLibrary",
+			"AnimationWarpingRuntime"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {"OnlineSubsystem", "OnlineSubsystemUtils" });
