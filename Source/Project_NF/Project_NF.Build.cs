@@ -37,7 +37,10 @@ public class Project_NF : ModuleRules
 			"AnimationWarpingRuntime"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		PrivateDependencyModuleNames.AddRange(new string[] {"OnlineSubsystem", "OnlineSubsystemUtils" });
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "Steamworks");
+		
+		DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
 
 		PublicIncludePaths.AddRange(new string[] {
 			"Project_NF"
