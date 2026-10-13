@@ -7,11 +7,11 @@
 UENUM(BlueprintType)
 enum class ENF_WeaponType : uint8
 {
-	AR,
-	Pistol,
-	SG,
-	SMG,
-	SR
+	AR		UMETA(DisplayName = "Assault Rifle"),
+	Pistol	UMETA(DisplayName = "Pistol"),	
+	SG		UMETA(DisplayName = "Shotgun"),
+	SMG		UMETA(DisplayName = "Submachine Gun"),
+	SR		UMETA(DisplayName = "Sniper Rifle")
 };
 
 UCLASS()
@@ -27,7 +27,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	float Damage = 10.f;
 	
-	// 연사력
+	// 연사력 (RPM)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	float RoundsPerMinute = 300.f;
 

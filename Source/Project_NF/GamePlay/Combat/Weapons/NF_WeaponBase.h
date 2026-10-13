@@ -52,6 +52,8 @@ protected:
 	bool bIsReloading = false;
 
 private:
+	bool bWantsToFire = false;
+
 	FTimerHandle FireTimerHandle;
 	FTimerHandle ReloadTimerHandle;
 };

@@ -32,11 +32,18 @@ void ANF_WeaponBase::StartFire()
 		return;
 	}
 
-	FireOnce();
+	bWantsToFire = true;
+
+	// 이미 다음 발이 예약되어 있으면 중복 타이머를 만들지 않는다.
+	if (GetWorldTimerManager().IsTimerActive(FireTimerHandle) == false)
+	{
+		FireOnce();
+	}
 }
 
 void ANF_WeaponBase::StopFire()
 {
+	bWantsToFire = false;
 	GetWorldTimerManager().ClearTimer(FireTimerHandle);
 }
 
@@ -48,6 +55,12 @@ void ANF_WeaponBase::FireOnce()
 	}
 
 	if (CurrentAmmo <= 0)
+	{
+		StopFire();
+		return;
+	}
+
+	if (WeaponData->ProjectileClass == nullptr)
 	{
 		StopFire();
 		return;
@@ -76,13 +89,22 @@ void ANF_WeaponBase::FireOnce()
 	Projectile->InitializeProjectile(WeaponData->ProjectileSpeed);
 
 	--CurrentAmmo;
+
+	// 반복 타이머가 아니라 매 발마다 RPM을 다시 읽는다.
+	if (bWantsToFire && CurrentAmmo > 0)
+	{
+		GetWorldTimerManager().SetTimer(
+			FireTimerHandle,
+			this,
+			&ANF_WeaponBase::FireOnce,
+			GetFireInterval(),
+			false);
+	}
 }
 
 void ANF_WeaponBase::Reload()
 {
-	if (!IsValid(WeaponData) ||
-		bIsReloading ||
-		CurrentAmmo >= WeaponData->MagazineSize)
+	if (IsValid(WeaponData) == false || bIsReloading || CurrentAmmo >= WeaponData->MagazineSize)
 	{
 		return;
 	}

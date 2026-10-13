@@ -31,7 +31,7 @@ public:
 	ANF_WeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
 protected:
-	/** 기본값으로 BP_Weapon_Pistol을 지정 */
+	// 기본값으로 BP_Weapon_Pistol을 지정
 	UPROPERTY(EditDefaultsOnly, Category="Weapon")
 	TSubclassOf<ANF_WeaponBase> DefaultWeaponClass;
 
