@@ -12,12 +12,10 @@ void ANF_GameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (ANF_GameState* NFGameState = GetNFGameState())
-	{
-		NFGameState->AuthoritySetUntimedMatchPhase(
-			ENF_MatchPhase::Waiting
-		);
-	}
+	ANF_GameState* NFGameState = GetNFGameState();
+	if (!NFGameState)return;
+
+	NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Waiting);
 }
 
 void ANF_GameMode::PostLogin(APlayerController* NewPlayer)
@@ -41,13 +39,10 @@ void ANF_GameMode::TryStartBuild()
 {
 	const ANF_GameState* NFGameState = GetNFGameState();
 
-	if (!NFGameState ||
-		NFGameState->GetMatchPhase() != ENF_MatchPhase::Waiting ||
-		GetNumPlayers() != RequiredPlayers ||
-		!bTeamsReady)
-	{
-		return;
-	}
+	if (!NFGameState) return;
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Waiting)return;;
+	if (GetNumPlayers() != RequiredPlayers)return;
+	if (!bTeamsReady) return;
 
 	EnterBuild();
 }
@@ -56,13 +51,8 @@ void ANF_GameMode::EnterBuild()
 {
 	ANF_GameState* NFGameState = GetNFGameState();
 
-	if (!NFGameState ||
-		!NFGameState->AuthoritySetTimedMatchPhase(
-			ENF_MatchPhase::Build,
-			BuildDuration))
-	{
-		return;
-	}
+	if (!NFGameState)return;
+	if (!NFGameState->AuthoritySetTimedMatchPhase(ENF_MatchPhase::Build, BuildDuration)) return;
 
 	GetWorldTimerManager().SetTimer(
 		PhaseTimerHandle,
@@ -77,14 +67,9 @@ void ANF_GameMode::EnterFarming()
 {
 	ANF_GameState* NFGameState = GetNFGameState();
 
-	if (!NFGameState ||
-		NFGameState->GetMatchPhase() != ENF_MatchPhase::Build ||
-		!NFGameState->AuthoritySetTimedMatchPhase(
-			ENF_MatchPhase::Farming,
-			FarmingDuration))
-	{
-		return;
-	}
+	if (!NFGameState)return;
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Build)return;
+	if (!NFGameState->AuthoritySetTimedMatchPhase(ENF_MatchPhase::Farming, FarmingDuration)) return;
 
 	GetWorldTimerManager().SetTimer(
 		PhaseTimerHandle,
@@ -99,66 +84,55 @@ void ANF_GameMode::EnterBoss()
 {
 	ANF_GameState* NFGameState = GetNFGameState();
 
-	if (!NFGameState ||
-		NFGameState->GetMatchPhase() != ENF_MatchPhase::Farming)
-	{
-		return;
-	}
+	if (!NFGameState) return;
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Farming) return;
+
 
 	GetWorldTimerManager().ClearTimer(PhaseTimerHandle);
-	NFGameState->AuthoritySetUntimedMatchPhase(
-		ENF_MatchPhase::Boss
-	);
+	NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Boss);
 
-	// 여기서 명우의 보스 출현 시스템에 서버 이벤트 전달
+	// 보스 출현 시스템에 서버 이벤트 전달
 }
 
 void ANF_GameMode::NotifyBossResolved()
 {
 	const ANF_GameState* NFGameState = GetNFGameState();
 
-	if (!NFGameState ||
-		NFGameState->GetMatchPhase() != ENF_MatchPhase::Boss)
-	{
-		return;
-	}
+	if (!NFGameState) return;
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Boss) return;
 
 	EnterEscape();
 }
 
 void ANF_GameMode::EnterEscape()
 {
-	if (ANF_GameState* NFGameState = GetNFGameState())
-	{
-		NFGameState->AuthoritySetUntimedMatchPhase(
-			ENF_MatchPhase::Escape
-		);
-	}
+	ANF_GameState* NFGameState = GetNFGameState();
+	
+	if (!NFGameState) return;
+	
+	NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Escape);
 
-	// 지우의 부활 시스템에는 '이제 부활 불가'를 전달
+	//부활 시스템에 부활 불가 상태 전달
 }
 
 void ANF_GameMode::NotifyEscapeSucceeded()
 {
 	const ANF_GameState* NFGameState = GetNFGameState();
 
-	if (!NFGameState ||
-		NFGameState->GetMatchPhase() != ENF_MatchPhase::Escape)
-	{
-		return;
-	}
+	if (!NFGameState) return;;
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Escape) return;
 
 	EnterFinished();
 }
 
 void ANF_GameMode::EnterFinished()
 {
-	if (ANF_GameState* NFGameState = GetNFGameState())
-	{
-		NFGameState->AuthoritySetUntimedMatchPhase(
-			ENF_MatchPhase::Finished
-		);
-	}
+	ANF_GameState* NFGameState = GetNFGameState();
+	
+	if (!NFGameState) return;
+	
+	NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Finished);
+	
 
-	// 다음 작업: 승리 팀 기록, 결과 UI용 데이터 복제, 매치 정리
+	// 승리 팀 기록, 결과 UI용 데이터 복제, 매치 정리 등
 }
