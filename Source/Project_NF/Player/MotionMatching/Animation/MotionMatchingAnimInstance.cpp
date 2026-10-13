@@ -34,14 +34,12 @@ UCharacterMovementComponent* UMotionMatchingAnimInstance::GetOwningCharacterMove
 }
 
 
-// [추가] A-5
 void UMotionMatchingAnimInstance::SetTraversalInteractionTransform(const FTransform& NewInteractionTransform)
 {
 	TraversalInteractionTransform = NewInteractionTransform;
 }
 
 
-// [추가] A-5
 FTransform UMotionMatchingAnimInstance::GetTraversalInteractionTransformFromAnimInstance(const UAnimInstance* AnimInstance)
 {
 	const UMotionMatchingAnimInstance* MotionMatchingAnimInstance = Cast<UMotionMatchingAnimInstance>(AnimInstance);
