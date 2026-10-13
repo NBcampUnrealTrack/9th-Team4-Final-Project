@@ -3,14 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Abilities/GameplayAbility.h"
-#include "GA_Test.generated.h"
+#include "AttributeSet.h"
+#include "NF_PlayerStatusAttribute.generated.h"
 
-/**
- * 
- */
 UCLASS()
-class PROJECT_NF_API UGA_Test : public UGameplayAbility
+class PROJECT_NF_API UNF_PlayerStatusAttribute : public UAttributeSet
 {
 	GENERATED_BODY()
 };
