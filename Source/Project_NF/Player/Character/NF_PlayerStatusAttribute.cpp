@@ -3,6 +3,7 @@
 
 #include "NF_PlayerStatusAttribute.h"
 
+#include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 
 UNF_PlayerStatusAttribute::UNF_PlayerStatusAttribute()
@@ -46,6 +47,39 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxShield());
 	}
 }
+
+
+void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
+{
+	Super::PostGameplayEffectExecute(Data);
+	
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	{
+		SetHealth(FMath::Clamp<float>(GetHealth(), 0.0f, GetMaxHealth()));
+		
+		if (GetHealth() <= 0.0f && bIsOutOfHealth == false)
+		{
+			bIsOutOfHealth = true;
+			OnOutOfHealth.Broadcast();
+		}
+		
+		return;
+	}
+	
+	if (Data.EvaluatedData.Attribute == GetShieldAttribute())
+	{
+		SetShield(FMath::Clamp<float>(GetShield(), 0.0f, GetMaxShield()));
+		
+		if (GetShield() <= 0.0f && bIsOutOfShield == false)
+		{
+			bIsOutOfShield = true;
+			OnOutOfShield.Broadcast();
+		}
+		
+		return;
+	}
+}
+
 
 void UNF_PlayerStatusAttribute::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {

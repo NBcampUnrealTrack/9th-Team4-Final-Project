@@ -27,6 +27,7 @@ public:
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, Shield);
 	
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
+	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 	
 	UPROPERTY(BlueprintAssignable)
 	mutable FOnOutOfHealth OnOutOfHealth;	
@@ -74,5 +75,10 @@ protected:
 	
 	UFUNCTION()
 	void OnRep_Shield(const FGameplayAttributeData& OldShield);
+
+
+private:
+	bool bIsOutOfHealth = false;
+	bool bIsOutOfShield = false;
 	
 };

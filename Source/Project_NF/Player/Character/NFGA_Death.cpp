@@ -1,6 +1,8 @@
 ﻿
 #include "NFGA_Death.h"
 
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -17,10 +19,16 @@ void UNFGA_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	
 	UKismetSystemLibrary::PrintString(GetAvatarActorFromActorInfo(),
-									  (TEXT("[Test] GA가 발동했습니다.]")),
+									  (TEXT("[Death] GA가 실행됐습니다.]")),
 									  true, true, FColor::Magenta, 10.0f);
 	
-	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+	auto* AvatarCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (IsValid(AvatarCharacter) == false) return;
+	
+	AvatarCharacter->GetCharacterMovement()->SetMovementMode(MOVE_None);
+	
+	//EndAbility(Handle, ActorInfo, ActivationInfo, true , false);
+	
 }
 
 

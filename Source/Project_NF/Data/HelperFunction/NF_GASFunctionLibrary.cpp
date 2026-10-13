@@ -28,6 +28,8 @@ void UNF_GASFunctionLibrary::NF_TryAbility(AActor* TargetActor, const FGameplayT
 
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 	if (IsValid(ASC) == false) return;
+	
+	ASC->TryActivateAbilitiesByTag(FGameplayTagContainer(AbilityTagToUse)); 
 
 }
 

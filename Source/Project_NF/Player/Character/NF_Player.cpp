@@ -68,8 +68,6 @@ void ANF_Player::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 	
-	GetAbilitySystemComponent()->GetSet<UNF_PlayerStatusAttribute>()->OnOutOfHealth.AddDynamic(this, &ThisClass::OnOutOfHealthCpp);
-	GetAbilitySystemComponent()->GetSet<UNF_PlayerStatusAttribute>()->OnOutOfShield.AddDynamic(this, &ThisClass::OnOutOfShieldCpp);
 }
 
 void ANF_Player::PossessedBy(AController* NewController)
@@ -100,6 +98,12 @@ void ANF_Player::InitAbilitySystem()
 
 	ASC->InitAbilityActorInfo(NF_PlayerState, this);
 	
+	const UNF_PlayerStatusAttribute* PlayerStatusAttribute = ASC->GetSet<UNF_PlayerStatusAttribute>(); 
+	if (IsValid(PlayerStatusAttribute) == true)
+	{
+		PlayerStatusAttribute->OnOutOfHealth.AddUniqueDynamic(this, &ThisClass::OnOutOfHealthCpp);  
+		PlayerStatusAttribute->OnOutOfShield.AddUniqueDynamic(this, &ThisClass::OnOutOfShieldCpp); 
+	}
 	
 	if (HasAuthority() == true)
 	{
@@ -119,11 +123,10 @@ void ANF_Player::InitAbilitySystem()
 
 void ANF_Player::AddGameplayAbility()
 {
-	
-	GameplayAbilityArray.Add(UNFGA_Death::StaticClass()); //이건 예시이고, 실제로 어빌리티 왕창 추가해놔야함
-	
+	//GameplayAbilityArray.Add(UNFGA_Death::StaticClass()); //이건 예시이고, 실제로 어빌리티 왕창 추가해놔야함
 	
 }
+
 
 void ANF_Player::OnOutOfHealthCpp()
 {
