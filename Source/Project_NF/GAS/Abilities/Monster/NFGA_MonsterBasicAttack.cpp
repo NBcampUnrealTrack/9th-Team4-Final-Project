@@ -27,7 +27,7 @@ void UNFGA_MonsterBasicAttack::ActivateAbility(
     const FGameplayAbilityActorInfo* ActorInfo,
     const FGameplayAbilityActivationInfo ActivationInfo,
     const FGameplayEventData* TriggerEventData)
-{
+{     
     if (!AttackMontage || !CommitAbility(
         Handle,
         ActorInfo,
