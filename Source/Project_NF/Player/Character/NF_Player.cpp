@@ -1,11 +1,15 @@
 #include "NF_Player.h"
 
 #include "AbilitySystemComponent.h"
+#include "NFGA_Death.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Component/MotionMatchingComponent.h"
 #include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
+#include "NF_PlayerStatusAttribute.h"
+#include "Data/HelperFunction/NF_GASFunctionLibrary.h"
+#include "GAS/Tags/NFTag_Player.h"
 #include "Player/State/NF_PlayerState.h"
 
 
@@ -60,6 +64,14 @@ class UAbilitySystemComponent* ANF_Player::GetAbilitySystemComponent() const
 }
 
 
+void ANF_Player::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	
+	GetAbilitySystemComponent()->GetSet<UNF_PlayerStatusAttribute>()->OnOutOfHealth.AddDynamic(this, &ThisClass::OnOutOfHealthCpp);
+	GetAbilitySystemComponent()->GetSet<UNF_PlayerStatusAttribute>()->OnOutOfShield.AddDynamic(this, &ThisClass::OnOutOfShieldCpp);
+}
+
 void ANF_Player::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
@@ -91,15 +103,40 @@ void ANF_Player::InitAbilitySystem()
 	
 	if (HasAuthority() == true)
 	{
-		GameplayAbilityArray.Add(UGameplayAbility::StaticClass());
-	
+		AddGameplayAbility();
 		for (const auto& EachAbility : GameplayAbilityArray)
 		{
 			if (IsValid(EachAbility) == false) continue;
+			
 			if (ASC->FindAbilitySpecFromClass(EachAbility) == nullptr)
 			{
 				ASC->GiveAbility(FGameplayAbilitySpec(EachAbility));
 			}
 		}
 	}
+}
+
+
+void ANF_Player::AddGameplayAbility()
+{
+	
+	GameplayAbilityArray.Add(UNFGA_Death::StaticClass()); //이건 예시이고, 실제로 어빌리티 왕창 추가해놔야함
+	
+	
+}
+
+void ANF_Player::OnOutOfHealthCpp()
+{
+	UKismetSystemLibrary::PrintString(this,
+										  (TEXT("Death 실행 예정")),
+										  true, true, FColor::Magenta, 10.0f);
+	
+	UNF_GASFunctionLibrary::NF_TryAbility(this, NFTag_Player::Character_Ability_Death);
+}
+
+void ANF_Player::OnOutOfShieldCpp()
+{
+		UKismetSystemLibrary::PrintString(this,
+    										  (TEXT("쉴드가 깨짐에 대한 로직 실행 예정")),
+    										  true, true, FColor::Magenta, 10.0f);
 }

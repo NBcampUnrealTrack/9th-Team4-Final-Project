@@ -23,7 +23,10 @@ public:
 	
 
 protected:
+	virtual void PostInitializeComponents() override;
+	
 	virtual void PossessedBy(AController* NewController) override;
+	
 	virtual void OnRep_PlayerState() override;
 	
 	virtual void BeginPlay() override;
@@ -47,4 +50,11 @@ protected:
 	
 private:
 	void InitAbilitySystem();
+	void AddGameplayAbility();
+	
+	UFUNCTION()
+	void OnOutOfHealthCpp();
+	UFUNCTION()
+	void OnOutOfShieldCpp();
+	
 };

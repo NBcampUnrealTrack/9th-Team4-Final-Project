@@ -21,4 +21,7 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UInputAction> SkillButton_B;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputAction> InteractButton;
 };

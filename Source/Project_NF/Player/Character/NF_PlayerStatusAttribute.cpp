@@ -2,3 +2,91 @@
 
 
 #include "NF_PlayerStatusAttribute.h"
+
+#include "Net/UnrealNetwork.h"
+
+UNF_PlayerStatusAttribute::UNF_PlayerStatusAttribute()
+{
+	InitHealth(GetMaxHealth());
+	InitDefence(GetMaxDefence());
+	InitShield(GetMaxShield());
+}
+
+void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
+{
+	Super::PreAttributeChange(Attribute, NewValue);
+	
+	if (Attribute == GetMaxHealthAttribute())
+	{
+		NewValue = FMath::Max<float>(1.0f, NewValue);
+	}
+	
+	else if (Attribute == GetHealthAttribute())
+	{
+		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxHealth());
+	}
+	
+	if (Attribute == GetMaxDefenceAttribute())
+	{
+		NewValue = FMath::Max<float>(1.0f, NewValue);
+	}
+	
+	else if (Attribute == GetDefenceAttribute())
+	{
+		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxDefence());
+	}
+	
+	if (Attribute == GetMaxShieldAttribute())
+	{
+		NewValue = FMath::Max<float>(1.0f, NewValue);
+	}
+	
+	else if (Attribute == GetShieldAttribute())
+	{
+		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxShield());
+	}
+}
+
+void UNF_PlayerStatusAttribute::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxHealth, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Health, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxDefence, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Defence, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxShield, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Shield, COND_None, REPNOTIFY_Always);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MaxHealth, OldMaxHealth);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_Health(const FGameplayAttributeData& OldHealth)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, Health, OldHealth);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_MaxDefence(const FGameplayAttributeData& OldMaxDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MaxDefence, OldMaxDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_Defence(const FGameplayAttributeData& OldDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, Defence, OldDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_MaxShield(const FGameplayAttributeData& OldMaxShield)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MaxShield, OldMaxShield);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_Shield(const FGameplayAttributeData& OldShield)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, Shield, OldShield);
+}
+
+

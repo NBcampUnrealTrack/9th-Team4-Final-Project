@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "GAS/Foundation/NF_AbilitySystemComponent.h"
 #include "GAS/Tags/NFTag_TagGroup.h"
+#include "Player/Character/NF_PlayerStatusAttribute.h"
 
 ANF_PlayerState::ANF_PlayerState()
 {
@@ -15,7 +16,7 @@ ANF_PlayerState::ANF_PlayerState()
 	PlayerASC->SetIsReplicated(true);
 	PlayerASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	
-	//Attribute Set
+	PlayerStatusAttribute = CreateDefaultSubobject<UNF_PlayerStatusAttribute>(TEXT("PlayerStatusAttribute"));
 	
 }
 
