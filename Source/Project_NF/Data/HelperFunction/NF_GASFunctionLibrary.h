@@ -16,8 +16,7 @@ public:
 	static bool NF_InitAttributeSetDefaultsFromCurveTable(UAbilitySystemComponent* ASC, FName GroupName, int32 Level = 1, bool bFirstInit = true);
 	
 	UFUNCTION(BlueprintCallable, Category = "NF_GASFunctionLibrary", meta = (DefaultToSelf = "TargetActor", AutoCreateRefTerm = "AbilityTagToUse"))
-	static void NF_TryAbility(AActor* TargetActor, const FGameplayTag& AbilityTagToUse,
-	                           float DelayToDestroyed = 5.0f);
+	static void NF_TryAbility(AActor* TargetActor, const FGameplayTag& AbilityTagToUse);
 
 	UFUNCTION(BlueprintCallable, Category = "NF_GASFunctionLibrary", meta = (DefaultToSelf = "WorldContext", AutoCreateRefTerm = "GameplayEventTag"))
 	static void NF_SendGameplayEventTagToActorWithPayloadData(UObject* WorldContext, const FGameplayTag& GameplayEventTag,

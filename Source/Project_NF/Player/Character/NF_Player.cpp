@@ -1,19 +1,26 @@
 #include "NF_Player.h"
 
 #include "AbilitySystemComponent.h"
-#include "GA_Test.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Component/MotionMatchingComponent.h"
 #include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
-#include "Data/HelperFunction/NF_GASFunctionLibraryComponent.h"
 #include "Player/State/NF_PlayerState.h"
 
 
 ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UMotionMatchingCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
+	//VisualMesh
+	VisualMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("VisualMesh"));
+	if (IsValid(GetMesh()) == true)
+	{
+		GetMesh()->SetHiddenInGame(true);
+		GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		VisualMesh->SetupAttachment(GetMesh());
+	}
+	
 	
 	//CameraSet
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
@@ -33,10 +40,6 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//MotionMatching
 	MotionMatchingComponent = CreateDefaultSubobject<UMotionMatchingComponent>(TEXT("MotionMatchingComponent"));
 	CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
-
-	
-	//Helper
-	NF_GASFunctionLibraryComponent = CreateDefaultSubobject<UNF_GASFunctionLibraryComponent>(TEXT("NF_GASFunctionLibraryComponent"));
 }
 
 
@@ -88,7 +91,7 @@ void ANF_Player::InitAbilitySystem()
 	
 	if (HasAuthority() == true)
 	{
-		GameplayAbilityArray.Add(UGA_Test::StaticClass());
+		GameplayAbilityArray.Add(UGameplayAbility::StaticClass());
 	
 		for (const auto& EachAbility : GameplayAbilityArray)
 		{

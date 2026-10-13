@@ -17,8 +17,8 @@ public:
 	TObjectPtr<UInputMappingContext> NF_PlayerIMC;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
-	TObjectPtr<UInputAction> SkillButtonA;
+	TObjectPtr<UInputAction> SkillButton_A;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
-	TObjectPtr<UInputAction> SkillButtonB;
+	TObjectPtr<UInputAction> SkillButton_B;
 };

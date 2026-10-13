@@ -30,6 +30,10 @@ public:
 	TObjectPtr<UNF_AbilitySystemComponent> PlayerASC;
 	
 	
+	//BuildSystem
+	
+	
+	
 	
 protected:
 	virtual void BeginPlay() override;

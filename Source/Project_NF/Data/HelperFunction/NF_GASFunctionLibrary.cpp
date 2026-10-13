@@ -7,8 +7,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 
 
-void UNF_GASFunctionLibrary::NF_TryAbility(AActor* TargetActor, const FGameplayTag& AbilityTagToUse,
-                                          float DelayToDestroyed)
+void UNF_GASFunctionLibrary::NF_TryAbility(AActor* TargetActor, const FGameplayTag& AbilityTagToUse)
 {
 	if (IsValid(TargetActor) == false)
 	{

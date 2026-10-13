@@ -32,16 +32,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|MotionMatching")
 	TObjectPtr<UMotionMatchingComponent> MotionMatchingComponent;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
+	TObjectPtr<USkeletalMeshComponent> VisualMesh;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
 	TObjectPtr<USpringArmComponent> SpringArmComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
 	TObjectPtr<UCameraComponent> CameraComponent;
-	
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS|Helper")
-	TObjectPtr<UNF_GASFunctionLibraryComponent> NF_GASFunctionLibraryComponent;
 	
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "GAS|GameplayAbility")
 	TArray<TSubclassOf<class UGameplayAbility>> GameplayAbilityArray;
