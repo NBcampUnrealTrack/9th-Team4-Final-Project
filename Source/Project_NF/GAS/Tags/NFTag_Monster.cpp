@@ -1,6 +1,6 @@
 #include "GAS/Tags/NFTag_Monster.h"
 
-namespace NF_MonsterGameplayTags
+namespace NFTag_Monster
 {
 	//@경환 | 2026-10-12
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(
@@ -22,4 +22,10 @@ namespace NF_MonsterGameplayTags
 		State_Monster_Stunned,
 		"State.Monster.Stunned",
 		"몬스터가 기절하여 행동할 수 없는 상태입니다.");
+	
+	//@경환 | 2026-10-13
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(
+		Ability_Monster_BasicAttack,
+		"Ability.Monster.BasicAttack",
+		"일반 몬스터의 기본 공격 Ability");
 }

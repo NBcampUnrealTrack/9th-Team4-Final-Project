@@ -10,6 +10,8 @@ ANF_MonsterAIController::ANF_MonsterAIController()
 	MonsterPerceptionComponent =
 		CreateDefaultSubobject<UAIPerceptionComponent>(
 			TEXT("MonsterPerceptionComponent"));
+	
+	SetPerceptionComponent(*MonsterPerceptionComponent);
 
 	SightConfig =
 		CreateDefaultSubobject<UAISenseConfig_Sight>(
@@ -28,22 +30,47 @@ ANF_MonsterAIController::ANF_MonsterAIController()
 
 	MonsterPerceptionComponent->SetDominantSense(
 		SightConfig->GetSenseImplementation());
+	
+	MonsterPerceptionComponent->OnTargetPerceptionUpdated.AddDynamic(
+	this,
+	&ANF_MonsterAIController::HandleTargetPerceptionUpdated);
 }
 
 void ANF_MonsterAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	if (MonsterBehaviorTree)
+	if (!MonsterBehaviorTree)
 	{
-		RunBehaviorTree(MonsterBehaviorTree);
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("Monster AI: Behavior Tree가 지정되지 않았습니다."));
+
+		return;
 	}
+
+	const bool bBehaviorTreeStarted =
+		RunBehaviorTree(MonsterBehaviorTree);
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster AI: Behavior Tree 시작 결과 = %s"),
+		bBehaviorTreeStarted ? TEXT("True") : TEXT("False"));
 }
 
 void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 	AActor* UpdatedActor,
 	FAIStimulus Stimulus)
 {
+	UE_LOG(
+	LogTemp,
+	Warning,
+	TEXT("Perception: %s / Sensed: %s"),
+	*GetNameSafe(UpdatedActor),
+	Stimulus.WasSuccessfullySensed() ? TEXT("True") : TEXT("False"));
+	
 	APawn* DetectedPawn = Cast<APawn>(UpdatedActor);
 
 	if (!DetectedPawn || !DetectedPawn->IsPlayerControlled()) {	return;	}
@@ -51,10 +78,20 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 	UBlackboardComponent* BlackboardComponent =
 		GetBlackboardComponent();
 
-	if (!BlackboardComponent) {	return;	}
+	if (!BlackboardComponent)
+	{
+		UE_LOG(
+		LogTemp,
+		Error,
+		TEXT("Monster AI: BlackboardComponent가 없습니다."));
+		
+		return;
+	}
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
+		SetFocus(UpdatedActor);
+		
 		BlackboardComponent->SetValueAsObject(
 			TargetActorKeyName,
 			UpdatedActor);
@@ -65,6 +102,8 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 	if (BlackboardComponent->GetValueAsObject(TargetActorKeyName)
 		== UpdatedActor)
 	{
+		ClearFocus(EAIFocusPriority::Gameplay);
+		
 		BlackboardComponent->ClearValue(TargetActorKeyName);
 	}
 }
