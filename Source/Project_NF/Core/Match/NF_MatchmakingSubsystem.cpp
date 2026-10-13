@@ -4,6 +4,7 @@
 
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "UObject/UObjectGlobals.h"
 #include "Project_NF.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
@@ -120,9 +121,17 @@ namespace
 	}
 }
 
+bool UNF_MatchmakingSubsystem::ShouldCreateSubsystem(UObject* /*Outer*/) const
+{
+	return false;
+}
+
 void UNF_MatchmakingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(
+		this, &ThisClass::HandlePostLoadMap);
+
 	RegisterMatchQueueDefinition(FNFMatchQueueDefinition());
 	if (IOnlineSubsystem* OnlineSubsystem = Online::GetSubsystem(GetWorld()))
 	{
@@ -143,6 +152,12 @@ void UNF_MatchmakingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UNF_MatchmakingSubsystem::Deinitialize()
 {
+	if (PostLoadMapHandle.IsValid())
+	{
+		FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadMapHandle);
+		PostLoadMapHandle.Reset();
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(QueueTimeoutTimerHandle);
@@ -152,6 +167,21 @@ void UNF_MatchmakingSubsystem::Deinitialize()
 	}
 	CleanupSession();
 	Super::Deinitialize();
+}
+
+void UNF_MatchmakingSubsystem::HandlePostLoadMap(UWorld* LoadedWorld)
+{
+	if (!LoadedWorld)
+	{
+		return;
+	}
+
+	const FString MapPackageName = LoadedWorld->GetOutermost()->GetName();
+	UE_LOG(LogProject_NF, Warning,
+		TEXT("[MapDiag] Loaded map: Package=%s World=%s NetMode=%d"),
+		*MapPackageName,
+		*LoadedWorld->GetMapName(),
+		static_cast<int32>(LoadedWorld->GetNetMode()));
 }
 
 bool UNF_MatchmakingSubsystem::CreateParty(const FString& LeaderId, FString& OutPartyId)
