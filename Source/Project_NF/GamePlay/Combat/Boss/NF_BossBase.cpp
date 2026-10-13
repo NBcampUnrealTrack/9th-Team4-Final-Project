@@ -59,6 +59,17 @@ void ANF_BossBase::HandleGameplayCue(UObject* Self, const FGameplayTag GameplayC
 void ANF_BossBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	const UWorld* World = GetWorld();
+	UE_LOG(LogTemp, Warning,
+		TEXT("[BossDiag] BeginPlay Actor=%s Map=%s Authority=%d NetMode=%d Replicates=%d LocalRole=%d"),
+		*GetPathName(),
+		World ? *World->GetMapName() : TEXT("<NoWorld>"),
+		HasAuthority() ? 1 : 0,
+		World ? static_cast<int32>(World->GetNetMode()) : INDEX_NONE,
+		GetIsReplicated() ? 1 : 0,
+		static_cast<int32>(GetLocalRole()));
+
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
 
 	if (!HasAuthority() || !InitialPatternAbility)
