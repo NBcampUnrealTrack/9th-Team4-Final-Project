@@ -2,13 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "ㅜㄹ_PlayerInputDataAsset.generated.h"
+#include "NF_PlayerInputDataAsset.generated.h"
 
 class UInputAction;
 class UInputMappingContext;
 
 UCLASS()
-class PROJECT_NF_API Uㅜㄹ_PlayerInputDataAsset : public UDataAsset
+class PROJECT_NF_API UNF_PlayerInputDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 	
