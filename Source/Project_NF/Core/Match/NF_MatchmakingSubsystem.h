@@ -14,6 +14,9 @@ struct FNFMatchQueueEntry
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadOnly)
+	FName QueueId;
+
+	UPROPERTY(BlueprintReadOnly)
 	FString PartyId;
 
 	UPROPERTY(BlueprintReadOnly)
@@ -38,6 +41,7 @@ class UNF_MatchmakingSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
@@ -56,14 +60,44 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Queue")
 	bool StartMatchmaking(const FString& PlayerId);
 
+	/** Starts matchmaking in a registered queue. Existing callers continue to use the default queue above. */
+	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Queue")
+	bool StartMatchmakingInQueue(const FString& PlayerId, FName QueueId);
+
+	/** Adds or replaces a queue definition. Each client build must register the same definition for its QueueId. */
+	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Queue")
+	bool RegisterMatchQueueDefinition(const FNFMatchQueueDefinition& Definition);
+
+	UFUNCTION(BlueprintPure, Category = "Matchmaking|Queue")
+	TArray<FNFMatchQueueDefinition> GetAvailableMatchQueues() const;
+
+	UFUNCTION(BlueprintPure, Category = "Matchmaking|Queue")
+	FName GetCurrentQueueId() const { return ActiveQueueDefinition.QueueId; }
+
 	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Queue")
 	void CancelMatchmaking(const FString& PlayerId);
+
+	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Queue")
+	bool StartLocalMatchmaking();
+
+	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Queue")
+	bool StartLocalMatchmakingInQueue(FName QueueId);
+
+	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Queue")
+	void CancelLocalMatchmaking();
+
+	/** Receives a future dedicated-server allocation result. This stores the address as a handoff hook; travel is not performed yet. */
+	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Server")
+	bool HandleDedicatedServerReady(const FString& ConnectAddress);
 
 	UFUNCTION(BlueprintPure, Category = "Matchmaking")
 	ENFMatchState GetMatchState() const { return MatchState; }
 
 	UFUNCTION(BlueprintPure, Category = "Matchmaking|Queue")
 	int32 GetQueuedPlayerCount() const { return QueuedPlayerCount; }
+
+	UFUNCTION(BlueprintPure, Category = "Matchmaking|Queue")
+	int32 GetQueueElapsedSeconds() const;
 
 	UPROPERTY(BlueprintAssignable, Category = "Matchmaking")
 	FNFMatchStateChanged OnMatchStateChanged;
@@ -100,6 +134,7 @@ private:
 	void InvitePartyMembersToMatchLobby();
 	void RefreshPartyRoster();
 	void HandleSessionFailure(const FUniqueNetId& PlayerId, ESessionFailure::Type FailureType);
+	void HandlePostLoadMap(UWorld* LoadedWorld);
 	void CleanupSession();
 	void CancelWholeQueuedParty(const FString& PlayerId);
 	FString MakeLocalPlayerId() const;
@@ -108,6 +143,8 @@ private:
 	TMap<FString, FPartyRecord> Parties;
 	TMap<FString, FString> PlayerToParty;
 	TArray<FNFMatchQueueEntry> QueueEntries;
+	TMap<FName, FNFMatchQueueDefinition> MatchQueueDefinitions;
+	FNFMatchQueueDefinition ActiveQueueDefinition;
 	TMap<FString, FString> PlayerPartyId;
 	TMap<FString, FString> PlayerPartyLeaderId;
 	TMap<FString, FDateTime> PlayerQueueJoinTime;
@@ -122,6 +159,7 @@ private:
 	FDelegateHandle SessionParticipantLeftHandle;
 	FDelegateHandle SessionFailureHandle;
 	FDelegateHandle SessionUserInviteAcceptedHandle;
+	FDelegateHandle PostLoadMapHandle;
 	FTimerHandle QueueTimeoutTimerHandle;
 	FTimerHandle LobbyRefreshTimerHandle;
 	FTimerHandle PartyRefreshTimerHandle;
@@ -131,6 +169,7 @@ private:
 	FString LobbyOwnerId;
 	FString PendingPartyId;
 	FString PendingPartyLeaderId;
+	FString PendingDedicatedServerAddress;
 	FString MatchQueueStartUtc;
 	TMap<FString, FString> MatchMemberPartyIds;
 	TSet<FString> PreviousMatchMembers;
@@ -138,6 +177,7 @@ private:
 	ENFMatchState MatchState = ENFMatchState::Ended;
 	bool bCreateSessionInFlight = false;
 	bool bIsLobbyLeader = false;
+	bool bMatchLobbyAdmissionClosed = false;
 	bool bTeamsAssigned = false;
 	bool bJoiningPartyMatchInvite = false;
 	int32 SearchRetryCount = 0;

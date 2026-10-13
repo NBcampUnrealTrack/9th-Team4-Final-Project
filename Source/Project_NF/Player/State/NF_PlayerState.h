@@ -5,6 +5,7 @@
 #include "GameFramework/PlayerState.h"
 #include "NF_PlayerState.generated.h"
 
+class UNF_PlayerStatusAttribute;
 class UNF_AbilitySystemComponent;
 
 UCLASS()
@@ -22,14 +23,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Core|ID")
 	int32 NF_PlayerID;
 	
-	
+
 	//GAS
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS|ASC")
-	TObjectPtr<UNF_AbilitySystemComponent> NF_ASC;
+	TObjectPtr<UNF_AbilitySystemComponent> PlayerASC;
 	
-	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS|Attribute")
+	TObjectPtr<UNF_PlayerStatusAttribute> PlayerStatusAttribute; 
+
 	
 protected:
 	virtual void BeginPlay() override;

@@ -3,6 +3,8 @@
 
 #include "AbilitySystemComponent.h"
 #include "GAS/Foundation/NF_AbilitySystemComponent.h"
+#include "GAS/Tags/NFTag_TagGroup.h"
+#include "Player/Character/NF_PlayerStatusAttribute.h"
 
 ANF_PlayerState::ANF_PlayerState()
 {
@@ -10,17 +12,17 @@ ANF_PlayerState::ANF_PlayerState()
 	SetNetUpdateFrequency(100.0f);
 	
 	//ASC
-	NF_ASC = CreateDefaultSubobject<UNF_AbilitySystemComponent>(TEXT("NF_ASC"));
-	NF_ASC->SetIsReplicated(true);
-	NF_ASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+	PlayerASC = CreateDefaultSubobject<UNF_AbilitySystemComponent>(TEXT("PlayerASC"));
+	PlayerASC->SetIsReplicated(true);
+	PlayerASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	
-	//Attribute Set
+	PlayerStatusAttribute = CreateDefaultSubobject<UNF_PlayerStatusAttribute>(TEXT("PlayerStatusAttribute"));
 	
 }
 
 class UAbilitySystemComponent* ANF_PlayerState::GetAbilitySystemComponent() const
 {
-	return NF_ASC;
+	return PlayerASC;
 }
 
 void ANF_PlayerState::BeginPlay()
@@ -31,4 +33,5 @@ void ANF_PlayerState::BeginPlay()
 	{
 		NF_PlayerID = GetPlayerId();
 	}
+	
 }
