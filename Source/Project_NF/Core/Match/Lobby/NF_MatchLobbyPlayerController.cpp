@@ -7,7 +7,6 @@
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
 #include "Project_NF.h"
-#include "UI/NF_MatchmakingWidget.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
 void ANF_MatchLobbyPlayerController::BeginPlay()
@@ -27,20 +26,21 @@ void ANF_MatchLobbyPlayerController::BeginPlay()
 		}
 	}
 
-	if (IsLocalPlayerController())
-	{
-		MatchmakingWidget = CreateWidget<UNF_MatchmakingWidget>(this, UNF_MatchmakingWidget::StaticClass());
-		if (MatchmakingWidget)
-		{
-			MatchmakingWidget->AddToPlayerScreen(10);
-			bShowMouseCursor = true;
-			FInputModeGameAndUI InputMode;
-			InputMode.SetWidgetToFocus(MatchmakingWidget->TakeWidget());
-			InputMode.SetHideCursorDuringCapture(false);
-			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-			SetInputMode(InputMode);
-		}
-	}
+	// Temporarily disabled so dedicated-server gameplay testing uses the normal game input.
+	// if (IsLocalPlayerController())
+	// {
+	// 	MatchmakingWidget = CreateWidget<UNF_MatchmakingWidget>(this, UNF_MatchmakingWidget::StaticClass());
+	// 	if (MatchmakingWidget)
+	// 	{
+	// 		MatchmakingWidget->AddToPlayerScreen(10);
+	// 		bShowMouseCursor = true;
+	// 		FInputModeGameAndUI InputMode;
+	// 		InputMode.SetWidgetToFocus(MatchmakingWidget->TakeWidget());
+	// 		InputMode.SetHideCursorDuringCapture(false);
+	// 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	// 		SetInputMode(InputMode);
+	// 	}
+	// }
 }
 
 void ANF_MatchLobbyPlayerController::SetupInputComponent()
