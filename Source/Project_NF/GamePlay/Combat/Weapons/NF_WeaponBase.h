@@ -13,6 +13,7 @@ public:
 	ANF_WeaponBase();
 	
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void StartFire();
@@ -23,37 +24,38 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Reload();
 
+	// One server-authoritative shot; the Gameplay Ability owns repetition.
+	bool FireProjectile();
+	bool CanFire() const;
+	float GetFireInterval() const;
+	float GetRemainingFireDelay() const;
+
 	UFUNCTION(BlueprintPure, Category="Weapon")
 	int32 GetCurrentAmmo() const { return CurrentAmmo; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon")
-	const UNF_WeaponDataAsset* GetWeaponData() const { return WeaponData; }
+	const class UNF_WeaponDataAsset* GetWeaponData() const { return WeaponData; }
 	
 protected:
-	void FireOnce();
 	void FinishReload();
 
-	float GetFireInterval() const;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
-	TObjectPtr<USkeletalMeshComponent> WeaponMeshComponent;
+	TObjectPtr<class USkeletalMeshComponent> WeaponMeshComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
-	TObjectPtr<UNF_WeaponDataAsset> WeaponData;
+	TObjectPtr<class UNF_WeaponDataAsset> WeaponData;
 	
 	// 무기 메시에 Muzzle 소켓 생성해야 함
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	FName MuzzleSocketName = TEXT("Muzzle");
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	int32 CurrentAmmo = 0;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	bool bIsReloading = false;
 
 private:
-	bool bWantsToFire = false;
-
-	FTimerHandle FireTimerHandle;
+	double LastFireTime = -1.e30;
 	FTimerHandle ReloadTimerHandle;
 };

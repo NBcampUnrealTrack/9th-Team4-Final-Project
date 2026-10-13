@@ -14,6 +14,13 @@ enum class ENF_WeaponType : uint8
 	SR		UMETA(DisplayName = "Sniper Rifle")
 };
 
+UENUM(BlueprintType)
+enum class ENF_FireMode : uint8
+{
+	SemiAutomatic	UMETA(DisplayName="Semi Automatic"),
+	Automatic		UMETA(DisplayName="Automatic")
+};
+
 UCLASS()
 class PROJECT_NF_API UNF_WeaponDataAsset : public UDataAsset
 {
@@ -22,6 +29,9 @@ class PROJECT_NF_API UNF_WeaponDataAsset : public UDataAsset
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	ENF_WeaponType WeaponType = ENF_WeaponType::Pistol;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	ENF_FireMode FireMode = ENF_FireMode::SemiAutomatic;
 	
 	// 데미지
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")

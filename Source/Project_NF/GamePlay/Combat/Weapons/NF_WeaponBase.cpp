@@ -5,10 +5,15 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "TimerManager.h"
 #include "GamePlay/Combat/Projectiles/NF_ProjectileBase.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
+#include "Engine/World.h"
+#include "Net/UnrealNetwork.h"
 
 ANF_WeaponBase::ANF_WeaponBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+	SetReplicateMovement(true);
 
 	WeaponMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	SetRootComponent(WeaponMeshComponent);
@@ -19,7 +24,7 @@ void ANF_WeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	if (IsValid(WeaponData))
+	if (HasAuthority() && IsValid(WeaponData))
 	{
 		CurrentAmmo = WeaponData->MagazineSize;
 	}
@@ -27,44 +32,60 @@ void ANF_WeaponBase::BeginPlay()
 
 void ANF_WeaponBase::StartFire()
 {
-	if (IsValid(WeaponData) == false || bIsReloading)
+	if (GetOwner())
 	{
-		return;
-	}
-
-	bWantsToFire = true;
-
-	// 이미 다음 발이 예약되어 있으면 중복 타이머를 만들지 않는다.
-	if (GetWorldTimerManager().IsTimerActive(FireTimerHandle) == false)
-	{
-		FireOnce();
+		if (auto* Weapons = GetOwner()->FindComponentByClass<UNF_WeaponComponent>())
+		{
+			Weapons->StartFire();
+		}
 	}
 }
 
 void ANF_WeaponBase::StopFire()
 {
-	bWantsToFire = false;
-	GetWorldTimerManager().ClearTimer(FireTimerHandle);
+	if (GetOwner())
+	{
+		if (auto* Weapons = GetOwner()->FindComponentByClass<UNF_WeaponComponent>())
+		{
+			Weapons->StopFire();
+		}
+	}
 }
 
-void ANF_WeaponBase::FireOnce()
+bool ANF_WeaponBase::CanFire() const
 {
-	if (IsValid(WeaponData) == false || bIsReloading)
-	{
-		return;
-	}
+	if (IsValid(WeaponData) == false || WeaponData->ProjectileClass == nullptr)
+		return false;
+	
+	if (CurrentAmmo <= 0 || bIsReloading)
+		return false;
+	
+	return true;
+}
 
-	if (CurrentAmmo <= 0)
+float ANF_WeaponBase::GetRemainingFireDelay() const
+{
+	float RemainingFireDelay = 0.f;
+	
+	if (GetWorld())
 	{
-		StopFire();
-		return;
+		RemainingFireDelay = 
+			static_cast<float>(FMath::Max(0.0, LastFireTime + GetFireInterval() - GetWorld()->GetTimeSeconds()));
 	}
+	
+	return RemainingFireDelay;
+}
 
-	if (WeaponData->ProjectileClass == nullptr)
-	{
-		StopFire();
-		return;
-	}
+bool ANF_WeaponBase::FireProjectile()
+{
+	if (HasAuthority() == false)
+		return false;
+	
+	if (CanFire() == false)
+		return false;
+	
+	if (GetRemainingFireDelay() > 0.f)
+		return false;
 
 	const FTransform MuzzleTransform = WeaponMeshComponent->GetSocketTransform(MuzzleSocketName,
 			RTS_World);
@@ -82,36 +103,29 @@ void ANF_WeaponBase::FireOnce()
 			SpawnParams);
 
 	if (IsValid(Projectile) == false)
-	{
-		return;
-	}
-
+		return false;
+	
 	Projectile->InitializeProjectile(WeaponData->ProjectileSpeed);
 
 	--CurrentAmmo;
-
-	// 반복 타이머가 아니라 매 발마다 RPM을 다시 읽는다.
-	if (bWantsToFire && CurrentAmmo > 0)
-	{
-		GetWorldTimerManager().SetTimer(
-			FireTimerHandle,
-			this,
-			&ANF_WeaponBase::FireOnce,
-			GetFireInterval(),
-			false);
-	}
+	LastFireTime = GetWorld()->GetTimeSeconds();
+	return true;
 }
 
 void ANF_WeaponBase::Reload()
 {
-	if (IsValid(WeaponData) == false || bIsReloading || CurrentAmmo >= WeaponData->MagazineSize)
-	{
+	if (HasAuthority() == false)
 		return;
-	}
+	
+	if (IsValid(WeaponData) == false)
+		return;
 
+	if (bIsReloading || CurrentAmmo >= WeaponData->MagazineSize)
+		return;
+	
 	StopFire();
 	bIsReloading = true;
-
+	
 	GetWorldTimerManager().SetTimer(
 		ReloadTimerHandle,
 		this,
@@ -123,12 +137,28 @@ void ANF_WeaponBase::Reload()
 void ANF_WeaponBase::FinishReload()
 {
 	bIsReloading = false;
-	CurrentAmmo = WeaponData->MagazineSize;
+	
+	if (IsValid(WeaponData))
+	{
+		CurrentAmmo = FMath::Max(0, WeaponData->MagazineSize);
+	}
 }
 
 float ANF_WeaponBase::GetFireInterval() const
 {
-	return IsValid(WeaponData)
-		? 60.f / FMath::Max(WeaponData->RoundsPerMinute, 1.f)
-		: 0.2f;
+	float FireInterval = 0.2f;
+	
+	if (IsValid(WeaponData))
+	{
+		FireInterval = 60.f / FMath::Max(WeaponData->RoundsPerMinute, 1.f); 
+	}
+	
+	return FireInterval;
+}
+
+void ANF_WeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ANF_WeaponBase, CurrentAmmo);
+	DOREPLIFETIME(ANF_WeaponBase, bIsReloading);
 }

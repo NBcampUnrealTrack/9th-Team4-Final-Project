@@ -8,6 +8,8 @@
 ANF_ProjectileBase::ANF_ProjectileBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+	SetReplicateMovement(true);
 
 	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComponent"));
 	SetRootComponent(SphereComponent);
@@ -43,6 +45,15 @@ void ANF_ProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Only the server simulates hits; clients display replicated movement.
+	if (!HasAuthority())
+	{
+		SphereComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ProjectileMovementComponent->Deactivate();
+		SetLifeSpan(0.f);
+		return;
+	}
+
 	if (IsValid(GetOwner()))
 	{
 		SphereComponent->IgnoreActorWhenMoving(GetOwner(), true);
@@ -70,11 +81,13 @@ void ANF_ProjectileBase::InitializeProjectile(float InSpeed)
 void ANF_ProjectileBase::OnProjectileHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if (IsValid(OtherActor) == false || OtherActor == this || OtherActor == GetOwner())
-	{
+	if (HasAuthority() == false)
 		return;
-	}
 	
+	// 투사체가 발사한 캐릭터, 총과 Hit 한 경우 무시
+	if (IsValid(OtherActor) == false || OtherActor == this || OtherActor == GetOwner())
+		return;
+		
 	const FString HitMessage = FString::Printf(
 		TEXT("[Projectile Debug] %s hit %s (Component: %s)"),
 		*GetNameSafe(this),

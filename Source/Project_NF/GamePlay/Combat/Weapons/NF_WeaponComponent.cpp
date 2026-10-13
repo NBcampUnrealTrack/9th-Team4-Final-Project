@@ -2,16 +2,27 @@
 
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
+#include "GAS/Abilities/NF_GA_WeaponFire.h"
+#include "Net/UnrealNetwork.h"
 
 UNF_WeaponComponent::UNF_WeaponComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true);
+	FireAbilityClass = UNF_GA_WeaponFire::StaticClass();
 }
 
 void UNF_WeaponComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (GetOwner()->HasAuthority() == false)
+		return;
+	
 	if (IsValid(EquippedWeapon) == false && DefaultWeaponClass)
 	{
 		FActorSpawnParameters Params;
@@ -24,7 +35,10 @@ void UNF_WeaponComponent::BeginPlay()
 				FTransform::Identity,
 				Params))
 		{
-			EquipWeapon(Weapon);
+			if (EquipWeapon(Weapon) == false)
+			{
+				Weapon->Destroy();
+			}
 		}
 	}
 }
@@ -32,15 +46,24 @@ void UNF_WeaponComponent::BeginPlay()
 bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 {
 	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-
+	
 	if (IsValid(NewWeapon) == false || IsValid(OwnerCharacter) == false)
-	{
 		return false;
-	}
+	
+	if (OwnerCharacter->HasAuthority() == false)
+		return false;
 
+	if (EquippedWeapon == NewWeapon) 
+		return true;
+	
+	if (NewWeapon->AttachToComponent(OwnerCharacter->GetMesh(),
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocketName) == false)
+		return false;
+
+	StopFire();
+	
 	if (IsValid(EquippedWeapon))
 	{
-		EquippedWeapon->StopFire();
 		EquippedWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	}
 
@@ -48,32 +71,94 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 	EquippedWeapon->SetOwner(OwnerCharacter);
 	EquippedWeapon->SetInstigator(OwnerCharacter);
 
-	return EquippedWeapon->AttachToComponent(
-		OwnerCharacter->GetMesh(),
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-		WeaponSocketName);
+	return true;
 }
 
 void UNF_WeaponComponent::StartFire()
 {
-	if (IsValid(EquippedWeapon))
+	if (GetOwner()->HasAuthority() == false)
 	{
-		EquippedWeapon->StartFire();
+		ServerStartFire();
+		return;
 	}
+	
+	// 빠르게 재클릭해도 RPM 제한 유지
+	if (bFireInputHeld) return;
+	
+	bFireInputHeld = true;
+	
+	if (EnsureFireAbility()) 
+		FireASC->TryActivateAbility(FireAbilityHandle);
 }
 
 void UNF_WeaponComponent::StopFire()
 {
-	if (IsValid(EquippedWeapon))
+	if (GetOwner()->HasAuthority() == false)
 	{
-		EquippedWeapon->StopFire();
+		ServerStopFire();
+		return;
+	}
+	
+	bFireInputHeld = false;
+	
+	if (FireASC.IsValid() && FireAbilityHandle.IsValid())
+	{
+		FireASC->CancelAbilityHandle(FireAbilityHandle);
 	}
 }
 
 void UNF_WeaponComponent::Reload()
 {
+	if (GetOwner()->HasAuthority() == false)
+	{
+		ServerReload();
+		return;
+	}
+	
+	StopFire();
+	
 	if (IsValid(EquippedWeapon))
 	{
 		EquippedWeapon->Reload();
 	}
+}
+
+bool UNF_WeaponComponent::EnsureFireAbility()
+{
+	if (FireASC.IsValid() && FireASC->GetAvatarActor() == GetOwner() &&
+		FireASC->FindAbilitySpecFromHandle(FireAbilityHandle)) return true;
+	
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+	
+	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || FireAbilityClass == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WeaponFire: %s needs an initialized ASC (NF_Player / NF_PlayerState)."),
+			*GetNameSafe(GetOwner()));
+		return false;
+	}
+	
+	FireASC = ASC;
+	FireAbilityHandle = ASC->GiveAbility(FGameplayAbilitySpec(FireAbilityClass, 1, INDEX_NONE, this));
+	return FireAbilityHandle.IsValid();
+}
+
+void UNF_WeaponComponent::ServerStartFire_Implementation() { StartFire(); }
+void UNF_WeaponComponent::ServerStopFire_Implementation() { StopFire(); }
+void UNF_WeaponComponent::ServerReload_Implementation() { Reload(); }
+
+void UNF_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (GetOwner()->HasAuthority() && FireASC.IsValid())
+	{
+		StopFire();
+		if (FireAbilityHandle.IsValid()) FireASC->ClearAbility(FireAbilityHandle);
+	}
+	
+	Super::EndPlay(EndPlayReason);
+}
+
+void UNF_WeaponComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UNF_WeaponComponent, EquippedWeapon);
 }

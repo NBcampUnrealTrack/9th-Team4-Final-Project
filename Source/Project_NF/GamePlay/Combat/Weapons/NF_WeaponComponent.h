@@ -2,8 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "GameplayAbilitySpecHandle.h"
 #include "NF_WeaponComponent.generated.h"
 
+class ANF_WeaponBase;
+class UAbilitySystemComponent;
+class UNF_GA_WeaponFire;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
@@ -14,6 +18,9 @@ public:
 	UNF_WeaponComponent();
 	
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	bool IsFireInputHeld() const { return bFireInputHeld; }
 
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void StartFire();
@@ -38,6 +45,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Weapon")
 	FName WeaponSocketName = TEXT("WeaponSocket");
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<ANF_WeaponBase> EquippedWeapon;
+
+	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
+	TSubclassOf<UNF_GA_WeaponFire> FireAbilityClass;
+
+private:
+	bool EnsureFireAbility();
+	bool bFireInputHeld = false;
+	TWeakObjectPtr<UAbilitySystemComponent> FireASC;
+	FGameplayAbilitySpecHandle FireAbilityHandle;
+
+	UFUNCTION(Server, Reliable)
+	void ServerStartFire();
+	UFUNCTION(Server, Reliable)
+	void ServerStopFire();
+	UFUNCTION(Server, Reliable)
+	void ServerReload();
 };
