@@ -78,6 +78,14 @@ void ANF_ProjectileBase::InitializeProjectile(float InSpeed)
 	}
 }
 
+void ANF_ProjectileBase::IgnoreProjectile(ANF_ProjectileBase* OtherProjectile)
+{
+	if (IsValid(OtherProjectile) && OtherProjectile != this)
+	{
+		SphereComponent->IgnoreActorWhenMoving(OtherProjectile, true);
+	}
+}
+
 void ANF_ProjectileBase::OnProjectileHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit)
 {

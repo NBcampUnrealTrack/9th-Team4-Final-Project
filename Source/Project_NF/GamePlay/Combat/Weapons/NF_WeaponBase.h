@@ -23,8 +23,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Reload();
-
-	// One server-authoritative shot; the Gameplay Ability owns repetition.
+	
 	bool FireProjectile();
 	bool CanFire() const;
 	float GetFireInterval() const;

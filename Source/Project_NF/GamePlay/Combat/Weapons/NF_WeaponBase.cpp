@@ -94,18 +94,38 @@ bool ANF_WeaponBase::FireProjectile()
 	SpawnParams.Owner = GetOwner();
 	SpawnParams.Instigator = GetInstigator();
 	SpawnParams.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ANF_ProjectileBase* Projectile =
-		GetWorld()->SpawnActor<ANF_ProjectileBase>(
-			WeaponData->ProjectileClass,
-			MuzzleTransform,
-			SpawnParams);
+	const int32 PelletCount = WeaponData->ProjectilesPerShot;
+	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
+	const FVector Forward = MuzzleTransform.GetRotation().GetForwardVector();
+	TArray<ANF_ProjectileBase*, TInlineAllocator<64>> SpawnedProjectiles;
 
-	if (IsValid(Projectile) == false)
+	for (int32 Index = 0; Index < PelletCount; ++Index)
+	{
+		FTransform SpawnTransform = MuzzleTransform;
+		if (SpreadRadians > 0.f)
+		{
+			SpawnTransform.SetRotation(FMath::VRandCone(Forward, SpreadRadians).ToOrientationQuat());
+		}
+
+		ANF_ProjectileBase* Projectile = GetWorld()->SpawnActor<ANF_ProjectileBase>(
+			WeaponData->ProjectileClass, SpawnTransform, SpawnParams);
+		if (IsValid(Projectile) == false)
+			continue;
+
+		for (ANF_ProjectileBase* OtherProjectile : SpawnedProjectiles)
+		{
+			Projectile->IgnoreProjectile(OtherProjectile);
+			OtherProjectile->IgnoreProjectile(Projectile);
+		}
+
+		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed);
+		SpawnedProjectiles.Add(Projectile);
+	}
+
+	if (SpawnedProjectiles.IsEmpty())
 		return false;
-	
-	Projectile->InitializeProjectile(WeaponData->ProjectileSpeed);
 
 	--CurrentAmmo;
 	LastFireTime = GetWorld()->GetTimeSeconds();

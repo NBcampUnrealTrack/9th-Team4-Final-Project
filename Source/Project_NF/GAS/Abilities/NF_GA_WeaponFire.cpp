@@ -40,7 +40,6 @@ void UNF_GA_WeaponFire::TryFire()
 		return;
 	}
 
-	// A rapid release/re-press must not bypass the previous shot's RPM interval.
 	const float Remaining = Weapon->GetRemainingFireDelay();
 	if (Remaining > 0.f)
 	{

@@ -13,6 +13,7 @@ public:
 	ANF_ProjectileBase();
 
 	void InitializeProjectile(float InSpeed);
+	void IgnoreProjectile(ANF_ProjectileBase* OtherProjectile);
 	
 protected:
 	virtual void BeginPlay() override;
