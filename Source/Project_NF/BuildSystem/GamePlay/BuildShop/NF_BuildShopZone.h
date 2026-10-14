@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Data/Interface/NF_InteractionInterface.h"
 #include "GameFramework/Actor.h"
 #include "NF_BuildShopZone.generated.h"
 
@@ -8,12 +9,13 @@ class UBoxComponent;
 
 /** Place at spawn/base or field shops. Area eligibility is checked again on the server. */
 UCLASS()
-class PROJECT_NF_API ANF_BuildShopZone : public AActor
+class PROJECT_NF_API ANF_BuildShopZone : public AActor, public INF_InteractionInterface
 {
 	GENERATED_BODY()
 
 public:
 	ANF_BuildShopZone();
+	virtual void NF_Interaction(const APlayerController* InteractedController) override;
 
 	UFUNCTION(BlueprintPure, Category = "NF|BuildShop")
 	bool CanBuild(AActor* PlayerActor) const;
@@ -35,19 +37,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Replicated, Category = "NF|BuildShop")
 	bool bShopEnabled = true;
 
-	/** Overlap events are UI prompts only; they never authorize a build request. */
-	UFUNCTION(BlueprintImplementableEvent, Category = "NF|BuildShop")
-	void OnPlayerEntered(AActor* PlayerActor);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "NF|BuildShop")
-	void OnPlayerExited(AActor* PlayerActor);
-
-private:
-	UFUNCTION()
-	void HandleBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-		UPrimitiveComponent* OtherComponent, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
-	UFUNCTION()
-	void HandleEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-		UPrimitiveComponent* OtherComponent, int32 OtherBodyIndex);
+	/** Measured from the player to this actor. Interaction trace collision is separate from authorization. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|BuildShop", meta = (ClampMin = "0"))
+	float InteractionDistance = 300.f;
 };

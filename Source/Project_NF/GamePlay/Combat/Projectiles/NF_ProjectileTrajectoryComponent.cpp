@@ -6,6 +6,7 @@
 
 UNF_ProjectileTrajectoryComponent::UNF_ProjectileTrajectoryComponent()
 {
+	// 부착된 표시 액터가 최신 데이터를 전달한다. 자체 갱신/GA 의존성은 없다.
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
@@ -21,6 +22,12 @@ void UNF_ProjectileTrajectoryComponent::StopPreview()
 	bHasPredictedImpact = false;
 }
 
+void UNF_ProjectileTrajectoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	StopPreview();
+	Super::EndPlay(EndPlayReason);
+}
+
 bool UNF_ProjectileTrajectoryComponent::GetPredictedImpact(FHitResult& OutHit) const
 {
 	OutHit = bHasPredictedImpact ? PredictedImpact : FHitResult();
@@ -31,7 +38,12 @@ void UNF_ProjectileTrajectoryComponent::UpdatePreview(FVector StartLocation, FVe
 	float ProjectileRadius, float GravityZ, float FlightTime)
 {
 	bHasPredictedImpact = false;
-	const APawn* Pawn = Cast<APawn>(GetOwner());
+	// 플레이어에 직접 붙이거나, 플레이어를 Instigator로 가진 표시 액터에 부착할 수 있다.
+	APawn* Pawn = Cast<APawn>(GetOwner());
+	if (!Pawn && GetOwner())
+	{
+		Pawn = GetOwner()->GetInstigator();
+	}
 	if (!bPreviewEnabled || !Pawn || !Pawn->IsLocallyControlled() || GetNetMode() == NM_DedicatedServer)
 	{
 		return;
@@ -40,6 +52,7 @@ void UNF_ProjectileTrajectoryComponent::UpdatePreview(FVector StartLocation, FVe
 	FPredictProjectilePathParams Params(FMath::Max(ProjectileRadius, 1.0f), StartLocation,
 		LaunchVelocity, FMath::Max(FlightTime, 0.1f), TraceChannel, GetOwner());
 	Params.SimFrequency = FMath::Clamp(SimulationFrequency, 10.0f, 60.0f);
+	Params.ActorsToIgnore.Add(Pawn);
 	// PredictProjectilePath는 0을 월드 중력 사용으로 해석하므로 무중력은 극소값으로 표현한다.
 	Params.OverrideGravityZ = FMath::IsNearlyZero(GravityZ) ? SMALL_NUMBER : GravityZ;
 	FPredictProjectilePathResult Result;
