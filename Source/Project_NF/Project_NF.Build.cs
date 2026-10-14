@@ -15,6 +15,7 @@ public class Project_NF : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"NetCore", // GAS TargetData의 FVector_NetQuantize 직렬화에 필요.
 			"InputCore",
 			"EnhancedInput",
 			"AIModule",
@@ -22,6 +23,7 @@ public class Project_NF : ModuleRules
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
+			"SlateCore",
 			"GameplayAbilities",
 			"GameplayTags",
 			"GameplayTasks",

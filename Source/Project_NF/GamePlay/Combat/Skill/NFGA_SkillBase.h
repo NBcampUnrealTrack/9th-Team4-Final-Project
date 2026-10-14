@@ -2,7 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
+#include "GAS/Foundation/NF_SkillTargetData.h"
+#include "GamePlay/Combat/Skill/Preview/NF_SkillPreviewData.h"
 #include "NFGA_SkillBase.generated.h"
+
+class ANF_SkillPreviewActor;
 
 // @Owner: 스킬 담당 | 2026-10-12
 // 목적: 장착 유형과 기능 분류를 분리하여 공통 스킬 GA의 설정 정보를 제공한다.
@@ -43,7 +47,8 @@ enum class ENF_SkillExecutionMode : uint8
  * @Owner: 스킬 담당 | 2026-10-12
  * 목적: 개별 스킬이 상속하는 공통 Gameplay Ability 베이스.
  *
- * 분류, 발동 방식, 시간은 설정 정보이며 입력 연결, 자동 발동, 토글, 대기를 구현하지 않는다.
+ * 분류, 실행 시간, 토글은 설정 정보이며 자식 GA가 실행을 구성한다.
+ * 홀딩/확정/취소, 목표 전달, 장착 패시브의 GE/이벤트 수명을 공통으로 관리한다.
  * Blueprint 자식은 GAS의 ActivateAbility / ActivateAbilityFromEvent에서 실행을 구성한다.
  * 사용 확정 시 CommitAbility의 성공 여부를 확인하고, 완료 시 EndAbility를 호출한다.
  * 취소/종료 시 정리는 GAS의 OnEndAbility 이벤트에서 처리한다.
@@ -56,6 +61,61 @@ class PROJECT_NF_API UNFGA_SkillBase : public UGameplayAbility
 
 public:
 	UNFGA_SkillBase();
+	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr,
+		const FGameplayTagContainer* TargetTags = nullptr, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+
+	// @Owner: 스킬 담당 (구현: Codex) | 2026-10-13
+	// 홀딩은 GAS 활성화/비용과 독립적이며, 표시 액터 없이도 사용한다.
+	UFUNCTION(BlueprintCallable, Category = "NF|Skill|Input")
+	bool BeginLocalInput();
+	UFUNCTION(BlueprintCallable, Category = "NF|Skill|Input")
+	bool ConfirmLocalInput(FGameplayAbilityTargetDataHandle& OutTargetData);
+	UFUNCTION(BlueprintCallable, Category = "NF|Skill|Input")
+	void CancelLocalInput();
+	UFUNCTION(BlueprintPure, Category = "NF|Skill|Input")
+	bool IsLocalInputHolding() const { return bLocalInputHolding; }
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NF|Skill|Targeting")
+	bool BuildConfirmedTargetData(FGameplayAbilityTargetDataHandle& OutTargetData) const;
+	virtual bool BuildConfirmedTargetData_Implementation(FGameplayAbilityTargetDataHandle& OutTargetData) const;
+	UFUNCTION(BlueprintNativeEvent, Category = "NF|Skill|Targeting")
+	bool ValidateConfirmedTargetData(const FGameplayAbilityTargetDataHandle& TargetData) const;
+	virtual bool ValidateConfirmedTargetData_Implementation(const FGameplayAbilityTargetDataHandle& TargetData) const;
+	UFUNCTION(BlueprintPure, Category = "NF|Skill|Targeting")
+	FGameplayAbilityTargetDataHandle GetConfirmedTargetData() const { return ConfirmedTargetData; }
+	UFUNCTION(BlueprintPure, Category = "NF|Skill|Targeting")
+	static FGameplayAbilityTargetDataHandle MakeSkillTargetData(ENF_SkillTargetKind Kind, FVector Location, FVector AimDirection);
+	UFUNCTION(BlueprintPure, Category = "NF|Skill|Targeting")
+	static bool ReadSkillTargetData(const FGameplayAbilityTargetDataHandle& TargetData, ENF_SkillTargetKind& Kind, FVector& Location, FVector& AimDirection);
+	bool PrepareConfirmedTargetData(const FGameplayAbilityTargetDataHandle& TargetData);
+	void ClearConfirmedTargetData();
+	UFUNCTION(BlueprintPure, Category = "NF|Skill")
+	bool CanContinueSkillExecution() const;
+
+	// 지속/무한 자기 GE만 추적한다. 공유 스택 GE는 전용 시스템에서 수명을 관리한다.
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Skill|Passive")
+	void TrackPassiveEffect(FActiveGameplayEffectHandle EffectHandle);
+	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+	virtual void OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+
+	// @Owner: 스킬 담당 (구현: Codex) | 2026-10-13
+	// 부여된 InstancedPerActor GA 인스턴스에서 호출한다. 조준 표시는 비용을 소모하지 않는다.
+	UFUNCTION(BlueprintCallable, Category = "NF|Skill|Preview")
+	bool BeginLocalPreview();
+
+	UFUNCTION(BlueprintCallable, Category = "NF|Skill|Preview")
+	void EndLocalPreview();
+
+	// 스킬별 GA/BP가 값만 제공하고 표시 조합은 공통 프리뷰 액터 BP에서 수행한다.
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NF|Skill|Preview")
+	bool GetSkillPreviewData(AActor* SourceAvatar, FNF_SkillPreviewData& OutData) const;
+	virtual bool GetSkillPreviewData_Implementation(AActor* SourceAvatar, FNF_SkillPreviewData& OutData) const;
+
+	UFUNCTION(BlueprintPure, Category = "NF|Skill|Input")
+	bool ShouldActivateOnInputRelease() const { return bActivateOnInputRelease; }
+
+	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 
 	UFUNCTION(BlueprintPure, Category = "NF|Skill")
 	ENF_SkillType GetSkillType() const { return SkillType; }
@@ -79,6 +139,39 @@ public:
 	float GetExecutionDuration() const { return ExecutionDuration; }
 
 protected:
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
+		const FGameplayEventData* TriggerEventData) override;
+	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Skill|Input")
+	void LocalInputCanceled();
+	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Skill|Passive")
+	void PassiveEquipped();
+	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Skill|Passive")
+	void PassiveUnequipped();
+	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Skill|Passive")
+	void PassiveGameplayEvent(FGameplayTag EventTag, const FGameplayEventData& Payload);
+
+	// 팀에서 사용하는 사망/기절/침묵 태그를 지정한다. 홀딩과 취소 가능한 활성 GA에 적용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Input")
+	FGameplayTagContainer InputCancelTags;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Targeting")
+	bool bRequiresConfirmedTargetData = false;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive")
+	TArray<TSubclassOf<UGameplayEffect>> PassiveEffects;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive")
+	FGameplayTagContainer PassiveEventTags;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive")
+	bool bActivatePassiveOnGrant = false;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Input")
+	bool bActivateOnInputRelease = false;
+
+	// 자식 표시 액터 BP에 필요한 포물선/장판 등 컴포넌트를 부착하여 조합한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Preview")
+	TSubclassOf<ANF_SkillPreviewActor> PreviewActorClass;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Classification")
 	ENF_SkillType SkillType = ENF_SkillType::Active;
 
@@ -104,4 +197,27 @@ protected:
 	// 장착 예산용 값. 사용 자원과 쿨타임은 GAS의 Cost/Cooldown GE를 사용한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Build", meta = (ClampMin = "0", UIMin = "0"))
 	int32 BuildCost = 0;
+
+private:
+	void CheckLocalInputValidity();
+	void BindCancellationTags();
+	void UnbindCancellationTags();
+	void OnCancellationTagChanged(FGameplayTag Tag, int32 NewCount);
+	void InitializePassive();
+	void CleanupPassive();
+	void HandlePassiveGameplayEvent(FGameplayTag EventTag, const FGameplayEventData* Payload);
+	bool bLocalInputHolding = false;
+	bool bPassiveInitialized = false;
+	FTimerHandle LocalInputTimer;
+	TMap<FGameplayTag, FDelegateHandle> CancellationDelegates;
+	FDelegateHandle PassiveEventDelegate;
+	FGameplayTagContainer RegisteredPassiveEventTags;
+	TWeakObjectPtr<UAbilitySystemComponent> RegisteredASC;
+	TWeakObjectPtr<AActor> RegisteredAvatar;
+	TWeakObjectPtr<AActor> PassiveAvatar;
+	TArray<FActiveGameplayEffectHandle> PassiveEffectHandles;
+	UPROPERTY(Transient)
+	FGameplayAbilityTargetDataHandle ConfirmedTargetData;
+	UPROPERTY(Transient)
+	TObjectPtr<ANF_SkillPreviewActor> LocalPreviewActor;
 };

@@ -21,6 +21,9 @@ public:
 	// 동일한 기본값을 가진 GA의 로컬 표시와 서버 투척에서 공유한다.
 	bool CalculateThrowParameters(AActor* Avatar, FVector& OutSpawnLocation, FVector& OutVelocity) const;
 	TSubclassOf<ANF_Grenade> GetGrenadeClass() const { return GrenadeClass; }
+	virtual bool GetSkillPreviewData_Implementation(AActor* SourceAvatar, FNF_SkillPreviewData& OutData) const override;
+	virtual bool BuildConfirmedTargetData_Implementation(FGameplayAbilityTargetDataHandle& OutTargetData) const override;
+	virtual bool ValidateConfirmedTargetData_Implementation(const FGameplayAbilityTargetDataHandle& TargetData) const override;
 
 	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr,
@@ -61,6 +64,8 @@ protected:
 	FName ThrowSocketName = NAME_None;
 
 private:
+	bool CalculateThrowParametersForDirection(AActor* Avatar, const FVector& AimDirection, FVector& OutSpawnLocation, FVector& OutVelocity) const;
+	FVector ConfirmedAimDirection = FVector::ForwardVector;
 	UFUNCTION()
 	void ThrowGrenade();
 };

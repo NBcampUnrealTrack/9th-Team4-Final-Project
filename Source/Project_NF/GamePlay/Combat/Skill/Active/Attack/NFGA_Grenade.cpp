@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Projectiles/NF_Grenade.h"
+#include "GamePlay/Combat/Skill/Preview/NF_GrenadePreviewActor.h"
 #include "GameplayEffect.h"
 #include "Project_NF.h"
 
@@ -16,6 +17,25 @@ UNFGA_Grenade::UNFGA_Grenade()
 	SkillExecutionMode = ENF_SkillExecutionMode::Instant;
 	BuildCost = 2;
 	GrenadeClass = ANF_Grenade::StaticClass();
+	PreviewActorClass = ANF_GrenadePreviewActor::StaticClass();
+	bActivateOnInputRelease = true;
+	bRequiresConfirmedTargetData = true;
+}
+
+bool UNFGA_Grenade::GetSkillPreviewData_Implementation(AActor* SourceAvatar, FNF_SkillPreviewData& OutData) const
+{
+	OutData = FNF_SkillPreviewData();
+	if (!CalculateThrowParameters(SourceAvatar, OutData.LaunchLocation, OutData.LaunchVelocity))
+	{
+		return false;
+	}
+	const ANF_Grenade* Defaults = GrenadeClass->GetDefaultObject<ANF_Grenade>();
+	OutData.bHasProjectilePath = true;
+	OutData.DisplayRadius = Defaults->GetExplosionRadius();
+	OutData.ProjectileRadius = Defaults->GetCollisionRadius();
+	OutData.GravityZ = SourceAvatar->GetWorld()->GetGravityZ() * Defaults->GetProjectileGravityScale();
+	OutData.FlightTime = Defaults->GetFuseTime();
+	return true;
 }
 
 bool UNFGA_Grenade::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -31,11 +51,14 @@ void UNFGA_Grenade::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayEventData* TriggerEventData)
 {
 	// C++ 구현이 실행 흐름을 소유한다. Super의 BP Activate 이벤트는 실행하지 않는다.
-	if (!ActorInfo || !ActorInfo->IsNetAuthority())
+	const FNF_SkillTargetData* Target = FNF_SkillTargetData::Get(GetConfirmedTargetData());
+	if (!ActorInfo || !ActorInfo->IsNetAuthority() || !Target
+		|| !ValidateConfirmedTargetData(GetConfirmedTargetData()) || !CanContinueSkillExecution())
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+	ConfirmedAimDirection = Target->AimDirection;
 
 	if (CastTime > 0.0f)
 	{
@@ -51,15 +74,48 @@ void UNFGA_Grenade::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 
 bool UNFGA_Grenade::CalculateThrowParameters(AActor* Avatar, FVector& OutSpawnLocation, FVector& OutVelocity) const
 {
+	if (!IsValid(Avatar)) { return false; }
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	Avatar->GetActorEyesViewPoint(ViewLocation, ViewRotation);
+	return CalculateThrowParametersForDirection(Avatar, ViewRotation.Vector(), OutSpawnLocation, OutVelocity);
+}
+
+bool UNFGA_Grenade::BuildConfirmedTargetData_Implementation(FGameplayAbilityTargetDataHandle& OutTargetData) const
+{
+	OutTargetData.Clear();
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!IsValid(Avatar)) { return false; }
+	FVector Location;
+	FRotator Rotation;
+	Avatar->GetActorEyesViewPoint(Location, Rotation);
+	OutTargetData = MakeSkillTargetData(ENF_SkillTargetKind::Direction, FVector::ZeroVector, Rotation.Vector());
+	return true;
+}
+
+bool UNFGA_Grenade::ValidateConfirmedTargetData_Implementation(const FGameplayAbilityTargetDataHandle& TargetData) const
+{
+	const FNF_SkillTargetData* Target = FNF_SkillTargetData::Get(TargetData);
+	if (!Super::ValidateConfirmedTargetData_Implementation(TargetData) || !Target
+		|| Target->Kind != ENF_SkillTargetKind::Direction) { return false; }
+	FVector Spawn;
+	FVector Velocity;
+	return CalculateThrowParametersForDirection(GetAvatarActorFromActorInfo(), Target->AimDirection, Spawn, Velocity);
+}
+
+bool UNFGA_Grenade::CalculateThrowParametersForDirection(AActor* Avatar, const FVector& AimDirection,
+	FVector& OutSpawnLocation, FVector& OutVelocity) const
+{
 	if (!IsValid(Avatar) || !Avatar->GetWorld() || !GrenadeClass)
 	{
 		return false;
 	}
 
-	// 서버에 존재하는 Pawn의 눈 위치/조준 회전을 사용한다. 로컬 카메라에 의존하지 않는다.
+	// 위치/속력/충돌은 서버 값, 방향은 입력을 확정한 순간의 값이다.
 	FVector ViewLocation;
 	FRotator ViewRotation;
 	Avatar->GetActorEyesViewPoint(ViewLocation, ViewRotation);
+	ViewRotation = AimDirection.Rotation();
 	OutSpawnLocation = ViewLocation + ViewRotation.RotateVector(SpawnOffset);
 	if (const ACharacter* Character = Cast<ACharacter>(Avatar))
 	{
@@ -102,7 +158,7 @@ void UNFGA_Grenade::ThrowGrenade()
 	}
 	FVector SpawnLocation;
 	FVector Velocity;
-	if (!CalculateThrowParameters(Avatar, SpawnLocation, Velocity))
+	if (!CanContinueSkillExecution() || !CalculateThrowParametersForDirection(Avatar, ConfirmedAimDirection, SpawnLocation, Velocity))
 	{
 		UE_LOG(LogProject_NF, Warning, TEXT("[Grenade] Throw aborted: invalid actor/class or blocked spawn path."));
 		EndAbility(CurrentSpecHandle, ActorInfo, CurrentActivationInfo, true, true);
