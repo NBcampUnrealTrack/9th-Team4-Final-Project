@@ -4,7 +4,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "TimerManager.h"
-#include "GamePlay/Combat/Projectiles/NF_ProjectileBase.h"
+#include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
@@ -99,7 +99,7 @@ bool ANF_WeaponBase::FireProjectile()
 	const int32 PelletCount = WeaponData->ProjectilesPerShot;
 	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
 	const FVector Forward = MuzzleTransform.GetRotation().GetForwardVector();
-	TArray<ANF_ProjectileBase*, TInlineAllocator<64>> SpawnedProjectiles;
+	TArray<ANF_WeaponProjectile*, TInlineAllocator<64>> SpawnedProjectiles;
 
 	for (int32 Index = 0; Index < PelletCount; ++Index)
 	{
@@ -109,12 +109,12 @@ bool ANF_WeaponBase::FireProjectile()
 			SpawnTransform.SetRotation(FMath::VRandCone(Forward, SpreadRadians).ToOrientationQuat());
 		}
 
-		ANF_ProjectileBase* Projectile = GetWorld()->SpawnActor<ANF_ProjectileBase>(
+		ANF_WeaponProjectile* Projectile = GetWorld()->SpawnActor<ANF_WeaponProjectile>(
 			WeaponData->ProjectileClass, SpawnTransform, SpawnParams);
 		if (IsValid(Projectile) == false)
 			continue;
 
-		for (ANF_ProjectileBase* OtherProjectile : SpawnedProjectiles)
+		for (ANF_WeaponProjectile* OtherProjectile : SpawnedProjectiles)
 		{
 			Projectile->IgnoreProjectile(OtherProjectile);
 			OtherProjectile->IgnoreProjectile(Projectile);

@@ -2,18 +2,18 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "NF_ProjectileBase.generated.h"
+#include "NF_WeaponProjectile.generated.h"
 
 UCLASS()
-class PROJECT_NF_API ANF_ProjectileBase : public AActor
+class PROJECT_NF_API ANF_WeaponProjectile : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
-	ANF_ProjectileBase();
+	ANF_WeaponProjectile();
 
 	void InitializeProjectile(float InSpeed);
-	void IgnoreProjectile(ANF_ProjectileBase* OtherProjectile);
+	void IgnoreProjectile(ANF_WeaponProjectile* OtherProjectile);
 	
 protected:
 	virtual void BeginPlay() override;

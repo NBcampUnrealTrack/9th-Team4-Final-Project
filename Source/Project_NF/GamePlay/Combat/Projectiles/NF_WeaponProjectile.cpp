@@ -1,11 +1,11 @@
-#include "GamePlay/Combat/Projectiles/NF_ProjectileBase.h"
+#include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
 
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 
-ANF_ProjectileBase::ANF_ProjectileBase()
+ANF_WeaponProjectile::ANF_WeaponProjectile()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
@@ -23,7 +23,7 @@ ANF_ProjectileBase::ANF_ProjectileBase()
 	SphereComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 
 	SphereComponent->SetNotifyRigidBodyCollision(true);
-	SphereComponent->OnComponentHit.AddDynamic(this, &ANF_ProjectileBase::OnProjectileHit);
+	SphereComponent->OnComponentHit.AddDynamic(this, &ANF_WeaponProjectile::OnProjectileHit);
 
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
 	StaticMeshComponent->SetupAttachment(SphereComponent);
@@ -41,7 +41,7 @@ ANF_ProjectileBase::ANF_ProjectileBase()
 	InitialLifeSpan = 2.f;
 }
 
-void ANF_ProjectileBase::BeginPlay()
+void ANF_WeaponProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -65,7 +65,7 @@ void ANF_ProjectileBase::BeginPlay()
 	}
 }
 
-void ANF_ProjectileBase::InitializeProjectile(float InSpeed)
+void ANF_WeaponProjectile::InitializeProjectile(float InSpeed)
 {
 	if (IsValid(ProjectileMovementComponent))
 	{
@@ -78,7 +78,7 @@ void ANF_ProjectileBase::InitializeProjectile(float InSpeed)
 	}
 }
 
-void ANF_ProjectileBase::IgnoreProjectile(ANF_ProjectileBase* OtherProjectile)
+void ANF_WeaponProjectile::IgnoreProjectile(ANF_WeaponProjectile* OtherProjectile)
 {
 	if (IsValid(OtherProjectile) && OtherProjectile != this)
 	{
@@ -86,7 +86,7 @@ void ANF_ProjectileBase::IgnoreProjectile(ANF_ProjectileBase* OtherProjectile)
 	}
 }
 
-void ANF_ProjectileBase::OnProjectileHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit)
 {
 	if (HasAuthority() == false)

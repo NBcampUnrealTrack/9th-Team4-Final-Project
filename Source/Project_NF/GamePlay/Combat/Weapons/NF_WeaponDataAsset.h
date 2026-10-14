@@ -46,7 +46,7 @@ public:
 	int32 MagazineSize = 12;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Projectile")
-	TSubclassOf<class ANF_ProjectileBase> ProjectileClass;
+	TSubclassOf<class ANF_WeaponProjectile> ProjectileClass;
 
 	UPROPERTY(EditDefaultsOnly,	BlueprintReadOnly, Category="Projectile")
 	float ProjectileSpeed = 5000.f;
