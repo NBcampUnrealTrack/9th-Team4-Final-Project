@@ -154,6 +154,16 @@ void ANF_WeaponBase::Reload()
 		false);
 }
 
+void ANF_WeaponBase::CancelReload()
+{
+	if (HasAuthority() == false)
+		return;
+
+	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
+	bIsReloading = false;
+	ForceNetUpdate();
+}
+
 void ANF_WeaponBase::FinishReload()
 {
 	bIsReloading = false;

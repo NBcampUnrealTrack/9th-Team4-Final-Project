@@ -23,6 +23,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Reload();
+
+	/** Cancel without refilling ammo or resetting the fire interval. Safe to call repeatedly. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
+	void CancelReload();
 	
 	bool FireProjectile();
 	bool CanFire() const;

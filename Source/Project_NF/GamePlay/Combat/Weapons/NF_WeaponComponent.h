@@ -31,8 +31,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Reload();
 
-	UFUNCTION(BlueprintCallable, Category="Weapon")
+	/** Server only. Replaces the current weapon without destroying it; save it before calling if needed. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
 	bool EquipWeapon(ANF_WeaponBase* NewWeapon);
+
+	/** Server only. Stops combat and returns the detached weapon. Caller owns disposal/rollback. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
+	ANF_WeaponBase* UnequipWeapon();
 
 	UFUNCTION(BlueprintPure, Category="Weapon")
 	ANF_WeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
@@ -52,6 +57,8 @@ protected:
 	TSubclassOf<UNF_GA_WeaponFire> FireAbilityClass;
 
 private:
+	ANF_WeaponBase* UnequipWeaponInternal();
+	bool bChangingWeapon = false;
 	bool EnsureFireAbility();
 	bool bFireInputHeld = false;
 	TWeakObjectPtr<UAbilitySystemComponent> FireASC;

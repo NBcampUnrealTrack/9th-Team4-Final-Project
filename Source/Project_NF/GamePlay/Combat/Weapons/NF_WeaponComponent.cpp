@@ -52,26 +52,70 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 	
 	if (OwnerCharacter->HasAuthority() == false)
 		return false;
+	
+	if(bChangingWeapon)
+		return false;
+	
+	if (NewWeapon->GetWorld() != GetWorld() || IsValid(OwnerCharacter->GetMesh()) ==false ||
+		IsValid(NewWeapon->GetRootComponent()) == false)
+		return false;
+
+	if (NewWeapon->GetOwner() && NewWeapon->GetOwner() != OwnerCharacter)
+		return false;
 
 	if (EquippedWeapon == NewWeapon) 
 		return true;
+
+	TGuardValue<bool> ChangeGuard(bChangingWeapon, true);
 	
 	if (NewWeapon->AttachToComponent(OwnerCharacter->GetMesh(),
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocketName) == false)
 		return false;
 
-	StopFire();
-	
-	if (IsValid(EquippedWeapon))
-	{
-		EquippedWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	}
+	UnequipWeaponInternal();
+	NewWeapon->CancelReload();
 
 	EquippedWeapon = NewWeapon;
 	EquippedWeapon->SetOwner(OwnerCharacter);
 	EquippedWeapon->SetInstigator(OwnerCharacter);
+	EquippedWeapon->ForceNetUpdate();
+	OwnerCharacter->ForceNetUpdate();
 
 	return true;
+}
+
+ANF_WeaponBase* UNF_WeaponComponent::UnequipWeapon()
+{
+	if (IsValid(GetOwner()) == false || GetOwner()->HasAuthority() == false || bChangingWeapon)
+		return nullptr;
+
+	TGuardValue<bool> ChangeGuard(bChangingWeapon, true);
+	return UnequipWeaponInternal();
+}
+
+ANF_WeaponBase* UNF_WeaponComponent::UnequipWeaponInternal()
+{
+	StopFire();
+	
+	ANF_WeaponBase* OldWeapon = nullptr;
+	
+	if (IsValid(EquippedWeapon))
+	{
+		OldWeapon = EquippedWeapon.Get();
+	}
+	
+	EquippedWeapon = nullptr;
+	
+	if (OldWeapon)
+	{
+		OldWeapon->CancelReload();
+		OldWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		OldWeapon->SetOwner(nullptr);
+		OldWeapon->SetInstigator(nullptr);
+		OldWeapon->ForceNetUpdate();
+	}
+	GetOwner()->ForceNetUpdate();
+	return OldWeapon;
 }
 
 void UNF_WeaponComponent::StartFire()
@@ -81,6 +125,8 @@ void UNF_WeaponComponent::StartFire()
 		ServerStartFire();
 		return;
 	}
+
+	if (bChangingWeapon || !IsValid(EquippedWeapon)) return;
 	
 	// 빠르게 재클릭해도 RPM 제한 유지
 	if (bFireInputHeld) return;
@@ -114,6 +160,8 @@ void UNF_WeaponComponent::Reload()
 		ServerReload();
 		return;
 	}
+
+	if (bChangingWeapon) return;
 	
 	StopFire();
 	
