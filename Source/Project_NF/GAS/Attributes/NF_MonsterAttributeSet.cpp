@@ -104,6 +104,13 @@ void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
 
 	const float Damage = GetIncomingDamage();
 
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster damage received: %.1f / Health before: %.1f"),
+		Damage,
+		GetHealth());
+
 	SetIncomingDamage(0.0f);
 
 	if (Damage <= 0.0f)	{ return; }
@@ -114,10 +121,19 @@ void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
 	GetMaxHealth());
 
 	SetHealth(NewHealth);
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster Health after damage: %.1f"),
+		NewHealth);
 	
 	if (NewHealth <= 0.0f && bIsOutOfHealth == false)
 	{
-		bIsOutOfHealth = true;
+		//bIsOutOfHealth = true;
+
+		UE_LOG(LogTemp, Warning, TEXT("Monster out of health"));
+
 		OnMonsterOutOfHealth.Broadcast();
 
 		return;

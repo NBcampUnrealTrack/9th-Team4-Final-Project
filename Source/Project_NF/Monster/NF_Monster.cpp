@@ -275,6 +275,12 @@ void ANF_Monster::ClearHitReactState()
 
 void ANF_Monster::HandleMonsterOutOfHealth()
 {
+	UE_LOG(
+	LogTemp,
+	Warning,
+	TEXT("HandleMonsterOutOfHealth executed: %s"),
+	*GetName());
+	
 	if (bIsDead || !MonsterASC)
 	{
 		return;
