@@ -3,6 +3,7 @@
 #include "Components/BoxComponent.h"
 #include "BuildSystem/Player/NF_BuildComponent.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 
 ANF_BuildShopZone::ANF_BuildShopZone()
@@ -12,19 +13,33 @@ ANF_BuildShopZone::ANF_BuildShopZone()
 
 	BuildArea = CreateDefaultSubobject<UBoxComponent>(TEXT("BuildArea"));
 	SetRootComponent(BuildArea);
-	BuildArea->SetBoxExtent(FVector(400.f, 400.f, 200.f));
+	BuildArea->SetBoxExtent(FVector(50.f, 50.f, 100.f));
 	BuildArea->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	BuildArea->SetCollisionResponseToAllChannels(ECR_Ignore);
-	BuildArea->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	BuildArea->SetGenerateOverlapEvents(true);
-	BuildArea->OnComponentBeginOverlap.AddDynamic(this, &ANF_BuildShopZone::HandleBeginOverlap);
-	BuildArea->OnComponentEndOverlap.AddDynamic(this, &ANF_BuildShopZone::HandleEndOverlap);
+	BuildArea->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	BuildArea->SetGenerateOverlapEvents(false);
+}
+
+void ANF_BuildShopZone::NF_Interaction(const APlayerController* InteractedController)
+{
+	if (!HasAuthority() || !IsValid(InteractedController))
+	{
+		return;
+	}
+	APawn* Player = InteractedController->GetPawn();
+	if (CanBuild(Player) && Player->GetController() == InteractedController)
+	{
+		Player->FindComponentByClass<UNF_BuildComponent>()->BeginBuildSession(this);
+	}
 }
 
 bool ANF_BuildShopZone::CanBuild(AActor* PlayerActor) const
 {
 	return bShopEnabled && IsValid(PlayerActor) && PlayerActor->FindComponentByClass<UNF_BuildComponent>() &&
-		BuildArea->IsOverlappingActor(PlayerActor) && IsPlayerAllowed(PlayerActor);
+		InteractionDistance >= 0.f &&
+		FVector::DistSquared(PlayerActor->GetActorLocation(), GetActorLocation()) <= FMath::Square(InteractionDistance)
+		&&
+		IsPlayerAllowed(PlayerActor);
 }
 
 bool ANF_BuildShopZone::IsPlayerAllowed_Implementation(AActor* PlayerActor) const
@@ -38,25 +53,6 @@ void ANF_BuildShopZone::SetShopEnabled(bool bEnabled)
 	{
 		bShopEnabled = bEnabled;
 		ForceNetUpdate();
-	}
-}
-
-void ANF_BuildShopZone::HandleBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComponent, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	if (IsValid(OtherActor) && OtherActor->FindComponentByClass<UNF_BuildComponent>())
-	{
-		OnPlayerEntered(OtherActor);
-	}
-}
-
-void ANF_BuildShopZone::HandleEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComponent, int32 OtherBodyIndex)
-{
-	if (IsValid(OtherActor) && OtherActor->FindComponentByClass<UNF_BuildComponent>() &&
-		!BuildArea->IsOverlappingActor(OtherActor))
-	{
-		OnPlayerExited(OtherActor);
 	}
 }
 
