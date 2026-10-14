@@ -1,15 +1,12 @@
 #include "GamePlay/Combat/Projectiles/NF_Grenade.h"
 
-#include "AbilitySystemBlueprintLibrary.h"
-#include "AbilitySystemComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Engine/OverlapResult.h"
-#include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/ProjectileMovementComponent.h"
-#include "GameplayEffect.h"
+#include "GamePlay/Combat/Components/NF_AreaDamageComponent.h"
 #include "TimerManager.h"
+#include "DrawDebugHelpers.h"
 
 ANF_Grenade::ANF_Grenade()
 {
@@ -41,6 +38,7 @@ ANF_Grenade::ANF_Grenade()
 	ProjectileMovement->Bounciness = 0.4f;
 	ProjectileMovement->Friction = 0.3f;
 	ProjectileMovement->bForceSubStepping = true;
+	AreaDamage = CreateDefaultSubobject<UNF_AreaDamageComponent>(TEXT("AreaDamage"));
 }
 
 void ANF_Grenade::InitializeGrenade(const FVector& InitialVelocity, const FGameplayEffectSpecHandle& InDamageSpec)
@@ -91,6 +89,11 @@ bool ANF_Grenade::CanAffectTarget_Implementation(AActor* Target) const
 	return IsValid(Target) && Target != this && Target != GetOwner() && Target != GetInstigator();
 }
 
+bool ANF_Grenade::FilterAreaDamageTarget(AActor* Target)
+{
+	return CanAffectTarget(Target);
+}
+
 void ANF_Grenade::Explode()
 {
 	if (!HasAuthority() || bExploded)
@@ -102,69 +105,28 @@ void ANF_Grenade::Explode()
 	GetWorldTimerManager().ClearTimer(FuseTimer);
 	ProjectileMovement->StopMovementImmediately();
 	const FVector ExplosionLocation = GetActorLocation();
-	ApplyExplosionDamage(ExplosionLocation);
-	MulticastExplosion(ExplosionLocation);
+	// 기존 BP의 가림 설정과 대상 필터를 유지하면서 공통 범위 판정을 사용한다.
+	AreaDamage->SetOcclusionPolicy(bRequireLineOfSight, OcclusionTraceChannel);
+	FNF_AreaDamageTargetFilter TargetFilter;
+	TargetFilter.BindDynamic(this, &ANF_Grenade::FilterAreaDamageTarget);
+	AreaDamage->SubmitSphereDamage(ExplosionLocation, GetExplosionRadius(), DamageSpec, GetInstigator(), TargetFilter);
+	// 로컬 기본값 대신 실제 서버 반경을 전달한다. 0초는 표시 비활성화다.
+	MulticastExplosion(ExplosionLocation, GetExplosionRadius(),
+		bShowExplosionRadius ? FMath::Max(ExplosionRadiusDisplayTime, 0.1f) : 0.0f);
 	Destroy();
 }
 
-void ANF_Grenade::ApplyExplosionDamage(const FVector& ExplosionLocation)
-{
-	if (!DamageSpec.IsValid())
-	{
-		return;
-	}
-
-	FCollisionObjectQueryParams ObjectParams;
-	ObjectParams.AddObjectTypesToQuery(ECC_Pawn);
-	ObjectParams.AddObjectTypesToQuery(ECC_WorldDynamic);
-	ObjectParams.AddObjectTypesToQuery(ECC_PhysicsBody);
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(NF_GrenadeExplosion), false, this);
-	TArray<FOverlapResult> Overlaps;
-	GetWorld()->OverlapMultiByObjectType(Overlaps, ExplosionLocation, FQuat::Identity,
-		ObjectParams, FCollisionShape::MakeSphere(FMath::Max(ExplosionRadius, 1.0f)), QueryParams);
-
-	TSet<UAbilitySystemComponent*> AffectedComponents;
-	for (const FOverlapResult& Overlap : Overlaps)
-	{
-		AActor* Target = Overlap.GetActor();
-		if (!IsValid(Target) || !CanAffectTarget(Target))
-		{
-			continue;
-		}
-
-		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
-		if (!TargetASC || AffectedComponents.Contains(TargetASC))
-		{
-			continue;
-		}
-
-		const FVector TargetLocation = Target->GetActorLocation();
-		FHitResult OcclusionHit;
-		if (bRequireLineOfSight && GetWorld()->LineTraceSingleByChannel(OcclusionHit,
-			ExplosionLocation, TargetLocation, OcclusionTraceChannel, QueryParams)
-			&& OcclusionHit.GetActor() != Target)
-		{
-			continue;
-		}
-
-		// 대상마다 Context를 복제하여 다른 대상의 적중 정보가 섞이지 않게 한다.
-		FGameplayEffectSpec TargetSpec(*DamageSpec.Data.Get());
-		FGameplayEffectContextHandle Context = TargetSpec.GetContext().Duplicate();
-		Context.AddOrigin(ExplosionLocation);
-		FHitResult Hit(Target, Overlap.GetComponent(), TargetLocation, (ExplosionLocation - TargetLocation).GetSafeNormal());
-		Hit.TraceStart = ExplosionLocation;
-		Hit.TraceEnd = TargetLocation;
-		Context.AddHitResult(Hit, true);
-		TargetSpec.SetContext(Context);
-		AffectedComponents.Add(TargetASC);
-		TargetASC->ApplyGameplayEffectSpecToSelf(TargetSpec);
-	}
-}
-
-void ANF_Grenade::MulticastExplosion_Implementation(FVector_NetQuantize ExplosionLocation)
+void ANF_Grenade::MulticastExplosion_Implementation(FVector_NetQuantize ExplosionLocation,
+	float Radius, float RadiusDisplayTime)
 {
 	if (GetNetMode() != NM_DedicatedServer)
 	{
+		if (RadiusDisplayTime > 0.0f)
+		{
+			// 디버그 도형의 수명은 수류탄 액터와 독립적이므로 Destroy 이후에도 잠시 남는다.
+			DrawDebugSphere(GetWorld(), ExplosionLocation, Radius, 32, FColor::Red,
+				false, RadiusDisplayTime, 0, 2.0f);
+		}
 		OnExplosionCosmetic(ExplosionLocation);
 	}
 }

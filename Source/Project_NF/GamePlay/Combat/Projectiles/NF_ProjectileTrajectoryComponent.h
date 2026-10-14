@@ -33,6 +33,8 @@ public:
 	bool GetPredictedImpact(FHitResult& OutHit) const;
 
 protected:
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Trajectory", meta = (ClampMin = "10.0", ClampMax = "60.0"))
 	float SimulationFrequency = 30.0f;
 
