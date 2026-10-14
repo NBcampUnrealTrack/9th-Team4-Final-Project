@@ -147,7 +147,7 @@ void ANF_Player::OnOutOfHealthCpp()
 										  (TEXT("Death 실행 예정")),
 										  true, true, FColor::Magenta, 10.0f);
 	
-	UNF_GASFunctionLibrary::NF_TryAbility(this, NFTag_Player::Character_Ability_Death);
+	UNF_GASFunctionLibrary::NF_TryAbility(this, NFTag_Player::Player_Ability_Death);
 }
 
 void ANF_Player::OnOutOfShieldCpp()
