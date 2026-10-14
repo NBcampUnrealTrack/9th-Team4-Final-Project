@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "Player/Data/NF_PlayerStateDelegate.h"
@@ -33,32 +32,28 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_OnChangedPlayerStateType)
 	ENF_PlayerInteractTypeEnum CurrentPlayerInteractType = ENF_PlayerInteractTypeEnum::None;
 	
-	FGameplayTag SelectedActiveSkill_Tag;
-	FGameplayTag SkillButtonA_Tag;
-	FGameplayTag SkillButtonB_Tag; 
-	
+	static constexpr int32 SkillButtonA_InputID = 1;
+	static constexpr int32 SkillButtonB_InputID = 2;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
 	float InteractionRange = 300.0f;
 	
 private:
-	FOnChangedPlayerType OnChangedPlayerType;
-	void OnChangedPlayerStateType(ENF_PlayerInteractTypeEnum NewPlayerType);
+	FOnPlayerOpenShop OnPlayerOpenShop;
+	void EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType);
 	
-	/*UFUNCTION(Server, Reliable)
-	void ServerRPC_OnChangedPlayerStateType(ENF_PlayerInteractTypeEnum NewPlayerType);*/
+	UFUNCTION(Server, Reliable)
+	void ServerRPC_OnChangedPlayerStateType(ENF_PlayerInteractTypeEnum NewPlayerType);
 	
 	UFUNCTION()
 	void OnRep_OnChangedPlayerStateType();
 
 	
-	void BindActiveSkill();
-	
+	void BindInputButton();
 	void TrySkillAction_A();
-	void BindActiveSkillButton_A();
-	
 	void TrySkillAction_B();
-	void BindActiveSkillButton_B();
+	void TrySkillActionWithInputID(int32 InputID);
+	
 	
 	void TryInteraction();
 	UFUNCTION(Server, Reliable)

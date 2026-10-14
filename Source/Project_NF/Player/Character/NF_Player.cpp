@@ -8,6 +8,7 @@
 #include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
 #include "NF_PlayerStatusAttribute.h"
+#include "BuildSystem/Player/NF_BuildComponent.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Player/State/NF_PlayerState.h"
@@ -44,6 +45,9 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//MotionMatching
 	MotionMatchingComponent = CreateDefaultSubobject<UMotionMatchingComponent>(TEXT("MotionMatchingComponent"));
 	CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
+	
+	//Build
+	NF_BuildComponent = CreateDefaultSubobject<UNF_BuildComponent>(TEXT("NF_BuildComponent"));
 }
 
 
@@ -93,7 +97,7 @@ void ANF_Player::InitAbilitySystem()
 	auto* NF_PlayerState = GetPlayerState<ANF_PlayerState>();
 	if (IsValid(NF_PlayerState) == false) return;
 
-	UAbilitySystemComponent* ASC = NF_PlayerState->GetAbilitySystemComponent();
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (IsValid(ASC) == false) return;
 
 	ASC->InitAbilityActorInfo(NF_PlayerState, this);
@@ -105,8 +109,17 @@ void ANF_Player::InitAbilitySystem()
 		PlayerStatusAttribute->OnOutOfShield.AddUniqueDynamic(this, &ThisClass::OnOutOfShieldCpp); 
 	}
 	
+	GiveAbility();
+}
+
+
+void ANF_Player::GiveAbility()
+{
 	if (HasAuthority() == true)
 	{
+		UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+		if (IsValid(ASC) == false) return;
+		
 		AddGameplayAbility();
 		for (const auto& EachAbility : GameplayAbilityArray)
 		{
@@ -143,3 +156,5 @@ void ANF_Player::OnOutOfShieldCpp()
     										  (TEXT("쉴드가 깨짐에 대한 로직 실행 예정")),
     										  true, true, FColor::Magenta, 10.0f);
 }
+
+

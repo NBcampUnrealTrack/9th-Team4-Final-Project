@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "NF_Player.generated.h"
 
+class UNF_BuildComponent;
 class UNF_GASFunctionLibraryComponent;
 class ANF_PlayerState;
 class UMotionMatchingComponent;
@@ -48,6 +49,10 @@ protected:
 	TArray<TSubclassOf<class UGameplayAbility>> GameplayAbilityArray;
 	
 	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Build")
+	TObjectPtr<UNF_BuildComponent> NF_BuildComponent;
+	
+	
 private:
 	void InitAbilitySystem();
 	void AddGameplayAbility();
@@ -56,5 +61,7 @@ private:
 	void OnOutOfHealthCpp();
 	UFUNCTION()
 	void OnOutOfShieldCpp();
+	
+	void GiveAbility();
 	
 };

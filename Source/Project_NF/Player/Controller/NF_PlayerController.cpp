@@ -1,15 +1,16 @@
 
 #include "NF_PlayerController.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "Data/HelperFunction/NF_GASFunctionLibrary.h"
+#include "Data/Interface/NF_InteractionInterface.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Input/MotionMatchingInputLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Character/NF_Player.h"
-#include "Player/Character/TestShop.h"
 #include "Player/Data/NF_PlayerInputDataAsset.h"
 
 
@@ -23,7 +24,7 @@ void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProp
 //On_Rep
 void ANF_PlayerController::OnRep_OnChangedPlayerStateType()
 {
-	OnChangedPlayerStateType(CurrentPlayerInteractType);
+	EnablePlayerMovementFromType(CurrentPlayerInteractType);
 }
 
 
@@ -31,7 +32,7 @@ void ANF_PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	OnChangedPlayerType.AddUObject(this, &ThisClass::OnChangedPlayerStateType);
+	OnPlayerOpenShop.AddUObject(this, &ThisClass::EnablePlayerMovementFromType);
 	
 	if (IsLocalController() == true)
 	{
@@ -49,13 +50,14 @@ void ANF_PlayerController::BeginPlay()
 }
 
 
-void ANF_PlayerController::OnChangedPlayerStateType(ENF_PlayerInteractTypeEnum NewPlayerType)
+void ANF_PlayerController::EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType)
 {
 	CurrentPlayerInteractType = NewPlayerType;
 	
 	auto* NF_Player = Cast<ANF_Player>(this->GetPawn());
 	if (IsValid(NF_Player) == false) return;
 	
+	// TODO 상점 이용 중에는 스킬 사용을 막음 (이는 준현님의 브로드캐스트를 따를 예정)
 	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild)
 	{
 		NF_Player->GetCharacterMovement()->SetMovementMode(MOVE_None);
@@ -74,11 +76,11 @@ void ANF_PlayerController::SetupInputComponent()
 
 	UMotionMatchingInputLibrary::BindMotionMatchingInput(this, MotionMatchingInputDataAsset);
 	
-	BindActiveSkill();
+	BindInputButton();
 }
 
 
-void ANF_PlayerController::BindActiveSkill()
+void ANF_PlayerController::BindInputButton()
 {
 	if (NF_PlayerInputDataAsset == nullptr)
 	{
@@ -98,64 +100,35 @@ void ANF_PlayerController::BindActiveSkill()
 }
 
 
-/*void ANF_PlayerController::ServerRPC_OnChangedPlayerStateType_Implementation(ENF_PlayerInteractTypeEnum NewPlayerType)
+void ANF_PlayerController::ServerRPC_OnChangedPlayerStateType_Implementation(ENF_PlayerInteractTypeEnum NewPlayerType)
 {
-	OnChangedPlayerType.Broadcast(NewPlayerType);
-}*/
+	OnPlayerOpenShop.Broadcast(NewPlayerType);
+}
 
 
 void ANF_PlayerController::TrySkillAction_A()
 {
 	//ServerRPC_OnChangedPlayerStateType(ENF_PlayerInteractTypeEnum::InteractingBuild);
 	
-	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild)
-	{
-		if (SelectedActiveSkill_Tag.IsValid() == true)
-		{
-			BindActiveSkillButton_A();
-			return;
-		}
-	}
-	
-	if (SkillButtonA_Tag.IsValid() == false) return;
-	
-	UE_LOG(LogTemp, Warning, TEXT("SkillA 발동함"));
-	UNF_GASFunctionLibrary::NF_TryAbility(this, SkillButtonA_Tag);
-	
-}
-
-
-void ANF_PlayerController::BindActiveSkillButton_A()
-{
-	SkillButtonA_Tag = SelectedActiveSkill_Tag;
-	SelectedActiveSkill_Tag = FGameplayTag();
+	TrySkillActionWithInputID(SkillButtonA_InputID);
 }
 
 
 void ANF_PlayerController::TrySkillAction_B()
 {
-	//ServerRPC_OnChangedPlayerStateType(ENF_PlayerInteractTypeEnum::None);
-	
-	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild)
-	{
-		if (SelectedActiveSkill_Tag.IsValid() == true)
-		{
-			BindActiveSkillButton_B();
-			return;
-		}
-	}
-	
-	if (SkillButtonB_Tag.IsValid() == false) return;
-	
-	UE_LOG(LogTemp, Warning, TEXT("SkillB 발동함"));
-	UNF_GASFunctionLibrary::NF_TryAbility(this, SkillButtonB_Tag);
+	TrySkillActionWithInputID(SkillButtonB_InputID);
 }
 
 
-void ANF_PlayerController::BindActiveSkillButton_B()
+void ANF_PlayerController::TrySkillActionWithInputID(int32 InputID)
 {
-	SkillButtonB_Tag = SelectedActiveSkill_Tag;
-	SelectedActiveSkill_Tag = FGameplayTag();
+	// TODO 상점 이용 중에는 스킬 사용을 막음 (이는 준현님의 브로드캐스트를 따를 예정)
+	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild) return; 
+	
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetPawn());
+	if (IsValid(ASC) == false) return;
+
+	ASC->AbilityLocalInputPressed(InputID);
 }
 
 
