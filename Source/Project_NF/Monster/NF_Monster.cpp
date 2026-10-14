@@ -8,6 +8,10 @@
 #include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 #include "GAS/Tags/NFTag_Monster.h"
+#include "AIController.h"
+#include "BrainComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
@@ -38,6 +42,14 @@ void ANF_Monster::BeginPlay()
 	Super::BeginPlay();
 
 	MonsterASC->InitAbilityActorInfo(this, this);
+	
+	MonsterAttributeSet->OnMonsterDamaged.AddUniqueDynamic(
+		this,
+		&ThisClass::HandleMonsterDamaged);
+	
+	MonsterAttributeSet->OnMonsterOutOfHealth.AddUniqueDynamic(
+	this,
+	&ThisClass::HandleMonsterOutOfHealth);
 
 	if (HasAuthority() && DefaultAttributesEffect)
 	{
@@ -221,4 +233,81 @@ void ANF_Monster::ApplyBasicAttackHit()
 		TEXT("Player Health: %.1f -> %.1f"),
 		TargetHealthBefore,
 		TargetHealthAfter);
+}
+
+void ANF_Monster::HandleMonsterDamaged(float Damage)
+{
+	if (!MonsterASC)
+	{
+		return;
+	}
+
+	MonsterASC->AddLooseGameplayTag(
+		NFTag_Monster::State_Monster_HitReact);
+
+	const float MontageDuration = PlayAnimMontage(HitReactMontage);
+
+	if (MontageDuration <= 0.0f)
+	{
+		ClearHitReactState();
+
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		HitReactTimerHandle,
+		this,
+		&ThisClass::ClearHitReactState,
+		MontageDuration,
+		false);
+}
+
+void ANF_Monster::ClearHitReactState()
+{
+	if (!MonsterASC)
+	{
+		return;
+	}
+
+	MonsterASC->RemoveLooseGameplayTag(
+		NFTag_Monster::State_Monster_HitReact);
+}
+
+void ANF_Monster::HandleMonsterOutOfHealth()
+{
+	if (bIsDead || !MonsterASC)
+	{
+		return;
+	}
+
+	bIsDead = true;
+
+	MonsterASC->RemoveLooseGameplayTag(
+		NFTag_Monster::State_Monster_HitReact);
+
+	MonsterASC->AddLooseGameplayTag(
+		NFTag_Monster::State_Monster_Dead);
+
+	MonsterASC->CancelAllAbilities();
+
+	if (AAIController* MonsterAIController =
+		Cast<AAIController>(GetController()))
+	{
+		MonsterAIController->StopMovement();
+
+		if (UBrainComponent* BrainComponent =
+			MonsterAIController->GetBrainComponent())
+		{
+			BrainComponent->StopLogic(TEXT("MonsterDead"));
+		}
+	}
+
+	GetCharacterMovement()->DisableMovement();
+
+	GetCapsuleComponent()->SetCollisionEnabled(
+		ECollisionEnabled::NoCollision);
+
+	PlayAnimMontage(DeathMontage);
+
+	SetLifeSpan(CorpseLifeSpan);
 }

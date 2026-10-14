@@ -13,6 +13,14 @@ struct FGameplayEffectModCallbackData;
     GAMEPLAYATTRIBUTE_VALUE_SETTER(PropertyName) \
     GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FNFOnMonsterDamaged,
+	float,
+	Damage);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(
+	FNFOnMonsterOutOfHealth);
+
 UCLASS()
 class PROJECT_NF_API UNF_MonsterAttributeSet : public UAttributeSet
 {
@@ -60,6 +68,15 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "NF|Monster|Attributes")
 	FGameplayAttributeData IncomingDamage;
 	NF_ATTRIBUTE_ACCESSORS(UNF_MonsterAttributeSet, IncomingDamage)
+	
+	UPROPERTY(BlueprintAssignable)
+	FNFOnMonsterDamaged OnMonsterDamaged;
+
+	UPROPERTY(BlueprintAssignable)
+	FNFOnMonsterOutOfHealth OnMonsterOutOfHealth;
+	
+private:
+	bool bIsOutOfHealth = false;
 	
 protected:
 	UFUNCTION()

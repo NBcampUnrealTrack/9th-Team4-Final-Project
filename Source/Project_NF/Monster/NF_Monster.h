@@ -9,6 +9,7 @@ class UNF_AbilitySystemComponent;
 class UNF_MonsterAttributeSet;
 class UGameplayEffect;
 class UGameplayAbility;
+class UAnimMontage;
 
 UCLASS()
 class PROJECT_NF_API ANF_Monster : public ACharacter , public IAbilitySystemInterface
@@ -43,4 +44,29 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Monster|Combat",
 		meta = (ClampMin = "0.0"))
 	float BasicAttackHitRange = 250.0f;
+	
+	//hit
+	UFUNCTION()
+	void HandleMonsterDamaged(float Damage);
+
+	UFUNCTION()
+	void ClearHitReactState();
+
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Monster|Combat")
+	TObjectPtr<UAnimMontage> HitReactMontage;
+
+	FTimerHandle HitReactTimerHandle;
+	
+	//death
+	UFUNCTION()
+	void HandleMonsterOutOfHealth();
+
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Monster|Combat")
+	TObjectPtr<UAnimMontage> DeathMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Monster|Combat",
+		meta = (ClampMin = "0.0"))
+	float CorpseLifeSpan = 5.0f;
+
+	bool bIsDead = false;
 };

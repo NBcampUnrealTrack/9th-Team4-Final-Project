@@ -100,23 +100,28 @@ void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	if (Data.EvaluatedData.Attribute != GetIncomingDamageAttribute())
-	{
-		return;
-	}
+	if (Data.EvaluatedData.Attribute != GetIncomingDamageAttribute()) { return;	}
 
 	const float Damage = GetIncomingDamage();
 
 	SetIncomingDamage(0.0f);
 
-	if (Damage <= 0.0f)
+	if (Damage <= 0.0f)	{ return; }
+
+	const float NewHealth = FMath::Clamp(
+	GetHealth() - Damage,
+	0.0f,
+	GetMaxHealth());
+
+	SetHealth(NewHealth);
+	
+	if (NewHealth <= 0.0f && bIsOutOfHealth == false)
 	{
+		bIsOutOfHealth = true;
+		OnMonsterOutOfHealth.Broadcast();
+
 		return;
 	}
 
-	SetHealth(
-		FMath::Clamp(
-			GetHealth() - Damage,
-			0.0f,
-			GetMaxHealth()));
+	OnMonsterDamaged.Broadcast(Damage);
 }
