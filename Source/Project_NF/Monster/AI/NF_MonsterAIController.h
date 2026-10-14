@@ -19,6 +19,8 @@ class PROJECT_NF_API ANF_MonsterAIController : public AAIController
 public:
 	ANF_MonsterAIController();
 	
+	AActor* GetCurrentTargetActor() const;
+	
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
 

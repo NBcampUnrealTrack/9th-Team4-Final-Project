@@ -107,3 +107,16 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 		BlackboardComponent->ClearValue(TargetActorKeyName);
 	}
 }
+
+AActor* ANF_MonsterAIController::GetCurrentTargetActor() const
+{
+	const UBlackboardComponent* BlackboardComponent = GetBlackboardComponent();
+
+	if (!BlackboardComponent)
+	{
+		return nullptr;
+	}
+
+	return Cast<AActor>(
+		BlackboardComponent->GetValueAsObject(TargetActorKeyName));
+}

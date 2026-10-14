@@ -20,6 +20,8 @@ public:
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	
+	void ApplyBasicAttackHit();
+	
 protected:
 	virtual void BeginPlay() override;
 	
@@ -34,4 +36,11 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|GAS")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Monster|Combat")
+	TSubclassOf<UGameplayEffect> BasicAttackDamageEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Monster|Combat",
+		meta = (ClampMin = "0.0"))
+	float BasicAttackHitRange = 250.0f;
 };

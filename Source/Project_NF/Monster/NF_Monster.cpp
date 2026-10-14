@@ -4,6 +4,12 @@
 #include "Abilities/GameplayAbility.h"
 #include "GameplayAbilitySpec.h"
 #include "GAS/Attributes/NF_MonsterAttributeSet.h"
+#include "AI/NF_MonsterAIController.h"
+#include "AbilitySystemInterface.h"
+#include "AbilitySystemComponent.h"
+#include "GAS/Tags/NFTag_Monster.h"
+
+#include "Player/Character/NF_PlayerStatusAttribute.h"
 
 ANF_Monster::ANF_Monster()
 {
@@ -79,4 +85,140 @@ void ANF_Monster::BeginPlay()
 	}
 }
 
+void ANF_Monster::ApplyBasicAttackHit()
+{
+	if (!HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Attack failed: Not Authority"));
+		return;
+	}
 
+	if (!MonsterASC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Attack failed: MonsterASC is null"));
+		return;
+	}
+
+	if (!MonsterAttributeSet)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Attack failed: MonsterAttributeSet is null"));
+		return;
+	}
+
+	if (!BasicAttackDamageEffect)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Attack failed: BasicAttackDamageEffect is null"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Attack: Server validation passed"));
+
+    ANF_MonsterAIController* MonsterAIController =
+        Cast<ANF_MonsterAIController>(GetController());
+
+    if (!MonsterAIController)
+    {
+		UE_LOG(LogTemp, Warning, TEXT("Attack failed: MonsterAIController is null"));
+        return;
+    }
+
+    AActor* TargetActor = MonsterAIController->GetCurrentTargetActor();
+
+    if (!IsValid(TargetActor) || TargetActor == this)
+    {
+		UE_LOG(LogTemp, Warning, TEXT("Attack failed: TargetActor is invalid"));
+        return;
+    }
+
+    const float DistanceSquared = FVector::DistSquared(
+        GetActorLocation(),
+        TargetActor->GetActorLocation());
+
+    if (DistanceSquared > FMath::Square(BasicAttackHitRange))
+    {
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Attack failed: Target out of range. Distance: %.1f / Range: %.1f"),
+			FMath::Sqrt(DistanceSquared),
+			BasicAttackHitRange);
+        return;
+    }
+
+    const FVector DirectionToTarget =
+        (TargetActor->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+
+    const float ForwardDot =
+        FVector::DotProduct(GetActorForwardVector(), DirectionToTarget);
+	
+    if (ForwardDot < 0.3f)
+    {
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Attack failed: Target is outside forward angle. Dot: %.2f"),
+			ForwardDot);
+        return;
+    }
+    
+
+    IAbilitySystemInterface* TargetAbilitySystemInterface =
+        Cast<IAbilitySystemInterface>(TargetActor);
+
+    if (!TargetAbilitySystemInterface)
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("Monster attack failed: Target has no AbilitySystemComponent."));
+
+        return;
+    }
+
+    UAbilitySystemComponent* TargetASC =
+        TargetAbilitySystemInterface->GetAbilitySystemComponent();
+
+    if (!TargetASC)
+    {
+		UE_LOG(LogTemp, Warning, TEXT("Attack failed: Target ASC is null"));
+        return;
+    }
+
+    FGameplayEffectContextHandle EffectContext =
+        MonsterASC->MakeEffectContext();
+
+    EffectContext.AddSourceObject(this);
+
+    FGameplayEffectSpecHandle EffectSpecHandle =
+        MonsterASC->MakeOutgoingSpec(
+            BasicAttackDamageEffect,
+            1.0f,
+            EffectContext);
+
+    if (!EffectSpecHandle.IsValid())
+    {
+		UE_LOG(LogTemp, Warning, TEXT("Attack failed: Damage EffectSpec is invalid"));
+        return;
+    }
+
+    EffectSpecHandle.Data->SetSetByCallerMagnitude(
+        NFTag_Monster::Data_Monster_Damage,
+        -MonsterAttributeSet->GetAttackPower());
+	
+	const float TargetHealthBefore =
+	TargetASC->GetNumericAttribute(
+		UNF_PlayerStatusAttribute::GetHealthAttribute());
+
+    MonsterASC->ApplyGameplayEffectSpecToTarget(
+        *EffectSpecHandle.Data.Get(),
+        TargetASC);
+	
+	const float TargetHealthAfter =
+	TargetASC->GetNumericAttribute(
+		UNF_PlayerStatusAttribute::GetHealthAttribute());
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Player Health: %.1f -> %.1f"),
+		TargetHealthBefore,
+		TargetHealthAfter);
+}
