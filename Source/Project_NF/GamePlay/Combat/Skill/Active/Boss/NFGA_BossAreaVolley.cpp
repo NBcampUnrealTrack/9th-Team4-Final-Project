@@ -91,10 +91,14 @@ void UNFGA_BossAreaVolley::StartVolley()
 	for (int32 Index = 0; Index < TargetCount; ++Index)
 	{
 		FVector GroundPoint;
-		if (!FindGroundPoint(EligibleTargets[Index], GroundPoint))
+		AActor* Target = EligibleTargets[Index];
+		if (!FindGroundPoint(Target, GroundPoint))
 		{
 			continue;
 		}
+		UE_LOG(LogProject_NF, Warning,
+			TEXT("[BossProjectileDiag] TargetSnapshot Target=%s TargetLocation=%s GroundPoint=%s"),
+			*GetNameSafe(Target), *Target->GetActorLocation().ToString(), *GroundPoint.ToString());
 
 		if (BossASC)
 		{
@@ -148,6 +152,9 @@ void UNFGA_BossAreaVolley::FinishTelegraph(FVector_NetQuantize TargetGroundPoint
 
 	const FVector Destination(TargetGroundPoint);
 	const FVector Origin = Boss->GetActorLocation();
+	UE_LOG(LogProject_NF, Warning,
+		TEXT("[BossProjectileDiag] SpawnRequest Boss=%s Origin=%s Destination=%s Delta=%s"),
+		*GetNameSafe(Boss), *Origin.ToString(), *Destination.ToString(), *(Destination - Origin).ToString());
 	const FTransform SpawnTransform((Destination - Origin).Rotation(), Origin);
 	ANF_BossAreaProjectile* Projectile = World->SpawnActorDeferred<ANF_BossAreaProjectile>(
 		ProjectileClass, SpawnTransform, Boss, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);

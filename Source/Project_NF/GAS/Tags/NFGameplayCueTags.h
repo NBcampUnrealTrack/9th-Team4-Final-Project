@@ -6,4 +6,5 @@
 namespace NFGameplayCueTags
 {
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Boss_Telegraph);
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Boss_ProjectileImpact);
 }
