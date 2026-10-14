@@ -1,5 +1,5 @@
 #include "GAS/Attributes/NF_MonsterAttributeSet.h"
-
+#include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 
 void UNF_MonsterAttributeSet::GetLifetimeReplicatedProps(
@@ -93,4 +93,30 @@ void UNF_MonsterAttributeSet::PreAttributeChange(
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
+}
+
+void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
+	const FGameplayEffectModCallbackData& Data)
+{
+	Super::PostGameplayEffectExecute(Data);
+
+	if (Data.EvaluatedData.Attribute != GetIncomingDamageAttribute())
+	{
+		return;
+	}
+
+	const float Damage = GetIncomingDamage();
+
+	SetIncomingDamage(0.0f);
+
+	if (Damage <= 0.0f)
+	{
+		return;
+	}
+
+	SetHealth(
+		FMath::Clamp(
+			GetHealth() - Damage,
+			0.0f,
+			GetMaxHealth()));
 }

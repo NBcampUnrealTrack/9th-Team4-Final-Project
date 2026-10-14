@@ -28,4 +28,10 @@ namespace NFTag_Monster
 		Ability_Monster_BasicAttack,
 		"Ability.Monster.BasicAttack",
 		"일반 몬스터의 기본 공격 Ability");
+	
+	//@경환 | 2026-10-14
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(
+	Data_Monster_Damage,
+	"Data.Monster.Damage",
+	"몬스터가 플레이어에게 전달하는 피해량");
 }

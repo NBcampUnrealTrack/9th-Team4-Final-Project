@@ -5,6 +5,8 @@
 #include "AttributeSet.h"
 #include "NF_MonsterAttributeSet.generated.h"
 
+struct FGameplayEffectModCallbackData;
+
 #define NF_ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
     GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
     GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName) \
@@ -23,6 +25,9 @@ public:
 	virtual void PreAttributeChange(
 		const FGameplayAttribute& Attribute,
 		float& NewValue) override;
+	
+	virtual void PostGameplayEffectExecute(
+	const FGameplayEffectModCallbackData& Data) override;
 	
 	UPROPERTY(
 	BlueprintReadOnly,
@@ -51,6 +56,10 @@ public:
 		Category = "NF|Monster|Attributes")
 	FGameplayAttributeData MoveSpeed;
 	NF_ATTRIBUTE_ACCESSORS(UNF_MonsterAttributeSet, MoveSpeed)
+	
+	UPROPERTY(BlueprintReadOnly, Category = "NF|Monster|Attributes")
+	FGameplayAttributeData IncomingDamage;
+	NF_ATTRIBUTE_ACCESSORS(UNF_MonsterAttributeSet, IncomingDamage)
 	
 protected:
 	UFUNCTION()
