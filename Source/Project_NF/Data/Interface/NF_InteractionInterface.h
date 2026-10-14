@@ -4,6 +4,8 @@
 #include "UObject/Interface.h"
 #include "NF_InteractionInterface.generated.h"
 
+class APlayerController;
+
 UINTERFACE()
 class UNF_InteractionInterface : public UInterface
 {
