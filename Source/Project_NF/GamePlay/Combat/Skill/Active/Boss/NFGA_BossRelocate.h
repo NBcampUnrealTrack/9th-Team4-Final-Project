@@ -29,7 +29,7 @@ protected:
 	float AscentDuration = 1.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (DisplayName = "Flight Altitude", ClampMin = "0.0", Units = "cm"))
-	float FlightAltitude = 1200.0f;
+	float FlightAltitude = 1800.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (DisplayName = "Time Aloft Before Landing Warning", ClampMin = "0.0", Units = "s"))
 	float HiddenDurationBeforeWarning = 2.0f;
@@ -44,7 +44,7 @@ protected:
 	float RelocationRange = 2500.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern")
-	float EmergenceRadius = 500.0f;
+	float EmergenceRadius = 750.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Damage")
 	TSubclassOf<UGameplayEffect> DamageEffectClass;
@@ -66,7 +66,8 @@ private:
 	{
 		None,
 		TakingOff,
-		Diving
+		Diving,
+		ReturningToHover
 	};
 
 	void BeginTakeoff();
@@ -82,6 +83,7 @@ private:
 
 	FVector EmergencePoint = FVector::ZeroVector;
 	FVector StartingLocation = FVector::ZeroVector;
+	float StartingHoverHeight = 0.0f;
 	FVector MovementStart = FVector::ZeroVector;
 	FVector MovementDestination = FVector::ZeroVector;
 	float MovementStartTime = 0.0f;

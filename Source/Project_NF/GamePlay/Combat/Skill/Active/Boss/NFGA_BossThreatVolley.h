@@ -7,6 +7,7 @@
 class ANF_BossAreaProjectile;
 class ANF_Player;
 class UGameplayEffect;
+class UMaterialInterface;
 
 /** Selects a random player in range, warns them, then fires a rotating aimed volley. */
 UCLASS(Blueprintable)
@@ -38,6 +39,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern")
 	float ShotInterval = 0.3f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern",
+		meta = (DisplayName = "Shot Telegraph Lifetime", ClampMin = "0.01", Units = "s"))
+	float ShotTelegraphLifetime = 0.3f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph",
+		meta = (DisplayName = "Threat Volley Telegraph Decal Material"))
+	TObjectPtr<UMaterialInterface> ShotTelegraphMaterial = nullptr;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern")
 	float TurnRateDegreesPerSecond = 45.0f;
 
@@ -68,6 +77,8 @@ private:
 	void FinishPattern();
 
 	TWeakObjectPtr<ANF_Player> SelectedTarget;
+	FVector FirstShotGroundPoint = FVector::ZeroVector;
+	int32 FiredProjectileCount = 0;
 	FTimerHandle ChargeTimer;
 	FTimerHandle TelegraphTimer;
 	FTimerHandle ShotTimer;

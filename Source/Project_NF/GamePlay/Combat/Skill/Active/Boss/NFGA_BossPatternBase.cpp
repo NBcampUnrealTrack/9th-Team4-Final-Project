@@ -8,6 +8,7 @@
 #include "GamePlay/Combat/Projectiles/NF_BossAreaProjectile.h"
 #include "GameplayEffect.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
+#include "Materials/MaterialInterface.h"
 #include "Player/Character/NF_Player.h"
 #include "TimerManager.h"
 
@@ -61,7 +62,7 @@ void UNFGA_BossPatternBase::ApplyDamageAndStun(AActor* Target, const TSubclassOf
 }
 
 void UNFGA_BossPatternBase::ShowTelegraph(const FVector& Location, const float Radius, const float Duration,
-	const bool bHeadWarning) const
+	const bool bHeadWarning, const float DecalLifetimeOverride, UMaterialInterface* MaterialOverride) const
 {
 	if (ANF_BossBase* Boss = GetBoss())
 	{
@@ -71,6 +72,10 @@ void UNFGA_BossPatternBase::ShowTelegraph(const FVector& Location, const float R
 			Parameters.Location = Location;
 			Parameters.RawMagnitude = FMath::Max(Radius, 1.0f);
 			Parameters.AbilityLevel = FMath::CeilToInt(FMath::Max(Duration, 0.0f));
+			// For manually issued boss telegraph cues, carry an optional per-marker lifetime here.
+			Parameters.NormalizedMagnitude = FMath::Max(DecalLifetimeOverride, 0.0f);
+			// GameplayCue parameters have no material field; SourceObject carries this optional override.
+			Parameters.SourceObject = MaterialOverride;
 			Parameters.EffectCauser = Boss;
 			BossASC->ExecuteGameplayCue(bHeadWarning ? NFGameplayCueTags::GameplayCue_Boss_TargetWarning
 				: NFGameplayCueTags::GameplayCue_Boss_Telegraph, Parameters);

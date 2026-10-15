@@ -33,11 +33,16 @@ void UNFGA_BossRelocate::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 	}
 
 	StartingLocation = Boss->GetActorLocation();
+	FVector StartingGroundPoint;
+	StartingHoverHeight = FindGroundPoint(Boss, StartingGroundPoint)
+		? FMath::Max(StartingLocation.Z - StartingGroundPoint.Z, 0.0f)
+		: 0.0f;
 	ExecutionDuration = FMath::Max(DirtCueDuration, 0.0f)
 		+ FMath::Max(AscentDuration, 0.0f)
 		+ FMath::Max(HiddenDurationBeforeWarning, 0.0f)
 		+ FMath::Max(EmergenceWarningDuration, 0.0f)
 		+ FMath::Max(DiveDuration, 0.0f)
+		+ FMath::Max(AscentDuration, 0.0f)
 		+ 0.1f;
 	ExecuteBossCue(NFGameplayCueTags::GameplayCue_Boss_TargetWarning,
 		Boss->GetActorLocation() + FVector(0.0f, 0.0f, 250.0f));
@@ -97,7 +102,7 @@ void UNFGA_BossRelocate::UpdateBossMovement()
 	const float Alpha = FMath::Clamp((World->GetTimeSeconds() - MovementStartTime)
 		/ FMath::Max(CurrentMovementDuration, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
 	const float CurvedAlpha = MovementPhase == EMovementPhase::Diving
-		? FMath::InterpEaseIn(0.0f, 1.0f, Alpha, 3.0f)
+		? FMath::InterpEaseIn(0.0f, 1.0f, Alpha, 5.0f)
 		: FMath::InterpEaseOut(0.0f, 1.0f, Alpha, 2.0f);
 	Boss->SetActorLocation(FMath::Lerp(MovementStart, MovementDestination, CurvedAlpha));
 
@@ -122,6 +127,15 @@ void UNFGA_BossRelocate::FinishBossMovement()
 	{
 		Emerge();
 	}
+	else if (FinishedPhase == EMovementPhase::ReturningToHover)
+	{
+		if (ANF_BossBase* Boss = GetBoss())
+		{
+			Boss->SetFlying(false);
+		}
+		bIsInFlight = false;
+		FinishPattern();
+	}
 }
 
 void UNFGA_BossRelocate::ShowEmergenceWarning()
@@ -145,8 +159,16 @@ void UNFGA_BossRelocate::Emerge()
 	{
 		return;
 	}
-	Boss->SetFlying(false);
-	ExecuteBossCue(NFGameplayCueTags::GameplayCue_Boss_Emerge, EmergencePoint);
+	// Resolve the floor beneath the boss again at arrival so both the landing effects
+	// and their GameplayCue use the actual ground location, even on uneven terrain.
+	FVector LandingGroundPoint = EmergencePoint;
+	if (FindGroundPoint(Boss, LandingGroundPoint))
+	{
+		EmergencePoint = LandingGroundPoint;
+		Boss->SetActorLocation(EmergencePoint, false, nullptr, ETeleportType::TeleportPhysics);
+	}
+	ExecuteBossCue(NFGameplayCueTags::GameplayCue_Boss_Emerge, LandingGroundPoint);
+	ExecuteBossCue(NFGameplayCueTags::GameplayCue_Boss_Relocate_Landing, LandingGroundPoint);
 
 	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag, Damage);
 	const FGameplayEffectSpecHandle AirborneSpec = MakeBossEffectSpec(AirborneEffectClass, FGameplayTag(), 0.0f);
@@ -156,8 +178,9 @@ void UNFGA_BossRelocate::Emerge()
 		ApplyEffectToActor(Player, AirborneSpec);
 		Player->LaunchCharacter(FVector(0.0f, 0.0f, AirborneLaunchVelocity), true, true);
 	}
-	bIsInFlight = false;
-	GetWorld()->GetTimerManager().SetTimer(FinishTimer, this, &UNFGA_BossRelocate::FinishPattern, 0.1f, false);
+	// After the floor impact, return to the same hover height measured at takeoff.
+	const FVector HoverLocation = LandingGroundPoint + FVector::UpVector * StartingHoverHeight;
+	StartBossMovement(HoverLocation, AscentDuration, EMovementPhase::ReturningToHover);
 }
 
 void UNFGA_BossRelocate::FinishPattern()

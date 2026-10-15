@@ -3,7 +3,9 @@
 #include "Engine/World.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
+#include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
+#include "GAS/Tags/NFGameplayCueTags.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
 #include "Player/Character/NF_Player.h"
 #include "TimerManager.h"
@@ -42,6 +44,15 @@ void UNFGA_BossCenterBlast::Detonate()
 	}
 
 	const FVector Center = Boss->GetActorLocation();
+	if (UAbilitySystemComponent* BossASC = Boss->GetAbilitySystemComponent())
+	{
+		FGameplayCueParameters CueParameters;
+		CueParameters.Location = Center;
+		CueParameters.RawMagnitude = BlastRadius;
+		CueParameters.EffectCauser = Boss;
+		BossASC->ExecuteGameplayCue(NFGameplayCueTags::GameplayCue_Boss_CenterBlast_Impact, CueParameters);
+	}
+
 	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag, Damage);
 	const FGameplayEffectSpecHandle StunSpec = MakeBossEffectSpec(StunEffectClass, FGameplayTag(), 0.0f);
 	for (ANF_Player* Player : FindPlayersInRange(Center, BlastRadius))

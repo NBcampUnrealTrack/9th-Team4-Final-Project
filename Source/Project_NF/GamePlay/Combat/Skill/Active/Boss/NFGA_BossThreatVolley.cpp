@@ -82,7 +82,9 @@ void UNFGA_BossThreatVolley::BeginAimedVolley()
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		return;
 	}
-	ShowTelegraph(GroundPoint, ImpactRadius, TelegraphDuration);
+	FirstShotGroundPoint = GroundPoint;
+	FiredProjectileCount = 0;
+	ShowTelegraph(GroundPoint, ImpactRadius, TelegraphDuration, false, 0.0f, ShotTelegraphMaterial);
 	ElapsedFireTime = 0.0f;
 	GetWorld()->GetTimerManager().SetTimer(TelegraphTimer, this,
 		&UNFGA_BossThreatVolley::FireNextProjectile, FMath::Max(TelegraphDuration, 0.0f), false);
@@ -104,12 +106,30 @@ void UNFGA_BossThreatVolley::FireNextProjectile()
 		FMath::Max(ShotInterval, 0.01f), FMath::Max(TurnRateDegreesPerSecond, 0.0f)));
 
 	FVector GroundPoint;
-	if (FindGroundPoint(Target, GroundPoint))
+	bool bHasGroundPoint = false;
+	if (FiredProjectileCount == 0)
 	{
+		GroundPoint = FirstShotGroundPoint;
+		bHasGroundPoint = true;
+	}
+	else
+	{
+		bHasGroundPoint = FindGroundPoint(Target, GroundPoint);
+	}
+	if (bHasGroundPoint)
+	{
+		// The first shot uses the warning shown before the telegraph delay. Every later
+		// shot gets its own marker at the exact ground point passed to the projectile.
+		if (FiredProjectileCount > 0)
+		{
+			ShowTelegraph(GroundPoint, ImpactRadius, TelegraphDuration, false,
+				ShotTelegraphLifetime, ShotTelegraphMaterial);
+		}
 		const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag, Damage);
 		SpawnAreaProjectile(ProjectileClass, GroundPoint, ImpactRadius, ProjectileSpeed, DamageSpec,
 			NFGameplayCueTags::GameplayCue_Boss_ThreatVolley_Impact);
 	}
+	++FiredProjectileCount;
 	ElapsedFireTime += FMath::Max(ShotInterval, 0.05f);
 	if (ElapsedFireTime < FMath::Max(ProjectileFireDuration, 0.0f))
 	{
@@ -144,6 +164,8 @@ void UNFGA_BossThreatVolley::EndAbility(const FGameplayAbilitySpecHandle Handle,
 		Timers.ClearTimer(RecoveryTimer);
 	}
 	SelectedTarget.Reset();
+	FirstShotGroundPoint = FVector::ZeroVector;
+	FiredProjectileCount = 0;
 	ElapsedFireTime = 0.0f;
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
