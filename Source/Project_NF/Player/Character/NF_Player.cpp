@@ -122,15 +122,18 @@ void ANF_Player::TryStartAttack()
 	NF_WeaponComponent->StartFire();
 }
 
+
 void ANF_Player::TryStopAttack()
 {
 	NF_WeaponComponent->StopFire();
 }
 
+
 void ANF_Player::TryReload()
 {
 	NF_WeaponComponent->Reload();
 }
+
 
 void ANF_Player::TrySkillActionWithInputID(int32 InputID)
 {
@@ -222,6 +225,7 @@ void ANF_Player::PostInitializeComponents()
 	
 }
 
+
 void ANF_Player::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
@@ -238,8 +242,6 @@ void ANF_Player::OnRep_PlayerState()
 	//클라이언트를 위한 ASC 초기화
 	InitAbilitySystem();
 }
-
-
 
 
 void ANF_Player::InitAbilitySystem()
@@ -300,11 +302,11 @@ void ANF_Player::OnOutOfHealthCpp()
 	UNF_GASFunctionLibrary::NF_TryAbility(this, NFTag_Player::Player_Ability_Death);
 }
 
+
 void ANF_Player::OnOutOfShieldCpp()
 {
 		UKismetSystemLibrary::PrintString(this,
     										  (TEXT("쉴드가 깨짐에 대한 로직 실행 예정")),
     										  true, true, FColor::Magenta, 10.0f);
 }
-
 
