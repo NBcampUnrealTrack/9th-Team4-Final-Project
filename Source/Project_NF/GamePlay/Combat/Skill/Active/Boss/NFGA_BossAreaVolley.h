@@ -24,6 +24,16 @@ protected:
 		const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 		bool bReplicateEndAbility, bool bWasCancelled) override;
 
+	/** Called on the server once when a volley has at least one valid telegraphed target.
+	 *  Blueprint children can start Play Montage and Wait here for the volley wind-up animation.
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Boss|Pattern")
+	void OnVolleyTelegraphStarted(int32 TargetCount);
+
+	/** Called once per volley immediately before its first projectile is spawned. */
+	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Boss|Pattern")
+	void OnVolleyProjectileLaunch();
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (ClampMin = "1.0"))
 	float PatternDuration = 60.0f;
 
@@ -60,6 +70,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Projectile")
 	TSubclassOf<ANF_BossAreaProjectile> ProjectileClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Projectile")
+	FName ProjectileSpawnSocketName = TEXT("FirePoint");
+
 private:
 	void StartVolley();
 	void FinishTelegraph(FVector_NetQuantize TargetGroundPoint);
@@ -71,4 +84,5 @@ private:
 	TArray<FTimerHandle> TelegraphTimers;
 	float ElapsedPatternTime = 0.0f;
 	bool bWarnedMissingDamageConfig = false;
+	bool bLaunchEventTriggeredForVolley = false;
 };
