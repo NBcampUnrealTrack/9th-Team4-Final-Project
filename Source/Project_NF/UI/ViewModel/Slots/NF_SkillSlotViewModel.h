@@ -20,8 +20,7 @@ class PROJECT_NF_API UNF_SkillSlotViewModel : public UNF_GASViewModelBase
 public:
     // ActiveSkill: 슬롯 0 또는 1 PassiveSkill: 슬롯 0
     bool ConfigureSlot(ENF_BuildItemType InSlotType,int32 InSlotIndex);
-
-    // TODO: 현재 BuildItemDefinition에 아이콘 필드가 없음.
+    
     // 아이콘 데이터 소스가 정해지면 장착된 SkillId에 맞춰 호출.
     void SetSkillIcon(FName InSkillId, UTexture2D* InIcon);
 

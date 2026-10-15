@@ -19,13 +19,11 @@ protected:
 
     virtual void BindAbilitySystemDelegates() override;
     virtual void RefreshFromAbilitySystem() override;
-
-    // TODO: 열쇠 담당자가 확정한 '열쇠 보유 상태' 태그를 설정.
+    
     // 열쇠를 떨어뜨리면 이 태그도 제거되어야 한다.
     UPROPERTY(EditDefaultsOnly, Category = "BuffDebuff|Tags")
     FGameplayTag KeyHolderTag;
-
-    // TODO: GE 담당자가 확정한 '최대 실드 감소' 태그를 설정.
+    
     // 남은 시간 조회를 위해 해당 GE의 owning tag에도 포함되어야 한다.
     UPROPERTY(EditDefaultsOnly, Category = "BuffDebuff|Tags")
     FGameplayTag ShieldPenaltyTag;
