@@ -10,7 +10,7 @@
 
 UNFGA_Death::UNFGA_Death()
 {
-	AbilityTags.AddTag(NFTag_Player::Character_Ability_Death);
+	AbilityTags.AddTag(NFTag_Player::Player_Ability_Death);
 }
 
 
