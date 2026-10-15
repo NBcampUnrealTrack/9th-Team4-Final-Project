@@ -4,8 +4,6 @@
 #include "Engine/DataAsset.h"
 #include "NF_WeaponDataAsset.generated.h"
 
-class UUserWidget;
-
 UENUM(BlueprintType)
 enum class ENF_WeaponType : uint8
 {
@@ -35,9 +33,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	ENF_FireMode FireMode = ENF_FireMode::SemiAutomatic;
 
+	// 지정하면 BP의 메시/머티리얼 대신 이 DA의 외형을 적용한다. None이면 기존 BP 설정 유지.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Appearance")
+	TObjectPtr<class USkeletalMesh> WeaponMesh;
+
+	// 배열 인덱스 = 메시의 머티리얼 슬롯 인덱스. None 또는 생략한 슬롯은 메시 기본값 사용.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Appearance",
+		meta=(EditCondition="WeaponMesh != nullptr"))
+	TArray<TObjectPtr<class UMaterialInterface>> WeaponMaterials;
+
 	// 장착 시 로컬 플레이어 화면에 표시할 위젯. None이면 표시하지 않는다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UI")
-	TSubclassOf<UUserWidget> CrosshairWidgetClass;
+	TSubclassOf<class UUserWidget> CrosshairWidgetClass;
 	
 	// 데미지
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")

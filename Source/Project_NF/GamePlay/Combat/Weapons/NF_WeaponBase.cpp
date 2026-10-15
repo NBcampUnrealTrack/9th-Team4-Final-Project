@@ -10,6 +10,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
+#include "Engine/SkeletalMesh.h"
+#include "Materials/MaterialInterface.h"
 
 ANF_WeaponBase::ANF_WeaponBase()
 {
@@ -20,6 +22,38 @@ ANF_WeaponBase::ANF_WeaponBase()
 	WeaponMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	SetRootComponent(WeaponMeshComponent);
 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+}
+
+void ANF_WeaponBase::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+	ApplyWeaponAppearance();
+}
+
+void ANF_WeaponBase::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	ApplyWeaponAppearance();
+}
+
+void ANF_WeaponBase::ApplyWeaponAppearance()
+{
+	if (IsValid(WeaponMeshComponent) == false || IsValid(WeaponData) == false || 
+		IsValid(WeaponData->WeaponMesh) == false)
+	{
+		return;
+	}
+
+	WeaponMeshComponent->SetSkeletalMesh(WeaponData->WeaponMesh);
+	WeaponMeshComponent->EmptyOverrideMaterials();
+	const int32 SlotCount = FMath::Min(WeaponMeshComponent->GetNumMaterials(), WeaponData->WeaponMaterials.Num());
+	for (int32 SlotIndex = 0; SlotIndex < SlotCount; ++SlotIndex)
+	{
+		if (UMaterialInterface* Material = WeaponData->WeaponMaterials[SlotIndex].Get(); IsValid(Material))
+		{
+			WeaponMeshComponent->SetMaterial(SlotIndex, Material);
+		}
+	}
 }
 
 void ANF_WeaponBase::BeginPlay()

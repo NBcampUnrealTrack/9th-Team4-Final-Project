@@ -141,9 +141,16 @@ void UNF_WeaponComponent::RemoveCrosshair()
 void UNF_WeaponComponent::RefreshCrosshair()
 {
 	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	
+	if (IsValid(OwnerPawn) == false || IsValid(EquippedWeapon) == false)
+	{
+		RemoveCrosshair();
+		return;
+	}
+
 	APlayerController* Controller = Cast<APlayerController>(OwnerPawn->GetController());
 	
-	if (Controller == nullptr || Controller->IsLocalController() == false || Controller->GetLocalPlayer() == nullptr)
+	if (IsValid(Controller) == false || Controller->IsLocalController() == false || Controller->GetLocalPlayer() == nullptr)
 	{
 		RemoveCrosshair();
 		return;
