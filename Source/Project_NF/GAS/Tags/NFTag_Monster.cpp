@@ -34,4 +34,10 @@ namespace NFTag_Monster
 	Data_Monster_Damage,
 	"Data.Monster.Damage",
 	"몬스터가 플레이어에게 전달하는 피해량");
+	
+	// @Owner: 경환 | 2026-10-15
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(
+		Ability_Monster_RangedAttack,
+		"Ability.Monster.RangedAttack",
+		"원거리 몬스터 투사체 공격");
 }
