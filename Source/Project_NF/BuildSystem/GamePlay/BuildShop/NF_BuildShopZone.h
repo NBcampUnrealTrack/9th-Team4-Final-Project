@@ -20,6 +20,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NF|BuildShop")
 	bool CanBuild(AActor* PlayerActor) const;
 
+	/** @Owner: 황준현 | 2026-10-15. 사용 권한과 별개로 실제 거리 범위만 검사한다. */
+	UFUNCTION(BlueprintPure, Category = "NF|BuildShop")
+	bool IsActorInRange(AActor* PlayerActor) const;
+
 	/** Team ownership and match phase restrictions belong to their respective systems. */
 	UFUNCTION(BlueprintNativeEvent, Category = "NF|BuildShop")
 	bool IsPlayerAllowed(AActor* PlayerActor) const;

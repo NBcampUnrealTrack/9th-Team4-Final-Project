@@ -9,13 +9,14 @@
 #include "BuildSystem/Data/NF_BuildRules.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
-#include "BuildSystem/GAS/Tags/NFTag_Build.h"
+#include "GAS/Tags/NFTag_Build.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/PlayerController.h"
 #include "BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 #include "GameplayEffect.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 
 namespace
 {
@@ -48,6 +49,27 @@ namespace
 		return Rules;
 	}
 } // namespace
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildWeaponDefinitionTest, "NF.Build.WeaponDefinition",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNF_BuildWeaponDefinitionTest::RunTest(const FString& Parameters)
+{
+	UNF_BuildRules* Rules = MakeRules();
+	Rules->Catalog[0]->WeaponClass = ANF_WeaponBase::StaticClass();
+	TestEqual(TEXT("Linked weapon in first slot accepted"),
+		FNF_BuildValidator::Validate(Rules, 1, {Select(TEXT("Rifle"))}).Result,
+		ENF_BuildResult::Success);
+	Rules->WeaponSlots = 2;
+	TestEqual(TEXT("Shared weapon component has no second equipment slot"),
+		FNF_BuildValidator::Validate(Rules, 1, {Select(TEXT("Rifle"), 1)}).Result,
+		ENF_BuildResult::InvalidSlot);
+	Rules->Catalog[1]->WeaponClass = ANF_WeaponBase::StaticClass();
+	TestEqual(TEXT("Skill cannot spawn a weapon"),
+		FNF_BuildValidator::Validate(Rules, 1, {Select(TEXT("Rifle")), Select(TEXT("Grenade"))}).Result,
+		ENF_BuildResult::InvalidGrant);
+	return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildCostTest, "NF.Build.CostAndLevel",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -231,7 +253,16 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Rules cannot change while a build is equipped"), Build->ConfigureRules(MakeRules()));
 	TestFalse(TEXT("Unconfigured growth level rejected"), Build->SetPlayerLevel(3));
 	TestTrue(TEXT("Configured growth level accepted"), Build->SetPlayerLevel(2));
+	World->Tick(LEVELTICK_All, 0.25f);
+	TestTrue(TEXT("거리 안의 상점을 조회할 수 있다"), Build->GetShopsInRange().Contains(Shop));
 	Build->CloseBuildSession();
+	TestTrue(TEXT("상점을 닫아도 범위 안 상태는 유지된다"), Build->GetShopsInRange().Contains(Shop));
+	Player->SetActorLocation(FVector(2000.f, 0.f, 0.f));
+	World->Tick(LEVELTICK_All, 0.25f);
+	TestFalse(TEXT("사용 세션이 없어도 범위 이탈을 감지한다"), Build->GetShopsInRange().Contains(Shop));
+	Player->SetActorLocation(FVector::ZeroVector);
+	World->Tick(LEVELTICK_All, 0.25f);
+	TestTrue(TEXT("상호작용 전에도 범위 재진입을 감지한다"), Build->GetShopsInRange().Contains(Shop));
 	Build->RequestApplyBuild({Select(TEXT("Rifle"))}, Shop);
 	TestEqual(TEXT("Closed session cannot apply another build"), Build->GetCurrentBuild().Num(), 2);
 	Shop->NF_Interaction(Controller);

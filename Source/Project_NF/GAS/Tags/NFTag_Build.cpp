@@ -1,4 +1,4 @@
-#include "BuildSystem/GAS/Tags/NFTag_Build.h"
+#include "NFTag_Build.h"
 
 namespace NFTag_Build
 {
