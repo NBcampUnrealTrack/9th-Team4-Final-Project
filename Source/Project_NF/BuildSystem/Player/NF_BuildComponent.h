@@ -8,6 +8,7 @@
 #include "NF_BuildComponent.generated.h"
 
 class ANF_BuildShopZone;
+class ANF_WeaponBase;
 class APlayerController;
 class UAbilitySystemComponent;
 class UNF_BuildItemDefinition;
@@ -31,6 +32,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildRequestCompleted, const FNF_BuildValidation&, Validation);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildShopChanged, ANF_BuildShopZone*, Shop);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopRangeChanged, ANF_BuildShopZone*, Shop,
+	ENF_BuildShopRangeState, RangeState);
 
 /** Attach to an owned replicated Pawn. The shop is never the client RPC owner. */
 UCLASS(ClassGroup = (NF), meta = (BlueprintSpawnableComponent))
@@ -81,8 +85,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|Input")
 	void ReleaseActiveSkillInput(int32 SlotIndex);
 
-	UPROPERTY(BlueprintAssignable, Category = "NF|Build")
+	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
+	FNF_OnBuildShopRangeChanged OnBuildShopRangeChanged;
+
+	/** 상호작용 승인으로 사용 시작 시 상점 참조, 사용 종료 시 nullptr을 전달한다. */
+	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
 	FNF_OnBuildShopChanged OnBuildShopChanged;
+
+	/** 이벤트 바인딩 전부터 범위 안에 있던 상점도 조회할 수 있다. */
+	UFUNCTION(BlueprintPure, Category = "NF|Build|Shop")
+	TArray<ANF_BuildShopZone*> GetShopsInRange() const;
 
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Draft")
 	FNF_OnBuildChanged OnDraftChanged;
@@ -130,6 +142,7 @@ public:
 	FNF_OnBuildRequestCompleted OnBuildRequestCompleted;
 
 protected:
+	virtual void BeginPlay() override;
 	virtual void
 	TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* TickFunction) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -146,6 +159,14 @@ protected:
 	bool bAutomaticallyShowWidget = true;
 
 private:
+	// @Owner: 황준현 | 2026-10-15. 범위 상태는 사용 세션과 분리하여 소유 클라이언트에 복제한다.
+	void UpdateShopsInRange();
+	UFUNCTION()
+	void OnRep_ShopsInRange();
+	UPROPERTY(ReplicatedUsing = OnRep_ShopsInRange)
+	TArray<TObjectPtr<ANF_BuildShopZone>> ShopsInRange;
+	TArray<TWeakObjectPtr<ANF_BuildShopZone>> NotifiedShopsInRange;
+
 	UFUNCTION(Server, Reliable)
 	void ServerCloseBuildSession();
 
@@ -185,6 +206,10 @@ private:
 
 	FNF_BuildValidation ApplyBuildOnServer(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone);
 	bool GrantItem(UNF_BuildItemDefinition* Definition, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
+	bool ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections);
+	void ReleaseBuildWeapon();
+	TWeakObjectPtr<ANF_WeaponBase> BuildWeapon;
+	FName BuildWeaponItemId;
 	void RevokeItem(const FNF_BuildGrantHandles& Handles);
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentBuild)

@@ -7,6 +7,7 @@
 
 class UGameplayAbility;
 class UGameplayEffect;
+class ANF_WeaponBase;
 
 /** One definition per item/tier. No mesh swapping is required by the prototype. */
 UCLASS(BlueprintType)
@@ -29,6 +30,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build", meta = (ClampMin = "0"))
 	int32 Cost = 0;
+
+	/** @Owner: 황준현 | 2026-10-15. 실제 장착할 무기 클래스. 미지정 시 기존 데이터 전용 프로토타입으로 동작한다. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build|Weapon")
+	TSubclassOf<ANF_WeaponBase> WeaponClass;
 
 	/** Optional until combat implementation is connected. Passive GA owns its event registration. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build|GAS")
