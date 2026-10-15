@@ -8,6 +8,11 @@
 class ANF_WeaponBase;
 class UAbilitySystemComponent;
 class UNF_GA_WeaponFire;
+class UNF_GA_WeaponZoom;
+class UCameraComponent;
+class UUserWidget;
+class APawn;
+class AController;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
@@ -19,6 +24,7 @@ public:
 	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	bool IsFireInputHeld() const { return bFireInputHeld; }
 
@@ -27,6 +33,19 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void StopFire();
+
+	/** Bind to Started only; do not bind button release to StopZoom. */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Zoom")
+	void ToggleZoom();
+
+	UFUNCTION(BlueprintCallable, Category="Weapon|Zoom")
+	void StartZoom();
+
+	UFUNCTION(BlueprintCallable, Category="Weapon|Zoom")
+	void StopZoom();
+
+	UFUNCTION(BlueprintPure, Category="Weapon|Zoom")
+	bool IsZooming() const { return bZoomActive; }
 
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Reload();
@@ -50,13 +69,55 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Weapon")
 	FName WeaponSocketName = TEXT("WeaponSocket");
 
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
+	UPROPERTY(ReplicatedUsing=OnRep_EquippedWeapon, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<ANF_WeaponBase> EquippedWeapon;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
 	TSubclassOf<UNF_GA_WeaponFire> FireAbilityClass;
 
+	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
+	TSubclassOf<UNF_GA_WeaponZoom> ZoomAbilityClass;
+
+	UPROPERTY(EditDefaultsOnly, Category="Weapon|Zoom", meta=(ClampMin="5.0", ClampMax="170.0"))
+	float ZoomFieldOfView = 60.f;
+
+	UPROPERTY(EditDefaultsOnly, Category="Weapon|Zoom", meta=(ClampMin="0.0"))
+	float ZoomInterpSpeed = 12.f;
+
 private:
+	friend class UNF_GA_WeaponZoom;
+	bool EnsureZoomAbility();
+	void SetZoomActive(bool bActive);
+	void RestoreZoomCamera();
+	TWeakObjectPtr<UAbilitySystemComponent> ZoomASC;
+	FGameplayAbilitySpecHandle ZoomAbilityHandle;
+	TWeakObjectPtr<UCameraComponent> ZoomCamera;
+	float UnzoomedFieldOfView = 100.f;
+
+	UPROPERTY(ReplicatedUsing=OnRep_ZoomActive)
+	bool bZoomActive = false;
+
+	UFUNCTION()
+	void OnRep_ZoomActive();
+	UFUNCTION(Server, Reliable)
+	void ServerToggleZoom();
+	UFUNCTION(Server, Reliable)
+	void ServerStartZoom();
+	UFUNCTION(Server, Reliable)
+	void ServerStopZoom();
+
+	void RefreshCrosshair();
+	void RemoveCrosshair();
+
+	UFUNCTION()
+	void OnRep_EquippedWeapon();
+
+	UFUNCTION()
+	void OnPawnControllerChanged(APawn* Pawn, AController* OldController, AController* NewController);
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> CrosshairWidget;
+
 	ANF_WeaponBase* UnequipWeaponInternal();
 	bool bChangingWeapon = false;
 	bool EnsureFireAbility();
