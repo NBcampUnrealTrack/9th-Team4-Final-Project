@@ -9,6 +9,7 @@
 #include "GamePlay/Combat/GameplayCue/NF_BossWarningMarker.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
 #include "GamePlay/Combat/GameplayCue/NF_BossTelegraphMarker.h"
+#include "Materials/MaterialInterface.h"
 #include "Components/StateTreeComponent.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
@@ -61,7 +62,10 @@ void ANF_BossBase::HandleGameplayCue(UObject* Self, const FGameplayTag GameplayC
 	if (GameplayCueTag == NFGameplayCueTags::GameplayCue_Boss_Telegraph
 		&& EventType == EGameplayCueEvent::Executed)
 	{
-		if (GetNetMode() != NM_DedicatedServer && TelegraphMarkerClass && TelegraphDecalMaterial)
+		UMaterialInterface* MaterialOverride = Cast<UMaterialInterface>(
+			const_cast<UObject*>(Parameters.SourceObject.Get()));
+		UMaterialInterface* MarkerMaterial = IsValid(MaterialOverride) ? MaterialOverride : TelegraphDecalMaterial.Get();
+		if (GetNetMode() != NM_DedicatedServer && TelegraphMarkerClass && IsValid(MarkerMaterial))
 		{
 			ANF_BossTelegraphMarker* Marker = GetWorld()->SpawnActorDeferred<ANF_BossTelegraphMarker>(
 				TelegraphMarkerClass, FTransform::Identity, this, nullptr,
@@ -69,8 +73,10 @@ void ANF_BossBase::HandleGameplayCue(UObject* Self, const FGameplayTag GameplayC
 			if (Marker)
 			{
 				const float TelegraphDuration = static_cast<float>(FMath::Max(Parameters.AbilityLevel, 1));
+				const float MarkerLifetime = Parameters.NormalizedMagnitude > 0.0f
+					? Parameters.NormalizedMagnitude : TelegraphDecalLifetime;
 				Marker->InitializeMarker(Parameters.Location, Parameters.RawMagnitude,
-					TelegraphDuration, TelegraphDecalLifetime, TelegraphDecalMaterial,
+					TelegraphDuration, MarkerLifetime, MarkerMaterial,
 					TelegraphProgressParameterName, TelegraphProjectionDepth, TelegraphHeightOffset);
 				Marker->FinishSpawning(FTransform::Identity);
 			}
@@ -316,6 +322,14 @@ void ANF_BossBase::SetSubmerged(const bool bNewSubmerged)
 	ApplySubmergedPresentation();
 }
 
+void ANF_BossBase::SetFlying(const bool bNewFlying)
+{
+	if (HasAuthority())
+	{
+		bIsFlying = bNewFlying;
+	}
+}
+
 void ANF_BossBase::OnRep_IsDefeated()
 {
 	if (bIsDefeated)
@@ -343,4 +357,5 @@ void ANF_BossBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ANF_BossBase, bIsDefeated);
 	DOREPLIFETIME(ANF_BossBase, bIsSubmerged);
+	DOREPLIFETIME(ANF_BossBase, bIsFlying);
 }

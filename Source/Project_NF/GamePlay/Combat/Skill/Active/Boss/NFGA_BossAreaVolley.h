@@ -40,6 +40,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (ClampMin = "0.1"))
 	float VolleyInterval = 5.0f;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (ClampMin = "1"))
+	int32 MaxVolleysPerPattern = 4;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (ClampMin = "0.0"))
 	float TelegraphDuration = 2.0f;
 
@@ -83,6 +86,7 @@ private:
 	FTimerHandle EndTimer;
 	TArray<FTimerHandle> TelegraphTimers;
 	float ElapsedPatternTime = 0.0f;
+	int32 StartedVolleyCount = 0;
 	bool bWarnedMissingDamageConfig = false;
 	bool bLaunchEventTriggeredForVolley = false;
 };
