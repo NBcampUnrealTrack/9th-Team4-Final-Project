@@ -30,6 +30,10 @@ public:
 	
 	void TryAction(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
+	TObjectPtr<USkeletalMeshComponent> VisualMesh;
+	
+	
 protected:
 	virtual void PostInitializeComponents() override;
 	
@@ -38,11 +42,7 @@ protected:
 	virtual void PossessedBy(AController* NewController) override;
 	
 	virtual void OnRep_PlayerState() override;
-	
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
-	TObjectPtr<USkeletalMeshComponent> VisualMesh;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
 	TObjectPtr<USpringArmComponent> SpringArmComponent;
 	

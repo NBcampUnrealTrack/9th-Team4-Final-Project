@@ -29,6 +29,7 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 		GetMesh()->SetHiddenInGame(true);
 		GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		VisualMesh->SetupAttachment(GetMesh());
+		VisualMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 	}
 	
 	
