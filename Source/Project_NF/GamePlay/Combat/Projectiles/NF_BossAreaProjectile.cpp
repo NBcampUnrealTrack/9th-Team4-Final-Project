@@ -6,7 +6,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
-#include "GAS/Tags/NFGameplayCueTags.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Project_NF.h"
@@ -41,7 +40,7 @@ ANF_BossAreaProjectile::ANF_BossAreaProjectile()
 }
 
 void ANF_BossAreaProjectile::InitializeProjectile(const FVector& InDestination, float InDamageRadius,
-	float InSpeed, const FGameplayEffectSpecHandle& InDamageSpec)
+	float InSpeed, const FGameplayEffectSpecHandle& InDamageSpec, const FGameplayTag InImpactCueTag)
 {
 	if (!HasAuthority())
 	{
@@ -50,6 +49,7 @@ void ANF_BossAreaProjectile::InitializeProjectile(const FVector& InDestination, 
 	Destination = InDestination;
 	DamageRadius = FMath::Max(InDamageRadius, 1.0f);
 	DamageSpec = InDamageSpec;
+	ImpactCueTag = InImpactCueTag;
 	const FVector Direction = (FVector(Destination) - GetActorLocation()).GetSafeNormal();
 	ProjectileMovement->Velocity = Direction * FMath::Max(InSpeed, 1.0f);
 	UE_LOG(LogProject_NF, Warning,
@@ -93,14 +93,17 @@ void ANF_BossAreaProjectile::ReachDestination()
 		TEXT("[BossProjectileDiag] SnappedLocation Actor=%s Location=%s Destination=%s"),
 		*GetNameSafe(this), *GetActorLocation().ToString(), *FVector(Destination).ToString());
 	ProjectileMovement->StopMovementImmediately();
-	if (UAbilitySystemComponent* BossASC =
-		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner()))
+	if (ImpactCueTag.IsValid())
 	{
-		FGameplayCueParameters CueParameters;
-		CueParameters.Location = FVector(Destination);
-		CueParameters.Instigator = GetOwner();
-		CueParameters.EffectCauser = this;
-		BossASC->ExecuteGameplayCue(NFGameplayCueTags::GameplayCue_Boss_ProjectileImpact, CueParameters);
+		if (UAbilitySystemComponent* BossASC =
+			UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner()))
+		{
+			FGameplayCueParameters CueParameters;
+			CueParameters.Location = FVector(Destination);
+			CueParameters.Instigator = GetOwner();
+			CueParameters.EffectCauser = this;
+			BossASC->ExecuteGameplayCue(ImpactCueTag, CueParameters);
+		}
 	}
 
 	ApplyImpactDamage();

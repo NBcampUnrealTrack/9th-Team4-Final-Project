@@ -316,6 +316,14 @@ void ANF_BossBase::SetSubmerged(const bool bNewSubmerged)
 	ApplySubmergedPresentation();
 }
 
+void ANF_BossBase::SetFlying(const bool bNewFlying)
+{
+	if (HasAuthority())
+	{
+		bIsFlying = bNewFlying;
+	}
+}
+
 void ANF_BossBase::OnRep_IsDefeated()
 {
 	if (bIsDefeated)
@@ -343,4 +351,5 @@ void ANF_BossBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ANF_BossBase, bIsDefeated);
 	DOREPLIFETIME(ANF_BossBase, bIsSubmerged);
+	DOREPLIFETIME(ANF_BossBase, bIsFlying);
 }
