@@ -2,10 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Player/Data/NF_PlayerActionType.h"
 #include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "Player/Data/NF_PlayerStateDelegate.h"
 #include "NF_PlayerController.generated.h"
 
+enum class ENF_PlayerActionType : uint8;
 enum class ENF_PlayerInteractTypeEnum : uint8;
 struct FInputActionValue;
 class UNF_PlayerInputDataAsset;
@@ -20,8 +22,11 @@ class PROJECT_NF_API ANF_PlayerController : public APlayerController
 	
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
 	virtual void BeginPlay() override;
+	
 	virtual void SetupInputComponent() override;
+	
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|MotionMatching")
 	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputDataAsset;
@@ -29,36 +34,43 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UNF_PlayerInputDataAsset> NF_PlayerInputDataAsset;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_OnChangedPlayerStateType)
-	ENF_PlayerInteractTypeEnum CurrentPlayerInteractType = ENF_PlayerInteractTypeEnum::None;
-	
-	static constexpr int32 SkillButtonA_InputID = 1;
-	static constexpr int32 SkillButtonB_InputID = 2;
-	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
 	float InteractionRange = 300.0f;
 	
+	UPROPERTY(ReplicatedUsing = OnRep_OnChangedPlayerStateType)
+	ENF_PlayerInteractTypeEnum CurrentPlayerInteractType = ENF_PlayerInteractTypeEnum::None;
+	
+	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
+	
+	
 private:
-	FOnPlayerOpenShop OnPlayerOpenShop;
-	void EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType);
-	
-	UFUNCTION(Server, Reliable)
-	void ServerRPC_OnChangedPlayerStateType(ENF_PlayerInteractTypeEnum NewPlayerType);
-	
-	UFUNCTION()
-	void OnRep_OnChangedPlayerStateType();
-
-	
 	void BindInputButton();
-	void TrySkillAction_A();
-	void TrySkillAction_B();
-	void TrySkillActionWithInputID(int32 InputID);
+	
+	void TryAction(ENF_PlayerActionType PlayerActionType);
 	
 	
-	void TryInteraction();
+#pragma region Interaction
 	UFUNCTION(Server, Reliable)
 	void ServerRPC_TryInteraction();
 	
+	void TryInteraction();
 	
 	FHitResult NF_Linetrace();
+#pragma endregion
+	
+	
+#pragma region BuildShop
+	UFUNCTION()
+	void OnRep_OnChangedPlayerStateType();
+	
+	void EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType);
+	
+	bool IsInBuildShop();
+	
+	
+	FOnPlayerOpenShop OnPlayerOpenShop;
+	
+	/*UFUNCTION(Server, Reliable)
+	void ServerRPC_OnChangedPlayerStateType(ENF_PlayerInteractTypeEnum NewPlayerType);*/
+#pragma endregion
 };

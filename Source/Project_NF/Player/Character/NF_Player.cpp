@@ -1,5 +1,6 @@
 #include "NF_Player.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "NFGA_Death.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -10,7 +11,10 @@
 #include "NF_PlayerStatusAttribute.h"
 #include "BuildSystem/Player/NF_BuildComponent.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GAS/Tags/NFTag_Player.h"
+#include "Player/Controller/NF_PlayerController.h"
+#include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/State/NF_PlayerState.h"
 
 
@@ -48,6 +52,8 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	
 	//Build
 	NF_BuildComponent = CreateDefaultSubobject<UNF_BuildComponent>(TEXT("NF_BuildComponent"));
+	
+	NF_WeaponComponent = CreateDefaultSubobject<UNF_WeaponComponent>(TEXT("NF_WeaponComponent"));
 }
 
 
@@ -55,16 +61,86 @@ void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	
+	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, TryAction);
 }
 
 
-class UAbilitySystemComponent* ANF_Player::GetAbilitySystemComponent() const
+void ANF_Player::TryAction(APlayerController* SendController, ENF_PlayerActionType ActionType)
+{
+	if (UNF_PlayerActionDelegateSubsystem::IsControllerMatchedToThisPawn(SendController, this) == false) return;
+	
+	if (ActionType == ENF_PlayerActionType::Fire)
+	{
+		TryStartAttack();
+		
+		return;
+	}
+	
+	if (ActionType == ENF_PlayerActionType::StopFire)
+	{
+		TryStopAttack();
+		
+		return;
+	}
+	
+	if (ActionType == ENF_PlayerActionType::Reload)
+	{
+		TryReload();
+		
+		return;
+	}
+	
+	if (ActionType == ENF_PlayerActionType::SkillA)
+	{
+		TrySkillActionWithInputID(SkillButtonA_InputID);
+		
+		return;
+	}
+	
+	if (ActionType == ENF_PlayerActionType::SkillB)
+	{
+		TrySkillActionWithInputID(SkillButtonB_InputID);
+		
+		return;
+	}
+		
+	if (ActionType == ENF_PlayerActionType::Interaction)
+	{
+		return;
+	}
+}
+
+
+UAbilitySystemComponent* ANF_Player::GetAbilitySystemComponent() const
 {
 	auto* NF_PlayerState = GetPlayerState<ANF_PlayerState>();
 	if (IsValid(NF_PlayerState) == false) return nullptr;
 	
 	return NF_PlayerState->GetAbilitySystemComponent();
+}
+
+
+void ANF_Player::TryStartAttack()
+{
+	NF_WeaponComponent->StartFire();
+}
+
+void ANF_Player::TryStopAttack()
+{
+	NF_WeaponComponent->StopFire();
+}
+
+void ANF_Player::TryReload()
+{
+	NF_WeaponComponent->Reload();
+}
+
+void ANF_Player::TrySkillActionWithInputID(int32 InputID)
+{
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(this);
+	if (IsValid(ASC) == false) return;
+
+	ASC->AbilityLocalInputPressed(InputID);
 }
 
 
@@ -90,6 +166,8 @@ void ANF_Player::OnRep_PlayerState()
 	//클라이언트를 위한 ASC 초기화
 	InitAbilitySystem();
 }
+
+
 
 
 void ANF_Player::InitAbilitySystem()
