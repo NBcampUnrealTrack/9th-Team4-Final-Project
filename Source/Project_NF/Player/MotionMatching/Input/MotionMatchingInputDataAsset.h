@@ -62,7 +62,7 @@ public:
 
 #pragma region Strafe
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MotionMatching|Input|Strafe")
-	bool bIsStrafeBindingEnabled = true;
+	bool bIsStrafeBindingEnabled = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "MotionMatching|Input|Strafe", meta = (EditCondition = "bIsStrafeBindingEnabled"))
 	TObjectPtr<UInputAction> StrafeAction;
