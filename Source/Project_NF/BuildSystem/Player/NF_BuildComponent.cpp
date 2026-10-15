@@ -5,13 +5,17 @@
 #include "BuildSystem/Core/NF_BuildValidator.h"
 #include "BuildSystem/Data/NF_BuildItemDefinition.h"
 #include "BuildSystem/Data/NF_BuildRules.h"
-#include "BuildSystem/GAS/Tags/NFTag_Build.h"
+#include "GAS/Tags/NFTag_Build.h"
 #include "BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 #include "BuildSystem/UI/NF_BuildShopWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayEffect.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Net/UnrealNetwork.h"
 
 UNF_BuildComponent::UNF_BuildComponent()
@@ -21,6 +25,82 @@ UNF_BuildComponent::UNF_BuildComponent()
 	PrimaryComponentTick.TickInterval = 0.2f;
 	SetIsReplicatedByDefault(true);
 	BuildWidgetClass = UNF_BuildShopWidget::StaticClass();
+}
+
+void UNF_BuildComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	SetComponentTickEnabled(GetOwner()->HasAuthority());
+	if (GetOwner()->HasAuthority())
+	{
+		UpdateShopsInRange();
+	}
+}
+
+TArray<ANF_BuildShopZone*> UNF_BuildComponent::GetShopsInRange() const
+{
+	TArray<ANF_BuildShopZone*> Result;
+	for (ANF_BuildShopZone* Shop : ShopsInRange)
+	{
+		if (IsValid(Shop))
+		{
+			Result.Add(Shop);
+		}
+	}
+	return Result;
+}
+
+void UNF_BuildComponent::UpdateShopsInRange()
+{
+	TArray<TObjectPtr<ANF_BuildShopZone>> NewShops;
+	for (TActorIterator<ANF_BuildShopZone> Iterator(GetWorld()); Iterator; ++Iterator)
+	{
+		if (Iterator->IsActorInRange(GetOwner()))
+		{
+			NewShops.Add(*Iterator);
+		}
+	}
+	if (ShopsInRange.Num() == NewShops.Num() &&
+		NewShops.ContainsByPredicate([this](const TObjectPtr<ANF_BuildShopZone>& Shop)
+		{
+			return !ShopsInRange.Contains(Shop);
+		}) == false)
+	{
+		return;
+	}
+	ShopsInRange = MoveTemp(NewShops);
+	GetOwner()->ForceNetUpdate();
+	OnRep_ShopsInRange();
+}
+
+void UNF_BuildComponent::OnRep_ShopsInRange()
+{
+	// 알림 중 실행되는 외부 콜백이 영향을 주지 않도록 이전/현재 목록을 먼저 확정한다.
+	const TArray<TWeakObjectPtr<ANF_BuildShopZone>> Previous = NotifiedShopsInRange;
+	TArray<TWeakObjectPtr<ANF_BuildShopZone>> Current;
+	for (ANF_BuildShopZone* Shop : ShopsInRange)
+	{
+		if (IsValid(Shop))
+		{
+			Current.Add(Shop);
+		}
+	}
+	NotifiedShopsInRange = Current;
+	for (const TWeakObjectPtr<ANF_BuildShopZone>& Shop : Previous)
+	{
+		if (!Current.Contains(Shop))
+		{
+			// 상점이 파괴된 경우 참조는 nullptr일 수 있다.
+			OnBuildShopRangeChanged.Broadcast(Shop.Get(), ENF_BuildShopRangeState::Outside);
+		}
+	}
+	for (const TWeakObjectPtr<ANF_BuildShopZone>& Shop : Current)
+	{
+		if (!Previous.Contains(Shop))
+		{
+			OnBuildShopRangeChanged.Broadcast(Shop.Get(), ENF_BuildShopRangeState::Inside);
+		}
+	}
 }
 
 UAbilitySystemComponent* UNF_BuildComponent::ResolveAbilitySystem() const
@@ -62,9 +142,13 @@ void UNF_BuildComponent::CloseBuildSession()
 		ServerCloseBuildSession();
 		return;
 	}
+	if (!CurrentShop && !SessionController.IsValid())
+	{
+		return;
+	}
 	CurrentShop = nullptr;
 	SessionController.Reset();
-	SetComponentTickEnabled(false);
+	// 닫은 뒤에도 범위 진입·이탈 검사는 계속한다.
 	GetOwner()->ForceNetUpdate();
 	OnRep_CurrentShop();
 }
@@ -77,8 +161,13 @@ void UNF_BuildComponent::ServerCloseBuildSession_Implementation()
 void UNF_BuildComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* TickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, TickFunction);
+	if (!GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	UpdateShopsInRange();
 	APawn* Pawn = Cast<APawn>(GetOwner());
-	if (GetOwner()->HasAuthority() && (!IsValid(CurrentShop) || !CurrentShop->CanBuild(GetOwner()) ||
+	if ((CurrentShop || SessionController.IsValid()) && (!IsValid(CurrentShop) || !CurrentShop->CanBuild(GetOwner()) ||
 		!Pawn || !SessionController.IsValid() || Pawn->GetController() != SessionController.Get() || !IsValid(
 			AbilitySystem) ||
 		AbilitySystem->GetAvatarActor() != GetOwner() ||
@@ -427,6 +516,16 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 		StagedItems.Add(Selection.ItemId, MoveTemp(Handles));
 	}
 
+	// 기존 GAS 부여를 회수하기 전에, 실패할 수 있는 마지막 단계인 무기 장착을 수행한다.
+	if (!ApplyWeaponSelection(Selections))
+	{
+		for (const TPair<FName, FNF_BuildGrantHandles>& Staged : StagedItems)
+		{
+			RevokeItem(Staged.Value);
+		}
+		return Fail(ENF_BuildResult::GrantFailed, TEXT("무기 장착에 실패했습니다. 기존 빌드를 유지합니다."));
+	}
+
 	for (auto Iterator = AppliedItems.CreateIterator(); Iterator; ++Iterator)
 	{
 		if (!SelectedIds.Contains(Iterator.Key()))
@@ -458,6 +557,86 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 	OnRep_CurrentBuild();
 	Validation.Message = FText::FromString(TEXT("빌드를 적용했습니다."));
 	return Validation;
+}
+
+// @Owner: 황준현 | 2026-10-15. 빌드는 무기 선택과 생성을, 무기 컴포넌트는 장착과 전투를 담당한다.
+bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections)
+{
+	UNF_BuildItemDefinition* SelectedWeapon = nullptr;
+	for (const FNF_BuildSelection& Selection : Selections)
+	{
+		UNF_BuildItemDefinition* Definition = FindItemDefinition(Selection.ItemId);
+		if (Definition && Definition->ItemType == ENF_BuildItemType::Weapon && Definition->WeaponClass)
+		{
+			// 팀 공용 무기 컴포넌트는 무기 한 개의 장착만 지원한다.
+			if (SelectedWeapon || Selection.SlotIndex != 0)
+			{
+				return false;
+			}
+			SelectedWeapon = Definition;
+		}
+	}
+	if (!SelectedWeapon)
+	{
+		ReleaseBuildWeapon();
+		return true;
+	}
+	UNF_WeaponComponent* Weapons = GetOwner()->FindComponentByClass<UNF_WeaponComponent>();
+	if (!Weapons)
+	{
+		return false;
+	}
+	if (BuildWeapon.IsValid() && BuildWeaponItemId == SelectedWeapon->ItemId &&
+		Weapons->GetEquippedWeapon() == BuildWeapon.Get() &&
+		BuildWeapon->GetClass() == SelectedWeapon->WeaponClass.Get())
+	{
+		return true; // 동일한 무기를 유지하여 탄약과 재장전 상태를 보존한다.
+	}
+	FActorSpawnParameters Parameters;
+	Parameters.Owner = GetOwner();
+	Parameters.Instigator = Cast<APawn>(GetOwner());
+	ANF_WeaponBase* NewWeapon = GetWorld()->SpawnActor<ANF_WeaponBase>(
+		SelectedWeapon->WeaponClass, GetOwner()->GetActorTransform(), Parameters);
+	if (!NewWeapon)
+	{
+		return false;
+	}
+	ANF_WeaponBase* PreviousWeapon = Weapons->GetEquippedWeapon();
+	if (!Weapons->EquipWeapon(NewWeapon))
+	{
+		NewWeapon->Destroy();
+		return false;
+	}
+	ANF_WeaponBase* PreviousBuildWeapon = BuildWeapon.Get();
+	BuildWeapon = NewWeapon;
+	BuildWeaponItemId = SelectedWeapon->ItemId;
+	// 상점 교체가 성공하면 분리된 이전 무기를 제거한다. 기본 무기도 제거 대상에 포함한다.
+	if (IsValid(PreviousWeapon))
+	{
+		PreviousWeapon->Destroy();
+	}
+	if (IsValid(PreviousBuildWeapon) && PreviousBuildWeapon != PreviousWeapon)
+	{
+		PreviousBuildWeapon->Destroy();
+	}
+	return true;
+}
+
+void UNF_BuildComponent::ReleaseBuildWeapon()
+{
+	if (ANF_WeaponBase* Weapon = BuildWeapon.Get())
+	{
+		if (UNF_WeaponComponent* Weapons = GetOwner()->FindComponentByClass<UNF_WeaponComponent>())
+		{
+			if (Weapons->GetEquippedWeapon() == Weapon)
+			{
+				Weapons->UnequipWeapon();
+			}
+		}
+		Weapon->Destroy();
+	}
+	BuildWeapon.Reset();
+	BuildWeaponItemId = NAME_None;
 }
 
 bool UNF_BuildComponent::GrantItem(
@@ -539,6 +718,7 @@ void UNF_BuildComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	UpdateLocalShopUI();
 	if (GetOwner()->HasAuthority())
 	{
+		ReleaseBuildWeapon();
 		for (const TPair<FName, FNF_BuildGrantHandles>& Item : AppliedItems)
 		{
 			RevokeItem(Item.Value);
@@ -555,4 +735,5 @@ void UNF_BuildComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, PlayerLevel, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, Rules, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CurrentShop, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UNF_BuildComponent, ShopsInRange, COND_OwnerOnly);
 }

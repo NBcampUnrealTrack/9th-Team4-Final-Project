@@ -5,6 +5,7 @@
 #include "BuildSystem/Data/NF_BuildRules.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectComponent.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 
 FNF_BuildValidation FNF_BuildValidator::Validate(
 	const UNF_BuildRules* Rules, int32 PlayerLevel, const TArray<FNF_BuildSelection>& Selections)
@@ -45,6 +46,7 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 	TSet<int32> OccupiedSlots;
 	int64 TotalCost = 0;
 	bool bHasWeapon = false;
+	int32 LinkedWeaponCount = 0;
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
 		const UNF_BuildItemDefinition* const* Found = Catalog.Find(Selection.ItemId);
@@ -69,6 +71,19 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 			return Fail(ENF_BuildResult::InvalidSlot, TEXT("슬롯 범위가 잘못되었거나 이미 사용 중입니다."));
 		}
 		OccupiedSlots.Add(SlotKey);
+
+		if (Definition->WeaponClass)
+		{
+			if (Definition->ItemType != ENF_BuildItemType::Weapon ||
+				Definition->WeaponClass->HasAnyClassFlags(CLASS_Abstract))
+			{
+				return Fail(ENF_BuildResult::InvalidGrant, TEXT("무기 클래스는 Weapon 항목의 생성 가능한 클래스여야 합니다."));
+			}
+			if (Selection.SlotIndex != 0 || ++LinkedWeaponCount > 1)
+			{
+				return Fail(ENF_BuildResult::InvalidSlot, TEXT("실제 무기 장착은 무기 슬롯 1의 한 항목만 지원합니다."));
+			}
+		}
 
 		if (Definition->AbilityLevel < 1 ||
 			(Definition->AbilityClass && Definition->AbilityClass->HasAnyClassFlags(CLASS_Abstract)))
