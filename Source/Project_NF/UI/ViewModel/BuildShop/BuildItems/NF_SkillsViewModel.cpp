@@ -11,8 +11,7 @@ void UNF_SkillsViewModel::Configure(
 {
 	if (!IsValid(Item)) return;
 
-	if (Item->ItemType != ENF_BuildItemType::ActiveSkill) return;
-	if (Item->ItemType != ENF_BuildItemType::PassiveSkill) return;
+	if (Item->ItemType != ENF_BuildItemType::ActiveSkill && Item->ItemType != ENF_BuildItemType::PassiveSkill) return;
 
 	UE_MVVM_SET_PROPERTY_VALUE(SkillId, Item->ItemId);
 	UE_MVVM_SET_PROPERTY_VALUE(DisplayName, Item->DisplayName);
@@ -30,7 +29,7 @@ float UNF_SkillsViewModel::ResolveSkillCastTime(const UNF_BuildItemDefinition* I
 
 	const UNFGA_SkillBase* SkillDefaults =Cast<UNFGA_SkillBase>(Item->AbilityClass->GetDefaultObject());
 
-	if (!IsValid(SkillDefaults)) return 0.0f;
+	if (!IsValid(SkillDefaults)) {return 0.0f;}
 		
 	return SkillDefaults->GetCastTime();
 	
