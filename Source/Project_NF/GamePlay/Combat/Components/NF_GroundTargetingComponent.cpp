@@ -8,6 +8,22 @@ UNF_GroundTargetingComponent::UNF_GroundTargetingComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+bool UNF_GroundTargetingComponent::ValidateGroundTarget(AActor* Avatar, FVector Center, float Range, float Depth)
+{
+	if (!IsValid(Avatar) || !Avatar->GetWorld() || Center.ContainsNaN() || !FMath::IsFinite(Range) || !FMath::IsFinite(Depth)
+		|| FVector::DistSquared2D(Avatar->GetActorLocation(), Center) > FMath::Square(FMath::Max(Range, 100.0f))) { return false; }
+	FVector Eyes;
+	FRotator Rotation;
+	Avatar->GetActorEyesViewPoint(Eyes, Rotation);
+	if (FMath::Abs(Eyes.Z - Center.Z) > FMath::Max(Depth, 100.0f) + 1000.0f) { return false; }
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(NF_GroundTargetValidation), false, Avatar);
+	FHitResult Floor;
+	if (!Avatar->GetWorld()->LineTraceSingleByChannel(Floor, Center + FVector::UpVector * 30.0f,
+		Center - FVector::UpVector * 30.0f, ECC_Visibility, Params) || Floor.ImpactNormal.Z < 0.3f) { return false; }
+	FHitResult Obstacle;
+	return !Avatar->GetWorld()->LineTraceSingleByChannel(Obstacle, Eyes, Floor.ImpactPoint + FVector::UpVector * 10.0f, ECC_Visibility, Params);
+}
+
 bool UNF_GroundTargetingComponent::FindGroundTarget(AActor* SourceAvatar, float TargetRange,
 	float GroundSearchDepth, FHitResult& OutGroundHit, FVector& OutDirection) const
 {

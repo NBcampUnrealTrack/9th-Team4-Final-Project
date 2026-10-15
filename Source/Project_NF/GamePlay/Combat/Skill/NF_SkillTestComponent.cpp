@@ -129,6 +129,10 @@ void UNF_SkillTestComponent::ReleaseTestSkillAim()
 {
 	if (!bWaitingForRelease)
 	{
+		if (TestSkillClass)
+		{
+			if (FGameplayAbilitySpec* Spec = FindAbilitySpecFromClass(TestSkillClass)) { ReleaseSkillInput(Spec->Handle); }
+		}
 		return;
 	}
 	UNFGA_SkillBase* Ability = PendingReleaseAbility.Get();
@@ -148,6 +152,10 @@ void UNF_SkillTestComponent::ReleaseTestSkillAim()
 
 void UNF_SkillTestComponent::CancelTestSkillAim()
 {
+	if (!bWaitingForRelease && TestSkillClass)
+	{
+		if (FGameplayAbilitySpec* Spec = FindAbilitySpecFromClass(TestSkillClass)) { ReleaseSkillInput(Spec->Handle); }
+	}
 	bWaitingForRelease = false;
 	if (UNFGA_SkillBase* Ability = PendingReleaseAbility.Get())
 	{

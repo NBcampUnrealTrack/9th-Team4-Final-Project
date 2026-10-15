@@ -1,0 +1,73 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
+#include "GameplayAbilitySpecHandle.h"
+#include "NF_WeaponComponent.generated.h"
+
+class ANF_WeaponBase;
+class UAbilitySystemComponent;
+class UNF_GA_WeaponFire;
+
+UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
+{
+	GENERATED_BODY()
+
+public:	
+	UNF_WeaponComponent();
+	
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	bool IsFireInputHeld() const { return bFireInputHeld; }
+
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void StartFire();
+
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void StopFire();
+
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void Reload();
+
+	/** Server only. Replaces the current weapon without destroying it; save it before calling if needed. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
+	bool EquipWeapon(ANF_WeaponBase* NewWeapon);
+
+	/** Server only. Stops combat and returns the detached weapon. Caller owns disposal/rollback. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
+	ANF_WeaponBase* UnequipWeapon();
+
+	UFUNCTION(BlueprintPure, Category="Weapon")
+	ANF_WeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
+
+protected:
+	// 기본값으로 BP_Weapon_Pistol을 지정
+	UPROPERTY(EditDefaultsOnly, Category="Weapon")
+	TSubclassOf<ANF_WeaponBase> DefaultWeaponClass;
+
+	UPROPERTY(EditDefaultsOnly, Category="Weapon")
+	FName WeaponSocketName = TEXT("WeaponSocket");
+
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
+	TObjectPtr<ANF_WeaponBase> EquippedWeapon;
+
+	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
+	TSubclassOf<UNF_GA_WeaponFire> FireAbilityClass;
+
+private:
+	ANF_WeaponBase* UnequipWeaponInternal();
+	bool bChangingWeapon = false;
+	bool EnsureFireAbility();
+	bool bFireInputHeld = false;
+	TWeakObjectPtr<UAbilitySystemComponent> FireASC;
+	FGameplayAbilitySpecHandle FireAbilityHandle;
+
+	UFUNCTION(Server, Reliable)
+	void ServerStartFire();
+	UFUNCTION(Server, Reliable)
+	void ServerStopFire();
+	UFUNCTION(Server, Reliable)
+	void ServerReload();
+};

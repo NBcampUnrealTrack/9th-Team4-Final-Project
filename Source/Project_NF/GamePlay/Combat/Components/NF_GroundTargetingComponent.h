@@ -21,4 +21,5 @@ public:
 	// 실제 서버 스킬도 동일 계산을 사용한다. 설정을 컴포넌트에 중복 저장하지 않는다.
 	static bool CalculateGroundTarget(AActor* SourceAvatar, float TargetRange, float GroundSearchDepth,
 		FHitResult& OutGroundHit, FVector& OutDirection);
+	static bool ValidateGroundTarget(AActor* Avatar, FVector Center, float Range, float Depth);
 };
