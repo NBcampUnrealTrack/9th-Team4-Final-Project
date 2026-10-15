@@ -38,6 +38,10 @@ public class Project_NF : ModuleRules
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {"OnlineSubsystem", "OnlineSubsystemUtils" });
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[] { "StateTreeEditorModule", "PropertyBindingUtils", "UnrealEd", "AssetRegistry" });
+		}
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Steamworks");
 		
 		DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
