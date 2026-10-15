@@ -7,6 +7,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GAS/Abilities/NF_GA_WeaponFire.h"
+#include "GAS/Abilities/NF_GA_WeaponZoom.h"
+#include "Camera/CameraComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
@@ -14,9 +16,11 @@
 
 UNF_WeaponComponent::UNF_WeaponComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
 	SetIsReplicatedByDefault(true);
 	FireAbilityClass = UNF_GA_WeaponFire::StaticClass();
+	ZoomAbilityClass = UNF_GA_WeaponZoom::StaticClass();
 }
 
 void UNF_WeaponComponent::BeginPlay()
@@ -106,6 +110,7 @@ ANF_WeaponBase* UNF_WeaponComponent::UnequipWeapon()
 ANF_WeaponBase* UNF_WeaponComponent::UnequipWeaponInternal()
 {
 	StopFire();
+	StopZoom();
 	
 	ANF_WeaponBase* OldWeapon = nullptr;
 	
@@ -190,6 +195,9 @@ void UNF_WeaponComponent::OnRep_EquippedWeapon()
 
 void UNF_WeaponComponent::OnPawnControllerChanged(APawn* Pawn, AController* OldController, AController* NewController)
 {
+	if (GetOwner()->HasAuthority()) StopZoom();
+	RestoreZoomCamera();
+	SetComponentTickEnabled(bZoomActive);
 	RefreshCrosshair();
 }
 
@@ -239,6 +247,7 @@ void UNF_WeaponComponent::Reload()
 	if (bChangingWeapon) return;
 	
 	StopFire();
+	StopZoom();
 	
 	if (IsValid(EquippedWeapon))
 	{
@@ -269,6 +278,128 @@ void UNF_WeaponComponent::ServerStartFire_Implementation() { StartFire(); }
 void UNF_WeaponComponent::ServerStopFire_Implementation() { StopFire(); }
 void UNF_WeaponComponent::ServerReload_Implementation() { Reload(); }
 
+void UNF_WeaponComponent::StartZoom()
+{
+	if (GetOwner()->HasAuthority() == false)
+	{
+		ServerStartZoom();
+		return;
+	}
+	
+	if (bChangingWeapon || IsValid(EquippedWeapon) == false || bZoomActive)
+		return;
+	
+	if (EnsureZoomAbility())
+		ZoomASC->TryActivateAbility(ZoomAbilityHandle);
+}
+
+void UNF_WeaponComponent::StopZoom()
+{
+	if (GetOwner()->HasAuthority() == false)
+	{
+		ServerStopZoom();
+		return;
+	}
+	
+	if (ZoomASC.IsValid() && ZoomAbilityHandle.IsValid())
+	{
+		ZoomASC->CancelAbilityHandle(ZoomAbilityHandle);
+	}
+	
+	SetZoomActive(false);
+}
+
+bool UNF_WeaponComponent::EnsureZoomAbility()
+{
+	if (ZoomASC.IsValid() && ZoomASC->GetAvatarActor() == GetOwner() &&
+		ZoomASC->FindAbilitySpecFromHandle(ZoomAbilityHandle)) return true;
+
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+	
+	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || ZoomAbilityClass == nullptr)
+		return false;
+	
+	if (ZoomASC.IsValid() && ZoomAbilityHandle.IsValid())
+		ZoomASC->ClearAbility(ZoomAbilityHandle);
+	
+	ZoomASC = ASC;
+	ZoomAbilityHandle = ASC->GiveAbility(FGameplayAbilitySpec(ZoomAbilityClass, 1, INDEX_NONE, this));
+	
+	return ZoomAbilityHandle.IsValid();
+}
+
+void UNF_WeaponComponent::SetZoomActive(bool bActive)
+{
+	if (bZoomActive == bActive) return;
+	bZoomActive = bActive;
+	OnRep_ZoomActive();
+	GetOwner()->ForceNetUpdate();
+}
+
+void UNF_WeaponComponent::OnRep_ZoomActive()
+{
+	SetComponentTickEnabled(true);
+}
+
+void UNF_WeaponComponent::RestoreZoomCamera()
+{
+	if (ZoomCamera.IsValid()) ZoomCamera->SetFieldOfView(UnzoomedFieldOfView);
+	ZoomCamera.Reset();
+}
+
+void UNF_WeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	
+	if (GetOwner()->HasAuthority() && bZoomActive && IsValid(EquippedWeapon) == false)
+		StopZoom();
+	
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	
+	if (Pawn == nullptr || Pawn->IsLocallyControlled() == false)
+	{
+		RestoreZoomCamera();
+		SetComponentTickEnabled(GetOwner()->HasAuthority() && bZoomActive);
+		return;
+	}
+
+	if (ZoomCamera.IsValid() && !ZoomCamera->IsActive()) 
+		RestoreZoomCamera();
+	
+	if (ZoomCamera.IsValid() == false && bZoomActive)
+	{
+		TInlineComponentArray<UCameraComponent*> Cameras(GetOwner());
+		for (UCameraComponent* Camera : Cameras)
+		{
+			if (Camera->IsActive())
+			{
+				ZoomCamera = Camera;
+				UnzoomedFieldOfView = Camera->FieldOfView;
+				break;
+			}
+		}
+	}
+	
+	if (ZoomCamera.IsValid())
+	{
+		const float TargetFOV = bZoomActive
+			? FMath::Min(UnzoomedFieldOfView, FMath::Clamp(ZoomFieldOfView, 5.f, 170.f))
+			: UnzoomedFieldOfView;
+		
+		ZoomCamera->SetFieldOfView(FMath::FInterpTo(ZoomCamera->FieldOfView, TargetFOV, DeltaTime, ZoomInterpSpeed));
+		
+		if (bZoomActive == false && FMath::IsNearlyEqual(ZoomCamera->FieldOfView, TargetFOV, 0.01f)) 
+			RestoreZoomCamera();
+	}
+	
+	if (bZoomActive == false && ZoomCamera.IsValid() == false)
+		SetComponentTickEnabled(false);
+}
+
+void UNF_WeaponComponent::ServerStartZoom_Implementation() { StartZoom(); }
+void UNF_WeaponComponent::ServerStopZoom_Implementation() { StopZoom(); }
+
 void UNF_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
@@ -276,6 +407,13 @@ void UNF_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		OwnerPawn->ReceiveControllerChangedDelegate.RemoveDynamic(this, &ThisClass::OnPawnControllerChanged);
 	}
 	RemoveCrosshair();
+
+	if (GetOwner()->HasAuthority())
+	{
+		StopZoom();
+		if (ZoomASC.IsValid() && ZoomAbilityHandle.IsValid()) ZoomASC->ClearAbility(ZoomAbilityHandle);
+	}
+	RestoreZoomCamera();
 
 	if (GetOwner()->HasAuthority() && FireASC.IsValid())
 	{
@@ -290,4 +428,5 @@ void UNF_WeaponComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UNF_WeaponComponent, EquippedWeapon);
+	DOREPLIFETIME(UNF_WeaponComponent, bZoomActive);
 }
