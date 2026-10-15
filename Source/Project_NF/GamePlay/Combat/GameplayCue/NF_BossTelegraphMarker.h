@@ -16,7 +16,7 @@ class PROJECT_NF_API ANF_BossTelegraphMarker : public AActor
 
 public:
 	ANF_BossTelegraphMarker();
-	void InitializeMarker(const FVector& Location, float Radius, float Duration,
+	void InitializeMarker(const FVector& Location, float Radius, float ProgressDuration, float Lifetime,
 		UMaterialInterface* Material, FName ProgressParameterName,
 		float ProjectionDepth, float HeightOffset);
 
@@ -36,7 +36,8 @@ private:
 
 	FVector MarkerLocation = FVector::ZeroVector;
 	float MarkerRadius = 0.0f;
-	float MarkerDuration = 2.0f;
+	float ProgressDuration = 2.0f;
+	float MarkerLifetime = 3.2f;
 	float MarkerProjectionDepth = 100.0f;
 	float MarkerHeightOffset = 2.0f;
 	float ElapsedTime = 0.0f;

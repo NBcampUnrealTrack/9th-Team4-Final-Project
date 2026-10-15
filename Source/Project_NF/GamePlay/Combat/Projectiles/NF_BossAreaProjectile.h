@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GameplayEffectTypes.h"
+#include "GameplayTagContainer.h"
 #include "NF_BossAreaProjectile.generated.h"
 
 class USphereComponent;
@@ -18,7 +19,7 @@ class PROJECT_NF_API ANF_BossAreaProjectile : public AActor
 public:
 	ANF_BossAreaProjectile();
 	void InitializeProjectile(const FVector& InDestination, float InDamageRadius, float InSpeed,
-		const FGameplayEffectSpecHandle& InDamageSpec);
+		const FGameplayEffectSpecHandle& InDamageSpec, FGameplayTag InImpactCueTag);
 
 protected:
 	virtual void BeginPlay() override;
@@ -45,6 +46,8 @@ private:
 
 	UPROPERTY(Transient)
 	FGameplayEffectSpecHandle DamageSpec;
+
+	FGameplayTag ImpactCueTag;
 
 	FTimerHandle ArrivalTimer;
 };

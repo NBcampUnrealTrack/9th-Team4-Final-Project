@@ -8,6 +8,7 @@
 class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
+class UNF_AreaDamageComponent;
 
 /** @Owner: 스킬 담당 (구현: Codex) | 2026-10-12
  * 목적: 서버 권한으로 곡사 이동, 바운스, 지연 폭발과 범위 GE 적용을 처리한다.
@@ -50,6 +51,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Grenade|Components")
 	TObjectPtr<UProjectileMovementComponent> ProjectileMovement;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Grenade|Components")
+	TObjectPtr<UNF_AreaDamageComponent> AreaDamage;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Grenade|Explosion", meta = (ClampMin = "0.1", Units = "s"))
 	float FuseTime = 3.0f;
 
@@ -62,12 +66,23 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Grenade|Explosion")
 	TEnumAsByte<ECollisionChannel> OcclusionTraceChannel = ECC_Visibility;
 
+	// @Owner: 스킬 담당 (구현: Codex) | 2026-10-13
+	// 목적: 서버가 판정한 폭발 중심/반경을 PIE 및 Development 게임 화면에 표시한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Grenade|Debug")
+	bool bShowExplosionRadius = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Grenade|Debug", meta = (ClampMin = "0.1", Units = "s"))
+	float ExplosionRadiusDisplayTime = 3.0f;
+
 private:
 	void Explode();
-	void ApplyExplosionDamage(const FVector& ExplosionLocation);
+
+	// Dynamic Delegate의 비-const 시그니처를 기존 BP 필터에 연결한다.
+	UFUNCTION()
+	bool FilterAreaDamageTarget(AActor* Target);
 
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastExplosion(FVector_NetQuantize ExplosionLocation);
+	void MulticastExplosion(FVector_NetQuantize ExplosionLocation, float Radius, float RadiusDisplayTime);
 
 	UPROPERTY(Transient)
 	FGameplayEffectSpecHandle DamageSpec;
