@@ -7,6 +7,7 @@
 #include "NFGA_SkillBase.generated.h"
 
 class ANF_SkillPreviewActor;
+class ANF_SkillExecutionActor;
 
 // @Owner: 스킬 담당 | 2026-10-12
 // 목적: 장착 유형과 기능 분류를 분리하여 공통 스킬 GA의 설정 정보를 제공한다.
@@ -47,9 +48,10 @@ enum class ENF_SkillExecutionMode : uint8
  * @Owner: 스킬 담당 | 2026-10-12
  * 목적: 개별 스킬이 상속하는 공통 Gameplay Ability 베이스.
  *
- * 분류, 실행 시간, 토글은 설정 정보이며 자식 GA가 실행을 구성한다.
+ * ExecutionActorClass를 지정하면 공통 실행 액터를 자동 생성/시작/정리한다.
+ * 자동 실행은 Instant(액터 독립 유지), Timed(시간 종료), Continuous(입력 해제 종료)를 지원한다.
  * 홀딩/확정/취소, 목표 전달, 장착 패시브의 GE/이벤트 수명을 공통으로 관리한다.
- * Blueprint 자식은 GAS의 ActivateAbility / ActivateAbilityFromEvent에서 실행을 구성한다.
+ * 실행 클래스가 없는 기존 BP/C++ 자식은 자신의 실행 흐름을 유지한다.
  * 사용 확정 시 CommitAbility의 성공 여부를 확인하고, 완료 시 EndAbility를 호출한다.
  * 취소/종료 시 정리는 GAS의 OnEndAbility 이벤트에서 처리한다.
  * 지속 효과와 중첩은 GE가 관리하며, GA 실행 시간과 독립적이다.
@@ -61,6 +63,8 @@ class PROJECT_NF_API UNFGA_SkillBase : public UGameplayAbility
 
 public:
 	UNFGA_SkillBase();
+	bool ShouldEndOnInputRelease() const;
+	void ReleaseSkillInput();
 	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr,
 		const FGameplayTagContainer* TargetTags = nullptr, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
@@ -139,6 +143,12 @@ public:
 	float GetExecutionDuration() const { return ExecutionDuration; }
 
 protected:
+	// 지정하면 공통 베이스가 생성/초기화/Commit/시전 대기/종료를 관리한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Execution")
+	TSubclassOf<ANF_SkillExecutionActor> ExecutionActorClass;
+	// 일반 조합 GA의 프리뷰 값. 기존 수류탄/폭격기는 자신의 값을 제공한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Preview")
+	FNF_SkillPreviewData DefaultPreviewData;
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 		const FGameplayEventData* TriggerEventData) override;
@@ -190,7 +200,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Execution", meta = (ClampMin = "0.0", UIMin = "0.0"))
 	float CastTime = 0.0f;
 
-	// Timed 실행에서 사용할 시간(초). Continuous 실행은 자식의 종료 조건을 사용한다.
+	// 자동 Timed 실행의 시간(초). Continuous는 입력 해제 또는 실행 액터 종료로 끝난다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Execution", meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "SkillExecutionMode == ENF_SkillExecutionMode::Timed"))
 	float ExecutionDuration = 0.0f;
 
@@ -199,6 +209,13 @@ protected:
 	int32 BuildCost = 0;
 
 private:
+	bool UsesProjectileExecution() const;
+	void StartAutomaticExecution();
+	void FinishAutomaticExecution();
+	FTimerHandle AutomaticCastTimer;
+	FTimerHandle AutomaticEndTimer;
+	UPROPERTY(Transient)
+	TObjectPtr<ANF_SkillExecutionActor> ActiveExecutionActor;
 	void CheckLocalInputValidity();
 	void BindCancellationTags();
 	void UnbindCancellationTags();
