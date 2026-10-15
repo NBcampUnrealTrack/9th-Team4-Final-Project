@@ -41,6 +41,10 @@ public:
 	
 protected:
 	void FinishReload();
+	FVector GetFireDirection(const FTransform& MuzzleTransform) const;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	float AimTraceDistance = 100000.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<class USkeletalMeshComponent> WeaponMeshComponent;

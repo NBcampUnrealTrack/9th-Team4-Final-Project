@@ -55,7 +55,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Projectile")
 	int32 ProjectilesPerShot = 1;
 
-	// 총구 방향(+x축) 기준 퍼짐 반각
+	// 카메라 조준점으로 향하는 발사 방향 기준 퍼짐 반각
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Projectile",
 		meta=(ClampMin="0.0", ClampMax="90.0", Units="deg"))
 	float SpreadAngleDegrees = 0.f;

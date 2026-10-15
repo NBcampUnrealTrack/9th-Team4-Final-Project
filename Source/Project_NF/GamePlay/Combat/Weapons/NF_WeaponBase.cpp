@@ -7,6 +7,8 @@
 #include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
 
 ANF_WeaponBase::ANF_WeaponBase()
@@ -76,6 +78,41 @@ float ANF_WeaponBase::GetRemainingFireDelay() const
 	return RemainingFireDelay;
 }
 
+FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) const
+{
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	const AController* Controller = Cast<AController>(OwnerPawn->GetController());
+	
+	if (Controller == nullptr)
+	{
+		return MuzzleTransform.GetRotation().GetForwardVector();
+	}
+
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+	const FVector ViewDirection = ViewRotation.Vector();
+	const FVector TraceEnd = ViewLocation + ViewDirection * FMath::Max(AimTraceDistance, 1.f);
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(WeaponAim), false);
+	QueryParams.AddIgnoredActor(this);
+	QueryParams.AddIgnoredActor(GetOwner());
+	QueryParams.AddIgnoredActor(GetInstigator());
+
+	FHitResult Hit;
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(
+		Hit, ViewLocation, TraceEnd, ECC_Visibility, QueryParams);
+	const FVector AimPoint = bHit ? Hit.ImpactPoint : TraceEnd;
+	const FVector MuzzleToTarget = AimPoint - MuzzleTransform.GetLocation();
+
+	// 가까운 장애물 때문에 탄환이 뒤로 발사되는 것을 방지
+	if (FVector::DotProduct(MuzzleToTarget, ViewDirection) <= KINDA_SMALL_NUMBER)
+	{
+		return ViewDirection;
+	}
+	return MuzzleToTarget.GetSafeNormal();
+}
+
 bool ANF_WeaponBase::FireProjectile()
 {
 	if (HasAuthority() == false)
@@ -98,12 +135,13 @@ bool ANF_WeaponBase::FireProjectile()
 
 	const int32 PelletCount = WeaponData->ProjectilesPerShot;
 	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
-	const FVector Forward = MuzzleTransform.GetRotation().GetForwardVector();
+	const FVector Forward = GetFireDirection(MuzzleTransform);
 	TArray<ANF_WeaponProjectile*, TInlineAllocator<64>> SpawnedProjectiles;
 
 	for (int32 Index = 0; Index < PelletCount; ++Index)
 	{
 		FTransform SpawnTransform = MuzzleTransform;
+		SpawnTransform.SetRotation(Forward.ToOrientationQuat());
 		if (SpreadRadians > 0.f)
 		{
 			SpawnTransform.SetRotation(FMath::VRandCone(Forward, SpreadRadians).ToOrientationQuat());
