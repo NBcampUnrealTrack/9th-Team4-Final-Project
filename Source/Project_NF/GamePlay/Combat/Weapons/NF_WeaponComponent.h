@@ -8,6 +8,9 @@
 class ANF_WeaponBase;
 class UAbilitySystemComponent;
 class UNF_GA_WeaponFire;
+class UUserWidget;
+class APawn;
+class AController;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
@@ -50,13 +53,25 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Weapon")
 	FName WeaponSocketName = TEXT("WeaponSocket");
 
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
+	UPROPERTY(ReplicatedUsing=OnRep_EquippedWeapon, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<ANF_WeaponBase> EquippedWeapon;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
 	TSubclassOf<UNF_GA_WeaponFire> FireAbilityClass;
 
 private:
+	void RefreshCrosshair();
+	void RemoveCrosshair();
+
+	UFUNCTION()
+	void OnRep_EquippedWeapon();
+
+	UFUNCTION()
+	void OnPawnControllerChanged(APawn* Pawn, AController* OldController, AController* NewController);
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> CrosshairWidget;
+
 	ANF_WeaponBase* UnequipWeaponInternal();
 	bool bChangingWeapon = false;
 	bool EnsureFireAbility();

@@ -4,6 +4,8 @@
 #include "Engine/DataAsset.h"
 #include "NF_WeaponDataAsset.generated.h"
 
+class UUserWidget;
+
 UENUM(BlueprintType)
 enum class ENF_WeaponType : uint8
 {
@@ -32,6 +34,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	ENF_FireMode FireMode = ENF_FireMode::SemiAutomatic;
+
+	// 장착 시 로컬 플레이어 화면에 표시할 위젯. None이면 표시하지 않는다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UI")
+	TSubclassOf<UUserWidget> CrosshairWidgetClass;
 	
 	// 데미지
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
