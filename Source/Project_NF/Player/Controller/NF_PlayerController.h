@@ -21,7 +21,7 @@ class PROJECT_NF_API ANF_PlayerController : public APlayerController
 	GENERATED_BODY()
 	
 protected:
-	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	//virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	virtual void BeginPlay() override;
 	
@@ -34,10 +34,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UNF_PlayerInputDataAsset> NF_PlayerInputDataAsset;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
-	float InteractionRange = 300.0f;
-	
-	UPROPERTY(ReplicatedUsing = OnRep_OnChangedPlayerStateType)
+	//UPROPERTY(ReplicatedUsing = OnRep_OnChangedPlayerStateType)
 	ENF_PlayerInteractTypeEnum CurrentPlayerInteractType = ENF_PlayerInteractTypeEnum::None;
 	
 	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
@@ -49,28 +46,15 @@ private:
 	void TryAction(ENF_PlayerActionType PlayerActionType);
 	
 	
-#pragma region Interaction
-	UFUNCTION(Server, Reliable)
-	void ServerRPC_TryInteraction();
-	
-	void TryInteraction();
-	
-	FHitResult NF_Linetrace();
-#pragma endregion
-	
-	
 #pragma region BuildShop
-	UFUNCTION()
-	void OnRep_OnChangedPlayerStateType();
+	//UFUNCTION()
+	//void OnRep_OnChangedPlayerStateType();
 	
-	void EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType);
 	
 	bool IsInBuildShop();
 	
 	
 	FOnPlayerOpenShop OnPlayerOpenShop;
 	
-	/*UFUNCTION(Server, Reliable)
-	void ServerRPC_OnChangedPlayerStateType(ENF_PlayerInteractTypeEnum NewPlayerType);*/
 #pragma endregion
 };

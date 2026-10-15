@@ -11,6 +11,7 @@
 #include "NF_PlayerStatusAttribute.h"
 #include "BuildSystem/Player/NF_BuildComponent.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
+#include "Data/Interface/NF_InteractionInterface.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Player/Controller/NF_PlayerController.h"
@@ -72,40 +73,36 @@ void ANF_Player::TryAction(APlayerController* SendController, ENF_PlayerActionTy
 	if (ActionType == ENF_PlayerActionType::Fire)
 	{
 		TryStartAttack();
-		
 		return;
 	}
 	
 	if (ActionType == ENF_PlayerActionType::StopFire)
 	{
 		TryStopAttack();
-		
 		return;
 	}
 	
 	if (ActionType == ENF_PlayerActionType::Reload)
 	{
 		TryReload();
-		
 		return;
 	}
 	
 	if (ActionType == ENF_PlayerActionType::SkillA)
 	{
 		TrySkillActionWithInputID(SkillButtonA_InputID);
-		
 		return;
 	}
 	
 	if (ActionType == ENF_PlayerActionType::SkillB)
 	{
 		TrySkillActionWithInputID(SkillButtonB_InputID);
-		
 		return;
 	}
 		
 	if (ActionType == ENF_PlayerActionType::Interaction)
 	{
+		TryInteraction(SendController);
 		return;
 	}
 }
@@ -142,6 +139,81 @@ void ANF_Player::TrySkillActionWithInputID(int32 InputID)
 
 	ASC->AbilityLocalInputPressed(InputID);
 }
+
+
+void ANF_Player::TryInteraction(APlayerController* SendController)
+{
+	FHitResult TraceResult = GetActorFromLineTrace();
+	ServerRPC_TryInteraction(SendController, TraceResult.GetActor());
+}
+
+
+void ANF_Player::ServerRPC_TryInteraction_Implementation(APlayerController* SendController, AActor* TargetActor)
+{
+	UE_LOG(LogTemp, Warning, TEXT("ServerRPC_상호작용"));
+	
+	auto* NF_InteractionInterface = Cast<INF_InteractionInterface>(TargetActor);
+	if (NF_InteractionInterface == nullptr) return;
+	
+	NF_InteractionInterface->NF_Interaction(SendController);
+}
+
+
+FHitResult ANF_Player::GetActorFromLineTrace()
+{
+	FHitResult TraceResult;
+	
+	const FVector ViewLocation = CameraComponent->GetComponentLocation(); 
+	const FVector ViewDirection = CameraComponent->GetForwardVector();
+	
+	//카메라가 캐릭터 뒤에 있으니 그만큼 사거리 보정
+	const float CameraToPawnDistance = FVector::Dist(ViewLocation, this->GetActorLocation());   
+	
+	const FVector Start = ViewLocation;
+	const FVector End = (Start + (ViewDirection * (InteractionRange + CameraToPawnDistance))); 
+	
+	TArray<AActor*> ActorsToIgnore;   //자기 자신은 검출 제외
+	ActorsToIgnore.Add(this);
+	
+	const bool bHit = UKismetSystemLibrary::LineTraceSingle( 
+	this,
+	Start,
+	End,
+	ETraceTypeQuery::TraceTypeQuery1,
+	false,
+	ActorsToIgnore, 
+	EDrawDebugTrace::ForDuration,
+	TraceResult,
+	true,
+	FColor::Red,
+	FColor::Green,
+	5.0f
+	);
+	
+	if (bHit == false) return TraceResult;
+	
+	return TraceResult;
+}
+
+
+/*void ANF_Player::EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType)
+{
+	CurrentPlayerInteractType = NewPlayerType;
+	
+	auto* NF_Player = Cast<ANF_Player>(this->GetPawn());
+	if (IsValid(NF_Player) == false) return;
+	
+	// TODO 상점 이용 중에는 스킬 사용을 막음 (이는 준현님의 브로드캐스트를 따를 예정)
+	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild)
+	{
+		NF_Player->GetCharacterMovement()->SetMovementMode(MOVE_None);
+	}
+	
+	else
+	{
+		NF_Player->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
+}*/
 
 
 void ANF_Player::PostInitializeComponents()

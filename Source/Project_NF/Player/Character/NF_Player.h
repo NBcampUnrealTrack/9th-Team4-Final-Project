@@ -61,8 +61,13 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "GAS|GameplayAbility")
 	TArray<TSubclassOf<class UGameplayAbility>> GameplayAbilityArray;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
+	float InteractionRange = 300.0f;
 	
 private:
+	void EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType);
+	
+#pragma region TryAction
 	void TryStartAttack();
 	
 	void TryStopAttack();
@@ -71,10 +76,17 @@ private:
 	
 	void TrySkillActionWithInputID(int32 InputID);
 	
+	void TryInteraction(APlayerController* SendController);
 	
-	static constexpr int32 SkillButtonA_InputID = 1;
+	UFUNCTION(Server, Reliable)
+	void ServerRPC_TryInteraction(APlayerController* SendController, AActor* TargetActor);
 	
-	static constexpr int32 SkillButtonB_InputID = 2;
+	FHitResult GetActorFromLineTrace();
+	
+	static constexpr int32 SkillButtonA_InputID = 0;
+	
+	static constexpr int32 SkillButtonB_InputID = 1;
+#pragma endregion
 	
 	
 #pragma region AbilitySystem
