@@ -12,6 +12,16 @@ enum class ENF_BuildItemType : uint8
 	PassiveSkill
 };
 
+// @Owner: 황준현 | 2026-10-15. 방어구 부위를 고정 슬롯에 연결한다.
+UENUM(BlueprintType)
+enum class ENF_BuildArmorPart : uint8
+{
+	None UMETA(DisplayName = "미지정"),
+	Head UMETA(DisplayName = "머리"),
+	UpperBody UMETA(DisplayName = "상의"),
+	LowerBody UMETA(DisplayName = "하의")
+};
+
 UENUM(BlueprintType)
 enum class ENF_BuildResult : uint8
 {
