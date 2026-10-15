@@ -49,6 +49,15 @@ enum class ENF_BuildShopRangeState : uint8
 	Inside  UMETA(DisplayName = "상점 범위 안")
 };
 
+// @Owner: 황준현 | 2026-10-15
+// 로컬 플레이어의 빌드 상점 UI 표시 상태.
+UENUM(BlueprintType)
+enum class ENF_BuildShopUIState : uint8
+{
+	BuildOpened UMETA(DisplayName = "빌드창 열림"),
+	BuildClosed UMETA(DisplayName = "빌드창 닫힘")
+};
+
 /** The client submits identity/slot only. Costs and GAS classes come from server data. */
 USTRUCT(BlueprintType)
 struct PROJECT_NF_API FNF_BuildSelection

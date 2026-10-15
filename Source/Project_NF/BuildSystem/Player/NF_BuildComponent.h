@@ -31,7 +31,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildRequestCompleted, const FNF_BuildValidation&, Validation);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildShopChanged, ANF_BuildShopZone*, Shop);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopChanged,ANF_BuildShopZone*, Shop, ENF_BuildShopUIState, SessionState);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopRangeChanged, ANF_BuildShopZone*, Shop,
 	ENF_BuildShopRangeState, RangeState);
@@ -78,6 +78,14 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "NF|Build")
 	UNF_BuildItemDefinition* FindItemDefinition(FName ItemId) const;
+
+	/** @Owner: 황준현 | 2026-10-15. UI 분류 목록. 방어구의 None은 모든 부위를 조회한다. */
+	UFUNCTION(BlueprintPure, Category = "NF|Build|Slots")
+	TArray<UNF_BuildItemDefinition*> GetCatalogItems(ENF_BuildItemType ItemType, ENF_BuildArmorPart ArmorPart) const;
+
+	/** 빈 슬롯이면 nullptr. bUseDraft가 false이면 서버에서 확정된 빌드를 조회한다. */
+	UFUNCTION(BlueprintPure, Category = "NF|Build|Slots")
+	UNF_BuildItemDefinition* GetSlotItem(ENF_BuildItemType ItemType, int32 SlotIndex, bool bUseDraft) const;
 
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|Input")
 	void PressActiveSkillInput(int32 SlotIndex);

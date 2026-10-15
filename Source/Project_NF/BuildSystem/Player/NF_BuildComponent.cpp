@@ -192,6 +192,41 @@ UNF_BuildItemDefinition* UNF_BuildComponent::FindItemDefinition(FName ItemId) co
 	return nullptr;
 }
 
+TArray<UNF_BuildItemDefinition*> UNF_BuildComponent::GetCatalogItems(
+	ENF_BuildItemType ItemType, ENF_BuildArmorPart ArmorPart) const
+{
+	TArray<UNF_BuildItemDefinition*> Result;
+	if (Rules)
+	{
+		for (UNF_BuildItemDefinition* Definition : Rules->Catalog)
+		{
+			if (IsValid(Definition) && Definition->ItemType == ItemType &&
+				(ItemType != ENF_BuildItemType::Armor || ArmorPart == ENF_BuildArmorPart::None ||
+					Definition->ArmorPart == ArmorPart))
+			{
+				Result.Add(Definition);
+			}
+		}
+	}
+	return Result;
+}
+
+UNF_BuildItemDefinition* UNF_BuildComponent::GetSlotItem(
+	ENF_BuildItemType ItemType, int32 SlotIndex, bool bUseDraft) const
+{
+	const TArray<FNF_BuildSelection>& Selections = bUseDraft ? DraftBuild : CurrentBuild;
+	for (const FNF_BuildSelection& Selection : Selections)
+	{
+		UNF_BuildItemDefinition* Definition = FindItemDefinition(Selection.ItemId);
+		if (Definition && Definition->ItemType == ItemType && Selection.SlotIndex == SlotIndex &&
+			Definition->CanUseSlot(SlotIndex))
+		{
+			return Definition;
+		}
+	}
+	return nullptr;
+}
+
 bool UNF_BuildComponent::CanEditDraft() const
 {
 	const APawn* Pawn = Cast<APawn>(GetOwner());
@@ -208,13 +243,19 @@ bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 	PendingActiveSkill = Definition->ItemType == ENF_BuildItemType::ActiveSkill ? ItemId : NAME_None;
 	if (PendingActiveSkill.IsNone())
 	{
-		DraftBuild.RemoveAll([this, Definition](const FNF_BuildSelection& Selection)
+		const int32 TargetSlotIndex = Definition->GetDefaultSlotIndex();
+		if (!Definition->CanUseSlot(TargetSlotIndex) || TargetSlotIndex >= Rules->GetSlotCount(Definition->ItemType))
+		{
+			return false;
+		}
+		DraftBuild.RemoveAll([this, Definition, TargetSlotIndex](const FNF_BuildSelection& Selection)
 		{
 			const UNF_BuildItemDefinition* Existing = FindItemDefinition(Selection.ItemId);
-			return Existing && Existing->ItemType == Definition->ItemType && Selection.SlotIndex == 0;
+			return Existing && Existing->ItemType == Definition->ItemType && Selection.SlotIndex == TargetSlotIndex;
 		});
 		FNF_BuildSelection Selection;
 		Selection.ItemId = ItemId;
+		Selection.SlotIndex = TargetSlotIndex;
 		DraftBuild.Add(Selection);
 		bDraftDirty = true;
 	}
@@ -316,7 +357,13 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 		UpdateLocalShopUI();
 		OnDraftChanged.Broadcast();
 	}
-	OnBuildShopChanged.Broadcast(CurrentShop);
+
+	const ENF_BuildShopUIState SessionState =
+		IsValid(CurrentShop)
+			? ENF_BuildShopUIState::BuildOpened
+			: ENF_BuildShopUIState::BuildClosed;
+
+	OnBuildShopChanged.Broadcast(CurrentShop.Get(), SessionState);
 }
 
 void UNF_BuildComponent::OnRep_BuildConfiguration()
