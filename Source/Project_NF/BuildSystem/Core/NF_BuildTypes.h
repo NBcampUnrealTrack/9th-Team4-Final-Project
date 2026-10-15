@@ -30,6 +30,15 @@ enum class ENF_BuildResult : uint8
 	GrantFailed
 };
 
+// @Owner: 황준현 | 2026-10-15
+// 플레이어의 빌드 상점 범위 진입·이탈 상태.
+UENUM(BlueprintType)
+enum class ENF_BuildShopRangeState : uint8
+{
+	Outside UMETA(DisplayName = "상점 범위 밖"),
+	Inside  UMETA(DisplayName = "상점 범위 안")
+};
+
 /** The client submits identity/slot only. Costs and GAS classes come from server data. */
 USTRUCT(BlueprintType)
 struct PROJECT_NF_API FNF_BuildSelection
@@ -61,3 +70,4 @@ struct PROJECT_NF_API FNF_BuildValidation
 	UPROPERTY(BlueprintReadOnly, Category = "NF|Build")
 	FText Message;
 };
+

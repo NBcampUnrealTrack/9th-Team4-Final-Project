@@ -35,11 +35,14 @@ void ANF_BuildShopZone::NF_Interaction(const APlayerController* InteractedContro
 
 bool ANF_BuildShopZone::CanBuild(AActor* PlayerActor) const
 {
-	return bShopEnabled && IsValid(PlayerActor) && PlayerActor->FindComponentByClass<UNF_BuildComponent>() &&
-		InteractionDistance >= 0.f &&
-		FVector::DistSquared(PlayerActor->GetActorLocation(), GetActorLocation()) <= FMath::Square(InteractionDistance)
-		&&
+	return bShopEnabled && IsActorInRange(PlayerActor) && PlayerActor->FindComponentByClass<UNF_BuildComponent>() &&
 		IsPlayerAllowed(PlayerActor);
+}
+
+bool ANF_BuildShopZone::IsActorInRange(AActor* PlayerActor) const
+{
+	return IsValid(PlayerActor) && PlayerActor->GetWorld() == GetWorld() && InteractionDistance >= 0.f &&
+		FVector::DistSquared(PlayerActor->GetActorLocation(), GetActorLocation()) <= FMath::Square(InteractionDistance);
 }
 
 bool ANF_BuildShopZone::IsPlayerAllowed_Implementation(AActor* PlayerActor) const

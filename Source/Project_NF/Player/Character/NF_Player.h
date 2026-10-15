@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "AbilitySystemInterface.h"
 #include "GameplayAbilitySpec.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/Character.h"
 #include "NF_Player.generated.h"
 
@@ -56,5 +57,11 @@ private:
 	void OnOutOfHealthCpp();
 	UFUNCTION()
 	void OnOutOfShieldCpp();
+	void OnStunTagChanged(const FGameplayTag Tag, int32 NewCount);
+
+	TWeakObjectPtr<class UAbilitySystemComponent> StunBoundASC;
+	FDelegateHandle StunTagChangedHandle;
+	TEnumAsByte<EMovementMode> MovementModeBeforeStun = MOVE_Walking;
+	uint8 CustomMovementModeBeforeStun = 0;
 	
 };

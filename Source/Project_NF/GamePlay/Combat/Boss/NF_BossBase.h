@@ -8,34 +8,90 @@
 
 class UAbilitySystemComponent;
 class UStaticMeshComponent;
+class USkeletalMeshComponent;
 class USceneComponent;
 class UGameplayAbility;
+class UStateTree;
+class UStateTreeComponent;
+class UNF_BossAttributeSet;
+class ANF_Player;
 class ANF_BossTelegraphMarker;
 class UMaterialInterface;
+class UNF_BossStateTreeAssetLibrary;
 
 /** Stationary GAS-enabled boss base. Boss patterns are granted as GameplayAbilities. */
 UCLASS(Blueprintable)
 class PROJECT_NF_API ANF_BossBase : public AActor, public IAbilitySystemInterface, public IGameplayCueInterface
 {
 	GENERATED_BODY()
+	friend class UNF_BossStateTreeAssetLibrary;
 
 public:
 	ANF_BossBase();
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	USkeletalMeshComponent* GetBossSkeletalMesh() const;
+
+	UFUNCTION(BlueprintCallable, Category = "NF|Boss|AI")
+	bool ActivateNextCombatPattern();
+
+	UFUNCTION(BlueprintPure, Category = "NF|Boss|AI")
+	bool IsCombatPatternActive() const;
+	bool ActivateAbilityClass(TSubclassOf<UGameplayAbility> AbilityClass, bool bAllowWhenDefeated = false);
+	bool IsAbilityClassActive(TSubclassOf<UGameplayAbility> AbilityClass) const;
+
+	UFUNCTION(BlueprintPure, Category = "NF|Boss")
+	bool IsDefeated() const { return bIsDefeated; }
+
+	UFUNCTION(BlueprintPure, Category = "NF|Boss")
+	ANF_Player* GetHighestDamageTarget(float MaxRange) const;
+	bool ActivateLastGasp();
+	bool IsLastGaspActive() const;
+
+	void RecordDamage(ANF_Player* Player, float DamageAmount);
+	void HandleHealthUpdated(float NewHealth);
+	void CompleteDeathSequence();
+	void SetSubmerged(bool bNewSubmerged);
+	void SetFlying(bool bNewFlying);
+
+	UFUNCTION(BlueprintPure, Category = "NF|Boss|Animation")
+	bool IsFlying() const { return bIsFlying; }
+
 	virtual void HandleGameplayCue(UObject* Self, FGameplayTag GameplayCueTag,
 		EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters) override;
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|Components")
 	TObjectPtr<USceneComponent> SceneRoot;
 
+	/** Hidden legacy placeholder kept so existing BP_TestBoss component overrides remain compatible. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|Components|Legacy")
+	TObjectPtr<UStaticMeshComponent> LegacyBossMesh;
+
+	/** Assign the dragon skeletal mesh and its Animation Blueprint on this component in the child Blueprint. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|Components")
-	TObjectPtr<UStaticMeshComponent> BossMesh;
+	TObjectPtr<USkeletalMeshComponent> BossSkeletalMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|GAS")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|GAS")
+	TObjectPtr<UNF_BossAttributeSet> BossAttributeSet;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|AI")
+	TObjectPtr<UStateTreeComponent> StateTreeComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|AI")
+	TObjectPtr<UStateTree> BossStateTree;
+
+	/** Combat abilities chosen in order by the StateTree task. Keep the original fixed-point volley first. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|AI")
+	TArray<TSubclassOf<UGameplayAbility>> CombatPatternAbilities;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|AI")
+	TSubclassOf<UGameplayAbility> LastGaspAbility;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
 	TSubclassOf<UGameplayAbility> InitialPatternAbility;
@@ -52,9 +108,39 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph")
 	FName TelegraphProgressParameterName = TEXT("Progress");
 
+	/** Total time the telegraph decal remains visible, independent of the attack warning duration. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph", meta = (ClampMin = "0.01", Units = "s"))
+	float TelegraphDecalLifetime = 3.2f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph", meta = (ClampMin = "0.0", Units = "cm"))
 	float TelegraphProjectionDepth = 100.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph", meta = (Units = "cm"))
 	float TelegraphHeightOffset = 2.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Death")
+	bool bDestroyWhenDeathSequenceCompletes = true;
+
+	UPROPERTY(ReplicatedUsing = OnRep_IsDefeated, VisibleInstanceOnly, BlueprintReadOnly, Category = "NF|Boss|State")
+	bool bIsDefeated = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_IsSubmerged, VisibleInstanceOnly, BlueprintReadOnly, Category = "NF|Boss|State")
+	bool bIsSubmerged = false;
+
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "NF|Boss|State")
+	bool bIsFlying = false;
+
+private:
+	UFUNCTION()
+	void OnRep_IsDefeated();
+
+	UFUNCTION()
+	void OnRep_IsSubmerged();
+
+	void ApplySubmergedPresentation();
+	void BeginDeathSequence();
+
+	TMap<TWeakObjectPtr<ANF_Player>, float> DamageContribution;
+	int32 NextCombatPatternIndex = 0;
+	bool bDeathSequenceStarted = false;
 };

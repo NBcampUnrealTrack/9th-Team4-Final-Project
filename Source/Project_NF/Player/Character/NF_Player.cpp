@@ -1,6 +1,7 @@
 #include "NF_Player.h"
 
 #include "AbilitySystemComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "NFGA_Death.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
@@ -10,6 +11,7 @@
 #include "NF_PlayerStatusAttribute.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "GAS/Tags/NFTag_Player.h"
+#include "GAS/Tags/NFTag_BossCombat.h"
 #include "Player/State/NF_PlayerState.h"
 
 
@@ -97,6 +99,18 @@ void ANF_Player::InitAbilitySystem()
 	if (IsValid(ASC) == false) return;
 
 	ASC->InitAbilityActorInfo(NF_PlayerState, this);
+	if (StunBoundASC.Get() != ASC)
+	{
+		if (UAbilitySystemComponent* PreviousASC = StunBoundASC.Get(); PreviousASC && StunTagChangedHandle.IsValid())
+		{
+			PreviousASC->UnregisterGameplayTagEvent(StunTagChangedHandle, NFTag_BossCombat::State_Stunned,
+				EGameplayTagEventType::NewOrRemoved);
+		}
+		StunBoundASC = ASC;
+		StunTagChangedHandle = ASC->RegisterAndCallGameplayTagEvent(NFTag_BossCombat::State_Stunned,
+			FOnGameplayEffectTagCountChanged::FDelegate::CreateUObject(this, &ThisClass::OnStunTagChanged),
+			EGameplayTagEventType::NewOrRemoved);
+	}
 	
 	const UNF_PlayerStatusAttribute* PlayerStatusAttribute = ASC->GetSet<UNF_PlayerStatusAttribute>(); 
 	if (IsValid(PlayerStatusAttribute) == true)
@@ -142,4 +156,26 @@ void ANF_Player::OnOutOfShieldCpp()
 		UKismetSystemLibrary::PrintString(this,
     										  (TEXT("쉴드가 깨짐에 대한 로직 실행 예정")),
     										  true, true, FColor::Magenta, 10.0f);
+}
+
+void ANF_Player::OnStunTagChanged(const FGameplayTag Tag, const int32 NewCount)
+{
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (!Movement)
+	{
+		return;
+	}
+	if (NewCount > 0)
+	{
+		if (Movement->MovementMode != MOVE_None)
+		{
+			MovementModeBeforeStun = Movement->MovementMode;
+			CustomMovementModeBeforeStun = Movement->CustomMovementMode;
+			Movement->SetMovementMode(MOVE_None);
+		}
+	}
+	else if (Movement->MovementMode == MOVE_None)
+	{
+		Movement->SetMovementMode(MovementModeBeforeStun, CustomMovementModeBeforeStun);
+	}
 }
