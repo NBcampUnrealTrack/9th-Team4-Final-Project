@@ -41,6 +41,7 @@ class UNF_MatchmakingSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
@@ -133,6 +134,7 @@ private:
 	void InvitePartyMembersToMatchLobby();
 	void RefreshPartyRoster();
 	void HandleSessionFailure(const FUniqueNetId& PlayerId, ESessionFailure::Type FailureType);
+	void HandlePostLoadMap(UWorld* LoadedWorld);
 	void CleanupSession();
 	void CancelWholeQueuedParty(const FString& PlayerId);
 	FString MakeLocalPlayerId() const;
@@ -157,6 +159,7 @@ private:
 	FDelegateHandle SessionParticipantLeftHandle;
 	FDelegateHandle SessionFailureHandle;
 	FDelegateHandle SessionUserInviteAcceptedHandle;
+	FDelegateHandle PostLoadMapHandle;
 	FTimerHandle QueueTimeoutTimerHandle;
 	FTimerHandle LobbyRefreshTimerHandle;
 	FTimerHandle PartyRefreshTimerHandle;
