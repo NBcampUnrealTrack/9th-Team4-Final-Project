@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Base/NF_ViewModelBase.h"
 #include "Core/Match/NF_MatchRules.h"
+#include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_MatchmakingViewModel.generated.h"
 
 

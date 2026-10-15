@@ -3,24 +3,29 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Base/NF_ViewModelBase.h"
-#include "NF_SkillsViewModel.generated.h"
+#include "UI/ViewModel/Base/NF_ViewModelBase.h"
+#include "NF_ArmorsViewModel.generated.h"
+
 
 class UNF_BuildItemDefinition;
 class UTexture2D;
 
 UCLASS()
-class PROJECT_NF_API UNF_SkillsViewModel : public UNF_ViewModelBase
+class PROJECT_NF_API UNF_ArmorsViewModel : public UNF_ViewModelBase
 {
 	GENERATED_BODY()
 	
 public:
 	void Configure(
-		const UNF_BuildItemDefinition* Item,UTexture2D* InIcon,const FText& InDescription,float InCooldownSeconds);
+		const UNF_BuildItemDefinition* Item,
+		UTexture2D* InIcon,
+		const FText& InDescription,
+		const FText& InEquipSlotText,
+		float InDefenceBonus);
 
 private:
 	UPROPERTY(BlueprintReadOnly, FieldNotify, meta=(AllowPrivateAccess="true"))
-	FName SkillId;
+	FName ItemId;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, meta=(AllowPrivateAccess="true"))
 	FText DisplayName;
@@ -38,10 +43,8 @@ private:
 	FText Description;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, meta=(AllowPrivateAccess="true"))
-	float CooldownSeconds = 0.0f;
+	FText EquipSlotText;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, meta=(AllowPrivateAccess="true"))
-	float CastTime = 0.0f;
-	
-	float ResolveSkillCastTime(const UNF_BuildItemDefinition* Item) const;
+	float DefenceBonus = 0.0f;
 };

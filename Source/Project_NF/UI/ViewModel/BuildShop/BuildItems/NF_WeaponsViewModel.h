@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Base/NF_ViewModelBase.h"
+#include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_WeaponsViewModel.generated.h"
 
 class UNF_WeaponDataAsset;

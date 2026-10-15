@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Base/NF_GASViewModelBase.h"
+#include "UI/ViewModel/Base/NF_GASViewModelBase.h"
 #include "NF_PlayerStatusViewModel.generated.h"
 
 struct FOnAttributeChangeData;
