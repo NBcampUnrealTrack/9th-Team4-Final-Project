@@ -278,6 +278,24 @@ void UNF_WeaponComponent::ServerStartFire_Implementation() { StartFire(); }
 void UNF_WeaponComponent::ServerStopFire_Implementation() { StopFire(); }
 void UNF_WeaponComponent::ServerReload_Implementation() { Reload(); }
 
+void UNF_WeaponComponent::ToggleZoom()
+{
+	if (GetOwner()->HasAuthority() == false)
+	{
+		ServerToggleZoom();
+		return;
+	}
+
+	if (bZoomActive)
+	{
+		StopZoom();
+	}
+	else
+	{
+		StartZoom();
+	}
+}
+
 void UNF_WeaponComponent::StartZoom()
 {
 	if (GetOwner()->HasAuthority() == false)
@@ -397,6 +415,7 @@ void UNF_WeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 		SetComponentTickEnabled(false);
 }
 
+void UNF_WeaponComponent::ServerToggleZoom_Implementation() { ToggleZoom(); }
 void UNF_WeaponComponent::ServerStartZoom_Implementation() { StartZoom(); }
 void UNF_WeaponComponent::ServerStopZoom_Implementation() { StopZoom(); }
 

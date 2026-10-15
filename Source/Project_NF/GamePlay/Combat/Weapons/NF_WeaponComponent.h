@@ -34,6 +34,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void StopFire();
 
+	/** Bind to Started only; do not bind button release to StopZoom. */
+	UFUNCTION(BlueprintCallable, Category="Weapon|Zoom")
+	void ToggleZoom();
+
 	UFUNCTION(BlueprintCallable, Category="Weapon|Zoom")
 	void StartZoom();
 
@@ -95,6 +99,8 @@ private:
 
 	UFUNCTION()
 	void OnRep_ZoomActive();
+	UFUNCTION(Server, Reliable)
+	void ServerToggleZoom();
 	UFUNCTION(Server, Reliable)
 	void ServerStartZoom();
 	UFUNCTION(Server, Reliable)
