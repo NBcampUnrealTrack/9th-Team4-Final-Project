@@ -67,4 +67,22 @@ bool UNF_AbilitySystemComponent::ActivateSkillWithTarget(FGameplayAbilitySpecHan
 	return bActivated;
 }
 
+void UNF_AbilitySystemComponent::ReleaseSkillInput(FGameplayAbilitySpecHandle Handle)
+{
+	if (IsOwnerActorAuthoritative())
+	{
+		FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle);
+		if (auto* Skill = Spec ? Cast<UNFGA_SkillBase>(Spec->GetPrimaryInstance()) : nullptr) { Skill->ReleaseSkillInput(); }
+	}
+	else if (AbilityActorInfo.IsValid() && AbilityActorInfo->IsLocallyControlled()) { ServerReleaseSkillInput(Handle); }
+}
+
+void UNF_AbilitySystemComponent::ServerReleaseSkillInput_Implementation(FGameplayAbilitySpecHandle Handle)
+{
+	FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle);
+	auto* Skill = Spec ? Cast<UNFGA_SkillBase>(Spec->GetPrimaryInstance()) : nullptr;
+	if (Skill && Skill->GetNetSecurityPolicy() != EGameplayAbilityNetSecurityPolicy::ServerOnly
+		&& Skill->GetNetSecurityPolicy() != EGameplayAbilityNetSecurityPolicy::ServerOnlyTermination) { Skill->ReleaseSkillInput(); }
+}
+
 

@@ -20,6 +20,9 @@ public:
 	ANF_SkillPreviewActor();
 	bool InitializePreview(AActor* InSourceAvatar, UGameplayAbility* InSourceAbility);
 	virtual void Tick(float DeltaSeconds) override;
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
 
 	UFUNCTION(BlueprintPure, Category = "NF|Skill Preview")
 	AActor* GetSourceAvatar() const { return SourceAvatar.Get(); }
@@ -31,6 +34,11 @@ public:
 	bool GetPreviewData(FNF_SkillPreviewData& OutData) const;
 
 protected:
+	// 기본값은 그래프 없이 부착 컴포넌트를 연결한다. 기존 수동 BP는 false로 전환 가능.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill Preview")
+	bool bAutomaticComposition = true;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill Preview")
+	bool bAlignAreaToSurface = false;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// Source Avatar/Ability 설정 이후 호출한다. BP에서 포물선 Start Preview 등을 연결한다.
@@ -45,6 +53,8 @@ protected:
 	virtual void UpdatePreview_Implementation();
 
 private:
+	bool ValidateComposition() const;
+	void UpdateAutomaticPreview();
 	bool bPreviewInitialized = false;
 	UPROPERTY(Transient)
 	TWeakObjectPtr<AActor> SourceAvatar;
