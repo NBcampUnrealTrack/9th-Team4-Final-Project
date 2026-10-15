@@ -43,6 +43,13 @@ void ANF_Monster::BeginPlay()
 
 	MonsterASC->InitAbilityActorInfo(this, this);
 	
+	//Attribute 변경 감지 연결
+	MonsterASC->GetGameplayAttributeValueChangeDelegate(
+	UNF_MonsterAttributeSet::GetMoveSpeedAttribute())
+	.AddUObject(
+		this,
+		&ANF_Monster::HandleMoveSpeedChanged);
+	
 	MonsterAttributeSet->OnMonsterDamaged.AddUniqueDynamic(
 		this,
 		&ThisClass::HandleMonsterDamaged);
@@ -70,6 +77,8 @@ void ANF_Monster::BeginPlay()
 				*EffectSpecHandle.Data.Get());
 		}
 	}
+	
+	SetMonsterMoveSpeed(MonsterAttributeSet->GetMoveSpeed());
 	
 	if (HasAuthority())
 	{
@@ -281,12 +290,11 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 	TEXT("HandleMonsterOutOfHealth executed: %s"),
 	*GetName());
 	
-	if (bIsDead || !MonsterASC)
-	{
-		return;
-	}
+	if (bIsDead || !MonsterASC)	{ return; }
 
 	bIsDead = true;
+	
+	OnMonsterDied.Broadcast(this);
 
 	MonsterASC->RemoveLooseGameplayTag(
 		NFTag_Monster::State_Monster_HitReact);
@@ -316,4 +324,23 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 	PlayAnimMontage(DeathMontage);
 
 	SetLifeSpan(CorpseLifeSpan);
+}
+
+void ANF_Monster::HandleMoveSpeedChanged(
+	const FOnAttributeChangeData& Data)
+{
+	SetMonsterMoveSpeed(Data.NewValue);
+}
+
+void ANF_Monster::SetMonsterMoveSpeed(float NewMoveSpeed)
+{
+	UCharacterMovementComponent* MonsterMovementComponent =
+		GetCharacterMovement();
+
+	if (!MonsterMovementComponent)
+	{
+		return;
+	}
+
+	MonsterMovementComponent->MaxWalkSpeed = NewMoveSpeed;
 }

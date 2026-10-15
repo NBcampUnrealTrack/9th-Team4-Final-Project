@@ -10,6 +10,14 @@ class UNF_MonsterAttributeSet;
 class UGameplayEffect;
 class UGameplayAbility;
 class UAnimMontage;
+struct FOnAttributeChangeData;
+class ANF_Monster;
+
+//사망 알림 deligate
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FNFOnMonsterDied,
+	ANF_Monster*,
+	DeadMonster);
 
 UCLASS()
 class PROJECT_NF_API ANF_Monster : public ACharacter , public IAbilitySystemInterface
@@ -22,6 +30,9 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	
 	void ApplyBasicAttackHit();
+	
+	UPROPERTY(BlueprintAssignable, Category = "NF|Monster|Death")
+	FNFOnMonsterDied OnMonsterDied;
 	
 protected:
 	virtual void BeginPlay() override;
@@ -69,4 +80,10 @@ protected:
 	float CorpseLifeSpan = 5.0f;
 
 	bool bIsDead = false;
+	
+	//몬스터 종류별 MoveSpeed
+	void HandleMoveSpeedChanged(
+	const FOnAttributeChangeData& Data);
+
+	void SetMonsterMoveSpeed(float NewMoveSpeed);
 };
