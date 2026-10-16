@@ -2,6 +2,8 @@
 
 #include "NF_BuildShopViewModel.h"
 
+#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
+
 void UNF_BuildShopViewModel::UpdateShop(const FNF_BuildShopViewData& NewData)
 {
 	SkillSlots = NewData.SkillSlots;
