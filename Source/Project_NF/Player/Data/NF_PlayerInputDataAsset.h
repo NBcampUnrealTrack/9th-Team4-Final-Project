@@ -17,11 +17,22 @@ public:
 	TObjectPtr<UInputMappingContext> NF_PlayerIMC;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputAction> FireButton;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputAction> ZoomButton;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputAction> ReloadButton;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputAction> InteractButton;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UInputAction> SkillButton_A;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UInputAction> SkillButton_B;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
-	TObjectPtr<UInputAction> InteractButton;
+
 };
