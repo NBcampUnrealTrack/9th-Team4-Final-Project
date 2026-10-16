@@ -20,6 +20,9 @@ public:
 	TObjectPtr<UInputAction> FireButton;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputAction> ZoomButton;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UInputAction> ReloadButton;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")

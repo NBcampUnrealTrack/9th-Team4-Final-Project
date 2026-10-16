@@ -23,6 +23,22 @@ void ANF_PlayerController::BeginPlay()
 	
 	//OnPlayerOpenShop.AddUObject(this, &ThisClass::EnablePlayerMovementFromType);
 	
+	InputConfig();
+}
+
+
+void ANF_PlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+
+	UMotionMatchingInputLibrary::BindMotionMatchingInput(this, MotionMatchingInputDataAsset);
+	
+	BindInputButton();
+}
+
+
+void ANF_PlayerController::InputConfig()
+{
 	if (IsLocalController() == true)
 	{
 		auto* EILPS = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(this->GetLocalPlayer());
@@ -37,17 +53,6 @@ void ANF_PlayerController::BeginPlay()
 		EILPS->AddMappingContext(NF_PlayerInputDataAsset->NF_PlayerIMC, 0);
 	}
 }
-
-
-void ANF_PlayerController::SetupInputComponent()
-{
-	Super::SetupInputComponent();
-
-	UMotionMatchingInputLibrary::BindMotionMatchingInput(this, MotionMatchingInputDataAsset);
-	
-	BindInputButton();
-}
-
 
 void ANF_PlayerController::BindInputButton()
 {
@@ -65,14 +70,23 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::Fire);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Canceled, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
+	
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Started, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::Zoom);
+	
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ReloadButton, ETriggerEvent::Started, this, 
-		&ThisClass::TryAction, ENF_PlayerActionType::Reload);
+	&ThisClass::TryAction, ENF_PlayerActionType::Reload);
+	
 	
 	//Skill
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillA);
+	
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_B, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillB);
+	
 	
 	//상호작용
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->InteractButton, ETriggerEvent::Started, this,
@@ -82,10 +96,11 @@ void ANF_PlayerController::BindInputButton()
 
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
-	if (IsInBuildShop() == true)
+	if (true)
 	{
 		if (PlayerActionType == ENF_PlayerActionType::SkillA)
 		{
+			
 			return;
 		}
 	
@@ -104,6 +119,12 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	}
 	
 	if (PlayerActionType == ENF_PlayerActionType::StopFire)
+	{
+		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+		return;
+	}
+	
+	if (PlayerActionType == ENF_PlayerActionType::Zoom)
 	{
 		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 		return;
@@ -134,6 +155,11 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	}
 }
 
+void ANF_PlayerController::IsInBuildShop(ENF_BuildShopUIState)
+{
+	
+}
+
 
 #pragma region BuildShop
 //On_Rep
@@ -143,11 +169,7 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 }*/
 
 
-bool ANF_PlayerController::IsInBuildShop()
+void IsInBuildShop(ENF_BuildShopUIState)
 {
-	// TODO 상점 이용 중에는 스킬 사용을 막음 (이는 준현님의 브로드캐스트를 따를 예정)
-	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild) return true;
-	
-	return false;
 }
 #pragma endregion

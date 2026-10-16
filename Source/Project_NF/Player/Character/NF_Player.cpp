@@ -9,9 +9,9 @@
 #include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
 #include "NF_PlayerStatusAttribute.h"
-#include "BuildSystem/Player/NF_BuildComponent.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "Data/Interface/NF_InteractionInterface.h"
+#include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Player/Controller/NF_PlayerController.h"
@@ -83,6 +83,12 @@ void ANF_Player::TryAction(APlayerController* SendController, ENF_PlayerActionTy
 		return;
 	}
 	
+	if (ActionType == ENF_PlayerActionType::Zoom)
+	{
+		TryZoom();
+		return;
+	}
+	
 	if (ActionType == ENF_PlayerActionType::Reload)
 	{
 		TryReload();
@@ -127,6 +133,11 @@ void ANF_Player::TryStartAttack()
 void ANF_Player::TryStopAttack()
 {
 	NF_WeaponComponent->StopFire();
+}
+
+void ANF_Player::TryZoom()
+{
+	NF_WeaponComponent->ToggleZoom();
 }
 
 
