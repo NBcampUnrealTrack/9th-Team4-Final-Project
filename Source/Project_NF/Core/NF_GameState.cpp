@@ -1,5 +1,6 @@
 ﻿#include "Core/NF_GameState.h"
 
+#include "NF_BuildShopAccessPolicy.h"
 #include "Net/UnrealNetwork.h"
 
 ANF_GameState::ANF_GameState()
@@ -60,6 +61,11 @@ bool ANF_GameState::AuthoritySetUntimedMatchPhase(ENF_MatchPhase NewPhase)
 	ForceNetUpdate();
 
 	return true;
+}
+
+bool ANF_GameState::IsBuildShopAllowed(ENF_BuildShopType ShopType) const
+{
+	return FNF_BuildShopAccessPolicy::IsShopAllowed(NF_MatchState.Phase,ShopType);
 }
 
 void ANF_GameState::OnRep_NFMatchState()
