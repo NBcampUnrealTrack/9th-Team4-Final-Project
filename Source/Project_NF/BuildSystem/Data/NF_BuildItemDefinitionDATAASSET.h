@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "BuildSystem/Core/NF_BuildTypes.h"
 #include "Engine/DataAsset.h"
-#include "NF_BuildItemDefinitionDataAsset.generated.h"
+#include "NF_BuildItemDefinitionDATAASSET.generated.h"
 
 class UGameplayAbility;
 class UGameplayEffect;
@@ -11,7 +11,7 @@ class ANF_WeaponBase;
 
 /** One definition per item/tier. No mesh swapping is required by the prototype. */
 UCLASS(BlueprintType)
-class PROJECT_NF_API UNF_BuildItemDefinitionDataAsset : public UPrimaryDataAsset
+class PROJECT_NF_API UNF_BuildItemDefinitionDATAASSET : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
