@@ -1,4 +1,4 @@
-﻿#include "Core/NF_BuildReadyComponent.h"
+﻿#include "Core/Component/NF_BuildReadyComponent.h"
 
 #include "AbilitySystemComponent.h"
 #include "GAS/Tags/NFTag_Build.h"
