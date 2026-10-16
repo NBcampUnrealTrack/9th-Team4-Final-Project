@@ -1,7 +1,7 @@
 #include "BuildSystem/Core/NF_BuildValidator.h"
 
 #include "Abilities/GameplayAbility.h"
-#include "BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
+#include "BuildSystem/Data/NF_BuildItemDefinitionDATAASSET.h"
 #include "BuildSystem/Data/NF_BuildRules.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectComponent.h"
@@ -24,8 +24,8 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 		return Fail(ENF_BuildResult::InvalidRules, TEXT("코스트 상한과 슬롯 수(무기 1, 방어구 3, 액티브 2, 패시브 1)를 확인하세요."));
 	}
 
-	TMap<FName, const UNF_BuildItemDefinitionDataAsset*> Catalog;
-	for (const UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
+	TMap<FName, const UNF_BuildItemDefinitionDATAASSET*> Catalog;
+	for (const UNF_BuildItemDefinitionDATAASSET* Definition : Rules->Catalog)
 	{
 		if (!IsValid(Definition) || Definition->ItemId.IsNone() || Catalog.Contains(Definition->ItemId) ||
 			Definition->Cost < 0 || Definition->Tier < 1 ||
@@ -52,12 +52,12 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 	int32 LinkedWeaponCount = 0;
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
-		const UNF_BuildItemDefinitionDataAsset* const* Found = Catalog.Find(Selection.ItemId);
+		const UNF_BuildItemDefinitionDATAASSET* const* Found = Catalog.Find(Selection.ItemId);
 		if (!Found)
 		{
 			return Fail(ENF_BuildResult::UnknownItem, TEXT("상점 카탈로그에 없는 항목입니다."));
 		}
-		const UNF_BuildItemDefinitionDataAsset* Definition = *Found;
+		const UNF_BuildItemDefinitionDATAASSET* Definition = *Found;
 		if (ItemIds.Contains(Selection.ItemId))
 		{
 			return Fail(ENF_BuildResult::DuplicateItem, TEXT("동일한 항목을 중복 선택할 수 없습니다."));
