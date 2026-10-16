@@ -52,8 +52,7 @@ private:
 	//UFUNCTION()
 	//void OnRep_OnChangedPlayerStateType();
 	
-	
-	bool IsInBuildShop();
+	void IsInBuildShop(ENF_BuildShopUIState);
 	
 	
 	FOnPlayerOpenShop OnPlayerOpenShop;

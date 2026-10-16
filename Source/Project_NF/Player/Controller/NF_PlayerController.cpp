@@ -23,8 +23,6 @@ void ANF_PlayerController::BeginPlay()
 	
 	//OnPlayerOpenShop.AddUObject(this, &ThisClass::EnablePlayerMovementFromType);
 	
-	
-	
 	InputConfig();
 }
 
@@ -98,7 +96,7 @@ void ANF_PlayerController::BindInputButton()
 
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
-	if (IsInBuildShop() == true)
+	if (true)
 	{
 		if (PlayerActionType == ENF_PlayerActionType::SkillA)
 		{
@@ -157,6 +155,11 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	}
 }
 
+void ANF_PlayerController::IsInBuildShop(ENF_BuildShopUIState)
+{
+	
+}
+
 
 #pragma region BuildShop
 //On_Rep
@@ -166,11 +169,7 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 }*/
 
 
-bool ANF_PlayerController::IsInBuildShop()
+void IsInBuildShop(ENF_BuildShopUIState)
 {
-	// TODO 상점 이용 중에는 스킬 사용을 막음 (이는 준현님의 브로드캐스트를 따를 예정)
-	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild) return true;
-	
-	return false;
 }
 #pragma endregion
