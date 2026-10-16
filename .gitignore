@@ -1474,7 +1474,7 @@ Content/__ExternalActors__/ProjectNF/Persnal/Myunghyun/Level/InstanceLevel/TestL
 Content/ProjectNF/Persnal/Myunghyun/Level/InstanceLevel/TestLevel_Instance.umap
 Content/ProjectNF/Persnal/Myunghyun/Level/InstanceLevel/TestLevel-Instance.umap
 Content/ProjectNF/Persnal/Myunghyun/Level/InstanceLevel/TestLevelLighting_Instance.umap
-Content/ProjectNF/Persnal/Myunghyun/Player/MotionMatching/Animation/ABP_SandboxCharacter.uasset
+
 Content/ProjectNF/Persnal/Myunghyun/Player/MotionMatching/Animation/SandboxAnimCurveCompressionSettings.uasset
 Content/ProjectNF/Persnal/Myunghyun/Player/MotionMatching/Animation/Modifiers/AM_BakePhaseCurveFromFootstepNotifies.uasset
 Content/ProjectNF/Persnal/Myunghyun/Player/MotionMatching/Animation/Modifiers/AM_DistanceFromLedge.uasset
@@ -2267,7 +2267,6 @@ AGENTS.md
 Docs/
 
 Config/DefaultEngine.ini
-Content/ProjectNF/Persnal/Myunghyun/Player/Character/Materials/M_NF_Invisible.uasset
 Content/ProjectNF/Persnal/Myunghyun/Player/Character/Resource/ParagonRevenant/Audio/Revenant.uasset
 Content/ProjectNF/Persnal/Myunghyun/Player/Character/Resource/ParagonRevenant/Audio/Cues/Revenant_Ability_E_Engage.uasset
 Content/ProjectNF/Persnal/Myunghyun/Player/Character/Resource/ParagonRevenant/Audio/Cues/Revenant_Ability_LMB_Engage.uasset
