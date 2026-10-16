@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "Player/Data/NF_PlayerActionType.h"
 #include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "Player/Data/NF_PlayerStateDelegate.h"
@@ -9,6 +10,7 @@
 
 enum class ENF_PlayerActionType : uint8;
 enum class ENF_PlayerInteractTypeEnum : uint8;
+enum class ENF_BuildShopUIState : uint8;
 struct FInputActionValue;
 class UNF_PlayerInputDataAsset;
 class UMotionMatchingInputDataAsset;
@@ -21,7 +23,7 @@ class PROJECT_NF_API ANF_PlayerController : public APlayerController
 	GENERATED_BODY()
 	
 protected:
-	//virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	virtual void BeginPlay() override;
 	
@@ -34,8 +36,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UNF_PlayerInputDataAsset> NF_PlayerInputDataAsset;
 	
-	//UPROPERTY(ReplicatedUsing = OnRep_OnChangedPlayerStateType)
-	ENF_PlayerInteractTypeEnum CurrentPlayerInteractType = ENF_PlayerInteractTypeEnum::None;
+	UPROPERTY(ReplicatedUsing = OnRep_OnInteractBuildShop)
+	ENF_BuildShopUIState CurrentBuildShopType = ENF_BuildShopUIState::None;
 	
 	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
 	
@@ -45,17 +47,16 @@ private:
 	
 	void BindInputButton();
 	
+	void BindDelegate();
+	
 	void TryAction(ENF_PlayerActionType PlayerActionType);
 	
 	
 #pragma region BuildShop
-	//UFUNCTION()
-	//void OnRep_OnChangedPlayerStateType();
+	UFUNCTION()
+	void OnRep_OnInteractBuildShop();
 	
 	void IsInBuildShop(ENF_BuildShopUIState);
-	
-	
-	FOnPlayerOpenShop OnPlayerOpenShop;
 	
 #pragma endregion
 };

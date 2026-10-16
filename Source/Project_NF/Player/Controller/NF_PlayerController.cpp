@@ -4,26 +4,27 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Input/MotionMatchingInputLibrary.h"
+#include "Net/UnrealNetwork.h"
 #include "Player/Character/NF_Player.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/Data/NF_PlayerInputDataAsset.h"
 
 
-/*void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
-	DOREPLIFETIME(ThisClass, CurrentPlayerInteractType);
-}*/
+	DOREPLIFETIME(ThisClass, CurrentBuildShopType);
+}
 
 
 void ANF_PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	//OnPlayerOpenShop.AddUObject(this, &ThisClass::EnablePlayerMovementFromType);
-	
 	InputConfig();
+	
+	BindDelegate();
 }
 
 
@@ -53,6 +54,13 @@ void ANF_PlayerController::InputConfig()
 		EILPS->AddMappingContext(NF_PlayerInputDataAsset->NF_PlayerIMC, 0);
 	}
 }
+
+
+void ANF_PlayerController::BindDelegate()
+{
+	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnInteractBuildShop, IsInBuildShop);
+}
+
 
 void ANF_PlayerController::BindInputButton()
 {
@@ -96,7 +104,7 @@ void ANF_PlayerController::BindInputButton()
 
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
-	if (true)
+	/*if (true)
 	{
 		if (PlayerActionType == ENF_PlayerActionType::SkillA)
 		{
@@ -110,7 +118,7 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 		}
 		
 		return;
-	}
+	}*/
 	
 	if (PlayerActionType == ENF_PlayerActionType::Fire)
 	{
@@ -155,9 +163,8 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	}
 }
 
-void ANF_PlayerController::IsInBuildShop(ENF_BuildShopUIState)
+void ANF_PlayerController::OnRep_OnInteractBuildShop()
 {
-	
 }
 
 
@@ -169,7 +176,9 @@ void ANF_PlayerController::IsInBuildShop(ENF_BuildShopUIState)
 }*/
 
 
-void IsInBuildShop(ENF_BuildShopUIState)
+void ANF_PlayerController::IsInBuildShop(ENF_BuildShopUIState)
 {
+	
 }
+
 #pragma endregion
