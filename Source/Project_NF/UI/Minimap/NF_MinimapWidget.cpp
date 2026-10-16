@@ -145,7 +145,9 @@ FLinearColor UNF_MinimapWidget::GetMarkerColor(ENF_MinimapMarkerType Type) const
 	}
 }
 
-int32 UNF_MinimapWidget::NativePaint(const FPaintArgs& Args, const FGeometry& Geometry,
+
+//TODO @명현, 26.10.16 정준님 코드 빌드 에러로 임시 주석처리합니다
+/*int32 UNF_MinimapWidget::NativePaint(const FPaintArgs& Args, const FGeometry& Geometry,
 	const FSlateRect& CullingRect, FSlateWindowElementList& Elements, int32 LayerId,
 	const FWidgetStyle& Style, bool bParentEnabled) const
 {
@@ -228,4 +230,4 @@ int32 UNF_MinimapWidget::NativePaint(const FPaintArgs& Args, const FGeometry& Ge
 		}
 	}
 	return Super::NativePaint(Args, Geometry, CullingRect, Elements, LayerId + 4, Style, bParentEnabled);
-}
+}*/
