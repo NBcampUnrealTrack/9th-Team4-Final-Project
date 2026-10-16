@@ -11,12 +11,18 @@ ANF_GameMode::ANF_GameMode()
 {
 	GameStateClass = ANF_GameState::StaticClass();
 	BuildReadyComponent = CreateDefaultSubobject<UNF_BuildReadyComponent>(TEXT("BuildReadyComponent"));
+	MatchDepartureComponent = CreateDefaultSubobject<UNF_MatchDepartureComponent>(TEXT("MatchDepartureComponent"));
 }
 
 void ANF_GameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (IsValid(MatchDepartureComponent))
+	{
+		MatchDepartureComponent->OnDepartureLimitReached.AddUObject(this,&ThisClass::AbortMatchDueToDepartures);
+	}
+	
 	ANF_GameState* NFGameState = GetNFGameState();
 	if (!NFGameState)return;
 
@@ -37,9 +43,24 @@ void ANF_GameMode::PostLogin(APlayerController* NewPlayer)
 
 void ANF_GameMode::Logout(AController* Exiting)
 {
+	ANF_PlayerState* LeavingPlayerState = nullptr;
+
 	if (IsValid(Exiting))
 	{
-		BuildReadyComponent->UnregisterPlayer(Exiting->GetPlayerState<ANF_PlayerState>());
+		LeavingPlayerState =Exiting->GetPlayerState<ANF_PlayerState>();
+	}
+
+	if (IsValid(LeavingPlayerState))
+	{
+		if (IsValid(BuildReadyComponent))
+		{
+			BuildReadyComponent->UnregisterPlayer(LeavingPlayerState);
+		}
+
+		if (IsValid(MatchDepartureComponent))
+		{
+			MatchDepartureComponent->NotifyPlayerLeft(TWeakObjectPtr<ANF_PlayerState>(LeavingPlayerState));
+		}
 	}
 
 	Super::Logout(Exiting);
@@ -49,6 +70,15 @@ void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(PhaseTimerHandle);
 
+	if (IsValid(MatchDepartureComponent))
+	{
+		MatchDepartureComponent->StopTracking();
+
+		MatchDepartureComponent->OnDepartureLimitReached.RemoveAll(this);
+	}
+
+	RequestMatchAbort.Unbind();
+	
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -105,8 +135,29 @@ void ANF_GameMode::EnterBuild()
 {
 	ANF_GameState* NFGameState = GetNFGameState();
 
-	if (!NFGameState)return;
-	if (!NFGameState->AuthoritySetTimedMatchPhase(ENF_MatchPhase::Build, BuildDuration)) return;
+	if (!IsValid(NFGameState)) return;
+	if (!IsValid(MatchDepartureComponent)) return;
+	
+	TArray<ANF_PlayerState*> Participants;
+
+	if (!CollectMatchParticipants(Participants))
+	{
+		UE_LOG(LogTemp,Error,TEXT("Build 진입 실패: 매치 참가자 수집 실패"));
+		return;
+	}
+
+	if (!MatchDepartureComponent->StartTracking(Participants))
+	{
+		UE_LOG(LogTemp,Error,TEXT("Build 진입 실패: 참가자 이탈 추적 시작 실패"));
+		return;
+	}
+
+	if (!NFGameState->AuthoritySetTimedMatchPhase(ENF_MatchPhase::Build,BuildDuration))
+	{
+		// 페이즈 전환 실패 시 시작한 추적 중지
+		MatchDepartureComponent->StopTracking();
+		return;
+	}
 
 	GetWorldTimerManager().SetTimer(
 		PhaseTimerHandle,
@@ -209,11 +260,17 @@ void ANF_GameMode::EnterFinished()
 {
 	ANF_GameState* NFGameState = GetNFGameState();
 	
-	if (!NFGameState) return;
+	if (!IsValid(NFGameState)) return;
+	
+	if (IsValid(MatchDepartureComponent))
+	{
+		MatchDepartureComponent->StopTracking();
+	}
+
+	GetWorldTimerManager().ClearTimer(PhaseTimerHandle);
 	
 	NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Finished);
 	
-
 	// 승리 팀 기록, 결과 UI용 데이터 복제, 매치 정리 등
 }
 
