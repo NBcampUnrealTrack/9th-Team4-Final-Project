@@ -11,7 +11,7 @@ class ANF_BuildShopZone;
 class ANF_WeaponBase;
 class APlayerController;
 class UAbilitySystemComponent;
-class UNF_BuildItemDefinition;
+class UNF_BuildItemDefinitionDATAASSET;
 class UNF_BuildRules;
 class UUserWidget;
 
@@ -21,7 +21,7 @@ struct FNF_BuildGrantHandles
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TObjectPtr<UNF_BuildItemDefinition> Definition;
+	TObjectPtr<UNF_BuildItemDefinitionDATAASSET> Definition;
 
 	FGameplayAbilitySpecHandle AbilityHandle;
 	TArray<FActiveGameplayEffectHandle> EffectHandles;
@@ -31,7 +31,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildRequestCompleted, const FNF_BuildValidation&, Validation);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopChanged,ANF_BuildShopZone*, Shop, ENF_BuildShopUIState, SessionState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildShopChanged, ENF_BuildShopUIState, SessionState);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopRangeChanged, ANF_BuildShopZone*, Shop,
 	ENF_BuildShopRangeState, RangeState);
@@ -77,15 +77,15 @@ public:
 	bool IsAwaitingBuildResult() const { return bAwaitingBuildResult; }
 
 	UFUNCTION(BlueprintPure, Category = "NF|Build")
-	UNF_BuildItemDefinition* FindItemDefinition(FName ItemId) const;
+	UNF_BuildItemDefinitionDATAASSET* FindItemDefinition(FName ItemId) const;
 
 	/** @Owner: 황준현 | 2026-10-15. UI 분류 목록. 방어구의 None은 모든 부위를 조회한다. */
 	UFUNCTION(BlueprintPure, Category = "NF|Build|Slots")
-	TArray<UNF_BuildItemDefinition*> GetCatalogItems(ENF_BuildItemType ItemType, ENF_BuildArmorPart ArmorPart) const;
+	TArray<UNF_BuildItemDefinitionDATAASSET*> GetCatalogItems(ENF_BuildItemType ItemType, ENF_BuildArmorPart ArmorPart) const;
 
 	/** 빈 슬롯이면 nullptr. bUseDraft가 false이면 서버에서 확정된 빌드를 조회한다. */
 	UFUNCTION(BlueprintPure, Category = "NF|Build|Slots")
-	UNF_BuildItemDefinition* GetSlotItem(ENF_BuildItemType ItemType, int32 SlotIndex, bool bUseDraft) const;
+	UNF_BuildItemDefinitionDATAASSET* GetSlotItem(ENF_BuildItemType ItemType, int32 SlotIndex, bool bUseDraft) const;
 
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|Input")
 	void PressActiveSkillInput(int32 SlotIndex);
@@ -213,7 +213,7 @@ private:
 	void OnRep_CurrentBuild();
 
 	FNF_BuildValidation ApplyBuildOnServer(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone);
-	bool GrantItem(UNF_BuildItemDefinition* Definition, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
+	bool GrantItem(UNF_BuildItemDefinitionDATAASSET* Definition, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
 	bool ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections);
 	void ReleaseBuildWeapon();
 	TWeakObjectPtr<ANF_WeaponBase> BuildWeapon;
