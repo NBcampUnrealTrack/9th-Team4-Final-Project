@@ -67,7 +67,7 @@ protected:
 	TSubclassOf<ANF_WeaponBase> DefaultWeaponClass;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapon")
-	FName WeaponSocketName = TEXT("WeaponSocket");
+	FName WeaponSocketName = TEXT("WeaponSocket_R");
 
 	UPROPERTY(ReplicatedUsing=OnRep_EquippedWeapon, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<ANF_WeaponBase> EquippedWeapon;
