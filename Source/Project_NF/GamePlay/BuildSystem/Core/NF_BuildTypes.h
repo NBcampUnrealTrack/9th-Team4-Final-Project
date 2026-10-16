@@ -54,6 +54,7 @@ enum class ENF_BuildShopRangeState : uint8
 UENUM(BlueprintType)
 enum class ENF_BuildShopUIState : uint8
 {
+	None UMETA(DisplayName = "None"),
 	BuildOpened UMETA(DisplayName = "빌드창 열림"),
 	BuildClosed UMETA(DisplayName = "빌드창 닫힘")
 };
