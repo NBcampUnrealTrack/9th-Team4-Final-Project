@@ -17,6 +17,7 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 
 UNF_BuildComponent::UNF_BuildComponent()
 {
@@ -363,7 +364,7 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 		? ENF_BuildShopUIState::BuildOpened
 		: ENF_BuildShopUIState::BuildClosed;
 
-	OnBuildShopChanged.Broadcast(SessionState);
+	NF_BROADCAST_TO_PLAYER_DELEGATE_OneParam(OnInteractBuildShop, SessionState);
 }
 
 void UNF_BuildComponent::OnRep_BuildConfiguration()

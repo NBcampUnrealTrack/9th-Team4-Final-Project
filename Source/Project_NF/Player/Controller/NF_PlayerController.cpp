@@ -96,7 +96,7 @@ void ANF_PlayerController::BindInputButton()
 
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
-	if (true)
+	/*if (true)
 	{
 		if (PlayerActionType == ENF_PlayerActionType::SkillA)
 		{
@@ -110,7 +110,7 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 		}
 		
 		return;
-	}
+	}*/
 	
 	if (PlayerActionType == ENF_PlayerActionType::Fire)
 	{
@@ -155,11 +155,6 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	}
 }
 
-void ANF_PlayerController::IsInBuildShop(ENF_BuildShopUIState)
-{
-	
-}
-
 
 #pragma region BuildShop
 //On_Rep
@@ -169,7 +164,9 @@ void ANF_PlayerController::IsInBuildShop(ENF_BuildShopUIState)
 }*/
 
 
-void IsInBuildShop(ENF_BuildShopUIState)
+void ANF_PlayerController::IsInBuildShop(ENF_BuildShopUIState)
 {
+	
 }
+
 #pragma endregion
