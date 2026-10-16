@@ -7,6 +7,7 @@
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_GameFlowViewModel.generated.h"
 
+struct FNF_MatchState;
 class ANF_GameState;
 
 USTRUCT()

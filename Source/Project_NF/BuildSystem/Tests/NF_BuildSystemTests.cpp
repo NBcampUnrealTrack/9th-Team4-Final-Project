@@ -60,7 +60,6 @@ bool FNF_BuildWeaponDefinitionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Linked weapon in first slot accepted"),
 		FNF_BuildValidator::Validate(Rules, 1, {Select(TEXT("Rifle"))}).Result,
 		ENF_BuildResult::Success);
-	Rules->WeaponSlots = 2;
 	TestEqual(TEXT("Shared weapon component has no second equipment slot"),
 		FNF_BuildValidator::Validate(Rules, 1, {Select(TEXT("Rifle"), 1)}).Result,
 		ENF_BuildResult::InvalidSlot);
@@ -68,6 +67,43 @@ bool FNF_BuildWeaponDefinitionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Skill cannot spawn a weapon"),
 		FNF_BuildValidator::Validate(Rules, 1, {Select(TEXT("Rifle")), Select(TEXT("Grenade"))}).Result,
 		ENF_BuildResult::InvalidGrant);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildArmorSlotsTest, "NF.Build.ArmorSlots",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNF_BuildArmorSlotsTest::RunTest(const FString& Parameters)
+{
+	UNF_BuildRules* Rules = MakeRules();
+	UNF_BuildItemDefinition* Head = MakeItem(Rules, TEXT("Helmet"), ENF_BuildItemType::Armor, 1);
+	Head->ArmorPart = ENF_BuildArmorPart::Head;
+	UNF_BuildItemDefinition* Upper = MakeItem(Rules, TEXT("Vest"), ENF_BuildItemType::Armor, 1);
+	Upper->ArmorPart = ENF_BuildArmorPart::UpperBody;
+	UNF_BuildItemDefinition* Lower = MakeItem(Rules, TEXT("Legs"), ENF_BuildItemType::Armor, 1);
+	Lower->ArmorPart = ENF_BuildArmorPart::LowerBody;
+	const TArray<FNF_BuildSelection> FullBuild = {
+		Select(TEXT("Rifle")), Select(TEXT("Helmet"), 0), Select(TEXT("Vest"), 1), Select(TEXT("Legs"), 2),
+		Select(TEXT("Grenade"), 0), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))
+	};
+	TestEqual(TEXT("일곱 슬롯을 올바른 분류로 채울 수 있다"),
+		FNF_BuildValidator::Validate(Rules, 2, FullBuild).Result, ENF_BuildResult::Success);
+	TestEqual(TEXT("상의는 머리 슬롯에 넣을 수 없다"),
+		FNF_BuildValidator::Validate(Rules, 2, {Select(TEXT("Rifle")), Select(TEXT("Vest"), 0)}).Result,
+		ENF_BuildResult::InvalidSlot);
+	TestEqual(TEXT("패시브는 두 번째 슬롯을 사용할 수 없다"),
+		FNF_BuildValidator::Validate(Rules, 2, {Select(TEXT("Rifle")), Select(TEXT("HealthUp"), 1)}).Result,
+		ENF_BuildResult::InvalidSlot);
+	UNF_BuildItemDefinition* OtherHead = MakeItem(Rules, TEXT("OtherHelmet"), ENF_BuildItemType::Armor, 1);
+	OtherHead->ArmorPart = ENF_BuildArmorPart::Head;
+	TestEqual(TEXT("같은 부위 두 개의 동시 장착을 거부한다"),
+		FNF_BuildValidator::Validate(Rules, 2,
+			{Select(TEXT("Rifle")), Select(TEXT("Helmet")), Select(TEXT("OtherHelmet"))}).Result,
+		ENF_BuildResult::InvalidSlot);
+	Head->ArmorPart = ENF_BuildArmorPart::None;
+	TestEqual(TEXT("방어구 부위 미지정 데이터를 거부한다"),
+		FNF_BuildValidator::Validate(Rules, 2, {Select(TEXT("Rifle"))}).Result,
+		ENF_BuildResult::InvalidRules);
 	return true;
 }
 
@@ -180,6 +216,22 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Interface interaction opens authorized session"), Build->GetCurrentShop() == Shop);
 	Build->RequestApplyBuild({Select(TEXT("Rifle")), Select(TEXT("Grenade"))}, Shop);
 	TestEqual(TEXT("Initial build committed"), Build->GetCurrentBuild().Num(), 2);
+	UNF_BuildItemDefinition* HeadItem = MakeItem(Rules, TEXT("TestHead"), ENF_BuildItemType::Armor, 0);
+	HeadItem->ArmorPart = ENF_BuildArmorPart::Head;
+	UNF_BuildItemDefinition* UpperItem = MakeItem(Rules, TEXT("TestUpper"), ENF_BuildItemType::Armor, 0);
+	UpperItem->ArmorPart = ENF_BuildArmorPart::UpperBody;
+	UNF_BuildItemDefinition* ReplacementHead = MakeItem(Rules, TEXT("TestHead2"), ENF_BuildItemType::Armor, 0);
+	ReplacementHead->ArmorPart = ENF_BuildArmorPart::Head;
+	TestTrue(TEXT("머리 방어구 선택"), Build->SelectDraftItem(TEXT("TestHead")));
+	TestTrue(TEXT("상의 방어구 선택"), Build->SelectDraftItem(TEXT("TestUpper")));
+	TestTrue(TEXT("같은 부위 교체"), Build->SelectDraftItem(TEXT("TestHead2")));
+	TestTrue(TEXT("머리 칸만 교체된다"), Build->GetSlotItem(ENF_BuildItemType::Armor, 0, true) == ReplacementHead);
+	TestTrue(TEXT("상의 칸은 유지된다"), Build->GetSlotItem(ENF_BuildItemType::Armor, 1, true) == UpperItem);
+	TestNull(TEXT("빈 하의 칸은 nullptr"), Build->GetSlotItem(ENF_BuildItemType::Armor, 2, true));
+	TestNull(TEXT("임시 방어구는 확정 상태창에 반영되지 않는다"), Build->GetSlotItem(ENF_BuildItemType::Armor, 0, false));
+	TestEqual(TEXT("부위별 카탈로그 필터"), Build->GetCatalogItems(ENF_BuildItemType::Armor, ENF_BuildArmorPart::Head).Num(), 2);
+	Build->RemoveDraftItem(TEXT("TestHead2"));
+	Build->RemoveDraftItem(TEXT("TestUpper"));
 	TestEqual(TEXT("One ability granted"), ASC->GetActivatableAbilities().Num(), 1);
 	if (Build->GetCurrentBuild().Num() != 2 || ASC->GetActivatableAbilities().Num() != 1)
 	{

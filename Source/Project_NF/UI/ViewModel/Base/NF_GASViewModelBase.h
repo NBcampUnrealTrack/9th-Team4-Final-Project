@@ -35,10 +35,10 @@ protected:
 	virtual void OnDeinitializeViewModel() override;
 
 	//자식에서 구현
-	virtual void BindAbilitySystemDelegates();
+	virtual void BindAbilitySystemDelegates() {};
 
 	//자식에서 구현
-	virtual void RefreshFromAbilitySystem();
+	virtual void RefreshFromAbilitySystem() {};
 
 	UAbilitySystemComponent* GetAbilitySystemComponent() const
 	{
