@@ -12,6 +12,7 @@ class UGameplayAbility;
 class UAnimMontage;
 struct FOnAttributeChangeData;
 class ANF_Monster;
+class AActor;
 
 //사망 알림 deligate
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
@@ -33,6 +34,8 @@ public:
 	
 	UPROPERTY(BlueprintAssignable, Category = "NF|Monster|Death")
 	FNFOnMonsterDied OnMonsterDied;
+	
+	FVector GetHomeLocation() const;
 	
 protected:
 	virtual void BeginPlay() override;
@@ -58,7 +61,7 @@ protected:
 	
 	//hit
 	UFUNCTION()
-	void HandleMonsterDamaged(float Damage);
+	void HandleMonsterDamaged(float Damage,	AActor* DamageSource);
 
 	UFUNCTION()
 	void ClearHitReactState();
@@ -86,4 +89,12 @@ protected:
 	const FOnAttributeChangeData& Data);
 
 	void SetMonsterMoveSpeed(float NewMoveSpeed);
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "NF|Monster|AI",
+		meta = (ClampMin = "0.0"))
+	float PatrolRadius = 500.0f;
+	
+private:
+	FVector HomeLocation;
 };

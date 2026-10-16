@@ -104,6 +104,8 @@ void ANF_Monster::BeginPlay()
 			}
 		}
 	}
+	
+	HomeLocation = GetActorLocation();
 }
 
 void ANF_Monster::ApplyBasicAttackHit()
@@ -244,12 +246,15 @@ void ANF_Monster::ApplyBasicAttackHit()
 		TargetHealthAfter);
 }
 
-void ANF_Monster::HandleMonsterDamaged(float Damage)
+void ANF_Monster::HandleMonsterDamaged(float Damage, AActor* DamageSource)
 {
-	if (!MonsterASC)
+	if (ANF_MonsterAIController* MonsterAIController =
+		Cast<ANF_MonsterAIController>(GetController()))
 	{
-		return;
+		MonsterAIController->SetCurrentTargetActor(DamageSource);
 	}
+	
+	if (!MonsterASC) { return; }
 
 	MonsterASC->AddLooseGameplayTag(
 		NFTag_Monster::State_Monster_HitReact);
@@ -273,10 +278,7 @@ void ANF_Monster::HandleMonsterDamaged(float Damage)
 
 void ANF_Monster::ClearHitReactState()
 {
-	if (!MonsterASC)
-	{
-		return;
-	}
+	if (!MonsterASC) { return; }
 
 	MonsterASC->RemoveLooseGameplayTag(
 		NFTag_Monster::State_Monster_HitReact);
@@ -343,4 +345,9 @@ void ANF_Monster::SetMonsterMoveSpeed(float NewMoveSpeed)
 	}
 
 	MonsterMovementComponent->MaxWalkSpeed = NewMoveSpeed;
+}
+
+FVector ANF_Monster::GetHomeLocation() const
+{
+	return HomeLocation;
 }

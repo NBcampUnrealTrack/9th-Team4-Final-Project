@@ -21,6 +21,10 @@ public:
 	
 	AActor* GetCurrentTargetActor() const;
 	
+	void SetCurrentTargetActor(AActor* NewTargetActor);
+
+	void ClearCurrentTargetActor();
+	
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
 

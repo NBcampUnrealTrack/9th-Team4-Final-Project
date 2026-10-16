@@ -90,21 +90,14 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
-		SetFocus(UpdatedActor);
-		
-		BlackboardComponent->SetValueAsObject(
-			TargetActorKeyName,
-			UpdatedActor);
+		SetCurrentTargetActor(UpdatedActor);
 
 		return;
 	}
-
-	if (BlackboardComponent->GetValueAsObject(TargetActorKeyName)
-		== UpdatedActor)
+	
+	if (GetCurrentTargetActor() == UpdatedActor)
 	{
-		ClearFocus(EAIFocusPriority::Gameplay);
-		
-		BlackboardComponent->ClearValue(TargetActorKeyName);
+		ClearCurrentTargetActor();
 	}
 }
 
@@ -119,4 +112,35 @@ AActor* ANF_MonsterAIController::GetCurrentTargetActor() const
 
 	return Cast<AActor>(
 		BlackboardComponent->GetValueAsObject(TargetActorKeyName));
+}
+
+void ANF_MonsterAIController::SetCurrentTargetActor(
+	AActor* NewTargetActor)
+{
+	APawn* TargetPawn = Cast<APawn>(NewTargetActor);
+
+	if (!TargetPawn || !TargetPawn->IsPlayerControlled()) {	return; }
+	
+	UBlackboardComponent* BlackboardComponent =
+		GetBlackboardComponent();
+
+	if (!BlackboardComponent) {	return;	}
+
+	SetFocus(NewTargetActor);
+
+	BlackboardComponent->SetValueAsObject(
+		TargetActorKeyName,
+		NewTargetActor);
+}
+
+void ANF_MonsterAIController::ClearCurrentTargetActor()
+{
+	UBlackboardComponent* BlackboardComponent =
+		GetBlackboardComponent();
+
+	if (!BlackboardComponent) {	return; }
+
+	ClearFocus(EAIFocusPriority::Gameplay);
+
+	BlackboardComponent->ClearValue(TargetActorKeyName);
 }
