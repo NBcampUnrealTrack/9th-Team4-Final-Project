@@ -23,7 +23,7 @@ class PROJECT_NF_API ANF_PlayerController : public APlayerController
 	GENERATED_BODY()
 	
 protected:
-	//virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	virtual void BeginPlay() override;
 	
