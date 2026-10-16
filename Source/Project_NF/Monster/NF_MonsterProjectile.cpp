@@ -28,12 +28,18 @@ ANF_MonsterProjectile::ANF_MonsterProjectile()
 
     CollisionComponent->SetCollisionResponseToChannel(
         ECC_Pawn,
-        ECR_Block);
+        ECR_Overlap);
 
     CollisionComponent->SetCollisionResponseToChannel(
         ECC_WorldStatic,
         ECR_Block);
 
+    CollisionComponent->SetGenerateOverlapEvents(true);
+
+    CollisionComponent->OnComponentBeginOverlap.AddDynamic(
+        this,
+        &ThisClass::HandleProjectileOverlap);
+    
     CollisionComponent->OnComponentHit.AddDynamic(
         this,
         &ThisClass::HandleProjectileHit);
@@ -70,8 +76,23 @@ void ANF_MonsterProjectile::HandleProjectileHit(
     FVector NormalImpulse,
     const FHitResult& Hit)
 {
-    if (!HasAuthority() || !IsValid(OtherActor)
-        || OtherActor == GetOwner())
+    if (HasAuthority())
+    {
+        Destroy();
+    }
+}
+
+void ANF_MonsterProjectile::HandleProjectileOverlap(
+    UPrimitiveComponent* OverlappedComponent,
+    AActor* OtherActor,
+    UPrimitiveComponent* OtherComponent,
+    int32 OtherBodyIndex,
+    bool bFromSweep,
+    const FHitResult& SweepResult)
+{
+    if (!HasAuthority()
+       || !IsValid(OtherActor)
+       || OtherActor == GetOwner())
     {
         return;
     }
@@ -80,16 +101,20 @@ void ANF_MonsterProjectile::HandleProjectileHit(
 
     if (!HitPawn || !HitPawn->IsPlayerControlled())
     {
-        Destroy();
-
         return;
     }
 
+    ApplyDamageToPlayer(OtherActor);
+}
+
+void ANF_MonsterProjectile::ApplyDamageToPlayer(
+    AActor* TargetActor)
+{
     IAbilitySystemInterface* SourceAbilitySystemInterface =
         Cast<IAbilitySystemInterface>(GetOwner());
 
     IAbilitySystemInterface* TargetAbilitySystemInterface =
-        Cast<IAbilitySystemInterface>(OtherActor);
+        Cast<IAbilitySystemInterface>(TargetActor);
 
     if (!SourceAbilitySystemInterface
         || !TargetAbilitySystemInterface

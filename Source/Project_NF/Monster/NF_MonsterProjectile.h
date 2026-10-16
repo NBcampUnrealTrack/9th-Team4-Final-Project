@@ -30,6 +30,17 @@ protected:
 		UPrimitiveComponent* OtherComponent,
 		FVector NormalImpulse,
 		const FHitResult& Hit);
+	
+	UFUNCTION()
+	void HandleProjectileOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComponent,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult);
+
+	void ApplyDamageToPlayer(AActor* TargetActor);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly,
 		Category = "NF|Monster|Projectile")
