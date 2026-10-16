@@ -65,14 +65,23 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::Fire);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Canceled, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
+	
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Started, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::Zoom);
+	
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ReloadButton, ETriggerEvent::Started, this, 
-		&ThisClass::TryAction, ENF_PlayerActionType::Reload);
+	&ThisClass::TryAction, ENF_PlayerActionType::Reload);
+	
 	
 	//Skill
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillA);
+	
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_B, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillB);
+	
 	
 	//상호작용
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->InteractButton, ETriggerEvent::Started, this,
@@ -86,6 +95,7 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	{
 		if (PlayerActionType == ENF_PlayerActionType::SkillA)
 		{
+			
 			return;
 		}
 	
@@ -104,6 +114,12 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	}
 	
 	if (PlayerActionType == ENF_PlayerActionType::StopFire)
+	{
+		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+		return;
+	}
+	
+	if (PlayerActionType == ENF_PlayerActionType::Zoom)
 	{
 		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 		return;

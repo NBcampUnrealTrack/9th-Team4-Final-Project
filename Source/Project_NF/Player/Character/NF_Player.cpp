@@ -83,6 +83,12 @@ void ANF_Player::TryAction(APlayerController* SendController, ENF_PlayerActionTy
 		return;
 	}
 	
+	if (ActionType == ENF_PlayerActionType::Zoom)
+	{
+		TryZoom();
+		return;
+	}
+	
 	if (ActionType == ENF_PlayerActionType::Reload)
 	{
 		TryReload();
@@ -127,6 +133,11 @@ void ANF_Player::TryStartAttack()
 void ANF_Player::TryStopAttack()
 {
 	NF_WeaponComponent->StopFire();
+}
+
+void ANF_Player::TryZoom()
+{
+	NF_WeaponComponent->ToggleZoom();
 }
 
 

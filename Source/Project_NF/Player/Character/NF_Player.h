@@ -72,6 +72,8 @@ private:
 	
 	void TryStopAttack();
 	
+	void TryZoom();
+	
 	void TryReload();
 	
 	void TrySkillActionWithInputID(int32 InputID);
