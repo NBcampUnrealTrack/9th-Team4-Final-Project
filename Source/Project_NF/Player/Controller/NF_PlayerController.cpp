@@ -108,13 +108,13 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	{
 		if (PlayerActionType == ENF_PlayerActionType::SkillA)
 		{
-			//NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerBindingSkill, this, PlayerActionType);
 			return;
 		}
 	
 		if (PlayerActionType == ENF_PlayerActionType::SkillB)
 		{
-			//NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerBindingSkill, this, PlayerActionType);
 			return;
 		}
 		
