@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "BuildSystem/Core/NF_BuildTypes.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "Components/Button.h"
 #include "Framework/Commands/InputChord.h"
 #include "NF_BuildShopWidget.generated.h"

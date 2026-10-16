@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BuildSystem/Core/NF_BuildTypes.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "Engine/DataAsset.h"
 #include "NF_BuildItemDefinitionDataAsset.generated.h"
 

@@ -1,8 +1,8 @@
-#include "BuildSystem/Core/NF_BuildValidator.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildValidator.h"
 
 #include "Abilities/GameplayAbility.h"
-#include "BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
-#include "BuildSystem/Data/NF_BuildRules.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"

@@ -1,8 +1,8 @@
-#include "BuildSystem/Player/NF_BuildInputComponent.h"
+#include "GamePlay/BuildSystem/Player/NF_BuildInputComponent.h"
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
-#include "BuildSystem/Player/NF_BuildComponent.h"
+#include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
