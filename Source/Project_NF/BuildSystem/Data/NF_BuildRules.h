@@ -24,7 +24,7 @@ public:
 	int32 WeaponSlots = 1;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build", meta = (ClampMin = "0", ClampMax = "8"))
-	int32 ArmorSlots = 1;
+	int32 ArmorSlots = 3;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build", meta = (ClampMin = "0", ClampMax = "8"))
 	int32 ActiveSkillSlots = 2;

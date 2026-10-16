@@ -18,11 +18,10 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 		return Validation;
 	};
 
-	if (!IsValid(Rules) || !Rules->TryGetCostLimit(PlayerLevel, Validation.CostLimit) || Rules->WeaponSlots < 1 ||
-		Rules->WeaponSlots > 8 || Rules->ArmorSlots < 0 || Rules->ArmorSlots > 8 || Rules->ActiveSkillSlots < 0 ||
-		Rules->ActiveSkillSlots > 8 || Rules->PassiveSkillSlots < 0 || Rules->PassiveSkillSlots > 8)
+	if (!IsValid(Rules) || !Rules->TryGetCostLimit(PlayerLevel, Validation.CostLimit) || Rules->WeaponSlots != 1 ||
+		Rules->ArmorSlots != 3 || Rules->ActiveSkillSlots != 2 || Rules->PassiveSkillSlots != 1)
 	{
-		return Fail(ENF_BuildResult::InvalidRules, TEXT("빌드 규칙 또는 해당 레벨의 코스트 상한을 설정해야 합니다."));
+		return Fail(ENF_BuildResult::InvalidRules, TEXT("코스트 상한과 슬롯 수(무기 1, 방어구 3, 액티브 2, 패시브 1)를 확인하세요."));
 	}
 
 	TMap<FName, const UNF_BuildItemDefinition*> Catalog;
@@ -35,6 +34,10 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 			return Fail(ENF_BuildResult::InvalidRules, TEXT("카탈로그에 잘못된 데이터 또는 중복 ItemId가 있습니다."));
 		}
 		Catalog.Add(Definition->ItemId, Definition);
+		if (Definition->ItemType == ENF_BuildItemType::Armor && Definition->GetDefaultSlotIndex() == INDEX_NONE)
+		{
+			return Fail(ENF_BuildResult::InvalidRules, TEXT("방어구 항목의 머리/상의/하의 부위를 지정해야 합니다."));
+		}
 	}
 
 	if (Selections.Num() > Rules->WeaponSlots + Rules->ArmorSlots + Rules->ActiveSkillSlots + Rules->PassiveSkillSlots)
@@ -61,9 +64,10 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 		}
 		ItemIds.Add(Selection.ItemId);
 
-		if (Selection.SlotIndex < 0 || Selection.SlotIndex >= Rules->GetSlotCount(Definition->ItemType))
+		if (!Definition->CanUseSlot(Selection.SlotIndex) ||
+			Selection.SlotIndex >= Rules->GetSlotCount(Definition->ItemType))
 		{
-			return Fail(ENF_BuildResult::InvalidSlot, TEXT("슬롯 범위를 벗어났습니다."));
+			return Fail(ENF_BuildResult::InvalidSlot, TEXT("아이템 종류 또는 방어구 부위와 맞지 않는 슬롯입니다."));
 		}
 		const int32 SlotKey = static_cast<int32>(Definition->ItemType) * 8 + Selection.SlotIndex;
 		if (OccupiedSlots.Contains(SlotKey))

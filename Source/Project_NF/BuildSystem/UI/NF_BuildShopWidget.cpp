@@ -169,18 +169,26 @@ void UNF_BuildShopWidget::Refresh()
 	}
 	CatalogList->ClearChildren();
 	DraftList->ClearChildren();
-	if (const UNF_BuildRules* Rules = Build->GetRules())
+	if (Build->GetRules())
 	{
-		for (const UNF_BuildItemDefinition* Item : Rules->Catalog)
+		for (int32 TypeIndex = 0; TypeIndex <= static_cast<int32>(ENF_BuildItemType::PassiveSkill); ++TypeIndex)
 		{
-			if (IsValid(Item))
+			const ENF_BuildItemType Type = static_cast<ENF_BuildItemType>(TypeIndex);
+			UTextBlock* Heading = WidgetTree->ConstructWidget<UTextBlock>();
+			Heading->SetText(StaticEnum<ENF_BuildItemType>()->GetDisplayNameTextByValue(TypeIndex));
+			CatalogList->AddChild(Heading);
+			for (const UNF_BuildItemDefinition* Item : Build->GetCatalogItems(Type, ENF_BuildArmorPart::None))
 			{
-				AddItemButton(CatalogList, Item->ItemId,
-				              FText::Format(FText::FromString(TEXT("{0} — 코스트 {1}")),
-				                            Item->DisplayName.IsEmpty()
-					                            ? FText::FromName(Item->ItemId)
-					                            : Item->DisplayName,
-				                            FText::AsNumber(Item->Cost)), false);
+				if (IsValid(Item))
+				{
+					const FText ItemName = Item->DisplayName.IsEmpty() ? FText::FromName(Item->ItemId) : Item->DisplayName;
+					const FText Label = Item->ItemType == ENF_BuildItemType::Armor
+						? FText::Format(FText::FromString(TEXT("[{0}] {1}")),
+							StaticEnum<ENF_BuildArmorPart>()->GetDisplayNameTextByValue(static_cast<int64>(Item->ArmorPart)), ItemName)
+						: ItemName;
+					AddItemButton(CatalogList, Item->ItemId,
+						FText::Format(FText::FromString(TEXT("{0} — 코스트 {1}")), Label, FText::AsNumber(Item->Cost)), false);
+				}
 			}
 		}
 	}
@@ -189,7 +197,10 @@ void UNF_BuildShopWidget::Refresh()
 		const UNF_BuildItemDefinition* Item = Build->FindItemDefinition(Selection.ItemId);
 		AddItemButton(DraftList, Selection.ItemId,
 		              FText::Format(FText::FromString(TEXT("{0} 슬롯 {1}: {2} (제거)")),
-		                            Item
+		                            Item && Item->ItemType == ENF_BuildItemType::Armor
+			                            ? StaticEnum<ENF_BuildArmorPart>()->GetDisplayNameTextByValue(
+				                            static_cast<int64>(Item->ArmorPart))
+			                            : Item
 			                            ? StaticEnum<ENF_BuildItemType>()->GetDisplayNameTextByValue(
 				                            static_cast<int64>(Item->ItemType))
 			                            : FText(),

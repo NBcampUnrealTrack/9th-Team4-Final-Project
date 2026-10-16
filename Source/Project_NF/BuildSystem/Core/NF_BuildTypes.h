@@ -12,6 +12,16 @@ enum class ENF_BuildItemType : uint8
 	PassiveSkill
 };
 
+// @Owner: 황준현 | 2026-10-15. 방어구 부위를 고정 슬롯에 연결한다.
+UENUM(BlueprintType)
+enum class ENF_BuildArmorPart : uint8
+{
+	None UMETA(DisplayName = "미지정"),
+	Head UMETA(DisplayName = "머리"),
+	UpperBody UMETA(DisplayName = "상의"),
+	LowerBody UMETA(DisplayName = "하의")
+};
+
 UENUM(BlueprintType)
 enum class ENF_BuildResult : uint8
 {
@@ -37,6 +47,15 @@ enum class ENF_BuildShopRangeState : uint8
 {
 	Outside UMETA(DisplayName = "상점 범위 밖"),
 	Inside  UMETA(DisplayName = "상점 범위 안")
+};
+
+// @Owner: 황준현 | 2026-10-15
+// 로컬 플레이어의 빌드 상점 UI 표시 상태.
+UENUM(BlueprintType)
+enum class ENF_BuildShopUIState : uint8
+{
+	BuildOpened UMETA(DisplayName = "빌드창 열림"),
+	BuildClosed UMETA(DisplayName = "빌드창 닫힘")
 };
 
 /** The client submits identity/slot only. Costs and GAS classes come from server data. */
