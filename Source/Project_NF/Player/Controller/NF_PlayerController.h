@@ -9,6 +9,7 @@
 
 enum class ENF_PlayerActionType : uint8;
 enum class ENF_PlayerInteractTypeEnum : uint8;
+enum class ENF_BuildShopUIState : uint8;
 struct FInputActionValue;
 class UNF_PlayerInputDataAsset;
 class UMotionMatchingInputDataAsset;
@@ -53,9 +54,6 @@ private:
 	//void OnRep_OnChangedPlayerStateType();
 	
 	void IsInBuildShop(ENF_BuildShopUIState);
-	
-	
-	FOnPlayerOpenShop OnPlayerOpenShop;
 	
 #pragma endregion
 };
