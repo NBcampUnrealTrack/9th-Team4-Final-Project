@@ -51,6 +51,11 @@ public:
 	void HandleHealthUpdated(float NewHealth);
 	void CompleteDeathSequence();
 	void SetSubmerged(bool bNewSubmerged);
+	void SetFlying(bool bNewFlying);
+
+	UFUNCTION(BlueprintPure, Category = "NF|Boss|Animation")
+	bool IsFlying() const { return bIsFlying; }
+
 	virtual void HandleGameplayCue(UObject* Self, FGameplayTag GameplayCueTag,
 		EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters) override;
 
@@ -121,6 +126,9 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_IsSubmerged, VisibleInstanceOnly, BlueprintReadOnly, Category = "NF|Boss|State")
 	bool bIsSubmerged = false;
+
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "NF|Boss|State")
+	bool bIsFlying = false;
 
 private:
 	UFUNCTION()

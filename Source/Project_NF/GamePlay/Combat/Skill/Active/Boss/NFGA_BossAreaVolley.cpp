@@ -42,7 +42,12 @@ void UNFGA_BossAreaVolley::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	}
 
 	ElapsedPatternTime = 0.0f;
+	StartedVolleyCount = 0;
 	bWarnedMissingDamageConfig = false;
+	const int32 PlannedVolleyCount = FMath::Max(MaxVolleysPerPattern, 1);
+	const float PlannedEndTime = FMath::Max(VolleyInterval, 0.1f) * (PlannedVolleyCount - 1)
+		+ FMath::Max(TelegraphDuration, 0.0f) + 0.1f;
+	ExecutionDuration = FMath::Min(FMath::Max(PatternDuration, 1.0f), PlannedEndTime);
 	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
 	UWorld* World = IsValid(AvatarActor) ? AvatarActor->GetWorld() : nullptr;
 	if (!World)
@@ -51,11 +56,11 @@ void UNFGA_BossAreaVolley::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 		return;
 	}
 
-	StartVolley();
 	World->GetTimerManager().SetTimer(VolleyTimer, this, &UNFGA_BossAreaVolley::StartVolley,
 		FMath::Max(VolleyInterval, 0.1f), true);
 	World->GetTimerManager().SetTimer(EndTimer, this, &UNFGA_BossAreaVolley::EndPattern,
 		FMath::Max(PatternDuration, 1.0f), false);
+	StartVolley();
 }
 
 void UNFGA_BossAreaVolley::StartVolley()
@@ -64,8 +69,10 @@ void UNFGA_BossAreaVolley::StartVolley()
 	{
 		return;
 	}
-	if (ElapsedPatternTime >= PatternDuration)
+	if (StartedVolleyCount >= FMath::Max(MaxVolleysPerPattern, 1)
+		|| ElapsedPatternTime >= PatternDuration)
 	{
+		if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(VolleyTimer);
 		return;
 	}
 
@@ -132,7 +139,15 @@ void UNFGA_BossAreaVolley::StartVolley()
 		OnVolleyTelegraphStarted(TelegraphCount);
 	}
 
+	++StartedVolleyCount;
 	ElapsedPatternTime += FMath::Max(VolleyInterval, 0.1f);
+	if (StartedVolleyCount >= FMath::Max(MaxVolleysPerPattern, 1))
+	{
+		World->GetTimerManager().ClearTimer(VolleyTimer);
+		// Let the final volley finish its warning and spawn its projectiles before ending the ability.
+		World->GetTimerManager().SetTimer(EndTimer, this, &UNFGA_BossAreaVolley::EndPattern,
+			FMath::Max(TelegraphDuration, 0.0f) + 0.1f, false);
+	}
 }
 
 void UNFGA_BossAreaVolley::FinishTelegraph(FVector_NetQuantize TargetGroundPoint)
@@ -194,7 +209,8 @@ void UNFGA_BossAreaVolley::FinishTelegraph(FVector_NetQuantize TargetGroundPoint
 	{
 		return;
 	}
-	Projectile->InitializeProjectile(Destination, ImpactRadius, ProjectileSpeed, DamageSpec);
+	Projectile->InitializeProjectile(Destination, ImpactRadius, ProjectileSpeed, DamageSpec,
+		NFGameplayCueTags::GameplayCue_Boss_ProjectileImpact);
 	Projectile->FinishSpawning(SpawnTransform);
 }
 
