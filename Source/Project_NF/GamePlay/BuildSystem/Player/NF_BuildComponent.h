@@ -95,10 +95,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
 	FNF_OnBuildShopRangeChanged OnBuildShopRangeChanged;
 
-	/** 상호작용 승인으로 사용 시작 시 상점 참조, 사용 종료 시 nullptr을 전달한다. */
-	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
-	FNF_OnBuildShopChanged OnBuildShopChanged;
-	
 	/** 이벤트 바인딩 전부터 범위 안에 있던 상점도 조회할 수 있다. */
 	UFUNCTION(BlueprintPure, Category = "NF|Build|Shop")
 	TArray<ANF_BuildShopZone*> GetShopsInRange() const;

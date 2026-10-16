@@ -83,6 +83,12 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 }
 
 
+APlayerState* UNF_PlayerStatusAttribute::GetLethalDamageInstigatorPlayerState() const
+{
+	return LethalDamageInstigatorPlayerState.Get();
+}
+
+
 void UNF_PlayerStatusAttribute::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
