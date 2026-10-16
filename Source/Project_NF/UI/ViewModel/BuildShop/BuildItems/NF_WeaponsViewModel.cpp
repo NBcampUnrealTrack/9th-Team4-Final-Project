@@ -1,10 +1,10 @@
 ﻿#include "NF_WeaponsViewModel.h"
 
-#include "BuildSystem/Data/NF_BuildItemDefinition.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 
 void UNF_WeaponsViewModel::Configure(
-	const UNF_BuildItemDefinition* Item,
+	const UNF_BuildItemDefinitionDataAsset* Item,
 	const UNF_WeaponDataAsset* WeaponData,
 	UTexture2D* InIcon,
 	const FText& InDescription)

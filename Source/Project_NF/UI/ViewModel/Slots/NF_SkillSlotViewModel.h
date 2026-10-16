@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BuildSystem/Core/NF_BuildTypes.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "TimerManager.h"
 #include "UI/ViewModel/Base/NF_GASViewModelBase.h"
 #include "NF_SkillSlotViewModel.generated.h"
