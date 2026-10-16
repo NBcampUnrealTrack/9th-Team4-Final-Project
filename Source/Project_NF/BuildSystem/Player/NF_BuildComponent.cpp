@@ -3,7 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "BuildSystem/Core/NF_BuildValidator.h"
-#include "BuildSystem/Data/NF_BuildItemDefinitionDATAASSET.h"
+#include "BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
 #include "BuildSystem/Data/NF_BuildRules.h"
 #include "GAS/Tags/NFTag_Build.h"
 #include "BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
@@ -177,11 +177,11 @@ void UNF_BuildComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	}
 }
 
-UNF_BuildItemDefinitionDATAASSET* UNF_BuildComponent::FindItemDefinition(FName ItemId) const
+UNF_BuildItemDefinitionDataAsset* UNF_BuildComponent::FindItemDefinition(FName ItemId) const
 {
 	if (Rules)
 	{
-		for (UNF_BuildItemDefinitionDATAASSET* Definition : Rules->Catalog)
+		for (UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
 		{
 			if (IsValid(Definition) && Definition->ItemId == ItemId)
 			{
@@ -192,13 +192,13 @@ UNF_BuildItemDefinitionDATAASSET* UNF_BuildComponent::FindItemDefinition(FName I
 	return nullptr;
 }
 
-TArray<UNF_BuildItemDefinitionDATAASSET*> UNF_BuildComponent::GetCatalogItems(
+TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
 	ENF_BuildItemType ItemType, ENF_BuildArmorPart ArmorPart) const
 {
-	TArray<UNF_BuildItemDefinitionDATAASSET*> Result;
+	TArray<UNF_BuildItemDefinitionDataAsset*> Result;
 	if (Rules)
 	{
-		for (UNF_BuildItemDefinitionDATAASSET* Definition : Rules->Catalog)
+		for (UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
 		{
 			if (IsValid(Definition) && Definition->ItemType == ItemType &&
 				(ItemType != ENF_BuildItemType::Armor || ArmorPart == ENF_BuildArmorPart::None ||
@@ -211,13 +211,13 @@ TArray<UNF_BuildItemDefinitionDATAASSET*> UNF_BuildComponent::GetCatalogItems(
 	return Result;
 }
 
-UNF_BuildItemDefinitionDATAASSET* UNF_BuildComponent::GetSlotItem(
+UNF_BuildItemDefinitionDataAsset* UNF_BuildComponent::GetSlotItem(
 	ENF_BuildItemType ItemType, int32 SlotIndex, bool bUseDraft) const
 {
 	const TArray<FNF_BuildSelection>& Selections = bUseDraft ? DraftBuild : CurrentBuild;
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
-		UNF_BuildItemDefinitionDATAASSET* Definition = FindItemDefinition(Selection.ItemId);
+		UNF_BuildItemDefinitionDataAsset* Definition = FindItemDefinition(Selection.ItemId);
 		if (Definition && Definition->ItemType == ItemType && Selection.SlotIndex == SlotIndex &&
 			Definition->CanUseSlot(SlotIndex))
 		{
@@ -235,7 +235,7 @@ bool UNF_BuildComponent::CanEditDraft() const
 
 bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 {
-	const UNF_BuildItemDefinitionDATAASSET* Definition = FindItemDefinition(ItemId);
+	const UNF_BuildItemDefinitionDataAsset* Definition = FindItemDefinition(ItemId);
 	if (!CanEditDraft() || !Definition || Rules->GetSlotCount(Definition->ItemType) < 1)
 	{
 		return false;
@@ -250,7 +250,7 @@ bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 		}
 		DraftBuild.RemoveAll([this, Definition, TargetSlotIndex](const FNF_BuildSelection& Selection)
 		{
-			const UNF_BuildItemDefinitionDATAASSET* Existing = FindItemDefinition(Selection.ItemId);
+			const UNF_BuildItemDefinitionDataAsset* Existing = FindItemDefinition(Selection.ItemId);
 			return Existing && Existing->ItemType == Definition->ItemType && Selection.SlotIndex == TargetSlotIndex;
 		});
 		FNF_BuildSelection Selection;
@@ -265,7 +265,7 @@ bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 
 bool UNF_BuildComponent::AssignSelectedActiveSkill(int32 SlotIndex)
 {
-	const UNF_BuildItemDefinitionDATAASSET* Definition = FindItemDefinition(PendingActiveSkill);
+	const UNF_BuildItemDefinitionDataAsset* Definition = FindItemDefinition(PendingActiveSkill);
 	if (!CanEditDraft() || !Definition || Definition->ItemType != ENF_BuildItemType::ActiveSkill ||
 		SlotIndex < 0 || SlotIndex > 1 || SlotIndex >= Rules->ActiveSkillSlots)
 	{
@@ -273,7 +273,7 @@ bool UNF_BuildComponent::AssignSelectedActiveSkill(int32 SlotIndex)
 	}
 	DraftBuild.RemoveAll([this, SlotIndex](const FNF_BuildSelection& Selection)
 	{
-		const UNF_BuildItemDefinitionDATAASSET* Existing = FindItemDefinition(Selection.ItemId);
+		const UNF_BuildItemDefinitionDataAsset* Existing = FindItemDefinition(Selection.ItemId);
 		return Selection.ItemId == PendingActiveSkill ||
 			(Existing && Existing->ItemType == ENF_BuildItemType::ActiveSkill && Selection.SlotIndex == SlotIndex);
 	});
@@ -541,8 +541,8 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 			// Keep handles to preserve running abilities and avoid resetting unchanged passives.
 			continue;
 		}
-		UNF_BuildItemDefinitionDATAASSET* Definition = nullptr;
-		for (UNF_BuildItemDefinitionDATAASSET* Candidate : Rules->Catalog)
+		UNF_BuildItemDefinitionDataAsset* Definition = nullptr;
+		for (UNF_BuildItemDefinitionDataAsset* Candidate : Rules->Catalog)
 		{
 			if (Candidate->ItemId == Selection.ItemId)
 			{
@@ -609,10 +609,10 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 // @Owner: 황준현 | 2026-10-15. 빌드는 무기 선택과 생성을, 무기 컴포넌트는 장착과 전투를 담당한다.
 bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections)
 {
-	UNF_BuildItemDefinitionDATAASSET* SelectedWeapon = nullptr;
+	UNF_BuildItemDefinitionDataAsset* SelectedWeapon = nullptr;
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
-		UNF_BuildItemDefinitionDATAASSET* Definition = FindItemDefinition(Selection.ItemId);
+		UNF_BuildItemDefinitionDataAsset* Definition = FindItemDefinition(Selection.ItemId);
 		if (Definition && Definition->ItemType == ENF_BuildItemType::Weapon && Definition->WeaponClass)
 		{
 			// 팀 공용 무기 컴포넌트는 무기 한 개의 장착만 지원한다.
@@ -687,7 +687,7 @@ void UNF_BuildComponent::ReleaseBuildWeapon()
 }
 
 bool UNF_BuildComponent::GrantItem(
-	UNF_BuildItemDefinitionDATAASSET* Definition, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles)
+	UNF_BuildItemDefinitionDataAsset* Definition, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles)
 {
 	if (!Definition)
 	{
