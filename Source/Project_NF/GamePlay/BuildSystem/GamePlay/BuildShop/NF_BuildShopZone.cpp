@@ -1,7 +1,7 @@
-#include "BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
+#include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 
 #include "Components/BoxComponent.h"
-#include "BuildSystem/Player/NF_BuildComponent.h"
+#include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"

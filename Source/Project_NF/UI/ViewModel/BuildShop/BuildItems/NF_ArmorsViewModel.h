@@ -7,7 +7,7 @@
 #include "NF_ArmorsViewModel.generated.h"
 
 
-class UNF_BuildItemDefinition;
+class UNF_BuildItemDefinitionDataAsset;
 class UTexture2D;
 
 UCLASS()
@@ -17,7 +17,7 @@ class PROJECT_NF_API UNF_ArmorsViewModel : public UNF_ViewModelBase
 	
 public:
 	void Configure(
-		const UNF_BuildItemDefinition* Item,
+		const UNF_BuildItemDefinitionDataAsset* Item,
 		UTexture2D* InIcon,
 		const FText& InDescription,
 		const FText& InEquipSlotText,
