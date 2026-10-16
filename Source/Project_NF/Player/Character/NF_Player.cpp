@@ -300,7 +300,7 @@ void ANF_Player::GiveAbility()
 
 void ANF_Player::AddGameplayAbility()
 {
-	//GameplayAbilityArray.Add(UNFGA_Death::StaticClass()); //이건 예시이고, 실제로 어빌리티 왕창 추가해놔야함
+	GameplayAbilityArray.Add(UNFGA_Death::StaticClass());
 	
 }
 
