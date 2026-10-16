@@ -307,6 +307,31 @@ void ANF_Player::AddGameplayAbility()
 
 void ANF_Player::OnOutOfHealthCpp()
 {
+	if (HasAuthority())
+	{
+		APlayerState* KillerPlayerState = nullptr;
+		if (const ANF_PlayerState* VictimPlayerState = GetPlayerState<ANF_PlayerState>())
+		{
+			if (const UAbilitySystemComponent* ASC = VictimPlayerState->GetAbilitySystemComponent())
+			{
+				if (const UNF_PlayerStatusAttribute* PlayerStatusAttribute =
+					ASC->GetSet<UNF_PlayerStatusAttribute>())
+				{
+					KillerPlayerState = PlayerStatusAttribute->GetLethalDamageInstigatorPlayerState();
+				}
+			}
+		}
+
+		/*if (UWorld* World = GetWorld())
+		{
+			if (auto* GameMode = World->GetAuthGameMode<ANF_GameMode>())
+			{
+				GameMode->HandlePlayerEliminated(
+					GetPlayerState<ANF_PlayerState>(), KillerPlayerState, GetActorLocation(), this);
+			}
+		}*/
+	}
+	
 	UKismetSystemLibrary::PrintString(this,
 										  (TEXT("Death 실행 예정")),
 										  true, true, FColor::Magenta, 10.0f);
