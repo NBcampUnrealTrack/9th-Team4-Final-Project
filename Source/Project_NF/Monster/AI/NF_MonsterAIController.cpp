@@ -95,10 +95,12 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 		return;
 	}
 	
+	/*
 	if (GetCurrentTargetActor() == UpdatedActor)
 	{
 		ClearCurrentTargetActor();
 	}
+	*/
 }
 
 AActor* ANF_MonsterAIController::GetCurrentTargetActor() const
