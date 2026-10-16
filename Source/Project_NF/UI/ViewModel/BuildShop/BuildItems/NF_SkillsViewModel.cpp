@@ -3,11 +3,12 @@
 
 #include "NF_SkillsViewModel.h"
 
-#include "BuildSystem/Data/NF_BuildItemDefinition.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
 #include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
 
 void UNF_SkillsViewModel::Configure(
-	const UNF_BuildItemDefinition* Item,UTexture2D* InIcon,const FText& InDescription,float InCooldownSeconds)
+	const UNF_BuildItemDefinitionDataAsset* Item,UTexture2D* InIcon,const FText& InDescription,float InCooldownSeconds)
 {
 	if (!IsValid(Item)) return;
 
@@ -22,7 +23,7 @@ void UNF_SkillsViewModel::Configure(
 	UE_MVVM_SET_PROPERTY_VALUE(CastTime, ResolveSkillCastTime(Item));
 }
 
-float UNF_SkillsViewModel::ResolveSkillCastTime(const UNF_BuildItemDefinition* Item) const
+float UNF_SkillsViewModel::ResolveSkillCastTime(const UNF_BuildItemDefinitionDataAsset* Item) const
 {
 	if (!IsValid(Item)) { return 0.0f; }
 	if (!Item->AbilityClass) { return 0.0f; }
