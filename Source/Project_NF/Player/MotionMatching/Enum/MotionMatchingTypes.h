@@ -30,7 +30,7 @@ struct FMotionMatchingInputState
 	bool bIsWantsToWalk = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
-	bool bIsWantsToStrafe = false;
+	bool bIsWantsToStrafe = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	bool bIsWantsToAim = false;

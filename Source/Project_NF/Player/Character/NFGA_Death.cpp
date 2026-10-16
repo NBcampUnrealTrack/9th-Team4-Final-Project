@@ -1,6 +1,7 @@
 ﻿
 #include "NFGA_Death.h"
 
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GAS/Tags/NFTag_Player.h"
@@ -9,7 +10,7 @@
 
 UNFGA_Death::UNFGA_Death()
 {
-	AbilityTags.AddTag(NFTag_Player::Character_Ability_Death);
+	AbilityTags.AddTag(NFTag_Player::Player_Ability_Death);
 }
 
 
@@ -28,7 +29,6 @@ void UNFGA_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	AvatarCharacter->GetCharacterMovement()->SetMovementMode(MOVE_None);
 	
 	//EndAbility(Handle, ActorInfo, ActivationInfo, true , false);
-	
 }
 
 
