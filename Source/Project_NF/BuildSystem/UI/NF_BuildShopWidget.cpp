@@ -1,7 +1,7 @@
 #include "BuildSystem/UI/NF_BuildShopWidget.h"
 
 #include "Blueprint/WidgetTree.h"
-#include "BuildSystem/Data/NF_BuildItemDefinitionDATAASSET.h"
+#include "BuildSystem/Data/NF_BuildItemDefinition.h"
 #include "BuildSystem/Data/NF_BuildRules.h"
 #include "BuildSystem/Player/NF_BuildComponent.h"
 #include "BuildSystem/Player/NF_BuildInputComponent.h"
@@ -146,7 +146,7 @@ void UNF_BuildShopWidget::Refresh()
 		return;
 	}
 	const FNF_BuildValidation Validation = Build->PreviewBuild(Build->GetDraftBuild());
-	const UNF_BuildItemDefinitionDATAASSET* Pending = Build->FindItemDefinition(Build->GetPendingActiveSkill());
+	const UNF_BuildItemDefinition* Pending = Build->FindItemDefinition(Build->GetPendingActiveSkill());
 	StatusText->SetText(FText::Format(FText::FromString(TEXT("코스트 {0} / {1} — {2}\n선택 중: {3}")),
 	                                  FText::AsNumber(Validation.TotalCost), FText::AsNumber(Validation.CostLimit),
 	                                  Validation.Message,
@@ -177,7 +177,7 @@ void UNF_BuildShopWidget::Refresh()
 			UTextBlock* Heading = WidgetTree->ConstructWidget<UTextBlock>();
 			Heading->SetText(StaticEnum<ENF_BuildItemType>()->GetDisplayNameTextByValue(TypeIndex));
 			CatalogList->AddChild(Heading);
-			for (const UNF_BuildItemDefinitionDATAASSET* Item : Build->GetCatalogItems(Type, ENF_BuildArmorPart::None))
+			for (const UNF_BuildItemDefinition* Item : Build->GetCatalogItems(Type, ENF_BuildArmorPart::None))
 			{
 				if (IsValid(Item))
 				{
@@ -194,7 +194,7 @@ void UNF_BuildShopWidget::Refresh()
 	}
 	for (const FNF_BuildSelection& Selection : Build->GetDraftBuild())
 	{
-		const UNF_BuildItemDefinitionDATAASSET* Item = Build->FindItemDefinition(Selection.ItemId);
+		const UNF_BuildItemDefinition* Item = Build->FindItemDefinition(Selection.ItemId);
 		AddItemButton(DraftList, Selection.ItemId,
 		              FText::Format(FText::FromString(TEXT("{0} 슬롯 {1}: {2} (제거)")),
 		                            Item && Item->ItemType == ENF_BuildItemType::Armor

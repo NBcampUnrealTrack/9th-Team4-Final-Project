@@ -5,7 +5,7 @@
 #include "BuildSystem/Player/NF_BuildComponent.h"
 #include "BuildSystem/Player/NF_BuildInputComponent.h"
 #include "BuildSystem/Core/NF_BuildValidator.h"
-#include "BuildSystem/Data/NF_BuildItemDefinitionDATAASSET.h"
+#include "BuildSystem/Data/NF_BuildItemDefinition.h"
 #include "BuildSystem/Data/NF_BuildRules.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -20,9 +20,9 @@
 
 namespace
 {
-	UNF_BuildItemDefinitionDATAASSET* MakeItem(UNF_BuildRules* Rules, FName Id, ENF_BuildItemType Type, int32 Cost)
+	UNF_BuildItemDefinition* MakeItem(UNF_BuildRules* Rules, FName Id, ENF_BuildItemType Type, int32 Cost)
 	{
-		UNF_BuildItemDefinitionDATAASSET* Item = NewObject<UNF_BuildItemDefinitionDATAASSET>(Rules);
+		UNF_BuildItemDefinition* Item = NewObject<UNF_BuildItemDefinition>(Rules);
 		Item->ItemId = Id;
 		Item->ItemType = Type;
 		Item->Cost = Cost;
@@ -76,11 +76,11 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildArmorSlotsTest, "NF.Build.ArmorSlots",
 bool FNF_BuildArmorSlotsTest::RunTest(const FString& Parameters)
 {
 	UNF_BuildRules* Rules = MakeRules();
-	UNF_BuildItemDefinitionDATAASSET* Head = MakeItem(Rules, TEXT("Helmet"), ENF_BuildItemType::Armor, 1);
+	UNF_BuildItemDefinition* Head = MakeItem(Rules, TEXT("Helmet"), ENF_BuildItemType::Armor, 1);
 	Head->ArmorPart = ENF_BuildArmorPart::Head;
-	UNF_BuildItemDefinitionDATAASSET* Upper = MakeItem(Rules, TEXT("Vest"), ENF_BuildItemType::Armor, 1);
+	UNF_BuildItemDefinition* Upper = MakeItem(Rules, TEXT("Vest"), ENF_BuildItemType::Armor, 1);
 	Upper->ArmorPart = ENF_BuildArmorPart::UpperBody;
-	UNF_BuildItemDefinitionDATAASSET* Lower = MakeItem(Rules, TEXT("Legs"), ENF_BuildItemType::Armor, 1);
+	UNF_BuildItemDefinition* Lower = MakeItem(Rules, TEXT("Legs"), ENF_BuildItemType::Armor, 1);
 	Lower->ArmorPart = ENF_BuildArmorPart::LowerBody;
 	const TArray<FNF_BuildSelection> FullBuild = {
 		Select(TEXT("Rifle")), Select(TEXT("Helmet"), 0), Select(TEXT("Vest"), 1), Select(TEXT("Legs"), 2),
@@ -94,7 +94,7 @@ bool FNF_BuildArmorSlotsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("패시브는 두 번째 슬롯을 사용할 수 없다"),
 		FNF_BuildValidator::Validate(Rules, 2, {Select(TEXT("Rifle")), Select(TEXT("HealthUp"), 1)}).Result,
 		ENF_BuildResult::InvalidSlot);
-	UNF_BuildItemDefinitionDATAASSET* OtherHead = MakeItem(Rules, TEXT("OtherHelmet"), ENF_BuildItemType::Armor, 1);
+	UNF_BuildItemDefinition* OtherHead = MakeItem(Rules, TEXT("OtherHelmet"), ENF_BuildItemType::Armor, 1);
 	OtherHead->ArmorPart = ENF_BuildArmorPart::Head;
 	TestEqual(TEXT("같은 부위 두 개의 동시 장착을 거부한다"),
 		FNF_BuildValidator::Validate(Rules, 2,
@@ -216,11 +216,11 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Interface interaction opens authorized session"), Build->GetCurrentShop() == Shop);
 	Build->RequestApplyBuild({Select(TEXT("Rifle")), Select(TEXT("Grenade"))}, Shop);
 	TestEqual(TEXT("Initial build committed"), Build->GetCurrentBuild().Num(), 2);
-	UNF_BuildItemDefinitionDATAASSET* HeadItem = MakeItem(Rules, TEXT("TestHead"), ENF_BuildItemType::Armor, 0);
+	UNF_BuildItemDefinition* HeadItem = MakeItem(Rules, TEXT("TestHead"), ENF_BuildItemType::Armor, 0);
 	HeadItem->ArmorPart = ENF_BuildArmorPart::Head;
-	UNF_BuildItemDefinitionDATAASSET* UpperItem = MakeItem(Rules, TEXT("TestUpper"), ENF_BuildItemType::Armor, 0);
+	UNF_BuildItemDefinition* UpperItem = MakeItem(Rules, TEXT("TestUpper"), ENF_BuildItemType::Armor, 0);
 	UpperItem->ArmorPart = ENF_BuildArmorPart::UpperBody;
-	UNF_BuildItemDefinitionDATAASSET* ReplacementHead = MakeItem(Rules, TEXT("TestHead2"), ENF_BuildItemType::Armor, 0);
+	UNF_BuildItemDefinition* ReplacementHead = MakeItem(Rules, TEXT("TestHead2"), ENF_BuildItemType::Armor, 0);
 	ReplacementHead->ArmorPart = ENF_BuildArmorPart::Head;
 	TestTrue(TEXT("머리 방어구 선택"), Build->SelectDraftItem(TEXT("TestHead")));
 	TestTrue(TEXT("상의 방어구 선택"), Build->SelectDraftItem(TEXT("TestUpper")));
