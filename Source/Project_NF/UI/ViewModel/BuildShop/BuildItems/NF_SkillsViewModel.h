@@ -6,7 +6,7 @@
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_SkillsViewModel.generated.h"
 
-class UNF_BuildItemDefinitionDataAsset;
+class UNF_BuildItemDefinition;
 class UTexture2D;
 
 UCLASS()
@@ -16,7 +16,7 @@ class PROJECT_NF_API UNF_SkillsViewModel : public UNF_ViewModelBase
 	
 public:
 	void Configure(
-		const UNF_BuildItemDefinitionDataAsset* Item,UTexture2D* InIcon,const FText& InDescription,float InCooldownSeconds);
+		const UNF_BuildItemDefinition* Item,UTexture2D* InIcon,const FText& InDescription,float InCooldownSeconds);
 
 private:
 	UPROPERTY(BlueprintReadOnly, FieldNotify, meta=(AllowPrivateAccess="true"))
@@ -43,5 +43,5 @@ private:
 	UPROPERTY(BlueprintReadOnly, FieldNotify, meta=(AllowPrivateAccess="true"))
 	float CastTime = 0.0f;
 	
-	float ResolveSkillCastTime(const UNF_BuildItemDefinitionDataAsset* Item) const;
+	float ResolveSkillCastTime(const UNF_BuildItemDefinition* Item) const;
 };

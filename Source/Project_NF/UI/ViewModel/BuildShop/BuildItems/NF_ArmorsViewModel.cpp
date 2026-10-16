@@ -1,9 +1,9 @@
 ﻿#include "NF_ArmorsViewModel.h"
 
-#include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
+#include "BuildSystem/Data/NF_BuildItemDefinition.h"
 
 void UNF_ArmorsViewModel::Configure(
-	const UNF_BuildItemDefinitionDataAsset* Item,
+	const UNF_BuildItemDefinition* Item,
 	UTexture2D* InIcon,
 	const FText& InDescription,
 	const FText& InEquipSlotText,

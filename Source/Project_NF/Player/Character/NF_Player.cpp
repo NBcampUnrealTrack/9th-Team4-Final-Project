@@ -9,7 +9,7 @@
 #include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
 #include "NF_PlayerStatusAttribute.h"
-#include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
+#include "BuildSystem/Player/NF_BuildComponent.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "Data/Interface/NF_InteractionInterface.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"

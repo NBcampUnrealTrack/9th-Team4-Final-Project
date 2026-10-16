@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
+#include "BuildSystem/Core/NF_BuildTypes.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_BuildShopViewModel.generated.h"
 

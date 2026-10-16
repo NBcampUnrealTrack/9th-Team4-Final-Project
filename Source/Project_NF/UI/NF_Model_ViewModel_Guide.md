@@ -330,7 +330,7 @@ int32 GetPlayerLevel() const;
 bool IsAwaitingBuildResult() const;
 FName GetPendingActiveSkill() const;
 ANF_BuildShopZone* GetCurrentShop() const;
-const UNF_BuildItemDefinitionDataAsset* FindItemDefinition(FName ItemId) const;
+const UNF_BuildItemDefinition* FindItemDefinition(FName ItemId) const;
 FNF_BuildValidation PreviewBuild(...) const;
 ```
 
@@ -356,7 +356,7 @@ ViewModel의 ApplyBuild 요청
     -> ViewModel 갱신
 ```
 
-`UNF_BuildItemDefinitionDataAsset` 또는 연결된 DataAsset에는 다음 표시 데이터가 있어야 한다.
+`UNF_BuildItemDefinition` 또는 연결된 DataAsset에는 다음 표시 데이터가 있어야 한다.
 
 - `ItemId`
 - `DisplayName`
