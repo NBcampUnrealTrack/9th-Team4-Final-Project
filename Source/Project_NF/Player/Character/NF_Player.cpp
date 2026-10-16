@@ -63,11 +63,18 @@ void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, TryAction);
+	BindDelegate();
 }
 
 
-void ANF_Player::TryAction(APlayerController* SendController, ENF_PlayerActionType ActionType)
+void ANF_Player::BindDelegate()
+{
+	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, OnTryAction);
+	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnInteractBuildShop, OnEnablePlayerMovementFromType);
+}
+
+
+void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerActionType ActionType)
 {
 	if (UNF_PlayerActionDelegateSubsystem::IsControllerMatchedToThisPawn(SendController, this) == false) return;
 	
@@ -98,6 +105,8 @@ void ANF_Player::TryAction(APlayerController* SendController, ENF_PlayerActionTy
 	if (ActionType == ENF_PlayerActionType::SkillA)
 	{
 		TrySkillActionWithInputID(SkillButtonA_InputID);
+		
+		
 		return;
 	}
 	
@@ -149,6 +158,10 @@ void ANF_Player::TryReload()
 
 void ANF_Player::TrySkillActionWithInputID(int32 InputID)
 {
+	UKismetSystemLibrary::PrintString(this,
+	FString::Printf(TEXT("%d 번 스킬을 사용 합니다."), InputID + 1),
+		true, true, FColor::Magenta, 5.0f);
+	
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(this);
 	if (IsValid(ASC) == false) return;
 
@@ -211,24 +224,35 @@ FHitResult ANF_Player::GetActorFromLineTrace()
 }
 
 
-/*void ANF_Player::EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType)
+void ANF_Player::OnEnablePlayerMovementFromType(ENF_BuildShopUIState BuildShopType)
 {
-	CurrentPlayerInteractType = NewPlayerType;
-	
-	auto* NF_Player = Cast<ANF_Player>(this->GetPawn());
-	if (IsValid(NF_Player) == false) return;
-	
-	// TODO 상점 이용 중에는 스킬 사용을 막음 (이는 준현님의 브로드캐스트를 따를 예정)
-	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild)
+	if (IsLocallyControlled() == true)
 	{
-		NF_Player->GetCharacterMovement()->SetMovementMode(MOVE_None);
+		if (BuildShopType == ENF_BuildShopUIState::BuildOpened)
+		{
+			GetCharacterMovement()->SetMovementMode(MOVE_None);
+		}
+	
+		if (BuildShopType == ENF_BuildShopUIState::BuildClosed)
+		{
+			GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+		}
+	}
+}
+
+
+void ANF_Player::BindSkill(int32 SkillSlot)
+{
+	if (SkillSlot == SkillButtonA_InputID)
+	{
+		NF_BuildComponent->AssignSelectedActiveSkill(SkillSlot);
 	}
 	
-	else
+	if (SkillSlot == SkillButtonB_InputID)
 	{
-		NF_Player->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+		NF_BuildComponent->AssignSelectedActiveSkill(SkillSlot);
 	}
-}*/
+}
 
 
 void ANF_Player::PostInitializeComponents()

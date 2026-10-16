@@ -8,6 +8,7 @@
 #include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "NF_Player.generated.h"
 
+enum class ENF_BuildShopUIState : uint8;
 enum class ENF_PlayerActionType : uint8;
 
 class UNF_WeaponComponent;
@@ -28,7 +29,7 @@ public:
 	
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override; 
 	
-	void TryAction(APlayerController* SendController, ENF_PlayerActionType ActionType);
+	void OnTryAction(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
@@ -65,7 +66,7 @@ protected:
 	float InteractionRange = 300.0f;
 	
 private:
-	void EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType);
+	void BindDelegate();
 	
 #pragma region TryAction
 	void TryStartAttack();
@@ -89,6 +90,15 @@ private:
 	
 	static constexpr int32 SkillButtonB_InputID = 1;
 #pragma endregion
+	
+	
+#pragma region BuildShop
+	
+	void OnEnablePlayerMovementFromType(ENF_BuildShopUIState BuildShopType);
+	
+	void BindSkill(int32 SkillSlot);
+	
+#pragma endregion 
 	
 	
 #pragma region AbilitySystem

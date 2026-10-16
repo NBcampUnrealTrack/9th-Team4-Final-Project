@@ -16,7 +16,6 @@ class UNF_PlayerInputDataAsset;
 class UMotionMatchingInputDataAsset;
 
 
-
 UCLASS()
 class PROJECT_NF_API ANF_PlayerController : public APlayerController
 {
@@ -29,6 +28,8 @@ protected:
 	
 	virtual void SetupInputComponent() override;
 	
+
+#pragma region Input
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|MotionMatching")
 	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputDataAsset;
@@ -36,13 +37,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UNF_PlayerInputDataAsset> NF_PlayerInputDataAsset;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_OnInteractBuildShop)
-	ENF_BuildShopUIState CurrentBuildShopType = ENF_BuildShopUIState::None;
-	
 	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
 	
-	
-private:
 	void InputConfig();
 	
 	void BindInputButton();
@@ -51,12 +47,17 @@ private:
 	
 	void TryAction(ENF_PlayerActionType PlayerActionType);
 	
+#pragma endregion 
+	
+
+private:
 	
 #pragma region BuildShop
-	UFUNCTION()
-	void OnRep_OnInteractBuildShop();
 	
-	void IsInBuildShop(ENF_BuildShopUIState);
+	UPROPERTY(Replicated)
+	ENF_BuildShopUIState CurrentBuildShopType = ENF_BuildShopUIState::None;
+	
+	void OnInteractBuildShop(ENF_BuildShopUIState BuildShopType);
 	
 #pragma endregion
 };
