@@ -6,6 +6,7 @@
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_WeaponsViewModel.generated.h"
 
+enum class ENF_FireMode : uint8;
 class UNF_WeaponDataAsset;
 class UNF_BuildItemDefinition;
 class UTexture2D;
