@@ -12,6 +12,8 @@ class PROJECT_NF_API ANF_WeaponBase : public AActor
 public:	
 	ANF_WeaponBase();
 	
+	virtual void OnConstruction(const FTransform& Transform) override;	// 에디터에서 적용
+	virtual void PostInitializeComponents() override;					// 게임 실행 시 적용
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
@@ -41,6 +43,10 @@ public:
 	
 protected:
 	void FinishReload();
+	FVector GetFireDirection(const FTransform& MuzzleTransform) const;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	float AimTraceDistance = 100000.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<class USkeletalMeshComponent> WeaponMeshComponent;
@@ -59,6 +65,8 @@ protected:
 	bool bIsReloading = false;
 
 private:
+	void ApplyWeaponAppearance();
+
 	double LastFireTime = -1.e30;
 	FTimerHandle ReloadTimerHandle;
 };
