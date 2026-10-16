@@ -4,13 +4,13 @@
 
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
-#include "BuildSystem/Data/NF_BuildItemDefinition.h"
-#include "BuildSystem/Player/NF_BuildComponent.h"
-#include "BuildSystem/Player/NF_BuildInputComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayAbilitySpec.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
+#include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
+#include "GamePlay/BuildSystem/Player/NF_BuildInputComponent.h"
 
 bool UNF_SkillSlotViewModel::ConfigureSlot(ENF_BuildItemType InSlotType,int32 InSlotIndex)
 {
@@ -154,7 +154,7 @@ void UNF_SkillSlotViewModel::RefreshSlot()
         {
             if (Selection.SlotIndex != SlotIndex)continue;
 
-            const UNF_BuildItemDefinition* Item =Build->FindItemDefinition(Selection.ItemId);
+            const UNF_BuildItemDefinitionDataAsset* Item =Build->FindItemDefinition(Selection.ItemId);
 
             if (!IsValid(Item) || Item->ItemType != SlotType)continue;
 
