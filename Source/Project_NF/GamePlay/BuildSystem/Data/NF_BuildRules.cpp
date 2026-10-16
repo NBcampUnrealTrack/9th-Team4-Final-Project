@@ -1,4 +1,4 @@
-#include "BuildSystem/Data/NF_BuildRules.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 
 int32 UNF_BuildRules::GetSlotCount(ENF_BuildItemType ItemType) const
 {
