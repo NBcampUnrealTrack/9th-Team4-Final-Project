@@ -23,6 +23,24 @@ void ANF_PlayerController::BeginPlay()
 	
 	//OnPlayerOpenShop.AddUObject(this, &ThisClass::EnablePlayerMovementFromType);
 	
+	
+	
+	InputConfig();
+}
+
+
+void ANF_PlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+
+	UMotionMatchingInputLibrary::BindMotionMatchingInput(this, MotionMatchingInputDataAsset);
+	
+	BindInputButton();
+}
+
+
+void ANF_PlayerController::InputConfig()
+{
 	if (IsLocalController() == true)
 	{
 		auto* EILPS = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(this->GetLocalPlayer());
@@ -37,17 +55,6 @@ void ANF_PlayerController::BeginPlay()
 		EILPS->AddMappingContext(NF_PlayerInputDataAsset->NF_PlayerIMC, 0);
 	}
 }
-
-
-void ANF_PlayerController::SetupInputComponent()
-{
-	Super::SetupInputComponent();
-
-	UMotionMatchingInputLibrary::BindMotionMatchingInput(this, MotionMatchingInputDataAsset);
-	
-	BindInputButton();
-}
-
 
 void ANF_PlayerController::BindInputButton()
 {

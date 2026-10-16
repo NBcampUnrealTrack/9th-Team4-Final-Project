@@ -41,6 +41,8 @@ protected:
 	
 	
 private:
+	void InputConfig();
+	
 	void BindInputButton();
 	
 	void TryAction(ENF_PlayerActionType PlayerActionType);
