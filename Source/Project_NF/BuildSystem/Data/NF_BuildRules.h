@@ -5,7 +5,7 @@
 #include "Engine/DataAsset.h"
 #include "NF_BuildRules.generated.h"
 
-class UNF_BuildItemDefinition;
+class UNF_BuildItemDefinitionDATAASSET;
 
 UCLASS(BlueprintType)
 class PROJECT_NF_API UNF_BuildRules : public UDataAsset
@@ -14,7 +14,7 @@ class PROJECT_NF_API UNF_BuildRules : public UDataAsset
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build")
-	TArray<TObjectPtr<UNF_BuildItemDefinition>> Catalog;
+	TArray<TObjectPtr<UNF_BuildItemDefinitionDATAASSET>> Catalog;
 
 	/** Index 0 = level 1. Missing levels fail closed; no invented balance curve. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build")
