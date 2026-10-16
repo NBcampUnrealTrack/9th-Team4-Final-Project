@@ -1,8 +1,9 @@
 ﻿#include "Core/NF_GameMode.h"
 
-#include "NF_BuildReadyComponent.h"
 #include "Core/NF_GameState.h"
 #include "TimerManager.h"
+#include "Component/NF_BuildReadyComponent.h"
+#include "Component/NF_MatchDepartureComponent.h"
 #include "Player/State/NF_PlayerState.h"
 #include "GameFramework/PlayerController.h"
 
@@ -54,6 +55,27 @@ void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 ANF_GameState* ANF_GameMode::GetNFGameState() const
 {
 	return GetGameState<ANF_GameState>();
+}
+
+bool ANF_GameMode::CollectMatchParticipants(TArray<ANF_PlayerState*>& OutParticipants) const
+{
+	OutParticipants.Reset();
+
+	for (FConstPlayerControllerIterator Iterator =GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		APlayerController* Controller = Iterator->Get();
+
+		if (!IsValid(Controller)){return false;}
+
+		ANF_PlayerState* PlayerState =Controller->GetPlayerState<ANF_PlayerState>();
+
+		if (!IsValid(PlayerState)){return false;}
+
+		// 현재 구조에서는 접속 플레이어 모두가 출격 대상이다.
+		OutParticipants.AddUnique(PlayerState);
+	}
+
+	return OutParticipants.Num() == InitialRequiredPlayers;
 }
 
 UNF_BuildReadyComponent*ANF_GameMode::GetBuildReadyComponent() const
@@ -195,7 +217,34 @@ void ANF_GameMode::EnterFinished()
 	// 승리 팀 기록, 결과 UI용 데이터 복제, 매치 정리 등
 }
 
+void ANF_GameMode::AbortMatchDueToDepartures()
+{
+	if (bMatchAborting) return;
+	
+	bMatchAborting = true;
 
+	MatchDepartureComponent->StopTracking();
 
+	GetWorldTimerManager().ClearTimer(PhaseTimerHandle);
+
+	if (ANF_GameState* NFGameState = GetNFGameState())
+	{
+		NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Finished);
+	}
+
+	// 정상 승리 종료인 EnterFinished()는 호출하지 않는다.
+	const FString Reason = TEXT("참가자 이탈 한도에 도달하여 매치가 중단되었습니다.");
+
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *Reason);
+
+	if (!RequestMatchAbort.IsBound())
+	{
+		UE_LOG(LogTemp,Error,TEXT("매치 복귀 처리 실패: RequestMatchAbort 미바인딩"));
+
+		return;
+	}
+
+	RequestMatchAbort.Execute(Reason);
+}
 
 
