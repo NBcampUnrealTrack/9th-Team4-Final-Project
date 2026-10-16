@@ -57,6 +57,10 @@ public:
 	// Hide character/weapon meshes only for the local player while scoped.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(EditCondition="ZoomMode == ENF_ZoomMode::Scope"))
 	bool bHideMeshesWhileScoped = true;
+
+	// Keep the serialized name to preserve existing asset overrides; attachment now uses ScopeSocketName.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(DisplayName="Attach Scope Camera To Scope Socket", EditCondition="ZoomMode == ENF_ZoomMode::Scope"))
+	bool bAttachScopeCameraToMuzzle = true;
 	
 	// 지정하면 BP의 메시/머티리얼 대신 이 DA의 외형을 적용한다. None이면 기존 BP 설정 유지.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Appearance")

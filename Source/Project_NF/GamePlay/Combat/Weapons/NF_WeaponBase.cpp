@@ -160,6 +160,7 @@ bool ANF_WeaponBase::FireProjectile()
 
 	const FTransform MuzzleTransform = WeaponMeshComponent->GetSocketTransform(MuzzleSocketName,
 			RTS_World);
+	const FVector Forward = GetFireDirection(MuzzleTransform);
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = GetOwner();
@@ -169,7 +170,6 @@ bool ANF_WeaponBase::FireProjectile()
 
 	const int32 PelletCount = WeaponData->ProjectilesPerShot;
 	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
-	const FVector Forward = GetFireDirection(MuzzleTransform);
 	TArray<ANF_WeaponProjectile*, TInlineAllocator<64>> SpawnedProjectiles;
 
 	for (int32 Index = 0; Index < PelletCount; ++Index)

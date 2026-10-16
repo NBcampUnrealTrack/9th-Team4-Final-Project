@@ -382,6 +382,7 @@ void UNF_WeaponComponent::SetZoomActive(bool bActive)
 
 void UNF_WeaponComponent::OnRep_ZoomActive()
 {
+	if (!bZoomActive) UpdateScopeCameraAttachment(false);
 	if (bZoomActive == false) UpdateScopedMeshes(false);
 	RefreshCrosshair();
 	SetComponentTickEnabled(true);
@@ -389,7 +390,7 @@ void UNF_WeaponComponent::OnRep_ZoomActive()
 
 void UNF_WeaponComponent::UpdateScopedMeshes(bool bHide)
 {
-	if (!bHide)
+	if (bHide == false)
 	{
 		for (const auto& Mesh : HiddenScopeMeshes)
 		{
@@ -400,14 +401,13 @@ void UNF_WeaponComponent::UpdateScopedMeshes(bool bHide)
 	}
 
 	const APawn* Pawn = Cast<APawn>(GetOwner());
-	if (!Pawn || !Pawn->IsLocallyControlled()) return;
+	if (Pawn == nullptr || Pawn->IsLocallyControlled() == false) return;
 	for (AActor* Actor : {GetOwner(), static_cast<AActor*>(EquippedWeapon.Get())})
 	{
-		if (!IsValid(Actor)) continue;
+		if (IsValid(Actor) == false) continue;
 		TInlineComponentArray<UMeshComponent*> Meshes(Actor);
 		for (UMeshComponent* Mesh : Meshes)
 		{
-			// Only restore meshes that this component actually hid.
 			if (!Mesh->bHiddenInGame)
 			{
 				HiddenScopeMeshes.Add(Mesh);
@@ -417,8 +417,70 @@ void UNF_WeaponComponent::UpdateScopedMeshes(bool bHide)
 	}
 }
 
+void UNF_WeaponComponent::UpdateScopeCameraAttachment(bool bAttach)
+{
+	if (bAttach == false)
+	{
+		if (bScopeCameraAttached && ZoomCamera.IsValid())
+		{
+			if (OriginalCameraParent.IsValid())
+			{
+				ZoomCamera->AttachToComponent(OriginalCameraParent.Get(), FAttachmentTransformRules::KeepWorldTransform, OriginalCameraSocket);
+			}
+			else
+			{
+				ZoomCamera->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+			}
+			ZoomCamera->SetAbsolute(bOriginalAbsoluteLocation, bOriginalAbsoluteRotation, bOriginalAbsoluteScale);
+			if (OriginalCameraParent.IsValid()) ZoomCamera->SetRelativeTransform(OriginalCameraTransform);
+			ZoomCamera->bUsePawnControlRotation = bOriginalUsePawnControlRotation;
+		}
+		for (const auto& Entry : ScopeMeshTickOptions)
+		{
+			if (Entry.Key.IsValid()) Entry.Key->VisibilityBasedAnimTickOption = Entry.Value;
+		}
+		ScopeMeshTickOptions.Reset();
+		OriginalCameraParent.Reset();
+		bScopeCameraAttached = false;
+		return;
+	}
+
+	if (bScopeCameraAttached || !ZoomCamera.IsValid() || !IsValid(EquippedWeapon)) return;
+	USkeletalMeshComponent* Mesh = EquippedWeapon->GetWeaponMesh();
+	const FName Socket = EquippedWeapon->GetScopeSocketName();
+	if (!IsValid(Mesh) || !Mesh->DoesSocketExist(Socket)) return;
+
+	OriginalCameraParent = ZoomCamera->GetAttachParent();
+	OriginalCameraSocket = ZoomCamera->GetAttachSocketName();
+	OriginalCameraTransform = ZoomCamera->GetRelativeTransform();
+	bOriginalAbsoluteLocation = ZoomCamera->IsUsingAbsoluteLocation();
+	bOriginalAbsoluteRotation = ZoomCamera->IsUsingAbsoluteRotation();
+	bOriginalAbsoluteScale = ZoomCamera->IsUsingAbsoluteScale();
+	bOriginalUsePawnControlRotation = ZoomCamera->bUsePawnControlRotation;
+	if (!ZoomCamera->AttachToComponent(Mesh, FAttachmentTransformRules::KeepWorldTransform, Socket)) return;
+
+	// Follow the Scope socket position, but keep aiming independent of weapon animation.
+	ZoomCamera->SetAbsolute(false, true, true);
+	ZoomCamera->SetRelativeLocation(FVector::ZeroVector);
+	ZoomCamera->bUsePawnControlRotation = true;
+	if (const APawn* Pawn = Cast<APawn>(GetOwner())) ZoomCamera->SetWorldRotation(Pawn->GetViewRotation());
+	bScopeCameraAttached = true;
+
+	// Hidden meshes must still refresh bones for the hand and Scope sockets to move.
+	for (AActor* Actor : {GetOwner(), static_cast<AActor*>(EquippedWeapon.Get())})
+	{
+		TInlineComponentArray<USkeletalMeshComponent*> Meshes(Actor);
+		for (USkeletalMeshComponent* SkeletalMesh : Meshes)
+		{
+			ScopeMeshTickOptions.Add(SkeletalMesh, SkeletalMesh->VisibilityBasedAnimTickOption);
+			SkeletalMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		}
+	}
+}
+
 void UNF_WeaponComponent::RestoreZoomCamera()
 {
+	UpdateScopeCameraAttachment(false);
 	UpdateScopedMeshes(false);
 	if (ZoomCamera.IsValid()) ZoomCamera->SetFieldOfView(UnzoomedFieldOfView);
 	ZoomCamera.Reset();
@@ -469,6 +531,7 @@ void UNF_WeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	if (ZoomCamera.IsValid())
 	{
 		if (ZoomData) ActiveZoomInterpSpeed = FMath::Max(0.f, ZoomData->ZoomInterpSpeed);
+		UpdateScopeCameraAttachment(ZoomData && ZoomData->ZoomMode == ENF_ZoomMode::Scope && ZoomData->bAttachScopeCameraToMuzzle);
 		UpdateScopedMeshes(ZoomData && ZoomData->ZoomMode == ENF_ZoomMode::Scope && ZoomData->bHideMeshesWhileScoped);
 		const float TargetFOV = bApplyZoom
 			? FMath::Min(UnzoomedFieldOfView, FMath::Clamp(ZoomData->ZoomFieldOfView, 5.f, 170.f))

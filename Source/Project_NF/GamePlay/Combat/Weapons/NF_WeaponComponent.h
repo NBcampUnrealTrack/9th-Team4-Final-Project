@@ -14,6 +14,9 @@ class UUserWidget;
 class APawn;
 class AController;
 class UMeshComponent;
+class USceneComponent;
+class USkeletalMeshComponent;
+enum class EVisibilityBasedAnimTickOption : uint8;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
@@ -90,6 +93,16 @@ private:
 	bool EnsureZoomAbility();
 	void SetZoomActive(bool bActive);
 	void RestoreZoomCamera();
+	void UpdateScopeCameraAttachment(bool bAttach);
+	bool bScopeCameraAttached = false;
+	TWeakObjectPtr<USceneComponent> OriginalCameraParent;
+	FName OriginalCameraSocket;
+	FTransform OriginalCameraTransform;
+	bool bOriginalAbsoluteLocation = false;
+	bool bOriginalAbsoluteRotation = false;
+	bool bOriginalAbsoluteScale = false;
+	bool bOriginalUsePawnControlRotation = false;
+	TMap<TWeakObjectPtr<USkeletalMeshComponent>, EVisibilityBasedAnimTickOption> ScopeMeshTickOptions;
 	void UpdateScopedMeshes(bool bHide);
 	TArray<TWeakObjectPtr<UMeshComponent>> HiddenScopeMeshes;
 	TWeakObjectPtr<ANF_WeaponBase> PresentedZoomWeapon;
