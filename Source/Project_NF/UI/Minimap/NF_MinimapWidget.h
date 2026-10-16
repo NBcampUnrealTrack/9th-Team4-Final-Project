@@ -40,9 +40,11 @@ public:
 
 protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-	virtual int32 NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
+	
+	//TODO @명현, 26.10.16 정준님 코드 빌드 에러로 임시 주석처리합니다
+	/*virtual int32 NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
 		const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
-		int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+		int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;*/
 
 	// 지도 이미지는 +X가 위, +Y가 오른쪽이 되도록 만든다. 범위는 이미지 전체에 대응한다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Map")
