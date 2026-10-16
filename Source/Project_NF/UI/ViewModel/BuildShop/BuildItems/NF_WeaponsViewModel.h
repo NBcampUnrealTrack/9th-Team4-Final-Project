@@ -8,7 +8,7 @@
 
 enum class ENF_FireMode : uint8;
 class UNF_WeaponDataAsset;
-class UNF_BuildItemDefinition;
+class UNF_BuildItemDefinitionDataAsset;
 class UTexture2D;
 
 UCLASS()
@@ -18,7 +18,7 @@ class PROJECT_NF_API UNF_WeaponsViewModel : public UNF_ViewModelBase
 	
 public:
 	void Configure(
-		const UNF_BuildItemDefinition* Item,
+		const UNF_BuildItemDefinitionDataAsset* Item,
 		const UNF_WeaponDataAsset* WeaponData,
 		UTexture2D* InIcon,
 		const FText& InDescription);
