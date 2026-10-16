@@ -13,6 +13,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
+#include "Player/Character/NF_Player.h"
 
 UNF_WeaponComponent::UNF_WeaponComponent()
 {
@@ -58,7 +59,7 @@ void UNF_WeaponComponent::BeginPlay()
 
 bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 {
-	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	auto* OwnerCharacter = Cast<ANF_Player>(GetOwner());
 	
 	if (IsValid(NewWeapon) == false || IsValid(OwnerCharacter) == false)
 		return false;
@@ -81,7 +82,7 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 
 	TGuardValue<bool> ChangeGuard(bChangingWeapon, true);
 	
-	if (NewWeapon->AttachToComponent(OwnerCharacter->GetMesh(),
+	if (NewWeapon->AttachToComponent(OwnerCharacter->VisualMesh,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocketName) == false)
 		return false;
 
