@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "Data/Struct/NF_MatchState.h"
 #include "GameFramework/GameState.h"
+#include "Data/Enum/NF_BuildShopType.h"
+
 #include "NF_GameState.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnMatchStateChanged, FNF_MatchState&);
@@ -42,4 +44,11 @@ private:
 	void OnRep_NFMatchState();
 	
 	void BroadcastMatchStateChanged();
+	
+#pragma region BuildSystem
+public:
+	//현재 페이즈에서 해당 빌드상점이 허용되는지 조회 (사망여부에 따른 상점이용제한은 태그를 사용해 구현할 것)
+	UFUNCTION(BlueprintPure, Category = "NF|Match|Build")
+	bool IsBuildShopAllowed(ENF_BuildShopType ShopType) const;
+#pragma endregion
 };
