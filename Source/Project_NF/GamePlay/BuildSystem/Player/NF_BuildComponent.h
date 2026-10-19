@@ -207,7 +207,13 @@ private:
 	UFUNCTION()
 	void OnRep_CurrentBuild();
 
+	// 일반 상점 요청의 접근 조건을 검사한다.
 	FNF_BuildValidation ApplyBuildOnServer(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone);
+	
+	// @Owner: 황준현 | 2026-10-19
+	// 접근 승인을 마친 요청의 코스트·슬롯 검증과 실제 적용을 담당한다.
+	FNF_BuildValidation CommitBuildOnServer( const TArray<FNF_BuildSelection>& Selections);
+	
 	bool GrantItem(UNF_BuildItemDefinitionDataAsset* Definition, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
 	bool ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections);
 	void ReleaseBuildWeapon();

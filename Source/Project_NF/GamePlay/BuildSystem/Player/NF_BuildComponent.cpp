@@ -489,8 +489,47 @@ void UNF_BuildComponent::CompleteLocalBuildRequest(const FNF_BuildValidation& Va
 	OnBuildRequestCompleted.Broadcast(Validation);
 }
 
+
 FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
-	const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone)
+	const TArray<FNF_BuildSelection>& Selections,
+	ANF_BuildShopZone* ShopZone)
+{
+	FNF_BuildValidation Validation;
+
+	auto Fail = [&Validation](ENF_BuildResult Result, const TCHAR* Message)
+	{
+		Validation.Result = Result;
+		Validation.Message = FText::FromString(Message);
+		return Validation;
+	};
+
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return Fail(
+			ENF_BuildResult::NotAuthority,
+			TEXT("빌드 적용은 서버에서만 가능합니다."));
+	}
+
+	const APawn* PlayerPawn = Cast<APawn>(GetOwner());
+
+	if (!IsValid(ShopZone) ||
+		CurrentShop != ShopZone ||
+		!SessionController.IsValid() ||
+		!PlayerPawn ||
+		PlayerPawn->GetController() != SessionController.Get() ||
+		ShopZone->GetWorld() != GetWorld() ||
+		!ShopZone->CanBuild(GetOwner()))
+	{
+		return Fail(
+			ENF_BuildResult::NotInBuildZone,
+			TEXT("상점과 먼저 상호작용하고 사용 조건을 만족해야 합니다."));
+	}
+
+	return CommitBuildOnServer(Selections);
+}
+
+FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
+	const TArray<FNF_BuildSelection>& Selections)
 {
 	FNF_BuildValidation Validation;
 	auto Fail = [&Validation](ENF_BuildResult Result, const TCHAR* Message)
@@ -499,33 +538,40 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 		Validation.Message = FText::FromString(Message);
 		return Validation;
 	};
-
-	if (!GetOwner()->HasAuthority())
-	{
-		return Fail(ENF_BuildResult::NotAuthority, TEXT("빌드 적용은 서버에서만 가능합니다."));
-	}
-	if (bApplyingBuild)
-	{
-		return Fail(ENF_BuildResult::BuildBlocked, TEXT("빌드 적용이 진행 중입니다."));
-	}
-	TGuardValue<bool> ApplyGuard(bApplyingBuild, true);
-	if (!IsValid(AbilitySystem) || AbilitySystem->GetAvatarActor() != GetOwner())
+	
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
 	{
 		return Fail(
-			ENF_BuildResult::MissingAbilitySystem, TEXT("플레이어 ASC의 ActorInfo와 빌드 컴포넌트를 연결해야 합니다."));
+			ENF_BuildResult::NotAuthority,
+			TEXT("빌드 적용은 서버에서만 가능합니다."));
 	}
-	if (AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Locked))
+	
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
 	{
-		return Fail(ENF_BuildResult::BuildBlocked, TEXT("현재 상태에서는 빌드를 교체할 수 없습니다."));
+		return Fail(
+			ENF_BuildResult::NotAuthority,
+			TEXT("빌드 적용은 서버에서만 가능합니다."));
 	}
-	const APawn* PlayerPawn = Cast<APawn>(GetOwner());
-	if (!IsValid(ShopZone) || CurrentShop != ShopZone || !SessionController.IsValid() || !PlayerPawn ||
-		PlayerPawn->GetController() != SessionController.Get() || ShopZone->GetWorld() != GetWorld() || !ShopZone->
-		CanBuild(GetOwner()))
+	
+	TGuardValue<bool> ApplyGuard(bApplyingBuild, true);
+
+	if (!IsValid(AbilitySystem) ||
+		AbilitySystem->GetAvatarActor() != GetOwner())
 	{
-		return Fail(ENF_BuildResult::NotInBuildZone, TEXT("상점과 먼저 상호작용하고 사용 거리 안에 있어야 합니다."));
+		return Fail(
+			ENF_BuildResult::MissingAbilitySystem,
+			TEXT("플레이어 ASC의 ActorInfo와 빌드 컴포넌트를 연결해야 합니다."));
 	}
 
+	if (AbilitySystem->HasMatchingGameplayTag(
+			NFTag_Build::State_Build_Locked))
+	{
+		return Fail(
+			ENF_BuildResult::BuildBlocked,
+			TEXT("현재 상태에서는 빌드를 교체할 수 없습니다."));
+	}
+	
+	// 상점 검사는 이 함수에 넣지 않는다.
 	Validation = PreviewBuild(Selections);
 	if (Validation.Result != ENF_BuildResult::Success)
 	{
