@@ -11,6 +11,7 @@ class APlayerController;
 class UNF_BuildReadyComponent;
 class UNF_MatchDepartureComponent;
 class ANF_PlayerState;
+struct FNFServerTeamIdAssignment;
 
 // 매치메이킹 연동 코드가 서버에서 바인딩. 남은 클라이언트의 복귀 및 세션 정리를 요청
 DECLARE_DELEGATE_OneParam(FNF_RequestMatchAbort,const FString&);
@@ -79,6 +80,8 @@ private:
 	void HandleBuildResolveFailed(const FString& Reason);
 	// 이탈 실패와 빌드 실패가 공유하는 매치 중단 처리
 	void AbortMatch(const FString& Reason);
+	
+	void HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssignment>& Assignments);
 #pragma region component
 	private:
 	UPROPERTY(VisibleAnywhere, Category = "NF|Match|Build")

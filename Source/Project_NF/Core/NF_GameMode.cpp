@@ -28,6 +28,8 @@ void ANF_GameMode::BeginPlay()
 			if (UNF_DedicatedMatchSubsystem* MatchSubsystem = GameInstance->GetSubsystem<UNF_DedicatedMatchSubsystem>())
 			{
 				RequestMatchAbort.BindUObject(MatchSubsystem, &UNF_DedicatedMatchSubsystem::HandleMatchAbort);
+				
+				MatchSubsystem->OnServerTeamIdsAssigned.AddUObject(this,&ThisClass::HandleServerTeamIdsAssigned);
 			}
 		}
 	}
@@ -87,7 +89,15 @@ void ANF_GameMode::Logout(AController* Exiting)
 void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(PhaseTimerHandle);
-
+	
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UNF_DedicatedMatchSubsystem* MatchSubsystem = GameInstance->GetSubsystem<UNF_DedicatedMatchSubsystem>())
+		{
+			MatchSubsystem->OnServerTeamIdsAssigned.RemoveAll(this);
+		}
+	}
+	
 	if (IsValid(MatchDepartureComponent))
 	{
 		MatchDepartureComponent->StopTracking();
@@ -374,6 +384,13 @@ void ANF_GameMode::AbortMatch(const FString& Reason)
 	{
 		UE_LOG(LogTemp,Error,TEXT("매치 복귀 처리 실패: RequestMatchAbort 미바인딩"));
 	}
+}
+
+void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssignment>& Assignments)
+{
+	if (!HasAuthority() ||bTeamsReady ||Assignments.Num() != InitialRequiredPlayers) return;
+
+	NotifyTeamsReady();
 }
 
 
