@@ -5,6 +5,9 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "Core/NF_GameState.h"
+#include "Engine/World.h"
+#include "Player/State/NF_PlayerState.h"
 
 ANF_BuildShopZone::ANF_BuildShopZone()
 {
@@ -35,10 +38,43 @@ void ANF_BuildShopZone::NF_Interaction(const APlayerController* InteractedContro
 
 bool ANF_BuildShopZone::CanBuild(AActor* PlayerActor) const
 {
-	return bShopEnabled && IsActorInRange(PlayerActor) && PlayerActor->FindComponentByClass<UNF_BuildComponent>() &&
-		IsPlayerAllowed(PlayerActor);
-}
+	if (!bShopEnabled ||
+		!IsActorInRange(PlayerActor) ||
+		!PlayerActor->FindComponentByClass<UNF_BuildComponent>())
+	{
+		return false;
+	}
 
+	const UWorld* World = GetWorld();
+	const ANF_GameState* GameState =
+		World ? World->GetGameState<ANF_GameState>() : nullptr;
+
+	// Core가 결정한 현재 페이즈의 접근 정책을 따른다.
+	if (!IsValid(GameState) ||
+		!GameState->IsBuildShopAllowed(ShopType))
+	{
+		return false;
+	}
+
+	if (ShopType == ENF_BuildShopType::TeamBase)
+	{
+		const APawn* Pawn = Cast<APawn>(PlayerActor);
+		const ANF_PlayerState* PlayerState =
+			Pawn ? Pawn->GetPlayerState<ANF_PlayerState>() : nullptr;
+
+		// 팀이 지정되지 않았거나 다른 팀 소유의 거점이면 거절한다.
+		if (!IsValid(PlayerState) ||
+			OwnerTeamId == INDEX_NONE ||
+			PlayerState->NF_TeamID == INDEX_NONE ||
+			PlayerState->NF_TeamID != OwnerTeamId)
+		{
+			return false;
+		}
+	}
+
+	// Blueprint에서는 추가 조건만 지정한다.
+	return IsPlayerAllowed(PlayerActor);
+}
 bool ANF_BuildShopZone::IsActorInRange(AActor* PlayerActor) const
 {
 	return IsValid(PlayerActor) && PlayerActor->GetWorld() == GetWorld() && InteractionDistance >= 0.f &&
