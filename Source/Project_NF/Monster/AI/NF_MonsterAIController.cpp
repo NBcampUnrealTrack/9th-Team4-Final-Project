@@ -64,13 +64,6 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 	AActor* UpdatedActor,
 	FAIStimulus Stimulus)
 {
-	UE_LOG(
-	LogTemp,
-	Warning,
-	TEXT("Perception: %s / Sensed: %s"),
-	*GetNameSafe(UpdatedActor),
-	Stimulus.WasSuccessfullySensed() ? TEXT("True") : TEXT("False"));
-	
 	APawn* DetectedPawn = Cast<APawn>(UpdatedActor);
 
 	if (!DetectedPawn || !DetectedPawn->IsPlayerControlled()) {	return;	}
@@ -81,10 +74,10 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 	if (!BlackboardComponent)
 	{
 		UE_LOG(
-		LogTemp,
-		Error,
-		TEXT("Monster AI: BlackboardComponent가 없습니다."));
-		
+			LogTemp,
+			Warning,
+			TEXT("Monster AI: BlackboardComponent is null."));
+
 		return;
 	}
 
@@ -92,15 +85,40 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 	{
 		SetCurrentTargetActor(UpdatedActor);
 
+		BlackboardComponent->SetValueAsVector(
+			LastKnownLocationKeyName,
+			UpdatedActor->GetActorLocation());
+
+		BlackboardComponent->SetValueAsBool(
+			HasLineOfSightKeyName,
+			true);
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster sight gained: %s / LastKnownLocation: %s"),
+			*GetNameSafe(UpdatedActor),
+			*BlackboardComponent->GetValueAsVector(
+				LastKnownLocationKeyName).ToString());
+
 		return;
 	}
 	
-	/*
-	if (GetCurrentTargetActor() == UpdatedActor)
-	{
-		ClearCurrentTargetActor();
-	}
-	*/
+	if (GetCurrentTargetActor() != UpdatedActor) { return; }
+
+	BlackboardComponent->SetValueAsBool(
+		HasLineOfSightKeyName,
+		false);
+
+	ClearFocus(EAIFocusPriority::Gameplay);
+
+	UE_LOG(
+	LogTemp,
+	Warning,
+	TEXT("Monster sight lost: %s / LastKnownLocation: %s"),
+	*GetNameSafe(UpdatedActor),
+	*BlackboardComponent->GetValueAsVector(
+		LastKnownLocationKeyName).ToString());
 }
 
 AActor* ANF_MonsterAIController::GetCurrentTargetActor() const
@@ -121,18 +139,31 @@ void ANF_MonsterAIController::SetCurrentTargetActor(
 {
 	APawn* TargetPawn = Cast<APawn>(NewTargetActor);
 
-	if (!TargetPawn || !TargetPawn->IsPlayerControlled()) {	return; }
-	
+	if (!TargetPawn || !TargetPawn->IsPlayerControlled())
+	{
+		return;
+	}
+
 	UBlackboardComponent* BlackboardComponent =
 		GetBlackboardComponent();
 
 	if (!BlackboardComponent) {	return;	}
 
-	SetFocus(NewTargetActor);
+	if (GetCurrentTargetActor() != NewTargetActor)
+	{
+		BlackboardComponent->SetValueAsBool(
+			HasLineOfSightKeyName,
+			false);
+
+		BlackboardComponent->ClearValue(
+			LastKnownLocationKeyName);
+	}
 
 	BlackboardComponent->SetValueAsObject(
 		TargetActorKeyName,
 		NewTargetActor);
+
+	SetFocus(NewTargetActor);
 }
 
 void ANF_MonsterAIController::ClearCurrentTargetActor()
@@ -140,9 +171,39 @@ void ANF_MonsterAIController::ClearCurrentTargetActor()
 	UBlackboardComponent* BlackboardComponent =
 		GetBlackboardComponent();
 
-	if (!BlackboardComponent) {	return; }
+	if (!BlackboardComponent) {	return;	}
 
 	ClearFocus(EAIFocusPriority::Gameplay);
 
-	BlackboardComponent->ClearValue(TargetActorKeyName);
+	BlackboardComponent->SetValueAsBool(
+		HasLineOfSightKeyName,
+		false);
+
+	BlackboardComponent->ClearValue(
+		LastKnownLocationKeyName);
+
+	BlackboardComponent->ClearValue(
+		TargetActorKeyName);
+}
+
+void ANF_MonsterAIController::UpdateLastKnownLocation()
+{
+	UBlackboardComponent* BlackboardComponent =
+		GetBlackboardComponent();
+
+	if (!BlackboardComponent) {	return;	}
+
+	const bool bHasLineOfSight =
+		BlackboardComponent->GetValueAsBool(
+			HasLineOfSightKeyName);
+
+	if (!bHasLineOfSight) {	return;	}
+
+	AActor* TargetActor = GetCurrentTargetActor();
+
+	if (!IsValid(TargetActor)) { return; }
+
+	BlackboardComponent->SetValueAsVector(
+		LastKnownLocationKeyName,
+		TargetActor->GetActorLocation());
 }

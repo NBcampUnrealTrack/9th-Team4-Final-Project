@@ -25,6 +25,8 @@ public:
 
 	void ClearCurrentTargetActor();
 	
+	void UpdateLastKnownLocation();
+	
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
 
@@ -39,6 +41,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|AI")
 	FName TargetActorKeyName = TEXT("TargetActor");
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|AI")
+	FName HasLineOfSightKeyName = TEXT("HasLineOfSight");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|AI")
+	FName LastKnownLocationKeyName = TEXT("LastKnownLocation");
 
 	UFUNCTION()
 	void HandleTargetPerceptionUpdated(
