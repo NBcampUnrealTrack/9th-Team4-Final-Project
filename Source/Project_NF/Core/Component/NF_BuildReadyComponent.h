@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "Core/NF_BuildIntegrationTypes.h"
+#include "Core/NF_CoreIntegrationTypes.h"
 #include "NF_BuildReadyComponent.generated.h"
 
 class ANF_PlayerState;
