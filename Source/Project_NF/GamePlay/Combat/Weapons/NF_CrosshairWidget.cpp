@@ -1,4 +1,4 @@
-#include "UI/NF_CrosshairWidget.h"
+#include "GamePlay/Combat/Weapons//NF_CrosshairWidget.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
