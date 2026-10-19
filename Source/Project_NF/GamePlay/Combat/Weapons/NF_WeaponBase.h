@@ -34,6 +34,9 @@ public:
 	bool CanFire() const;
 	float GetFireInterval() const;
 	float GetRemainingFireDelay() const;
+	class USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMeshComponent; }
+	FName GetMuzzleSocketName() const { return MuzzleSocketName; }
+	FName GetScopeSocketName() const { return ScopeSocketName; }
 
 	UFUNCTION(BlueprintPure, Category="Weapon")
 	int32 GetCurrentAmmo() const { return CurrentAmmo; }
@@ -57,6 +60,10 @@ protected:
 	// 무기 메시에 Muzzle 소켓 생성해야 함
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	FName MuzzleSocketName = TEXT("Muzzle");
+
+	// Weapon mesh socket used only by the scoped camera.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	FName ScopeSocketName = TEXT("Scope");
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	int32 CurrentAmmo = 0;

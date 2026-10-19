@@ -13,6 +13,10 @@ class UCameraComponent;
 class UUserWidget;
 class APawn;
 class AController;
+class UMeshComponent;
+class USceneComponent;
+class USkeletalMeshComponent;
+enum class EVisibilityBasedAnimTickOption : uint8;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
@@ -47,6 +51,12 @@ public:
 	UFUNCTION(BlueprintPure, Category="Weapon|Zoom")
 	bool IsZooming() const { return bZoomActive; }
 
+	UFUNCTION(BlueprintPure, Category="Weapon|Zoom")
+	bool CanZoom() const;
+
+	UFUNCTION(BlueprintPure, Category="Weapon|Zoom")
+	float GetZoomSensitivityMultiplier() const;
+
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Reload();
 
@@ -78,17 +88,25 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
 	TSubclassOf<UNF_GA_WeaponZoom> ZoomAbilityClass;
 
-	UPROPERTY(EditDefaultsOnly, Category="Weapon|Zoom", meta=(ClampMin="5.0", ClampMax="170.0"))
-	float ZoomFieldOfView = 60.f;
-
-	UPROPERTY(EditDefaultsOnly, Category="Weapon|Zoom", meta=(ClampMin="0.0"))
-	float ZoomInterpSpeed = 12.f;
-
 private:
 	friend class UNF_GA_WeaponZoom;
 	bool EnsureZoomAbility();
 	void SetZoomActive(bool bActive);
 	void RestoreZoomCamera();
+	void UpdateScopeCameraAttachment(bool bAttach);
+	bool bScopeCameraAttached = false;
+	TWeakObjectPtr<USceneComponent> OriginalCameraParent;
+	FName OriginalCameraSocket;
+	FTransform OriginalCameraTransform;
+	bool bOriginalAbsoluteLocation = false;
+	bool bOriginalAbsoluteRotation = false;
+	bool bOriginalAbsoluteScale = false;
+	bool bOriginalUsePawnControlRotation = false;
+	TMap<TWeakObjectPtr<USkeletalMeshComponent>, EVisibilityBasedAnimTickOption> ScopeMeshTickOptions;
+	void UpdateScopedMeshes(bool bHide);
+	TArray<TWeakObjectPtr<UMeshComponent>> HiddenScopeMeshes;
+	TWeakObjectPtr<ANF_WeaponBase> PresentedZoomWeapon;
+	float ActiveZoomInterpSpeed = 12.f;
 	TWeakObjectPtr<UAbilitySystemComponent> ZoomASC;
 	FGameplayAbilitySpecHandle ZoomAbilityHandle;
 	TWeakObjectPtr<UCameraComponent> ZoomCamera;

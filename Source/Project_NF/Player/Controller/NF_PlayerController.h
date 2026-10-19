@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "Player/Data/NF_PlayerActionType.h"
 #include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "Player/Data/NF_PlayerStateDelegate.h"
@@ -15,19 +16,20 @@ class UNF_PlayerInputDataAsset;
 class UMotionMatchingInputDataAsset;
 
 
-
 UCLASS()
 class PROJECT_NF_API ANF_PlayerController : public APlayerController
 {
 	GENERATED_BODY()
 	
 protected:
-	//virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	virtual void BeginPlay() override;
 	
 	virtual void SetupInputComponent() override;
 	
+
+#pragma region Input
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|MotionMatching")
 	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputDataAsset;
@@ -35,25 +37,27 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UNF_PlayerInputDataAsset> NF_PlayerInputDataAsset;
 	
-	//UPROPERTY(ReplicatedUsing = OnRep_OnChangedPlayerStateType)
-	ENF_PlayerInteractTypeEnum CurrentPlayerInteractType = ENF_PlayerInteractTypeEnum::None;
-	
 	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
 	
-	
-private:
 	void InputConfig();
 	
 	void BindInputButton();
 	
+	void BindDelegate();
+	
 	void TryAction(ENF_PlayerActionType PlayerActionType);
 	
+#pragma endregion 
+	
+
+private:
 	
 #pragma region BuildShop
-	//UFUNCTION()
-	//void OnRep_OnChangedPlayerStateType();
 	
-	void IsInBuildShop(ENF_BuildShopUIState);
+	UPROPERTY(Replicated)
+	ENF_BuildShopUIState CurrentBuildShopType = ENF_BuildShopUIState::None;
+	
+	void OnInteractBuildShop(ENF_BuildShopUIState BuildShopType);
 	
 #pragma endregion
 };
