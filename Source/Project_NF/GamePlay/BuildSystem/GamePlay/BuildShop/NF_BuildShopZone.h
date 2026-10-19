@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Data/Interface/NF_InteractionInterface.h"
 #include "GameFramework/Actor.h"
+#include "Data/Enum/NF_BuildShopType.h"
 #include "NF_BuildShopZone.generated.h"
 
 class UBoxComponent;
@@ -44,4 +45,14 @@ protected:
 	/** Measured from the player to this actor. Interaction trace collision is separate from authorization. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|BuildShop", meta = (ClampMin = "0"))
 	float InteractionDistance = 300.f;
+	
+	// @Owner: 황준현 | 2026-10-19
+	// Core의 페이즈별 상점 접근 정책에 전달할 상점 종류.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|BuildShop")
+	ENF_BuildShopType ShopType = ENF_BuildShopType::None;
+
+	// @Owner: 황준현 | 2026-10-19
+	// TeamBase 상점 소유 팀. INDEX_NONE이면 사용을 허용하지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|BuildShop")
+	int32 OwnerTeamId = INDEX_NONE;
 };
