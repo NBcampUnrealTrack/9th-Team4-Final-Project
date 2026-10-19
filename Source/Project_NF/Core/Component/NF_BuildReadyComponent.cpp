@@ -3,6 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "GAS/Tags/NFTag_Build.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/GameModeBase.h"
 #include "Player/State/NF_PlayerState.h"
 
 UNF_BuildReadyComponent::UNF_BuildReadyComponent()
@@ -182,6 +183,30 @@ bool UNF_BuildReadyComponent::ResolveUnreadyPlayers(
     return bAllRequestsSucceeded && AreAllPlayersBuildReady(RequiredPlayerCount);
 }
 
+void UNF_BuildReadyComponent::BeginResolve()
+{
+    if (!HasServerAuthority() || bDeadlineResolving) return;
+    
+    ResolveAttempts = 0;
+    bDeadlineResolving = true;
+
+    TryResolve();
+}
+
+void UNF_BuildReadyComponent::CancelResolve()
+{
+    // 타이머 취소 전에 상태부터 변경
+    bDeadlineResolving = false;
+    UWorld* World = GetWorld();
+    
+    if (World)
+    {
+        World->GetTimerManager().ClearTimer(ResolveRetryTimerHandle);
+    }
+
+    ResolveAttempts = 0;
+}
+
 void UNF_BuildReadyComponent::ClearBindings()
 {
     for (const auto& Pair : BuildReadyBindings)
@@ -200,9 +225,74 @@ void UNF_BuildReadyComponent::ClearBindings()
     ApplyFallbackBuild.Unbind();
 }
 
+void UNF_BuildReadyComponent::TryResolve()
+{
+    if (!HasServerAuthority() || !bDeadlineResolving) {return;}
+
+    // 이 컴포넌트는 GameMode에 부착하는 서버 전용 컴포넌트다.
+    const AGameModeBase* GameMode =Cast<AGameModeBase>(GetOwner());
+
+    if (!IsValid(GameMode))
+    {
+        FinishResolveFailure(TEXT("빌드 준비 처리에 필요한 GameMode가 없습니다."));
+        return;
+    }
+
+    // 재시도 사이에 이탈한 플레이어가 있을 수 있으므로 매번 조회한다.
+    const int32 RequiredPlayerCount = GameMode->GetNumPlayers();
+
+    if (RequiredPlayerCount <= 0)
+    {
+        FinishResolveFailure(TEXT("접속 플레이어가 없어 매치를 종료합니다."));
+        return;
+    }
+
+    ++ResolveAttempts;
+
+    const bool bSucceeded = ResolveUnreadyPlayers(RequiredPlayerCount);
+
+    // 기본 빌드 콜백 도중 매치가 중단되어 취소됐을 수 있다.
+    if (!bDeadlineResolving) {return;}
+
+    if (bSucceeded)
+    {
+        CancelResolve();
+        OnBuildResolveSucceeded.Broadcast();
+        return;
+    }
+
+    if (ResolveAttempts >= FMath::Max(1, MaxResolveAttempts))
+    {
+        FinishResolveFailure(TEXT("빌드 준비에 실패하여 매치가 중단되었습니다."));
+        return;
+    }
+
+    UE_LOG(LogTemp,Warning,TEXT("빌드 준비 실패 (%d/%d). 재시도 예정"),ResolveAttempts,MaxResolveAttempts);
+
+    GetWorld()->GetTimerManager().SetTimer(
+        ResolveRetryTimerHandle,
+        this,
+        &ThisClass::TryResolve,
+        FMath::Max(0.1f, ResolveRetryInterval),
+        false);
+}
+
+void UNF_BuildReadyComponent::FinishResolveFailure(const FString& Reason)
+{
+    CancelResolve();
+
+    OnBuildResolveFailed.Broadcast(Reason);
+}
+
 void UNF_BuildReadyComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    CancelResolve();
+    
+    // 기존 GAS 태그 이벤트 구독 및 기본 빌드 델리게이트 해제
     ClearBindings();
 
+    OnBuildResolveSucceeded.Clear();
+    OnBuildResolveFailed.Clear();
+    
     Super::EndPlay(EndPlayReason);
 }
