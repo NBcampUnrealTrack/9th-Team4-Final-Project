@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "Data/Interface/NF_InteractionInterface.h"
 #include "GameFramework/Actor.h"
-#include "NF_BuildShopZone.generated.h"
 #include "Data/Enum/NF_BuildShopType.h"
 #include "NF_BuildShopZone.generated.h"
 
