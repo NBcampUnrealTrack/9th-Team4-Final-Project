@@ -17,6 +17,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
+#include "Core/NF_GameState.h"
 
 namespace
 {
@@ -216,6 +217,8 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Interface interaction opens authorized session"), Build->GetCurrentShop() == Shop);
 	Build->RequestApplyBuild({Select(TEXT("Rifle")), Select(TEXT("Grenade"))}, Shop);
 	TestEqual(TEXT("Initial build committed"), Build->GetCurrentBuild().Num(), 2);
+	TestEqual(TEXT("일반 빌드 성공 후 Ready를 한 번 부여한다"),
+		ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
 	UNF_BuildItemDefinitionDataAsset* HeadItem = MakeItem(Rules, TEXT("TestHead"), ENF_BuildItemType::Armor, 0);
 	HeadItem->ArmorPart = ENF_BuildArmorPart::Head;
 	UNF_BuildItemDefinitionDataAsset* UpperItem = MakeItem(Rules, TEXT("TestUpper"), ENF_BuildItemType::Armor, 0);
@@ -269,6 +272,8 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	Build->RequestApplyBuild(
 		{Select(TEXT("Rifle")), Select(TEXT("Grenade")), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))}, Shop);
 	TestEqual(TEXT("Over budget request preserves build"), Build->GetCurrentBuild().Num(), 2);
+	TestEqual(TEXT("반복 확정과 실패 요청은 Ready 카운트를 증가시키거나 제거하지 않는다"),
+		ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
 	ASC->AddLooseGameplayTag(NFTag_Build::State_Build_Locked);
 	Build->RequestApplyBuild({Select(TEXT("Rifle"))}, Shop);
 	TestEqual(TEXT("Locked state preserves build"), Build->GetCurrentBuild().Num(), 2);
@@ -331,6 +336,51 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Digital key can be rebound"), Input->SetSlotKey(0, EKeys::Q));
 	TestEqual(TEXT("Key binding updated locally"), Input->GetSlotKey(0), EKeys::Q);
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildFallbackTest, "NF.Build.FallbackApplication",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNF_BuildFallbackTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
+	GEngine->CreateNewWorldContext(EWorldType::Game).SetCurrentWorld(World);
+	ON_SCOPE_EXIT
+	{
+		World->EndPlay(EEndPlayReason::Quit);
+		GEngine->DestroyWorldContext(World);
+		World->DestroyWorld(false);
+	};
+	World->InitializeActorsForPlay(FURL());
+	World->BeginPlay();
+	ANF_GameState* GameState = World->SpawnActor<ANF_GameState>();
+	World->SetGameState(GameState);
+	ACharacter* Player = World->SpawnActor<ACharacter>();
+	UAbilitySystemComponent* ASC = NewObject<UAbilitySystemComponent>(Player);
+	Player->AddInstanceComponent(ASC);
+	ASC->RegisterComponent();
+	ASC->InitAbilityActorInfo(Player, Player);
+	UNF_BuildComponent* Build = NewObject<UNF_BuildComponent>(Player);
+	Player->AddInstanceComponent(Build);
+	Build->RegisterComponent();
+	UNF_BuildRules* Rules = MakeRules();
+	Rules->FallbackBuild = {Select(TEXT("Rifle")), Select(TEXT("Grenade"))};
+	TestTrue(TEXT("테스트 ASC 연결"), Build->InitializeAbilitySystem(ASC));
+	TestTrue(TEXT("기본 구성 설정"), Build->ConfigureRules(Rules));
+	TestFalse(TEXT("Build 외 페이즈에서 기본 적용을 거부한다"), Build->ApplyFallbackBuildForMatchStart());
+	GameState->AuthoritySetTimedMatchPhase(ENF_MatchPhase::Build, 10.f);
+	Rules->FallbackBuild = {Select(TEXT("Rifle")), Select(TEXT("Grenade")), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))};
+	TestFalse(TEXT("기본 빌드도 코스트 초과를 거부한다"), Build->ApplyFallbackBuildForMatchStart());
+	TestFalse(TEXT("실패 시 Ready를 부여하지 않는다"), ASC->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready));
+	Rules->FallbackBuild = {Select(TEXT("Rifle")), Select(TEXT("Grenade"))};
+	ASC->AddLooseGameplayTag(NFTag_Build::State_Build_Locked);
+	TestFalse(TEXT("기본 적용도 빌드 잠금을 유지한다"), Build->ApplyFallbackBuildForMatchStart());
+	ASC->RemoveLooseGameplayTag(NFTag_Build::State_Build_Locked);
+	TestTrue(TEXT("상점 세션 없이 유효한 기본 구성을 확정한다"), Build->ApplyFallbackBuildForMatchStart());
+	TestEqual(TEXT("기본 구성 확정"), Build->GetCurrentBuild().Num(), 2);
+	TestTrue(TEXT("반복 기본 요청은 성공 상태를 유지한다"), Build->ApplyFallbackBuildForMatchStart());
+	TestEqual(TEXT("Ready는 누적되지 않는다"), ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
 	return true;
 }
 

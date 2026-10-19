@@ -18,6 +18,7 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
+#include "Core/NF_GameState.h"
 
 UNF_BuildComponent::UNF_BuildComponent()
 {
@@ -528,6 +529,48 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 	return CommitBuildOnServer(Selections);
 }
 
+bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart()
+{
+	const ANF_GameState* GameState = GetWorld() ? GetWorld()->GetGameState<ANF_GameState>() : nullptr;
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || bApplyingBuild ||
+		!IsValid(GameState) || GameState->GetMatchPhase() != ENF_MatchPhase::Build || !IsValid(Rules))
+	{
+		return false;
+	}
+	if (!InitializeAbilitySystem(ResolveAbilitySystem()))
+	{
+		return false;
+	}
+	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다.
+	if (!CurrentBuild.IsEmpty() && PreviewBuild(CurrentBuild).Result == ENF_BuildResult::Success &&
+		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
+	{
+		return true;
+	}
+	// 적용 중 콜백으로 원본 구성이 바뀌지 않도록 복사한다.
+	const TArray<FNF_BuildSelection> Selections = Rules->FallbackBuild;
+	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections);
+	const bool bSucceeded = Validation.Result == ENF_BuildResult::Success &&
+		IsValid(AbilitySystem) && AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready);
+	if (bSucceeded)
+	{
+		CloseBuildSession();
+	}
+	return bSucceeded;
+}
+
+void UNF_BuildComponent::MarkBuildReady()
+{
+	if (!AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
+	{
+		// UE 5.7 API로 서버 태그와 소유 클라이언트의 카운트를 함께 갱신한다.
+		ReadyAbilitySystem = AbilitySystem;
+		bOwnsReadyTag = true;
+		AbilitySystem->AddLooseGameplayTag(
+			NFTag_Build::State_Build_Ready, 1, EGameplayTagReplicationState::CountToOwner);
+	}
+}
+
 FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 	const TArray<FNF_BuildSelection>& Selections)
 {
@@ -546,13 +589,10 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 			TEXT("빌드 적용은 서버에서만 가능합니다."));
 	}
 	
-	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	if (bApplyingBuild)
 	{
-		return Fail(
-			ENF_BuildResult::NotAuthority,
-			TEXT("빌드 적용은 서버에서만 가능합니다."));
+		return Fail(ENF_BuildResult::BuildBlocked, TEXT("빌드 적용이 진행 중입니다."));
 	}
-	
 	TGuardValue<bool> ApplyGuard(bApplyingBuild, true);
 
 	if (!IsValid(AbilitySystem) ||
@@ -648,6 +688,7 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 
 	CurrentBuild = Selections;
 	GetOwner()->ForceNetUpdate();
+	MarkBuildReady();
 	OnRep_CurrentBuild();
 	Validation.Message = FText::FromString(TEXT("빌드를 적용했습니다."));
 	return Validation;
@@ -812,6 +853,13 @@ void UNF_BuildComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	UpdateLocalShopUI();
 	if (GetOwner()->HasAuthority())
 	{
+		if (bOwnsReadyTag && ReadyAbilitySystem.IsValid())
+		{
+			ReadyAbilitySystem->RemoveLooseGameplayTag(
+				NFTag_Build::State_Build_Ready, 1, EGameplayTagReplicationState::CountToOwner);
+			bOwnsReadyTag = false;
+			ReadyAbilitySystem.Reset();
+		}
 		ReleaseBuildWeapon();
 		for (const TPair<FName, FNF_BuildGrantHandles>& Item : AppliedItems)
 		{

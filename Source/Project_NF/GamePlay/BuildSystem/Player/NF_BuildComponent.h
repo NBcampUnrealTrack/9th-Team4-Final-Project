@@ -44,6 +44,9 @@ class PROJECT_NF_API UNF_BuildComponent : public UActorComponent
 public:
 	UNF_BuildComponent();
 
+	/** @Owner: 황준현 | 2026-10-19. Core 연동 객체에서만 호출하는 서버 기본 적용 경로. RPC가 아니다. */
+	bool ApplyFallbackBuildForMatchStart();
+
 	/** Called only from an authorized server interaction. */
 	bool BeginBuildSession(ANF_BuildShopZone* Shop);
 
@@ -235,4 +238,9 @@ private:
 
 	/** GAS callbacks must not recursively change a build mid-transaction. */
 	bool bApplyingBuild = false;
+
+	void MarkBuildReady();
+	// 이 컴포넌트가 추가한 태그 기여분만 종료 시 회수한다.
+	TWeakObjectPtr<UAbilitySystemComponent> ReadyAbilitySystem;
+	bool bOwnsReadyTag = false;
 };
