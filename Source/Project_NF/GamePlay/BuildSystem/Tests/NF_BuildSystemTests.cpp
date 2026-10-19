@@ -21,6 +21,7 @@
 #include "Core/NF_GameMode.h"
 #include "Core/Component/NF_BuildReadyComponent.h"
 #include "Player/State/NF_PlayerState.h"
+#include "Core/NF_CoreIntegrationTypes.h"
 
 namespace
 {
