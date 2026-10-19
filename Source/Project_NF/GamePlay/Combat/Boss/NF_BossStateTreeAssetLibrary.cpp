@@ -1,13 +1,16 @@
 #include "GamePlay/Combat/Boss/NF_BossStateTreeAssetLibrary.h"
 
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
+#include "GamePlay/Combat/Boss/NF_BossCombatData.h"
 #include "GamePlay/Combat/Boss/NF_BossStateTreeTask.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossAreaVolley.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossCenterBlast.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossGroundDamageZone.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossLastGasp.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossRelocate.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossThreatVolley.h"
 #include "Abilities/GameplayAbility.h"
+#include "Engine/DataTable.h"
 #include "StateTree.h"
 
 #if WITH_EDITOR
@@ -26,6 +29,54 @@
 #include "StateTreeState.h"
 #include "StateTreeTypes.h"
 #include "UObject/SavePackage.h"
+#endif
+
+#if WITH_EDITOR
+namespace
+{
+	UDataTable* LoadOrCreateBossCombatDataTable()
+	{
+		static const FString PackageName = TEXT("/Game/ProjectNF/Data/Boss/DT_BossCombat");
+		UDataTable* DataTable = LoadObject<UDataTable>(nullptr, *(PackageName + TEXT(".DT_BossCombat")));
+		const bool bIsNewAsset = DataTable == nullptr;
+		UPackage* Package = bIsNewAsset ? CreatePackage(*PackageName) : DataTable->GetOutermost();
+		if (!Package)
+		{
+			return nullptr;
+		}
+
+		if (bIsNewAsset)
+		{
+			DataTable = NewObject<UDataTable>(Package, TEXT("DT_BossCombat"),
+				RF_Public | RF_Standalone | RF_Transactional);
+			if (!DataTable)
+			{
+				return nullptr;
+			}
+			DataTable->RowStruct = FNF_BossCombatDataRow::StaticStruct();
+			DataTable->AddRow(TEXT("DefaultBoss"), FNF_BossCombatDataRow());
+			FAssetRegistryModule::AssetCreated(DataTable);
+		}
+		else if (DataTable->GetRowStruct() != FNF_BossCombatDataRow::StaticStruct())
+		{
+			UE_LOG(LogTemp, Error, TEXT("[BossData] DT_BossCombat uses an unexpected row struct."));
+			return nullptr;
+		}
+
+		Package->MarkPackageDirty();
+		const FString Filename = FPackageName::LongPackageNameToFilename(
+			PackageName, FPackageName::GetAssetPackageExtension());
+		IFileManager::Get().MakeDirectory(*FPaths::GetPath(Filename), true);
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+		if (!UPackage::SavePackage(Package, DataTable, *Filename, SaveArgs))
+		{
+			UE_LOG(LogTemp, Error, TEXT("[BossData] Could not save DT_BossCombat to %s"), *Filename);
+			return nullptr;
+		}
+		return DataTable;
+	}
+}
 #endif
 
 bool UNF_BossStateTreeAssetLibrary::AssignBossPatternCycleToTestBoss(UStateTree* StateTree)
@@ -57,13 +108,28 @@ bool UNF_BossStateTreeAssetLibrary::AssignBossPatternCycleToTestBoss(UStateTree*
 	{
 		FixedVolleyClass = UNFGA_BossAreaVolley::StaticClass();
 	}
+	UClass* GroundDamageZoneClass = LoadClass<UGameplayAbility>(nullptr,
+		TEXT("/Game/ProjectNF/Persnal/Myungwoo/GA_BossGroundDamageZone.GA_BossGroundDamageZone_C"));
+	if (!GroundDamageZoneClass)
+	{
+		GroundDamageZoneClass = UNFGA_BossGroundDamageZone::StaticClass();
+	}
 
 	BossDefaults->Modify();
 	BossDefaults->BossStateTree = StateTree;
 	BossDefaults->InitialPatternAbility = FixedVolleyClass;
+	if (UDataTable* BossCombatTable = LoadOrCreateBossCombatDataTable())
+	{
+		BossDefaults->BossCombatDataTable = BossCombatTable;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BossData] Could not assign DT_BossCombat to BP_TestBoss."));
+	}
 	BossDefaults->CombatPatternAbilities = {
 		FixedVolleyClass,
 		UNFGA_BossThreatVolley::StaticClass(),
+		GroundDamageZoneClass,
 		UNFGA_BossRelocate::StaticClass(),
 		UNFGA_BossCenterBlast::StaticClass()
 	};
@@ -81,7 +147,7 @@ bool UNF_BossStateTreeAssetLibrary::AssignBossPatternCycleToTestBoss(UStateTree*
 		return false;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[BossStateTree] Assigned StateTree and five boss abilities to BP_TestBoss"));
+	UE_LOG(LogTemp, Display, TEXT("[BossStateTree] Assigned StateTree and combat abilities to BP_TestBoss"));
 	return true;
 #else
 	return false;
@@ -123,7 +189,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 
 	UStateTreeState& Root = EditorData->AddRootState();
 	Root.Name = TEXT("BossEncounter");
-	Root.Description = TEXT("Runs the four combat patterns in order and enters LastGasp when the boss is defeated.");
+	Root.Description = TEXT("Runs the five combat patterns in order and enters LastGasp when the boss is defeated.");
 	Root.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
 
 	UClass* FixedVolleyClass = LoadClass<UGameplayAbility>(nullptr,
@@ -132,9 +198,16 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	{
 		FixedVolleyClass = UNFGA_BossAreaVolley::StaticClass();
 	}
+	UClass* GroundDamageZoneClass = LoadClass<UGameplayAbility>(nullptr,
+		TEXT("/Game/ProjectNF/Persnal/Myungwoo/GA_BossGroundDamageZone.GA_BossGroundDamageZone_C"));
+	if (!GroundDamageZoneClass)
+	{
+		GroundDamageZoneClass = UNFGA_BossGroundDamageZone::StaticClass();
+	}
 
 	UStateTreeState& FixedVolley = Root.AddChildState(TEXT("FixedPointVolley"));
 	UStateTreeState& ThreatVolley = Root.AddChildState(TEXT("RandomTargetVolley"));
+	UStateTreeState& GroundDamageZone = Root.AddChildState(TEXT("GroundDamageZones"));
 	UStateTreeState& Relocate = Root.AddChildState(TEXT("RelocateAndEmerge"));
 	UStateTreeState& CenterBlast = Root.AddChildState(TEXT("CenterBlast"));
 	UStateTreeState& LastGasp = Root.AddChildState(TEXT("LastGasp"));
@@ -158,24 +231,28 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 
 	AddAbilityTask(FixedVolley, FixedVolleyClass, false);
 	AddAbilityTask(ThreatVolley, UNFGA_BossThreatVolley::StaticClass(), false);
+	AddAbilityTask(GroundDamageZone, GroundDamageZoneClass, false);
 	AddAbilityTask(Relocate, UNFGA_BossRelocate::StaticClass(), false);
 	AddAbilityTask(CenterBlast, UNFGA_BossCenterBlast::StaticClass(), false);
 	AddAbilityTask(LastGasp, UNFGA_BossLastGasp::StaticClass(), true);
 
 	FixedVolley.Description = TEXT("Fire four fixed-point volleys, then finish after the last warning resolves.");
 	ThreatVolley.Description = TEXT("Select a random player in range and fire a rotating aimed volley.");
+	GroundDamageZone.Description = TEXT("Mark up to three players, then create two-second zones that pulse damage every 0.25 seconds.");
 	Relocate.Description = TEXT("Take off, telegraph the landing area, then dive and launch nearby players.");
 	CenterBlast.Description = TEXT("Telegraph the boss-centered blast, then damage, knock back, and stun nearby players.");
 	LastGasp.Description = TEXT("On boss defeat, mark each player's location and detonate after four seconds.");
 
 	FixedVolley.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	ThreatVolley.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
+	GroundDamageZone.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	Relocate.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	CenterBlast.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &FixedVolley);
 	LastGasp.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
 
 	AddDefeatedTransition(FixedVolley);
 	AddDefeatedTransition(ThreatVolley);
+	AddDefeatedTransition(GroundDamageZone);
 	AddDefeatedTransition(Relocate);
 	AddDefeatedTransition(CenterBlast);
 

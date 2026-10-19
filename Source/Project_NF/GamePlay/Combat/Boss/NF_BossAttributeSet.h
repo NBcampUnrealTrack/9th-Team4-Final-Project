@@ -15,6 +15,7 @@ public:
 
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, Health);
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxHealth);
+	void InitializeForBoss(float InMaxHealth);
 
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;

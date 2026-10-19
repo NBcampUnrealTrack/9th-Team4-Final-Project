@@ -9,7 +9,11 @@
 
 class APlayerController;
 class APawn;
+class ANF_BossBase;
+class UNF_BossRegistrySubsystem;
+class UNF_MonsterStatusViewModel;
 class UNF_ViewModelBase;
+class UWorld;
 
 
 //해당 SubSystem의 관리 범위는 각 로컬 플레이어의 UI
@@ -38,6 +42,9 @@ public:
 	//관리하는 ViewModel을 제거 및 델리게이트 해제
 	void UnregisterViewModel(UNF_ViewModelBase* ViewModel);
 
+	UFUNCTION(BlueprintPure, Category = "NF|UI|ViewModel")
+	UNF_MonsterStatusViewModel* GetMonsterStatusViewModel() const { return MonsterStatusViewModel.Get(); }
+
 	const FNF_ViewModelContext& GetCurrentViewModelContext() const
 	{
 		return CurrentViewModelContext;
@@ -49,6 +56,9 @@ private:
 	void UnbindPlayerController();
 
 	void HandlePawnChanged(APawn* NewPawn);
+	void BindBossRegistry(UWorld* World);
+	void UnbindBossRegistry();
+	void HandleActiveBossChanged(ANF_BossBase* NewBoss);
 
 	FNF_ViewModelContext BuildViewModelContext() const;
 
@@ -62,4 +72,10 @@ private:
 	//UPROPERTY 등록 시 viewmodel이 GC처리 되지 않음
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNF_ViewModelBase>> ManagedViewModels;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNF_MonsterStatusViewModel> MonsterStatusViewModel;
+
+	TWeakObjectPtr<UNF_BossRegistrySubsystem> BoundBossRegistry;
+	FDelegateHandle ActiveBossChangedDelegateHandle;
 };

@@ -12,6 +12,13 @@ UNF_BossAttributeSet::UNF_BossAttributeSet()
 	InitHealth(GetMaxHealth());
 }
 
+void UNF_BossAttributeSet::InitializeForBoss(const float InMaxHealth)
+{
+	const float SafeMaxHealth = FMath::Max(InMaxHealth, 1.0f);
+	SetMaxHealth(SafeMaxHealth);
+	SetHealth(SafeMaxHealth);
+}
+
 void UNF_BossAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
 {
 	Super::PreAttributeChange(Attribute, NewValue);
