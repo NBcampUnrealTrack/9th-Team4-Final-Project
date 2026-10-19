@@ -17,4 +17,7 @@ namespace NFTag_Monster
 	
 	// @Owner: 경환 | 2026-10-15
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Monster_RangedAttack);
+	
+	// @Owner: 경환 | 2026-10-19
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Monster_LeapAttack);
 }
