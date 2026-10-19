@@ -125,7 +125,8 @@ void UNFGA_BossThreatVolley::FireNextProjectile()
 			ShowTelegraph(GroundPoint, ImpactRadius, TelegraphDuration, false,
 				ShotTelegraphLifetime, ShotTelegraphMaterial);
 		}
-		const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag, Damage);
+		const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag,
+			Boss->GetPatternDamage(ENF_BossPatternId::ThreatVolley, Damage));
 		SpawnAreaProjectile(ProjectileClass, GroundPoint, ImpactRadius, ProjectileSpeed, DamageSpec,
 			NFGameplayCueTags::GameplayCue_Boss_ThreatVolley_Impact);
 	}

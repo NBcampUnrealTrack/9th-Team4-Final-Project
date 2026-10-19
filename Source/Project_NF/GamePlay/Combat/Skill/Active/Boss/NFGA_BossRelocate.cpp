@@ -170,7 +170,8 @@ void UNFGA_BossRelocate::Emerge()
 	ExecuteBossCue(NFGameplayCueTags::GameplayCue_Boss_Emerge, LandingGroundPoint);
 	ExecuteBossCue(NFGameplayCueTags::GameplayCue_Boss_Relocate_Landing, LandingGroundPoint);
 
-	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag, Damage);
+	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag,
+		Boss->GetPatternDamage(ENF_BossPatternId::Relocate, Damage));
 	const FGameplayEffectSpecHandle AirborneSpec = MakeBossEffectSpec(AirborneEffectClass, FGameplayTag(), 0.0f);
 	for (ANF_Player* Player : FindPlayersInRange(EmergencePoint, EmergenceRadius))
 	{

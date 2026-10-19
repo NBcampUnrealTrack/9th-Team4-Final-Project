@@ -1,5 +1,7 @@
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
 
+#include "AbilitySystemComponent.h"
+#include "Engine/Engine.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 #include "GamePlay/Combat/Boss/NF_BossAttributeSet.h"
@@ -12,6 +14,21 @@ void UNFExecCalc_BossDamageToPlayer::Execute_Implementation(
 		NFTag_BossCombat::Data_Damage, false, 0.0f), 0.0f);
 	if (Damage > 0.0f)
 	{
+		const UAbilitySystemComponent* SourceASC = ExecutionParams.GetSourceAbilitySystemComponent();
+		const UAbilitySystemComponent* TargetASC = ExecutionParams.GetTargetAbilitySystemComponent();
+		const AActor* SourceActor = SourceASC ? SourceASC->GetAvatarActor() : nullptr;
+		const AActor* TargetActor = TargetASC ? TargetASC->GetAvatarActor() : nullptr;
+
+#if WITH_EDITOR
+		if (GEngine)
+		{
+			const FString DamageMessage = FString::Printf(TEXT("Boss Damage | %s -> %s | %.2f"),
+				*GetNameSafe(SourceActor), *GetNameSafe(TargetActor), Damage);
+			const int32 MessageKey = TargetActor ? static_cast<int32>(TargetActor->GetUniqueID()) : INDEX_NONE;
+			GEngine->AddOnScreenDebugMessage(MessageKey, 2.0f, FColor::Red, DamageMessage);
+		}
+#endif
+
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(
 			UNF_PlayerStatusAttribute::GetHealthAttribute(), EGameplayModOp::Additive, -Damage));
 	}

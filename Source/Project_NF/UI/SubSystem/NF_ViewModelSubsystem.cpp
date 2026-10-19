@@ -6,10 +6,14 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "GamePlay/Combat/Boss/NF_BossBase.h"
+#include "GamePlay/Combat/Boss/NF_BossRegistrySubsystem.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
+#include "UI/ViewModel/Status/NF_MonsterStatusViewModel.h"
 
 void UNF_ViewModelSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -22,13 +26,23 @@ void UNF_ViewModelSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     {
         PlayerController = LocalPlayer->GetPlayerController(LocalPlayer->GetWorld());
     }
+
+    MonsterStatusViewModel = NewObject<UNF_MonsterStatusViewModel>(this);
     
     BindPlayerController(PlayerController);
+    BindBossRegistry(PlayerController ? PlayerController->GetWorld() : (LocalPlayer ? LocalPlayer->GetWorld() : nullptr));
     RefreshViewModelContext();
 }
 
 void UNF_ViewModelSubsystem::Deinitialize()
 {
+    UnbindBossRegistry();
+    if (IsValid(MonsterStatusViewModel))
+    {
+        MonsterStatusViewModel->ClearObservedUnit();
+    }
+    MonsterStatusViewModel = nullptr;
+
     UnbindPlayerController();
 
     for (UNF_ViewModelBase* ViewModel : ManagedViewModels)
@@ -50,7 +64,64 @@ void UNF_ViewModelSubsystem::PlayerControllerChanged(APlayerController* NewPlaye
     Super::PlayerControllerChanged(NewPlayerController);
 
     BindPlayerController(NewPlayerController);
+    BindBossRegistry(NewPlayerController ? NewPlayerController->GetWorld() : nullptr);
     RefreshViewModelContext();
+}
+
+void UNF_ViewModelSubsystem::BindBossRegistry(UWorld* World)
+{
+	UNF_BossRegistrySubsystem* NewRegistry = IsValid(World)
+		? World->GetSubsystem<UNF_BossRegistrySubsystem>()
+		: nullptr;
+
+	if (BoundBossRegistry.Get() == NewRegistry)
+	{
+		HandleActiveBossChanged(NewRegistry ? NewRegistry->GetActiveBoss() : nullptr);
+		return;
+	}
+
+	UnbindBossRegistry();
+	if (!IsValid(NewRegistry))
+	{
+		HandleActiveBossChanged(nullptr);
+		return;
+	}
+
+	BoundBossRegistry = NewRegistry;
+	ActiveBossChangedDelegateHandle = NewRegistry->OnActiveBossChanged.AddUObject(
+		this, &ThisClass::HandleActiveBossChanged);
+	HandleActiveBossChanged(NewRegistry->GetActiveBoss());
+}
+
+void UNF_ViewModelSubsystem::UnbindBossRegistry()
+{
+	if (UNF_BossRegistrySubsystem* Registry = BoundBossRegistry.Get())
+	{
+		if (ActiveBossChangedDelegateHandle.IsValid())
+		{
+			Registry->OnActiveBossChanged.Remove(ActiveBossChangedDelegateHandle);
+		}
+	}
+
+	ActiveBossChangedDelegateHandle.Reset();
+	BoundBossRegistry.Reset();
+}
+
+void UNF_ViewModelSubsystem::HandleActiveBossChanged(ANF_BossBase* NewBoss)
+{
+	if (!IsValid(MonsterStatusViewModel))
+	{
+		return;
+	}
+
+	if (!IsValid(NewBoss))
+	{
+		MonsterStatusViewModel->ClearObservedUnit();
+		return;
+	}
+
+	MonsterStatusViewModel->SetObservedUnit(
+		NewBoss->GetAbilitySystemComponent(), NewBoss->GetBossDisplayName());
 }
 
 void UNF_ViewModelSubsystem::BindPlayerController(APlayerController* NewPlayerController)

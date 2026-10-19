@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
+#include "Core/NF_BuildIntegrationTypes.h"
+
 #include "NF_GameMode.generated.h"
 
 class ANF_GameState;
@@ -39,6 +41,12 @@ public:
 	
 	FNF_RequestMatchAbort RequestMatchAbort;
 	
+	// BuildSystem이 서버에서 기본 빌드 적용 함수를 등록한다.
+	bool RegisterFallbackBuildHandler(const FNF_ApplyFallbackBuild& Handler);
+
+	// 자신이 등록한 함수만 해제할 수 있다.
+	void UnregisterFallbackBuildHandler(const UObject* HandlerOwner);
+	
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Match")
 	int32 InitialRequiredPlayers = 8;
@@ -66,6 +74,11 @@ private:
 	void EnterFinished();
 	
 	void AbortMatchDueToDepartures();
+	
+	void HandleBuildResolveSucceeded();
+	void HandleBuildResolveFailed(const FString& Reason);
+	// 이탈 실패와 빌드 실패가 공유하는 매치 중단 처리
+	void AbortMatch(const FString& Reason);
 #pragma region component
 	private:
 	UPROPERTY(VisibleAnywhere, Category = "NF|Match|Build")

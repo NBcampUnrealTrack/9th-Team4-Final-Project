@@ -8,6 +8,17 @@
 class APlayerController;
 class ANF_PlayerState;
 
+/** One authoritative server-side PlayerState-to-team mapping, broadcast after assignment is applied. */
+struct FNFServerTeamIdAssignment
+{
+	TWeakObjectPtr<ANF_PlayerState> PlayerState;
+	int32 TeamId = INDEX_NONE;
+};
+
+DECLARE_MULTICAST_DELEGATE_OneParam(
+	FNFOnServerTeamIdsAssigned,
+	const TArray<FNFServerTeamIdAssignment>&);
+
 /** Server-side coordinator for validating lobby rosters and applying team IDs. */
 UCLASS()
 class PROJECT_NF_API UNF_DedicatedMatchSubsystem : public UGameInstanceSubsystem
@@ -19,6 +30,9 @@ public:
 	bool SubmitTeamAssignments(APlayerController* Submitter, const FString& ClaimedPlayerId,
 		const TArray<FNFMatchTeamAssignment>& Teams);
 	void HandleMatchAbort(const FString& Reason);
+
+	/** Broadcast once on the server after every PlayerState has its final replicated TeamId. */
+	FNFOnServerTeamIdsAssigned OnServerTeamIdsAssigned;
 
 private:
 	bool ValidateTeamAssignments(const TArray<FNFMatchTeamAssignment>& Teams, FString& OutError) const;

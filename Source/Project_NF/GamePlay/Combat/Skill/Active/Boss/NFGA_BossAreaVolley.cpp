@@ -176,7 +176,8 @@ void UNFGA_BossAreaVolley::FinishTelegraph(FVector_NetQuantize TargetGroundPoint
 		DamageSpec = MakeOutgoingGameplayEffectSpec(DamageEffectClass, GetAbilityLevel());
 		if (DamageSpec.IsValid())
 		{
-			DamageSpec.Data->SetSetByCallerMagnitude(DamageMagnitudeTag, FMath::Max(Damage, 0.0f));
+			const float ConfiguredDamage = Boss->GetPatternDamage(ENF_BossPatternId::AreaVolley, Damage);
+			DamageSpec.Data->SetSetByCallerMagnitude(DamageMagnitudeTag, FMath::Max(ConfiguredDamage, 0.0f));
 		}
 	}
 	else if (!bWarnedMissingDamageConfig)
