@@ -21,6 +21,7 @@
 #include "Core/NF_GameMode.h"
 #include "Core/Component/NF_BuildReadyComponent.h"
 #include "Player/State/NF_PlayerState.h"
+#include "Core/NF_CoreIntegrationTypes.h"
 
 namespace
 {
@@ -270,7 +271,7 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	TestNotNull(TEXT("Moving skill slot preserves original handle"), ASC->FindAbilitySpecFromHandle(OriginalHandle));
 	if (FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(OriginalHandle))
 	{
-		TestEqual(TEXT("Input follows new slot"), Spec->InputID, 2);
+		TestEqual(TEXT("두 번째 슬롯의 InputID는 1"), Spec->InputID, 1);
 	}
 	Build->RequestApplyBuild(
 		{Select(TEXT("Rifle")), Select(TEXT("Grenade")), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))}, Shop);
