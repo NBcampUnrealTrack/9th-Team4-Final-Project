@@ -2,7 +2,10 @@
 
 #include "NF_MatchLobbyPlayerController.h"
 
+#include "Core/Match/NF_DedicatedMatchSubsystem.h"
+#include "Core/Match/NF_MatchmakingSubsystem.h"
 #include "EnhancedInputSubsystems.h"
+#include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
@@ -12,6 +15,7 @@
 void ANF_MatchLobbyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+	SubmitPendingMatchTeamsToServer();
 
 	if (ShouldUseTouchControls() && IsLocalPlayerController())
 	{
@@ -41,6 +45,57 @@ void ANF_MatchLobbyPlayerController::BeginPlay()
 	// 		SetInputMode(InputMode);
 	// 	}
 	// }
+}
+
+void ANF_MatchLobbyPlayerController::PostNetInit()
+{
+	Super::PostNetInit();
+	SubmitPendingMatchTeamsToServer();
+}
+
+bool ANF_MatchLobbyPlayerController::SubmitPendingMatchTeamsToServer()
+{
+	if (!IsLocalController() || !GetWorld() || GetWorld()->GetNetMode() != NM_Client)
+	{
+		return false;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	UNF_MatchmakingSubsystem* MatchmakingSubsystem = GameInstance
+		? GameInstance->GetSubsystem<UNF_MatchmakingSubsystem>() : nullptr;
+	TArray<FNFMatchTeamAssignment> Teams;
+	const FString LocalPlayerId = MatchmakingSubsystem ? MatchmakingSubsystem->GetLocalMatchPlayerId() : FString();
+	if (!MatchmakingSubsystem || !MatchmakingSubsystem->HasDedicatedServerAllocation()
+		|| LocalPlayerId.IsEmpty() || !MatchmakingSubsystem->GetPendingMatchTeams(Teams))
+	{
+		return false;
+	}
+
+	ServerSubmitMatchTeams(LocalPlayerId, Teams);
+	return true;
+}
+
+void ANF_MatchLobbyPlayerController::ServerSubmitMatchTeams_Implementation(
+	const FString& ClaimedPlayerId, const TArray<FNFMatchTeamAssignment>& Teams)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UNF_DedicatedMatchSubsystem* MatchSubsystem = GameInstance->GetSubsystem<UNF_DedicatedMatchSubsystem>())
+		{
+			MatchSubsystem->SubmitTeamAssignments(this, ClaimedPlayerId, Teams);
+		}
+	}
+}
+
+void ANF_MatchLobbyPlayerController::ClientHandleMatchAborted_Implementation(const FString& Reason)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UNF_MatchmakingSubsystem* MatchmakingSubsystem = GameInstance->GetSubsystem<UNF_MatchmakingSubsystem>())
+		{
+			MatchmakingSubsystem->HandleDedicatedMatchAborted(Reason);
+		}
+	}
 }
 
 void ANF_MatchLobbyPlayerController::SetupInputComponent()

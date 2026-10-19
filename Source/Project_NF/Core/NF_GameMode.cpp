@@ -1,6 +1,8 @@
 ﻿#include "Core/NF_GameMode.h"
 
 #include "Core/NF_GameState.h"
+#include "Core/Match/NF_DedicatedMatchSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Component/NF_BuildReadyComponent.h"
 #include "Component/NF_MatchDepartureComponent.h"
@@ -10,6 +12,7 @@
 ANF_GameMode::ANF_GameMode()
 {
 	GameStateClass = ANF_GameState::StaticClass();
+	PlayerStateClass = ANF_PlayerState::StaticClass();
 	BuildReadyComponent = CreateDefaultSubobject<UNF_BuildReadyComponent>(TEXT("BuildReadyComponent"));
 	MatchDepartureComponent = CreateDefaultSubobject<UNF_MatchDepartureComponent>(TEXT("MatchDepartureComponent"));
 }
@@ -17,6 +20,16 @@ ANF_GameMode::ANF_GameMode()
 void ANF_GameMode::BeginPlay()
 {
 	Super::BeginPlay();
+	if (HasAuthority())
+	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (UNF_DedicatedMatchSubsystem* MatchSubsystem = GameInstance->GetSubsystem<UNF_DedicatedMatchSubsystem>())
+			{
+				RequestMatchAbort.BindUObject(MatchSubsystem, &UNF_DedicatedMatchSubsystem::HandleMatchAbort);
+			}
+		}
+	}
 
 	if (IsValid(MatchDepartureComponent))
 	{
