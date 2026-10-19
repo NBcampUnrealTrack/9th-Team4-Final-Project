@@ -10,6 +10,8 @@ enum class ENF_PlayerActionType : uint8;
 enum class ENF_BuildShopUIState : uint8;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerAction, APlayerController*, ENF_PlayerActionType);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerBindingSkill, APlayerController*, ENF_PlayerActionType);
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnInteractBuildShop, ENF_BuildShopUIState);
 
 UCLASS()
@@ -30,6 +32,7 @@ public:
 
 public:
 	FOnPlayerAction OnPlayerAction;
+	FOnPlayerBindingSkill OnPlayerBindingSkill;
 	FOnInteractBuildShop OnInteractBuildShop;
 };
 

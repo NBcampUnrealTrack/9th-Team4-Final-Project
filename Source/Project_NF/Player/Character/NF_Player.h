@@ -30,6 +30,7 @@ public:
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override; 
 	
 	void OnTryAction(APlayerController* SendController, ENF_PlayerActionType ActionType);
+	void OnSkillBind(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
@@ -93,11 +94,7 @@ private:
 	
 	
 #pragma region BuildShop
-	
 	void OnEnablePlayerMovementFromType(ENF_BuildShopUIState BuildShopType);
-	
-	void BindSkill(int32 SkillSlot);
-	
 #pragma endregion 
 	
 	
@@ -110,7 +107,7 @@ private:
 	
 	void InitAbilitySystem();
 	
-	void GiveAbility();
+	void GiveDefaultAbility();
 	
 	void AddGameplayAbility();
 #pragma endregion
