@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
+#include "Core/NF_BuildIntegrationTypes.h"
+
 #include "NF_GameMode.generated.h"
 
 class ANF_GameState;
@@ -38,6 +40,12 @@ public:
 	UNF_BuildReadyComponent* GetBuildReadyComponent() const;
 	
 	FNF_RequestMatchAbort RequestMatchAbort;
+	
+	// BuildSystem이 서버에서 기본 빌드 적용 함수를 등록한다.
+	bool RegisterFallbackBuildHandler(const FNF_ApplyFallbackBuild& Handler);
+
+	// 자신이 등록한 함수만 해제할 수 있다.
+	void UnregisterFallbackBuildHandler(const UObject* HandlerOwner);
 	
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Match")

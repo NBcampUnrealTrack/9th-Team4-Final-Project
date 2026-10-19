@@ -9,6 +9,7 @@
 #include "Player/State/NF_PlayerState.h"
 #include "GameFramework/PlayerController.h"
 
+
 ANF_GameMode::ANF_GameMode()
 {
 	GameStateClass = ANF_GameState::StaticClass();
@@ -133,6 +134,31 @@ bool ANF_GameMode::CollectMatchParticipants(TArray<ANF_PlayerState*>& OutPartici
 UNF_BuildReadyComponent*ANF_GameMode::GetBuildReadyComponent() const
 {
 	return BuildReadyComponent.Get();
+}
+
+bool ANF_GameMode::RegisterFallbackBuildHandler(const FNF_ApplyFallbackBuild& Handler)
+{
+	if (!HasAuthority() ||!IsValid(BuildReadyComponent) ||!Handler.IsBound()) {return false;}
+
+	// 다른 시스템이 등록한 핸들러를 덮어쓰지 않는다.
+	if (BuildReadyComponent->ApplyFallbackBuild.IsBound()) {return false;}
+
+	BuildReadyComponent->ApplyFallbackBuild = Handler;
+	return true;
+}
+
+void ANF_GameMode::UnregisterFallbackBuildHandler(const UObject* HandlerOwner)
+{
+	if (!HasAuthority() ||!IsValid(BuildReadyComponent) ||!IsValid(HandlerOwner)) return;
+	
+
+	FNF_ApplyFallbackBuild& Handler =BuildReadyComponent->ApplyFallbackBuild;
+
+	// 자신이 소유한 바인딩만 해제한다.
+	if (Handler.IsBoundToObject(HandlerOwner))
+	{
+		Handler.Unbind();
+	}
 }
 
 void ANF_GameMode::NotifyTeamsReady()

@@ -230,7 +230,7 @@ void UNF_BuildReadyComponent::TryResolve()
     if (!HasServerAuthority() || !bDeadlineResolving) {return;}
 
     // 이 컴포넌트는 GameMode에 부착하는 서버 전용 컴포넌트다.
-    const AGameModeBase* GameMode =Cast<AGameModeBase>(GetOwner());
+    AGameModeBase* GameMode =Cast<AGameModeBase>(GetOwner());
 
     if (!IsValid(GameMode))
     {

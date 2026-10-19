@@ -3,13 +3,12 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
+#include "Core/NF_BuildIntegrationTypes.h"
 #include "NF_BuildReadyComponent.generated.h"
 
 class ANF_PlayerState;
 class UAbilitySystemComponent;
 
-// 기본 빌드 적용과 Ready 태그 갱신을 완료한 뒤 true를 반환
-DECLARE_DELEGATE_RetVal_OneParam(bool,FNF_ApplyFallbackBuild,ANF_PlayerState*);
 
 DECLARE_MULTICAST_DELEGATE(FNF_OnBuildResolveSucceeded);
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnBuildResolveFailed,const FString&);
