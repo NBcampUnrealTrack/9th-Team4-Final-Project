@@ -1,5 +1,6 @@
 #include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
 #include "GamePlay/Combat/Armor/NF_ArmorBase.h"
+#include "GamePlay/Combat/Armor/NF_ArmorDataAsset.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -22,7 +23,11 @@ void UNF_ArmorComponent::BeginPlay()
 
 	for (const TSubclassOf<ANF_ArmorBase>& ArmorClass : DefaultArmorClasses)
 	{
-		if (ArmorClass == nullptr || GetEquippedArmor(ArmorClass->GetDefaultObject<ANF_ArmorBase>()->GetArmorSlot())) 
+		if (ArmorClass == nullptr)
+			continue;
+
+		const ANF_ArmorBase* DefaultArmor = ArmorClass->GetDefaultObject<ANF_ArmorBase>();
+		if (IsValid(DefaultArmor->GetArmorData()) == false || GetEquippedArmor(DefaultArmor->GetArmorSlot()))
 			continue;
 
 		FActorSpawnParameters Params;
@@ -61,6 +66,9 @@ bool UNF_ArmorComponent::EquipArmor(ANF_ArmorBase* NewArmor)
 	
 	if (IsValid(Character) == false || Character->HasAuthority() == false || bChangingArmor || 
 		IsValid(NewArmor) == false) 
+		return false;
+
+	if (IsValid(NewArmor->GetArmorData()) == false)
 		return false;
 	
 	if (NewArmor->GetWorld() != GetWorld() || IsValid(NewArmor->GetRootComponent()) == false || 

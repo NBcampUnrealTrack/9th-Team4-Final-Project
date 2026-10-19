@@ -12,17 +12,28 @@ class PROJECT_NF_API ANF_ArmorBase : public AActor
 	
 public:	
 	ANF_ArmorBase();
+	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void PostInitializeComponents() override;
 
 	UFUNCTION(BlueprintPure, Category="Armor")
-	ENF_ArmorSlot GetArmorSlot() const { return ArmorSlot; }
+	const class UNF_ArmorDataAsset* GetArmorData() const { return ArmorData; }
+
+	UFUNCTION(BlueprintPure, Category="Armor")
+	ENF_ArmorSlot GetArmorSlot() const;
+
+	UFUNCTION(BlueprintPure, Category="Armor")
+	float GetAdditionalDefense() const;
 
 	UFUNCTION(BlueprintPure, Category="Armor")
 	class UStaticMeshComponent* GetArmorMesh() const { return ArmorMesh; }
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
-	ENF_ArmorSlot ArmorSlot = ENF_ArmorSlot::Head;
+	TObjectPtr<class UNF_ArmorDataAsset> ArmorData;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Armor")
 	TObjectPtr<class UStaticMeshComponent> ArmorMesh;
+
+private:
+	void ApplyArmorAppearance();
 };
