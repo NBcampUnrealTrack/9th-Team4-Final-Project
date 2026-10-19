@@ -18,6 +18,9 @@
 #include "Misc/ScopeExit.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "Core/NF_GameState.h"
+#include "Core/NF_GameMode.h"
+#include "Core/Component/NF_BuildReadyComponent.h"
+#include "Player/State/NF_PlayerState.h"
 
 namespace
 {
@@ -381,6 +384,50 @@ bool FNF_BuildFallbackTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("기본 구성 확정"), Build->GetCurrentBuild().Num(), 2);
 	TestTrue(TEXT("반복 기본 요청은 성공 상태를 유지한다"), Build->ApplyFallbackBuildForMatchStart());
 	TestEqual(TEXT("Ready는 누적되지 않는다"), ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildRegistrationTest, "NF.Build.CoreHandlerRegistration",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNF_BuildRegistrationTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
+	GEngine->CreateNewWorldContext(EWorldType::Game).SetCurrentWorld(World);
+	ON_SCOPE_EXIT
+	{
+		World->EndPlay(EEndPlayReason::Quit);
+		GEngine->DestroyWorldContext(World);
+		World->DestroyWorld(false);
+	};
+	World->InitializeActorsForPlay(FURL());
+	World->BeginPlay();
+	ANF_GameMode* GameMode = World->SpawnActor<ANF_GameMode>();
+	ANF_PlayerState* PlayerState = World->SpawnActor<ANF_PlayerState>();
+	AActor* FirstOwner = World->SpawnActor<AActor>();
+	AActor* OtherOwner = World->SpawnActor<AActor>();
+	UAbilitySystemComponent* ASC = PlayerState->GetAbilitySystemComponent();
+	if (!TestNotNull(TEXT("테스트 PlayerState의 ASC"), ASC)) return false;
+	int32 CallCount = 0;
+	const FNF_ApplyFallbackBuild Handler = FNF_ApplyFallbackBuild::CreateWeakLambda(
+		FirstOwner, [&CallCount](ANF_PlayerState* Target)
+		{
+			++CallCount;
+			Target->GetAbilitySystemComponent()->AddLooseGameplayTag(NFTag_Build::State_Build_Ready);
+			return true;
+		});
+	TestFalse(TEXT("비어 있는 콜백은 등록하지 않는다"), GameMode->RegisterFallbackBuildHandler(FNF_ApplyFallbackBuild()));
+	TestTrue(TEXT("Core 공개 API에 콜백 등록"), GameMode->RegisterFallbackBuildHandler(Handler));
+	TestFalse(TEXT("기존 등록을 덮어쓰지 않는다"), GameMode->RegisterFallbackBuildHandler(Handler));
+	GameMode->UnregisterFallbackBuildHandler(OtherOwner);
+	// 테스트에서만 Core 실행부를 호출하여 공개 API가 실제 요청 경로에 연결됐는지 확인한다.
+	UNF_BuildReadyComponent* Ready = GameMode->GetBuildReadyComponent();
+	Ready->RegisterPlayer(PlayerState);
+	TestTrue(TEXT("다른 객체의 해제 요청 뒤에도 Core가 등록된 콜백을 실행한다"), Ready->ResolveUnreadyPlayers(1));
+	TestEqual(TEXT("요청은 한 번 실행된다"), CallCount, 1);
+	GameMode->UnregisterFallbackBuildHandler(FirstOwner);
+	TestTrue(TEXT("등록 소유자가 해제하면 재등록할 수 있다"), GameMode->RegisterFallbackBuildHandler(Handler));
+	GameMode->UnregisterFallbackBuildHandler(FirstOwner);
 	return true;
 }
 
