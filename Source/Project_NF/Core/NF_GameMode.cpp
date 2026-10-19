@@ -40,6 +40,10 @@ void ANF_GameMode::BeginPlay()
 	if (!NFGameState)return;
 
 	NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Waiting);
+	
+	BuildReadyComponent->OnBuildResolveSucceeded.AddUObject(this,&ThisClass::HandleBuildResolveSucceeded);
+
+	BuildReadyComponent->OnBuildResolveFailed.AddUObject(this,&ThisClass::HandleBuildResolveFailed);
 }
 
 void ANF_GameMode::PostLogin(APlayerController* NewPlayer)
@@ -91,6 +95,11 @@ void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 
 	RequestMatchAbort.Unbind();
+	
+	BuildReadyComponent->CancelResolve();
+
+	BuildReadyComponent->OnBuildResolveSucceeded.RemoveAll(this);
+	BuildReadyComponent->OnBuildResolveFailed.RemoveAll(this);
 	
 	Super::EndPlay(EndPlayReason);
 }
@@ -185,26 +194,16 @@ void ANF_GameMode::HandleBuildPhaseExpired()
 	const ANF_GameState* NFGameState = GetNFGameState();
 
 	if (!IsValid(NFGameState)) return;
+	if ( bMatchAborting) return;
 	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Build) return;
 	
-	CurrentPlayerCount = GetNumPlayers();
-	if (CurrentPlayerCount <= 0)
+	if (!IsValid(BuildReadyComponent))
 	{
-		UE_LOG(LogTemp,Warning,TEXT("접속 플레이어가 없어 Farming 전환을 중단합니다."));
-
-		// 전원 이탈 시 매치 종료/서버 정리 정책을 연결할 위치.
-		return;
-	}
-	
-	if (!BuildReadyComponent->ResolveUnreadyPlayers(CurrentPlayerCount))
-	{
-		UE_LOG(LogTemp,Error,TEXT("출격 조건 미충족: Farming 전환 보류"));
-
-		// 매치 실패/복구 정책을 연결할 위치.
+		AbortMatch(TEXT("빌드 준비 컴포넌트가 없습니다."));
 		return;
 	}
 
-	EnterFarming();
+	BuildReadyComponent->BeginResolve();
 }
 
 void ANF_GameMode::EnterFarming()
@@ -284,37 +283,71 @@ void ANF_GameMode::EnterFinished()
 	
 	NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Finished);
 	
+	BuildReadyComponent->CancelResolve();
 	// 승리 팀 기록, 결과 UI용 데이터 복제, 매치 정리 등
 }
 
 void ANF_GameMode::AbortMatchDueToDepartures()
 {
+	AbortMatch(TEXT("참가자 이탈 한도에 도달하여 매치가 중단되었습니다."));
+}
+
+void ANF_GameMode::HandleBuildResolveSucceeded()
+{
+	const ANF_GameState* NFGameState = GetNFGameState();
+
+	if (!IsValid(NFGameState) || bMatchAborting) return;
+
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Build) return;
+	
+	EnterFarming();
+}
+
+void ANF_GameMode::HandleBuildResolveFailed(const FString& Reason)
+{
+	const ANF_GameState* NFGameState = GetNFGameState();
+
+	if (!IsValid(NFGameState) || bMatchAborting) return;
+	
+
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Build) return;
+
+	AbortMatch(Reason);
+}
+
+void ANF_GameMode::AbortMatch(const FString& Reason)
+{
 	if (bMatchAborting) return;
 	
 	bMatchAborting = true;
 
-	MatchDepartureComponent->StopTracking();
-
 	GetWorldTimerManager().ClearTimer(PhaseTimerHandle);
+
+	if (IsValid(BuildReadyComponent))
+	{
+		BuildReadyComponent->CancelResolve();
+	}
+
+	if (IsValid(MatchDepartureComponent))
+	{
+		MatchDepartureComponent->StopTracking();
+	}
 
 	if (ANF_GameState* NFGameState = GetNFGameState())
 	{
 		NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Finished);
 	}
 
-	// 정상 승리 종료인 EnterFinished()는 호출하지 않는다.
-	const FString Reason = TEXT("참가자 이탈 한도에 도달하여 매치가 중단되었습니다.");
+	UE_LOG(LogTemp, Error, TEXT("%s"), *Reason);
 
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *Reason);
-
-	if (!RequestMatchAbort.IsBound())
+	if (RequestMatchAbort.IsBound())
+	{
+		RequestMatchAbort.Execute(Reason);
+	}
+	else
 	{
 		UE_LOG(LogTemp,Error,TEXT("매치 복귀 처리 실패: RequestMatchAbort 미바인딩"));
-
-		return;
 	}
-
-	RequestMatchAbort.Execute(Reason);
 }
 
 

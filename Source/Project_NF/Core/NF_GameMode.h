@@ -66,6 +66,11 @@ private:
 	void EnterFinished();
 	
 	void AbortMatchDueToDepartures();
+	
+	void HandleBuildResolveSucceeded();
+	void HandleBuildResolveFailed(const FString& Reason);
+	// 이탈 실패와 빌드 실패가 공유하는 매치 중단 처리
+	void AbortMatch(const FString& Reason);
 #pragma region component
 	private:
 	UPROPERTY(VisibleAnywhere, Category = "NF|Match|Build")
