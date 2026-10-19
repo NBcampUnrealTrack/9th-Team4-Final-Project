@@ -4,6 +4,9 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
+#include "GamePlay/Combat/Armor/NF_ArmorBase.h"
+#include "Components/SkeletalMeshComponent.h"
 
 ANF_WeaponProjectile::ANF_WeaponProjectile()
 {
@@ -15,6 +18,7 @@ ANF_WeaponProjectile::ANF_WeaponProjectile()
 	SetRootComponent(SphereComponent);
 
 	SphereComponent->InitSphereRadius(5.f);
+	SphereComponent->SetCollisionObjectType(NF_WeaponProjectileChannel);
 	SphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
 	SphereComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
@@ -54,6 +58,12 @@ void ANF_WeaponProjectile::BeginPlay()
 		return;
 	}
 
+	// Enforce the dedicated channel even on existing projectile Blueprint defaults.
+	SphereComponent->SetCollisionObjectType(NF_WeaponProjectileChannel);
+	SphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	SphereComponent->SetCollisionResponseToAllChannels(ECR_Block);
+	SphereComponent->SetCollisionResponseToChannel(NF_WeaponProjectileChannel, ECR_Ignore);
+
 	if (IsValid(GetOwner()))
 	{
 		SphereComponent->IgnoreActorWhenMoving(GetOwner(), true);
@@ -89,20 +99,24 @@ void ANF_WeaponProjectile::IgnoreProjectile(ANF_WeaponProjectile* OtherProjectil
 void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if (HasAuthority() == false)
+	if (HasAuthority() == false || bHitProcessed)
 		return;
 	
 	// 투사체가 발사한 캐릭터, 총과 Hit 한 경우 무시
-	if (IsValid(OtherActor) == false || OtherActor == this || OtherActor == GetOwner())
+	if (IsValid(OtherActor) == false || OtherActor == this || OtherActor == GetOwner() || OtherActor == GetInstigator())
 		return;
-		
-	const FString HitMessage = FString::Printf(
-		TEXT("[Projectile Debug] %s hit %s (Component: %s)"),
-		*GetNameSafe(this),
-		*GetNameSafe(OtherActor),
-		*GetNameSafe(OtherComponent));
-
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *HitMessage);
+	bHitProcessed = true;
+	const UNF_ArmorComponent* ArmorComponent = OtherActor->FindComponentByClass<UNF_ArmorComponent>();
+	const USkeletalMeshComponent* HitMesh = Cast<USkeletalMeshComponent>(OtherComponent);
+	// A capsule hit or a different visual/auxiliary mesh must never become a body-part hit.
+	const bool bValidBodyHit = ArmorComponent && HitMesh && HitMesh == ArmorComponent->GetHitMesh() && HitMesh->GetPhysicsAsset();
+	const FName BoneName = bValidBodyHit ? Hit.BoneName : NAME_None;
+	const ENF_ArmorSlot Slot = ArmorComponent ? ArmorComponent->ResolveHitRegion(BoneName) : ENF_ArmorSlot::Unknown;
+	const ANF_ArmorBase* Armor = ArmorComponent ? ArmorComponent->GetEquippedArmor(Slot) : nullptr;
+	const float Defense = ArmorComponent ? ArmorComponent->GetAdditionalDefenseForSlot(Slot) : 0.f;
+	UE_LOG(LogTemp, Warning, TEXT("[WeaponHit] Target=%s Component=%s Bone=%s Region=%s Armor=%s AdditionalDefense=%.2f"),
+		*GetNameSafe(OtherActor), *GetNameSafe(OtherComponent), *BoneName.ToString(),
+		*StaticEnum<ENF_ArmorSlot>()->GetNameStringByValue(static_cast<int64>(Slot)), *GetNameSafe(Armor), Defense);
 	
 	Destroy();
 }

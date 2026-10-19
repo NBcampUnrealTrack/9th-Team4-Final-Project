@@ -14,6 +14,11 @@ public:
 	ANF_ArmorBase();
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void PostInitializeComponents() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/** Server only. Tier changes must retain the initially configured part. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Armor")
+	bool SetArmorData(class UNF_ArmorDataAsset* NewData);
 
 	UFUNCTION(BlueprintPure, Category="Armor")
 	const class UNF_ArmorDataAsset* GetArmorData() const { return ArmorData; }
@@ -28,12 +33,18 @@ public:
 	class UStaticMeshComponent* GetArmorMesh() const { return ArmorMesh; }
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, ReplicatedUsing=OnRep_ArmorData, Category="Armor")
 	TObjectPtr<class UNF_ArmorDataAsset> ArmorData;
+
+	/** Logical armor is invisible by default, even when the data asset contains a mesh. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
+	bool bShowArmorAppearance = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Armor")
 	TObjectPtr<class UStaticMeshComponent> ArmorMesh;
 
 private:
+	UFUNCTION()
+	void OnRep_ArmorData();
 	void ApplyArmorAppearance();
 };

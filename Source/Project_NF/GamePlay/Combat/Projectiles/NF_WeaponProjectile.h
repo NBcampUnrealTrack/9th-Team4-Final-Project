@@ -34,4 +34,7 @@ protected:
 		UPrimitiveComponent* OtherComponent,
 		FVector NormalImpulse,
 		const FHitResult& Hit);
+
+private:
+	bool bHitProcessed = false;
 };
