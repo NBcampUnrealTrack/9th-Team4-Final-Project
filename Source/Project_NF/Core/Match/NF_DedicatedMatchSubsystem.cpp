@@ -19,7 +19,7 @@ namespace
 	constexpr int32 ExpectedTeamCount = 4;
 	constexpr int32 PlayersPerTeam = 2;
 	constexpr float ServerExitDelaySeconds = 3.0f;
-	const FName MatchSessionName = NAME_GameSession;
+	const FName DedicatedMatchSessionName = NAME_GameSession;
 }
 
 void UNF_DedicatedMatchSubsystem::Deinitialize()
@@ -306,11 +306,11 @@ void UNF_DedicatedMatchSubsystem::HandleMatchAbort(const FString& Reason)
 	{
 		SessionInterface = OSS->GetSessionInterface();
 	}
-	if (SessionInterface.IsValid() && SessionInterface->GetNamedSession(MatchSessionName))
+	if (SessionInterface.IsValid() && SessionInterface->GetNamedSession(DedicatedMatchSessionName))
 	{
 		DestroySessionCompleteHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
 			FOnDestroySessionCompleteDelegate::CreateUObject(this, &ThisClass::HandleSessionDestroyed));
-		if (SessionInterface->DestroySession(MatchSessionName))
+		if (SessionInterface->DestroySession(DedicatedMatchSessionName))
 		{
 			return;
 		}
