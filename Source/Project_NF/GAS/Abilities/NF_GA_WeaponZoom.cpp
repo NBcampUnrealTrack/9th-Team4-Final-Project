@@ -15,7 +15,7 @@ void UNF_GA_WeaponZoom::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	WeaponComponent = Cast<UNF_WeaponComponent>(GetCurrentSourceObject());
-	if (!WeaponComponent.IsValid() || !IsValid(WeaponComponent->GetEquippedWeapon()) ||
+	if (!WeaponComponent.IsValid() || !WeaponComponent->CanZoom() ||
 		!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
