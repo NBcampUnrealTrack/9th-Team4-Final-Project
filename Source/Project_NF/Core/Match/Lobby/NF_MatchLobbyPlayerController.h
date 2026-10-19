@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Core/Match/NF_MatchRules.h"
 #include "NF_MatchLobbyPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -36,6 +37,19 @@ protected:
 	bool bForceTouchControls = false;
 
 	virtual void BeginPlay() override;
+	virtual void PostNetInit() override;
 	virtual void SetupInputComponent() override;
 	bool ShouldUseTouchControls() const;
+
+public:
+	/** Submit the lobby's finalized roster after this controller reaches the allocated match server. */
+	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Server")
+	bool SubmitPendingMatchTeamsToServer();
+
+	UFUNCTION(Client, Reliable)
+	void ClientHandleMatchAborted(const FString& Reason);
+
+protected:
+	UFUNCTION(Server, Reliable)
+	void ServerSubmitMatchTeams(const FString& ClaimedPlayerId, const TArray<FNFMatchTeamAssignment>& Teams);
 };

@@ -46,11 +46,27 @@ void UNFGA_BossCenterBlast::Detonate()
 	const FVector Center = Boss->GetActorLocation();
 	if (UAbilitySystemComponent* BossASC = Boss->GetAbilitySystemComponent())
 	{
-		FGameplayCueParameters CueParameters;
-		CueParameters.Location = Center;
-		CueParameters.RawMagnitude = BlastRadius;
-		CueParameters.EffectCauser = Boss;
-		BossASC->ExecuteGameplayCue(NFGameplayCueTags::GameplayCue_Boss_CenterBlast_Impact, CueParameters);
+		UWorld* World = Boss->GetWorld();
+		FHitResult GroundHit;
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(NFBossCenterBlastGround), false, Boss);
+		const FVector TraceStart = Center + FVector::UpVector * 100.0f;
+		const FVector TraceEnd = Center - FVector::UpVector * 5000.0f;
+		const bool bFoundGround = World && World->LineTraceSingleByChannel(
+			GroundHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
+
+		if (bFoundGround)
+		{
+			FGameplayCueParameters CueParameters;
+			CueParameters.Location = GroundHit.ImpactPoint;
+			CueParameters.RawMagnitude = BlastRadius;
+			CueParameters.EffectCauser = Boss;
+			BossASC->ExecuteGameplayCue(NFGameplayCueTags::GameplayCue_Boss_CenterBlast_Impact, CueParameters);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BossCenterBlast] Ground trace failed; impact cue was not executed. Boss=%s Center=%s"),
+				*GetNameSafe(Boss), *Center.ToString());
+		}
 	}
 
 	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag, Damage);

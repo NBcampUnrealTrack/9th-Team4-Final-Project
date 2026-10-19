@@ -41,7 +41,6 @@ class UNF_MatchmakingSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
@@ -89,6 +88,12 @@ public:
 	/** Receives a future dedicated-server allocation result. This stores the address as a handoff hook; travel is not performed yet. */
 	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Server")
 	bool HandleDedicatedServerReady(const FString& ConnectAddress);
+
+	/** Roster cached on this client from the Steam lobby's team assignment. */
+	bool GetPendingMatchTeams(TArray<FNFMatchTeamAssignment>& OutTeams) const;
+	FString GetLocalMatchPlayerId() const;
+	bool HasDedicatedServerAllocation() const { return !PendingDedicatedServerAddress.IsEmpty(); }
+	void HandleDedicatedMatchAborted(const FString& Reason);
 
 	UFUNCTION(BlueprintPure, Category = "Matchmaking")
 	ENFMatchState GetMatchState() const { return MatchState; }
@@ -139,6 +144,7 @@ private:
 	void CancelWholeQueuedParty(const FString& PlayerId);
 	FString MakeLocalPlayerId() const;
 	void PublishCurrentLobbyMemberData(FName SessionName, const FString& QueueStartUtc = FString());
+	void PublishMatchTeamsAssigned(const TArray<FNFMatchTeamAssignment>& Teams);
 
 	TMap<FString, FPartyRecord> Parties;
 	TMap<FString, FString> PlayerToParty;
@@ -170,6 +176,7 @@ private:
 	FString PendingPartyId;
 	FString PendingPartyLeaderId;
 	FString PendingDedicatedServerAddress;
+	TArray<FNFMatchTeamAssignment> PendingMatchTeams;
 	FString MatchQueueStartUtc;
 	TMap<FString, FString> MatchMemberPartyIds;
 	TSet<FString> PreviousMatchMembers;
