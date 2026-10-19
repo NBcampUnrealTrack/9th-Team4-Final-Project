@@ -19,7 +19,7 @@ protected:
 	virtual void BeginPlay() override;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Projectile")
-	TObjectPtr<class USphereComponent> SphereComponent;
+	TObjectPtr<class UCapsuleComponent> CapsuleComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Projectile")
 	TObjectPtr<class UStaticMeshComponent> StaticMeshComponent;

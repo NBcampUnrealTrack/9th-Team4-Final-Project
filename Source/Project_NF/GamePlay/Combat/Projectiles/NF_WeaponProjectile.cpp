@@ -1,6 +1,6 @@
 #include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
 
-#include "Components/SphereComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -14,29 +14,29 @@ ANF_WeaponProjectile::ANF_WeaponProjectile()
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComponent"));
-	SetRootComponent(SphereComponent);
+	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComponent"));
+	SetRootComponent(CapsuleComponent);
 
-	SphereComponent->InitSphereRadius(5.f);
-	SphereComponent->SetCollisionObjectType(NF_WeaponProjectileChannel);
-	SphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	CapsuleComponent->InitCapsuleSize(5.f, 10.f);
+	CapsuleComponent->SetCollisionObjectType(NF_WeaponProjectileChannel);
+	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 
-	SphereComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	SphereComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
-	SphereComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
-	SphereComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+	CapsuleComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	CapsuleComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	CapsuleComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+	CapsuleComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 
-	SphereComponent->SetNotifyRigidBodyCollision(true);
-	SphereComponent->OnComponentHit.AddDynamic(this, &ANF_WeaponProjectile::OnProjectileHit);
+	CapsuleComponent->SetNotifyRigidBodyCollision(true);
+	CapsuleComponent->OnComponentHit.AddDynamic(this, &ANF_WeaponProjectile::OnProjectileHit);
 
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMeshComponent"));
-	StaticMeshComponent->SetupAttachment(SphereComponent);
+	StaticMeshComponent->SetupAttachment(CapsuleComponent);
 	StaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	ProjectileMovementComponent = 
 		CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovementComponent"));
 
-	ProjectileMovementComponent->UpdatedComponent = SphereComponent;
+	ProjectileMovementComponent->UpdatedComponent = CapsuleComponent;
 	ProjectileMovementComponent->InitialSpeed = 5000.f;
 	ProjectileMovementComponent->MaxSpeed = 5000.f;
 	ProjectileMovementComponent->ProjectileGravityScale = 0.f;
@@ -52,26 +52,26 @@ void ANF_WeaponProjectile::BeginPlay()
 	// Only the server simulates hits; clients display replicated movement.
 	if (!HasAuthority())
 	{
-		SphereComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		ProjectileMovementComponent->Deactivate();
 		SetLifeSpan(0.f);
 		return;
 	}
 
 	// Enforce the dedicated channel even on existing projectile Blueprint defaults.
-	SphereComponent->SetCollisionObjectType(NF_WeaponProjectileChannel);
-	SphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	SphereComponent->SetCollisionResponseToAllChannels(ECR_Block);
-	SphereComponent->SetCollisionResponseToChannel(NF_WeaponProjectileChannel, ECR_Ignore);
+	CapsuleComponent->SetCollisionObjectType(NF_WeaponProjectileChannel);
+	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	CapsuleComponent->SetCollisionResponseToAllChannels(ECR_Block);
+	CapsuleComponent->SetCollisionResponseToChannel(NF_WeaponProjectileChannel, ECR_Ignore);
 
 	if (IsValid(GetOwner()))
 	{
-		SphereComponent->IgnoreActorWhenMoving(GetOwner(), true);
+		CapsuleComponent->IgnoreActorWhenMoving(GetOwner(), true);
 	}
 
 	if (IsValid(GetInstigator()))
 	{
-		SphereComponent->IgnoreActorWhenMoving(GetInstigator(), true);
+		CapsuleComponent->IgnoreActorWhenMoving(GetInstigator(), true);
 	}
 }
 
@@ -92,7 +92,7 @@ void ANF_WeaponProjectile::IgnoreProjectile(ANF_WeaponProjectile* OtherProjectil
 {
 	if (IsValid(OtherProjectile) && OtherProjectile != this)
 	{
-		SphereComponent->IgnoreActorWhenMoving(OtherProjectile, true);
+		CapsuleComponent->IgnoreActorWhenMoving(OtherProjectile, true);
 	}
 }
 
