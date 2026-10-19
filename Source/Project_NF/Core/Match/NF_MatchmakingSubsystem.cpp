@@ -121,11 +121,6 @@ namespace
 	}
 }
 
-bool UNF_MatchmakingSubsystem::ShouldCreateSubsystem(UObject* /*Outer*/) const
-{
-	return false;
-}
-
 void UNF_MatchmakingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -355,6 +350,7 @@ bool UNF_MatchmakingSubsystem::StartMatchmakingInQueue(const FString& PlayerId, 
 	}
 	LocalPartyId = Entry.PartyId;
 	bTeamsAssigned = false;
+	PendingMatchTeams.Reset();
 	bMatchLobbyAdmissionClosed = false;
 	PendingDedicatedServerAddress.Reset();
 
@@ -435,6 +431,8 @@ void UNF_MatchmakingSubsystem::CancelMatchmaking(const FString& PlayerId)
 	SetMatchState(ENFMatchState::Canceled);
 	bIsLobbyLeader = false;
 	bTeamsAssigned = false;
+	PendingMatchTeams.Reset();
+	PendingDedicatedServerAddress.Reset();
 	LobbyOwnerId.Reset();
 }
 
@@ -494,6 +492,33 @@ bool UNF_MatchmakingSubsystem::HandleDedicatedServerReady(const FString& Connect
 	PendingDedicatedServerAddress = ConnectAddress;
 	UE_LOG(LogProject_NF, Display, TEXT("Dedicated server address stored for match handoff. Player travel is not implemented yet: %s"), *PendingDedicatedServerAddress);
 	return true;
+}
+
+bool UNF_MatchmakingSubsystem::GetPendingMatchTeams(TArray<FNFMatchTeamAssignment>& OutTeams) const
+{
+	OutTeams = PendingMatchTeams;
+	return bTeamsAssigned && !PendingMatchTeams.IsEmpty();
+}
+
+FString UNF_MatchmakingSubsystem::GetLocalMatchPlayerId() const
+{
+	return MakeLocalPlayerId();
+}
+
+void UNF_MatchmakingSubsystem::HandleDedicatedMatchAborted(const FString& Reason)
+{
+	PendingMatchTeams.Reset();
+	PendingDedicatedServerAddress.Reset();
+	bTeamsAssigned = false;
+	CancelMatchmaking(MakeLocalPlayerId());
+	OnMatchmakingFailed.Broadcast(Reason);
+}
+
+void UNF_MatchmakingSubsystem::PublishMatchTeamsAssigned(const TArray<FNFMatchTeamAssignment>& Teams)
+{
+	PendingMatchTeams = Teams;
+	bTeamsAssigned = !PendingMatchTeams.IsEmpty();
+	OnMatchTeamsAssigned.Broadcast(PendingMatchTeams);
 }
 
 int32 UNF_MatchmakingSubsystem::GetQueueElapsedSeconds() const
@@ -1289,7 +1314,7 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 				CancelMatchmaking(MakeLocalPlayerId());
 				return;
 			}
-			OnMatchTeamsAssigned.Broadcast(Teams);
+			PublishMatchTeamsAssigned(Teams);
 		}
 		if (bIsLobbyLeader)
 		{
@@ -1310,7 +1335,7 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 				return;
 			}
 			bTeamsAssigned = true;
-			OnMatchTeamsAssigned.Broadcast(PublishedTeams);
+			PublishMatchTeamsAssigned(PublishedTeams);
 			if (UWorld* World = GetWorld())
 			{
 				World->GetTimerManager().ClearTimer(QueueTimeoutTimerHandle);
@@ -1329,7 +1354,7 @@ void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 		if (DeserializeTeams(GetSteamLobbyData(GetSteamLobbyId(SessionInterface, MatchSessionName), LobbyMatchTeamsKey), ActiveQueueDefinition, PublishedTeams))
 		{
 			bTeamsAssigned = true;
-			OnMatchTeamsAssigned.Broadcast(PublishedTeams);
+			PublishMatchTeamsAssigned(PublishedTeams);
 		}
 	}
 }
