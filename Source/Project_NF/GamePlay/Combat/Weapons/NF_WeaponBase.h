@@ -15,6 +15,7 @@ public:
 	virtual void OnConstruction(const FTransform& Transform) override;	// 에디터에서 적용
 	virtual void PostInitializeComponents() override;					// 게임 실행 시 적용
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	UFUNCTION(BlueprintCallable, Category="Weapon")
@@ -29,6 +30,12 @@ public:
 	/** Cancel without refilling ammo or resetting the fire interval. Safe to call repeatedly. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
 	void CancelReload();
+
+	UFUNCTION(BlueprintPure, Category="Weapon")
+	bool CanReload() const;
+
+	UFUNCTION(BlueprintPure, Category="Weapon")
+	bool IsReloading() const { return bIsReloading; }
 	
 	bool FireProjectile();
 	bool CanFire() const;
@@ -72,8 +79,8 @@ protected:
 	bool bIsReloading = false;
 
 private:
+	friend class UNFGA_WeaponReload;
 	void ApplyWeaponAppearance();
 
 	double LastFireTime = -1.e30;
-	FTimerHandle ReloadTimerHandle;
 };

@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "GAS/Abilities/NFGA_WeaponFire.h"
 #include "GAS/Abilities/NFGA_WeaponZoom.h"
+#include "GAS/Abilities/NFGA_WeaponReload.h"
 #include "Camera/CameraComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Blueprint/UserWidget.h"
@@ -23,6 +24,7 @@ UNF_WeaponComponent::UNF_WeaponComponent()
 	SetIsReplicatedByDefault(true);
 	FireAbilityClass = UNFGA_WeaponFire::StaticClass();
 	ZoomAbilityClass = UNFGA_WeaponZoom::StaticClass();
+	ReloadAbilityClass = UNFGA_WeaponReload::StaticClass();
 }
 
 void UNF_WeaponComponent::BeginPlay()
@@ -111,6 +113,7 @@ ANF_WeaponBase* UNF_WeaponComponent::UnequipWeapon()
 
 ANF_WeaponBase* UNF_WeaponComponent::UnequipWeaponInternal()
 {
+	CancelReload();
 	StopFire();
 	StopZoom();
 	RestoreZoomCamera();
@@ -257,15 +260,39 @@ void UNF_WeaponComponent::Reload()
 		return;
 	}
 
-	if (bChangingWeapon) return;
-	
-	StopFire();
-	StopZoom();
-	
-	if (IsValid(EquippedWeapon))
+	if (bChangingWeapon || IsValid(EquippedWeapon) == false)
+		return;
+
+	if (EnsureReloadAbility())
 	{
-		EquippedWeapon->Reload();
+		ReloadASC->TryActivateAbility(ReloadAbilityHandle);
 	}
+}
+
+void UNF_WeaponComponent::CancelReload()
+{
+	if (GetOwner()->HasAuthority() == false)
+		return;
+	
+	if (ReloadASC.IsValid() && ReloadAbilityHandle.IsValid())
+		ReloadASC->CancelAbilityHandle(ReloadAbilityHandle);
+}
+
+bool UNF_WeaponComponent::EnsureReloadAbility()
+{
+	if (ReloadASC.IsValid() && ReloadASC->GetAvatarActor() == GetOwner() &&
+		ReloadASC->FindAbilitySpecFromHandle(ReloadAbilityHandle)) return true;
+
+	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || ReloadAbilityClass == nullptr)
+		return false;
+
+	if (ReloadASC.IsValid() && ReloadAbilityHandle.IsValid())
+		ReloadASC->ClearAbility(ReloadAbilityHandle);
+	
+	ReloadASC = ASC;
+	ReloadAbilityHandle = ASC->GiveAbility(FGameplayAbilitySpec(ReloadAbilityClass, 1, INDEX_NONE, this));
+	return ReloadAbilityHandle.IsValid();
 }
 
 bool UNF_WeaponComponent::EnsureFireAbility()
@@ -277,8 +304,6 @@ bool UNF_WeaponComponent::EnsureFireAbility()
 	
 	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || FireAbilityClass == nullptr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("WeaponFire: %s needs an initialized ASC (NF_Player / NF_PlayerState)."),
-			*GetNameSafe(GetOwner()));
 		return false;
 	}
 	
@@ -561,6 +586,8 @@ void UNF_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	if (GetOwner()->HasAuthority())
 	{
+		CancelReload();
+		if (ReloadASC.IsValid() && ReloadAbilityHandle.IsValid()) ReloadASC->ClearAbility(ReloadAbilityHandle);
 		StopZoom();
 		if (ZoomASC.IsValid() && ZoomAbilityHandle.IsValid()) ZoomASC->ClearAbility(ZoomAbilityHandle);
 	}

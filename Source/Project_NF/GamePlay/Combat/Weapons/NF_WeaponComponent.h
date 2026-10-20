@@ -9,6 +9,7 @@ class ANF_WeaponBase;
 class UAbilitySystemComponent;
 class UNFGA_WeaponFire;
 class UNFGA_WeaponZoom;
+class UNFGA_WeaponReload;
 class UCameraComponent;
 class UUserWidget;
 class APawn;
@@ -60,6 +61,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Reload();
 
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
+	void CancelReload();
+
 	/** Server only. Replaces the current weapon without destroying it; save it before calling if needed. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
 	bool EquipWeapon(ANF_WeaponBase* NewWeapon);
@@ -87,6 +91,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
 	TSubclassOf<UNFGA_WeaponZoom> ZoomAbilityClass;
+
+	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
+	TSubclassOf<UNFGA_WeaponReload> ReloadAbilityClass;
 
 private:
 	friend class UNFGA_WeaponZoom;
@@ -142,6 +149,9 @@ private:
 	bool bFireInputHeld = false;
 	TWeakObjectPtr<UAbilitySystemComponent> FireASC;
 	FGameplayAbilitySpecHandle FireAbilityHandle;
+	bool EnsureReloadAbility();
+	TWeakObjectPtr<UAbilitySystemComponent> ReloadASC;
+	FGameplayAbilitySpecHandle ReloadAbilityHandle;
 
 	UFUNCTION(Server, Reliable)
 	void ServerStartFire();
