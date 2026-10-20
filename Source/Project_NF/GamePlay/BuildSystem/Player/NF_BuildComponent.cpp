@@ -344,7 +344,11 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 		? ENF_BuildShopUIState::BuildOpened
 		: ENF_BuildShopUIState::BuildClosed;
 
+	OnBuildShopStateChanged.Broadcast(SessionState);
+
 	NF_BROADCAST_TO_PLAYER_DELEGATE_OneParam(OnInteractBuildShop, SessionState);
+	
+	
 }
 
 void UNF_BuildComponent::OnRep_BuildConfiguration()

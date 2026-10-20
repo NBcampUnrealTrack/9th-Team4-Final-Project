@@ -33,10 +33,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildChanged);
 // @Owner: 황준현 | 2026-10-20. 개인별 코스트 상한과 사용 가능 목록 변경 알림.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildEntitlementsChanged);
 
+// @Owner: 황준현 | 2026-10-20
+// 해당 BuildComponent 소유 플레이어의 상점 사용 상태를 전달한다.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildShopStateChanged, ENF_BuildShopUIState, SessionState);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildRequestCompleted, const FNF_BuildValidation&, Validation);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopRangeChanged, ANF_BuildShopZone*, Shop,
-	ENF_BuildShopRangeState, RangeState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopRangeChanged, ANF_BuildShopZone*, Shop, ENF_BuildShopRangeState, RangeState);
 
 
 
@@ -52,6 +55,9 @@ public:
 	// @Owner: 황준현 | 2026-10-20. 권한 있는 진행·획득 시스템에서 호출한다.
 	// 클라이언트 RPC로 제공하지 않는다.
 	bool UpdateBuildEntitlements(int32 NewCostLimit, const TArray<FName>& NewUnlockedItemIds);
+	
+	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
+	FNF_OnBuildShopStateChanged OnBuildShopStateChanged;
 
 	/** @Owner: 황준현 | 2026-10-19. Core 연동 객체에서만 호출하는 서버 기본 적용 경로. RPC가 아니다. */
 	bool ApplyFallbackBuildForMatchStart();
