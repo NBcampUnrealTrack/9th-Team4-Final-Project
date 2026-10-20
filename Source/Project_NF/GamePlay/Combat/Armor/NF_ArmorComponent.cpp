@@ -10,21 +10,6 @@ UNF_ArmorComponent::UNF_ArmorComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
-	// for (const TCHAR* Bone : { TEXT("head"), TEXT("neck_01"), TEXT("neck_02") })
-	// 	BoneToSlot.Add(FName(Bone), ENF_ArmorSlot::Head);
-	// for (const TCHAR* Bone : { TEXT("spine_01"), TEXT("spine_02"), TEXT("spine_03"), TEXT("spine_04"), TEXT("spine_05") })
-	// 	BoneToSlot.Add(FName(Bone), ENF_ArmorSlot::Upper);
-	// BoneToSlot.Add(TEXT("pelvis"), ENF_ArmorSlot::Bottom);
-	// for (const TCHAR* Side : { TEXT("l"), TEXT("r") })
-	// {
-	// 	for (const TCHAR* Bone : { TEXT("clavicle"), TEXT("upperarm"), TEXT("lowerarm"), TEXT("hand"), TEXT("upperarm_twist_01"), TEXT("lowerarm_twist_01") })
-	// 		BoneToSlot.Add(FName(*FString::Printf(TEXT("%s_%s"), Bone, Side)), ENF_ArmorSlot::Upper);
-	// 	for (const TCHAR* Finger : { TEXT("thumb"), TEXT("index"), TEXT("middle"), TEXT("ring"), TEXT("pinky") })
-	// 		for (int32 Joint = 1; Joint <= 3; ++Joint)
-	// 			BoneToSlot.Add(FName(*FString::Printf(TEXT("%s_%02d_%s"), Finger, Joint, Side)), ENF_ArmorSlot::Upper);
-	// 	for (const TCHAR* Bone : { TEXT("thigh"), TEXT("calf"), TEXT("foot"), TEXT("ball"), TEXT("thigh_twist_01"), TEXT("calf_twist_01") })
-	// 		BoneToSlot.Add(FName(*FString::Printf(TEXT("%s_%s"), Bone, Side)), ENF_ArmorSlot::Bottom);
-	// }
 }
 
 void UNF_ArmorComponent::BeginPlay()

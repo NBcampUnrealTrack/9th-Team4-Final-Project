@@ -39,6 +39,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF|Boss|AI")
 	bool ActivateNextCombatPattern();
 
+	/** Wakes the boss on the server. The StateTree then advances from Dormant to its first combat pattern. */
+	UFUNCTION(BlueprintCallable, Category = "NF|Boss|AI")
+	bool WakeBoss();
+
+	UFUNCTION(BlueprintPure, Category = "NF|Boss|AI")
+	bool IsAwake() const { return bIsAwake; }
+
 	UFUNCTION(BlueprintPure, Category = "NF|Boss|AI")
 	bool IsCombatPatternActive() const;
 	bool ActivateAbilityClass(TSubclassOf<UGameplayAbility> AbilityClass, bool bAllowWhenDefeated = false);
@@ -114,7 +121,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
 	TSubclassOf<UGameplayAbility> InitialPatternAbility;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities", meta = (DisplayName = "Activate Initial Pattern When Woken"))
 	bool bActivateInitialPatternOnBeginPlay = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph")
@@ -147,6 +154,10 @@ protected:
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "NF|Boss|State")
 	bool bIsFlying = false;
+
+	/** Server-side encounter gate. Combat starts only after WakeBoss is called. */
+	UPROPERTY(Transient)
+	bool bIsAwake = false;
 
 private:
 	UFUNCTION()

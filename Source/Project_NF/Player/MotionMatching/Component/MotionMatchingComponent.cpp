@@ -105,12 +105,19 @@ void UMotionMatchingComponent::BeginPlay()
 	}
 }
 
+void UMotionMatchingComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	SetTraversalOwnedTagsApplied(false);
+	Super::EndPlay(EndPlayReason);
+}
+
 
 // [추가] 매 틱: 회전/속도 값을 갱신한 뒤 CharacterMovement가 이동 계산
 void UMotionMatchingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
+	
+	CheckTraversalMontageLost(); // [추가] 이동 계산 전에 고착 상태부터 풀기
 	UpdateRotation_PreCMC();
 	UpdateMovement_PreCMC();
 }
@@ -464,6 +471,18 @@ void UMotionMatchingComponent::UpdateCharacterInputState(const FMotionMatchingIn
 	MotionMatchingMovement->SetMovementInputState(CharacterInputState);
 }
 
+
+void UMotionMatchingComponent::CheckTraversalMontageLost()
+{
+	if (bIsDoingTraversalAction == false) return;
+
+	UAnimInstance* AnimInstance = GetOwnerAnimInstance();
+	if (IsValid(AnimInstance) == false) return;
+
+	if (AnimInstance->GetInstanceForMontage(TraversalResult.ChosenMontage) != nullptr) return;
+
+	FinishTraversalAction();
+}
 
 // [변경] PC 전용: 스틱 기울기 무관하게 항상 길이 1로 맞춘다
 void UMotionMatchingComponent::ApplyMoveInput(const FVector2D& InputValue)
@@ -950,6 +969,7 @@ void UMotionMatchingComponent::PerformTraversalAction()
 	}
 
 	bIsDoingTraversalAction = true;
+	SetTraversalOwnedTagsApplied(true); // [추가] v0.0.7     ← 추가
 	CapsuleComponent->IgnoreComponentWhenMoving(TraversalResult.HitComponent, true);
 	CharacterMovementComponent->SetMovementMode(MOVE_Flying);
 	OnTraversalStarted.Broadcast(TraversalResult.ActionType); // [추가] A-6
@@ -1071,6 +1091,7 @@ void UMotionMatchingComponent::FinishTraversalAction()
 	if (IsValid(CapsuleComponent) == false) return;
 
 	bIsDoingTraversalAction = false;
+	SetTraversalOwnedTagsApplied(false); // [추가] v0.0.7    ← 추가
 	CapsuleComponent->IgnoreComponentWhenMoving(TraversalResult.HitComponent, false);
 
 	// Vault는 넘어간 뒤 떨어지므로 Falling, 나머지는 Walking
@@ -1146,6 +1167,102 @@ bool UMotionMatchingComponent::SetInteractionTransformOnAnimInstance(UAnimInstan
 	MotionMatchingAnimInstance->SetTraversalInteractionTransform(InteractionTransform);
 	return true;
 }
+
+void UMotionMatchingComponent::AddTraversalOwnedTag(FGameplayTag Tag)
+{
+	if (Tag.IsValid() == false) return;
+
+	FGameplayTagContainer NewTags = TraversalOwnedTags;
+	NewTags.AddTag(Tag);
+	SetTraversalOwnedTags(NewTags);
+}
+
+
+void UMotionMatchingComponent::SetTraversalOwnedTags(const FGameplayTagContainer& NewTags)
+{
+	const bool bWasApplied = bHasAppliedTraversalOwnedTags;
+	SetTraversalOwnedTagsApplied(false);
+
+	TraversalOwnedTags = NewTags;
+
+	if (bWasApplied == false) return;
+
+	SetTraversalOwnedTagsApplied(true);
+}
+
+
+// [추가] v0.0.7: 붙일 때 실제 ASC의 주인(캐릭터 또는 PlayerState)을 기억해 두고, 뗄 때는 그 주인에게서 뗀다
+void UMotionMatchingComponent::SetTraversalOwnedTagsApplied(bool bIsApplied)
+{
+	if (bIsApplied == false)
+	{
+		if (bHasAppliedTraversalOwnedTags == false) return;
+
+		CallAbilitySystemLibraryFunction(TEXT("RemoveLooseGameplayTags"), TraversalOwnedTagsTarget.Get());
+		bHasAppliedTraversalOwnedTags = false;
+		TraversalOwnedTagsTarget.Reset();
+		return;
+	}
+
+	if (bHasAppliedTraversalOwnedTags == true) return;
+	if (TraversalOwnedTags.IsEmpty() == true) return;
+
+	const UActorComponent* AbilitySystemComponent = Cast<UActorComponent>(CallAbilitySystemLibraryFunction(TEXT("GetAbilitySystemComponent"), GetOwner()));
+	if (IsValid(AbilitySystemComponent) == false) return;
+
+	AActor* TargetActor = AbilitySystemComponent->GetOwner();
+	if (IsValid(TargetActor) == false) return;
+
+	CallAbilitySystemLibraryFunction(TEXT("AddLooseGameplayTags"), TargetActor);
+	bHasAppliedTraversalOwnedTags = true;
+	TraversalOwnedTagsTarget = TargetActor;
+}
+
+
+// [추가] v0.0.7: UAbilitySystemBlueprintLibrary 함수를 이름으로 호출 (GAS 모듈 직접 의존 없음)
+UObject* UMotionMatchingComponent::CallAbilitySystemLibraryFunction(FName FunctionName, AActor* TargetActor) const
+{
+	if (IsValid(TargetActor) == false) return nullptr;
+
+	const UClass* LibraryClass = FindObject<UClass>(nullptr, TEXT("/Script/GameplayAbilities.AbilitySystemBlueprintLibrary"));
+	if (IsValid(LibraryClass) == false) return nullptr;
+
+	UFunction* Function = LibraryClass->FindFunctionByName(FunctionName);
+	if (Function == nullptr) return nullptr;
+
+	uint8* Parameters = static_cast<uint8*>(FMemory_Alloca(Function->ParmsSize));
+	FMemory::Memzero(Parameters, Function->ParmsSize);
+	for (TFieldIterator<FProperty> ParameterIterator(Function); ParameterIterator && ParameterIterator->HasAnyPropertyFlags(CPF_Parm) == true; ++ParameterIterator)
+	{
+		ParameterIterator->InitializeValue_InContainer(Parameters);
+	}
+
+	if (const FObjectPropertyBase* ActorParameter = CastField<FObjectPropertyBase>(Function->FindPropertyByName(TEXT("Actor"))))
+	{
+		ActorParameter->SetObjectPropertyValue_InContainer(Parameters, TargetActor);
+	}
+
+	if (const FStructProperty* TagsParameter = CastField<FStructProperty>(Function->FindPropertyByName(TEXT("GameplayTags"))))
+	{
+		TagsParameter->CopyCompleteValue(TagsParameter->ContainerPtrToValuePtr<void>(Parameters), &TraversalOwnedTags);
+	}
+
+	LibraryClass->GetDefaultObject()->ProcessEvent(Function, Parameters);
+
+	UObject* ReturnObject = nullptr;
+	if (const FObjectPropertyBase* ReturnParameter = CastField<FObjectPropertyBase>(Function->GetReturnProperty()))
+	{
+		ReturnObject = ReturnParameter->GetObjectPropertyValue_InContainer(Parameters);
+	}
+
+	for (TFieldIterator<FProperty> ParameterIterator(Function); ParameterIterator && ParameterIterator->HasAnyPropertyFlags(CPF_Parm) == true; ++ParameterIterator)
+	{
+		ParameterIterator->DestroyValue_InContainer(Parameters);
+	}
+
+	return ReturnObject;
+}
+
 #pragma endregion
 
 

@@ -53,3 +53,25 @@ bool FNF_BossDefeatedCondition::TestCondition(FStateTreeExecutionContext& Contex
 	const ANF_BossBase* Boss = GetBossFromStateTreeContext(Context);
 	return Boss && Boss->IsDefeated();
 }
+
+FNF_BossDormantTask::FNF_BossDormantTask()
+{
+	bShouldCallTick = true;
+	bShouldAffectTransitions = true;
+}
+
+EStateTreeRunStatus FNF_BossDormantTask::EnterState(FStateTreeExecutionContext& Context,
+	const FStateTreeTransitionResult& Transition) const
+{
+	return GetBossFromStateTreeContext(Context) ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Failed;
+}
+
+EStateTreeRunStatus FNF_BossDormantTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
+{
+	const ANF_BossBase* Boss = GetBossFromStateTreeContext(Context);
+	if (!Boss)
+	{
+		return EStateTreeRunStatus::Failed;
+	}
+	return Boss->IsAwake() ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Running;
+}
