@@ -116,7 +116,8 @@ void UMotionMatchingComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void UMotionMatchingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
+	
+	CheckTraversalMontageLost(); // [추가] 이동 계산 전에 고착 상태부터 풀기
 	UpdateRotation_PreCMC();
 	UpdateMovement_PreCMC();
 }
@@ -470,6 +471,18 @@ void UMotionMatchingComponent::UpdateCharacterInputState(const FMotionMatchingIn
 	MotionMatchingMovement->SetMovementInputState(CharacterInputState);
 }
 
+
+void UMotionMatchingComponent::CheckTraversalMontageLost()
+{
+	if (bIsDoingTraversalAction == false) return;
+
+	UAnimInstance* AnimInstance = GetOwnerAnimInstance();
+	if (IsValid(AnimInstance) == false) return;
+
+	if (AnimInstance->GetInstanceForMontage(TraversalResult.ChosenMontage) != nullptr) return;
+
+	FinishTraversalAction();
+}
 
 // [변경] PC 전용: 스틱 기울기 무관하게 항상 길이 1로 맞춘다
 void UMotionMatchingComponent::ApplyMoveInput(const FVector2D& InputValue)

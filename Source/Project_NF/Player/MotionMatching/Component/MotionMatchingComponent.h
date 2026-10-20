@@ -104,6 +104,9 @@ protected:
 
 #pragma region Movement
 public:
+	// [추가] 파쿠르 중인데 몽타주 인스턴스가 사라졌으면 종료 처리를 대신 실행
+	void CheckTraversalMontageLost();
+	
 	// [추가] 아래 함수들은 컨트롤러(입력)나 GA가 호출하는 행동 함수
 	UFUNCTION(BlueprintCallable, Category = "MotionMatching|Movement")
 	void ApplyMoveInput(const FVector2D& InputValue);
