@@ -12,7 +12,7 @@ class PROJECT_NF_API UNF_ArmorDataAsset : public UDataAsset
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
-	ENF_ArmorSlot ArmorSlot = ENF_ArmorSlot::Head;
+	ENF_ArmorSlot ArmorSlot = ENF_ArmorSlot::None;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
 	float AdditionalDefense = 0.f;
