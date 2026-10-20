@@ -222,9 +222,9 @@ void UNF_DedicatedMatchSubsystem::TryApplyTeamAssignments()
 	}
 
 	UWorld* World = GetWorld();
-	ANF_GameMode* GameMode = World ? World->GetAuthGameMode<ANF_GameMode>() : nullptr;
 	ANF_GameState* GameState = World ? World->GetGameState<ANF_GameState>() : nullptr;
-	if (!World || !GameMode || !GameState || GameMode->GetNumPlayers() != ExpectedPlayerCount)
+	if (!World || World->GetNetMode() == NM_Client || !GameState
+		|| GameState->PlayerArray.Num() != ExpectedPlayerCount)
 	{
 		return;
 	}
@@ -258,6 +258,8 @@ void UNF_DedicatedMatchSubsystem::TryApplyTeamAssignments()
 		}
 	}
 
+	TArray<FNFServerTeamIdAssignment> AppliedTeamIds;
+	AppliedTeamIds.Reserve(ExpectedPlayerCount);
 	for (int32 TeamIndex = 0; TeamIndex < CurrentTeams.Num(); ++TeamIndex)
 	{
 		for (const FNFQueuedPlayer& Player : CurrentTeams[TeamIndex].Players)
@@ -268,11 +270,14 @@ void UNF_DedicatedMatchSubsystem::TryApplyTeamAssignments()
 				UE_LOG(LogProject_NF, Error, TEXT("Failed to set team %d for %s."), TeamIndex + 1, *Player.PlayerId);
 				return;
 			}
+			FNFServerTeamIdAssignment& Assignment = AppliedTeamIds.AddDefaulted_GetRef();
+			Assignment.PlayerState = State->Get();
+			Assignment.TeamId = TeamIndex + 1;
 		}
 	}
 
 	bTeamAssignmentsApplied = true;
-	GameMode->NotifyTeamsReady();
+	OnServerTeamIdsAssigned.Broadcast(AppliedTeamIds);
 	UE_LOG(LogProject_NF, Display, TEXT("Applied lobby teams to all %d players."), ExpectedPlayerCount);
 }
 

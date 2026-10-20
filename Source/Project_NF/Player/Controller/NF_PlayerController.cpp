@@ -8,6 +8,8 @@
 #include "Player/Character/NF_Player.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/Data/NF_PlayerInputDataAsset.h"
+#include "TimerManager.h"
+#include "Engine/World.h"
 
 
 void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -21,10 +23,49 @@ void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProp
 void ANF_PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+	GetMinimapRevealRegistry();
+	GetWorldTimerManager().SetTimer(MinimapRevealTimer, this, &ThisClass::UpdateMinimapReveals, 0.2f, true);
 	
 	InputConfig();
 	
 	BindDelegate();
+}
+
+UNF_MinimapRevealRegistry* ANF_PlayerController::GetMinimapRevealRegistry()
+{
+	if (!MinimapRevealRegistry)
+	{
+		MinimapRevealRegistry = NewObject<UNF_MinimapRevealRegistry>(this);
+		MinimapRevealRegistry->Initialize(this);
+	}
+	return MinimapRevealRegistry;
+}
+
+void ANF_PlayerController::UpdateMinimapReveals()
+{
+	if (HasAuthority())
+	{
+		TArray<FNF_MinimapRevealMarker> Markers;
+		GetMinimapRevealRegistry()->BuildServerSnapshot(Markers);
+		if (!Markers.IsEmpty() || bSentMinimapReveals)
+		{
+			ClientReceiveMinimapReveals(Markers);
+		}
+		bSentMinimapReveals = !Markers.IsEmpty();
+	}
+	if (IsLocalController()) { GetMinimapRevealRegistry()->ExpireClientSnapshot(); }
+}
+
+void ANF_PlayerController::ClientReceiveMinimapReveals_Implementation(const TArray<FNF_MinimapRevealMarker>& Markers)
+{
+	GetMinimapRevealRegistry()->ReceiveSnapshot(Markers, 1.0f);
+}
+
+void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorldTimerManager().ClearTimer(MinimapRevealTimer);
+	if (MinimapRevealRegistry) { MinimapRevealRegistry->Clear(); }
+	Super::EndPlay(EndPlayReason);
 }
 
 

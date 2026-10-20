@@ -28,7 +28,25 @@ void UNFGA_BossCenterBlast::ActivateAbility(const FGameplayAbilitySpecHandle Han
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-	ShowTelegraph(Boss->GetActorLocation(), BlastRadius, TelegraphDuration);
+
+	const FVector BossLocation = Boss->GetActorLocation();
+	const FVector TraceStart = BossLocation + FVector::UpVector * 100.0f;
+	const FVector TraceEnd = BossLocation - FVector::UpVector * 5000.0f;
+	FHitResult TelegraphGroundHit;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(NFBossCenterBlastTelegraphGround), false, Boss);
+	if (Boss->GetWorld()->LineTraceSingleByChannel(
+		TelegraphGroundHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+	{
+		ShowTelegraph(TelegraphGroundHit.ImpactPoint, BlastRadius, TelegraphDuration,
+			false, TelegraphDuration);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[BossCenterBlast] Telegraph ground trace failed; decal was not spawned. Boss=%s Location=%s"),
+			*GetNameSafe(Boss), *BossLocation.ToString());
+	}
+
 	OnCenterBlastTelegraphStarted();
 	GetWorld()->GetTimerManager().SetTimer(DetonationTimer, this, &UNFGA_BossCenterBlast::Detonate,
 		FMath::Max(TelegraphDuration, 0.0f), false);
@@ -69,7 +87,8 @@ void UNFGA_BossCenterBlast::Detonate()
 		}
 	}
 
-	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag, Damage);
+	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag,
+		Boss->GetPatternDamage(ENF_BossPatternId::CenterBlast, Damage));
 	const FGameplayEffectSpecHandle StunSpec = MakeBossEffectSpec(StunEffectClass, FGameplayTag(), 0.0f);
 	for (ANF_Player* Player : FindPlayersInRange(Center, BlastRadius))
 	{

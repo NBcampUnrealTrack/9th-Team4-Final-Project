@@ -10,6 +10,8 @@ class UBoxComponent;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
 class UMaterialInterface;
+class ANF_PortalView;
+class ULocalPlayer;
 
 // @owner: 이정준 (구현: Codex) | 2026-10-15
 // 목적: 단방향 포탈 쌍의 서버 접촉 이동·공간 검사·종료 연결. 수명은 공통 Deployable 사용.
@@ -20,6 +22,7 @@ class PROJECT_NF_API ANF_Portal : public AActor
 public:
 	ANF_Portal();
 	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void Tick(float DeltaSeconds) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	bool HasValidSettings() const;
 	void InitializePortal(ANF_Portal* Other, bool bIsExit, ACharacter* Caster);
@@ -32,6 +35,9 @@ public:
 	bool IsExitPortal() const { return bExitPortal; }
 	UFUNCTION(BlueprintPure, Category = "NF|Portal")
 	bool IsPortalActive() const { return bActive; }
+	UFUNCTION(BlueprintPure, Category = "NF|Portal")
+	ANF_Portal* GetLinkedPortal() const { return LinkedPortal; }
+	FTransform GetViewTransform() const;
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
@@ -62,6 +68,10 @@ protected:
 	TObjectPtr<UMaterialInterface> EntranceMaterial;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Portal|Visual")
 	TObjectPtr<UMaterialInterface> ExitMaterial;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Portal|View")
+	bool bEnablePortalView = true;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Portal|View")
+	TSubclassOf<ANF_PortalView> PortalViewClass;
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, Category = "NF|Portal|Visual")
 	void PortalStateChanged(bool bIsExit, bool bIsActive);
 private:
@@ -74,8 +84,10 @@ private:
 	void OnRep_PortalState();
 	void RefreshPortalState();
 	void RetryOverlappingPlayers();
+	void RefreshLocalViews();
+	void ClearLocalViews();
 	bool TryTeleport(ACharacter* Character);
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_PortalState)
 	TObjectPtr<ANF_Portal> LinkedPortal;
 	UPROPERTY(ReplicatedUsing = OnRep_PortalState)
 	bool bExitPortal = false;
@@ -85,4 +97,5 @@ private:
 	TMap<TWeakObjectPtr<ACharacter>, double> Cooldowns;
 	FTimerHandle RetryTimer;
 	bool bClosing = false;
+	TMap<TWeakObjectPtr<ULocalPlayer>, TWeakObjectPtr<ANF_PortalView>> LocalViews;
 };

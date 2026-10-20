@@ -19,4 +19,9 @@ namespace NFGameplayCueTags
 		"GameplayCue.Boss.Emerge", "보스가 땅에서 나올 때 재생하는 연출.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Boss_Relocate_Landing,
 		"GameplayCue.Boss.Relocate.Landing", "보스 위치 이동 패턴에서 착지할 때 재생하는 연출.");
+	// 강명우 10-29
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Boss_GroundDamageZone_Start,
+		"GameplayCue.Boss.GroundDamageZone.Start", "보스 지속 피해 장판이 생성될 때 재생하는 연출.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Boss_GroundDamageZone_End,
+		"GameplayCue.Boss.GroundDamageZone.End", "보스 지속 피해 장판이 사라질 때 재생하는 연출.");
 }
