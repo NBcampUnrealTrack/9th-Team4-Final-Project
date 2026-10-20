@@ -2,6 +2,32 @@
 
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 
+void UNF_BossRegistrySubsystem::Deinitialize()
+{
+	BossSpawnHandler.Unbind();
+
+	Super::Deinitialize();
+}
+
+bool UNF_BossRegistrySubsystem::RegisterBossSpawnHandler(FNF_RequestBossSpawn Handler)
+{
+	if (!Handler.IsBound() || BossSpawnHandler.IsBound())
+	{
+		return false;
+	}
+
+	BossSpawnHandler = MoveTemp(Handler);
+	return true;
+}
+
+void UNF_BossRegistrySubsystem::UnregisterBossSpawnHandler(const UObject* HandlerOwner)
+{
+	if (IsValid(HandlerOwner) && BossSpawnHandler.IsBoundToObject(HandlerOwner))
+	{
+		BossSpawnHandler.Unbind();
+	}
+}
+
 void UNF_BossRegistrySubsystem::RegisterBoss(ANF_BossBase* Boss)
 {
 	if (!IsValid(Boss))

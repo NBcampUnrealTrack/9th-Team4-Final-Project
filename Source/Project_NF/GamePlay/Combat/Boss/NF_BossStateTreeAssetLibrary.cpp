@@ -189,7 +189,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 
 	UStateTreeState& Root = EditorData->AddRootState();
 	Root.Name = TEXT("BossEncounter");
-	Root.Description = TEXT("Runs the five combat patterns in order and enters LastGasp when the boss is defeated.");
+	Root.Description = TEXT("Waits in Dormant until the server wakes the boss, then runs combat patterns and enters LastGasp when defeated.");
 	Root.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
 
 	UClass* FixedVolleyClass = LoadClass<UGameplayAbility>(nullptr,
@@ -205,12 +205,15 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 		GroundDamageZoneClass = UNFGA_BossGroundDamageZone::StaticClass();
 	}
 
+	UStateTreeState& Dormant = Root.AddChildState(TEXT("Dormant"));
 	UStateTreeState& FixedVolley = Root.AddChildState(TEXT("FixedPointVolley"));
 	UStateTreeState& ThreatVolley = Root.AddChildState(TEXT("RandomTargetVolley"));
 	UStateTreeState& GroundDamageZone = Root.AddChildState(TEXT("GroundDamageZones"));
 	UStateTreeState& Relocate = Root.AddChildState(TEXT("RelocateAndEmerge"));
 	UStateTreeState& CenterBlast = Root.AddChildState(TEXT("CenterBlast"));
 	UStateTreeState& LastGasp = Root.AddChildState(TEXT("LastGasp"));
+	Dormant.Description = TEXT("The boss remains idle until WakeBoss is called on the server.");
+	Dormant.AddTask<FNF_BossDormantTask>();
 
 	auto AddAbilityTask = [](UStateTreeState& State, const TSubclassOf<UGameplayAbility> AbilityClass,
 		const bool bAllowWhenDefeated)
@@ -244,6 +247,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	LastGasp.Description = TEXT("On boss defeat, mark each player's location and detonate after four seconds.");
 
 	FixedVolley.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
+	Dormant.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	ThreatVolley.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	GroundDamageZone.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	Relocate.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
@@ -251,6 +255,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	LastGasp.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
 
 	AddDefeatedTransition(FixedVolley);
+	AddDefeatedTransition(Dormant);
 	AddDefeatedTransition(ThreatVolley);
 	AddDefeatedTransition(GroundDamageZone);
 	AddDefeatedTransition(Relocate);

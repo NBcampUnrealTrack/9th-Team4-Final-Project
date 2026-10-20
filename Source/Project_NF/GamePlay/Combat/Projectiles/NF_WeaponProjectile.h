@@ -12,7 +12,7 @@ class PROJECT_NF_API ANF_WeaponProjectile : public AActor
 public:	
 	ANF_WeaponProjectile();
 
-	void InitializeProjectile(float InSpeed);
+	void InitializeProjectile(float InSpeed, float InDamage);
 	void IgnoreProjectile(ANF_WeaponProjectile* OtherProjectile);
 	
 protected:
@@ -26,6 +26,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Projectile")
 	TObjectPtr<class UProjectileMovementComponent> ProjectileMovementComponent;
+
+	UPROPERTY(Transient)
+	float ImpactDamage = 0.f;
 
 	UFUNCTION()
 	void OnProjectileHit(

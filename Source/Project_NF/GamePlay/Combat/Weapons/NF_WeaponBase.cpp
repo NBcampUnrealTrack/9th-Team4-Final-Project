@@ -192,7 +192,7 @@ bool ANF_WeaponBase::FireProjectile()
 			OtherProjectile->IgnoreProjectile(Projectile);
 		}
 
-		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed);
+		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, WeaponData->Damage);
 		SpawnedProjectiles.Add(Projectile);
 	}
 
