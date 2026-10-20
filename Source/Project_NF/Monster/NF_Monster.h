@@ -32,6 +32,11 @@ public:
 	
 	void ApplyBasicAttackHit();
 	
+	void ApplyLandingDamage(
+	const FVector& LandingLocation,
+	float DamageRadius,
+	float DamageMultiplier);
+	
 	UPROPERTY(BlueprintAssignable, Category = "NF|Monster|Death")
 	FNFOnMonsterDied OnMonsterDied;
 	

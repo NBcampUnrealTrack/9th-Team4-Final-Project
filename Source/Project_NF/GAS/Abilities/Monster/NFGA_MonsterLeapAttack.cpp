@@ -6,6 +6,7 @@
 #include "GAS/Tags/NFTag_Monster.h"
 #include "Monster/AI/NF_MonsterAIController.h"
 #include "Monster/NF_Monster.h"
+#include "DrawDebugHelpers.h"
 
 UNFGA_MonsterLeapAttack::UNFGA_MonsterLeapAttack()
 {
@@ -246,16 +247,73 @@ void UNFGA_MonsterLeapAttack::HandleMonsterLanded(
 {
 	ANF_Monster* Monster = LeapingMonster.Get();
 
+	if (!IsValid(Monster) || !Monster->HasAuthority())
+	{
+		FinishLeapAbility(true);
+
+		return;
+	}
+
+	FVector LandingLocation = Monster->GetActorLocation();
+
+	if (Hit.bBlockingHit)
+	{
+		LandingLocation = FVector(Hit.ImpactPoint);
+	}
+	
 	UE_LOG(
 		LogTemp,
 		Warning,
 		TEXT("Monster Leap landed: %s / Impact: %s"),
 		*GetNameSafe(Monster),
-		*Hit.ImpactPoint.ToString());
+		*LandingLocation.ToString());
+	
+	DrawDebugSphere(
+		Monster->GetWorld(),
+		LandingLocation,
+		LandingDamageRadius,
+		24,
+		FColor::Red,
+		false,
+		2.0f,
+		0,
+		2.0f);
+	
+	Monster->ApplyLandingDamage(
+		LandingLocation,
+		LandingDamageRadius,
+		LandingDamageMultiplier);
+	
+	// 후딜 시작
+	if (UWorld* World = Monster->GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(
+			LandingTimeoutHandle);
+	}
 
-	// 피해 적용 아직 x
+	UAbilityTask_WaitDelay* RecoveryTask =
+		UAbilityTask_WaitDelay::WaitDelay(
+			this,
+			FMath::Max(RecoveryDuration, 0.01f));
 
-	FinishLeapAbility(false);
+	if (!RecoveryTask)
+	{
+		FinishLeapAbility(false);
+
+		return;
+	}
+
+	RecoveryTask->OnFinish.AddDynamic(
+		this,
+		&UNFGA_MonsterLeapAttack::HandleRecoveryFinished);
+
+	RecoveryTask->ReadyForActivation();
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster recovery started: %.2f seconds"),
+		RecoveryDuration);
 }
 
 void UNFGA_MonsterLeapAttack::HandleLandingTimeout()
@@ -306,4 +364,14 @@ void UNFGA_MonsterLeapAttack::EndAbility(
 		ActivationInfo,
 		bReplicateEndAbility,
 		bWasCancelled);
+}
+
+void UNFGA_MonsterLeapAttack::HandleRecoveryFinished()
+{
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster recovery finished."));
+
+	FinishLeapAbility(false);
 }

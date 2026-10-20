@@ -36,6 +36,9 @@ protected:
 	void HandleMonsterLanded(const FHitResult& Hit);
 
 	void HandleLandingTimeout();
+	
+	UFUNCTION()
+	void HandleRecoveryFinished();
 
 	void FinishLeapAbility(bool bWasCancelled);
 
@@ -62,6 +65,30 @@ protected:
 		Category = "NF|Monster|Leap",
 		meta = (ClampMin = "0.1"))
 	float LandingTimeout = 3.0f;
+	
+	// 착지 충격파의 반경
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "NF|Monster|Leap",
+		meta = (ClampMin = "0.0", Units = "cm"))
+	float LandingDamageRadius = 300.0f;
+
+	// AttackPower에 곱할 착지 공격의 피해 배율
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "NF|Monster|Leap",
+		meta = (ClampMin = "0.0"))
+	float LandingDamageMultiplier = 1.5f;
+	
+	// 착지 후딜
+	UPROPERTY(
+	EditDefaultsOnly,
+	BlueprintReadOnly,
+	Category = "NF|Monster|Attack",
+	meta = (ClampMin = "0.0", Units = "s"))
+	float RecoveryDuration = 0.8f;
 
 private:
 	TWeakObjectPtr<ANF_Monster> LeapingMonster;
