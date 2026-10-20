@@ -46,9 +46,9 @@ FName UNF_ArmorComponent::GetSocketName(ENF_ArmorSlot Slot) const
 {
 	switch (Slot)
 	{
-	case ENF_ArmorSlot::Head: return HeadSocketName;
-	case ENF_ArmorSlot::Upper: return UpperSocketName;
-	case ENF_ArmorSlot::Bottom: return BottomSocketName;
+	case ENF_ArmorSlot::HeadArmor: return HeadSocketName;
+	case ENF_ArmorSlot::BodyArmor: return UpperSocketName;
+	case ENF_ArmorSlot::LegArmor: return BottomSocketName;
 	default: return NAME_None;
 	}
 }
@@ -85,7 +85,7 @@ bool UNF_ArmorComponent::EquipArmor(ANF_ArmorBase* NewArmor)
 	
 
 	const ENF_ArmorSlot Slot = NewArmor->GetArmorSlot();
-	if (Slot != ENF_ArmorSlot::Head && Slot != ENF_ArmorSlot::Upper && Slot != ENF_ArmorSlot::Bottom) return false;
+	if (Slot != ENF_ArmorSlot::HeadArmor && Slot != ENF_ArmorSlot::BodyArmor && Slot != ENF_ArmorSlot::LegArmor) return false;
 	const FName SocketName = GetSocketName(Slot);
 	if (bAttachArmorToSockets && (!IsValid(Character->GetMesh()) || SocketName.IsNone() ||
 		!Character->GetMesh()->DoesSocketExist(SocketName)))
@@ -118,14 +118,9 @@ ENF_ArmorSlot UNF_ArmorComponent::ResolveHitRegion(FName BoneName) const
 	if (!IsValid(HitMesh) || HitMesh->GetBoneIndex(BoneName) == INDEX_NONE)
 		return ENF_ArmorSlot::Unknown;
 
-	// Closest entry wins, including an explicit Unknown override.
-	// Only real bones from the selected hit mesh can participate in this lookup.
-	while (!BoneName.IsNone())
-	{
-		if (const ENF_ArmorSlot* Slot = BoneToSlot.Find(BoneName)) return *Slot;
-		BoneName = HitMesh->GetParentBone(BoneName);
-	}
-	return ENF_ArmorSlot::Unknown;
+	// Only explicitly mapped hit bones receive a region; parents do not provide coverage.
+	const ENF_ArmorSlot* Slot = BoneToSlot.Find(BoneName);
+	return Slot ? *Slot : ENF_ArmorSlot::Unknown;
 }
 
 float UNF_ArmorComponent::GetAdditionalDefenseForSlot(ENF_ArmorSlot Slot) const

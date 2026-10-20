@@ -114,6 +114,12 @@ float ANF_WeaponBase::GetRemainingFireDelay() const
 FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) const
 {
 	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	
+	if (OwnerPawn == nullptr)
+	{
+		return MuzzleTransform.GetRotation().GetForwardVector();
+	}
+	
 	const AController* Controller = Cast<AController>(OwnerPawn->GetController());
 	
 	if (Controller == nullptr)
