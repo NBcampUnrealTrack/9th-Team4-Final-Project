@@ -317,45 +317,16 @@ void UNF_BuildComponent::ApplyDraftBuild()
 	}
 }
 
-void UNF_BuildComponent::PressActiveSkillInput(int32 SlotIndex)
-{
-	APawn* Pawn = Cast<APawn>(GetOwner());
-	UAbilitySystemComponent* ASC = ResolveAbilitySystem();
-	if (!Pawn || !Pawn->IsLocallyControlled() || SlotIndex < 0 || SlotIndex > 1)
-	{
-		return;
-	}
-	if (IsValid(CurrentShop))
-	{
-		AssignSelectedActiveSkill(SlotIndex);
-		return;
-	}
-	if (ASC && Rules && SlotIndex < Rules->ActiveSkillSlots)
-	{
-		ASC->AbilityLocalInputPressed(SlotIndex + 1);
-	}
-}
-
-void UNF_BuildComponent::ReleaseActiveSkillInput(int32 SlotIndex)
-{
-	const APawn* Pawn = Cast<APawn>(GetOwner());
-	UAbilitySystemComponent* ASC = ResolveAbilitySystem();
-	if (Pawn && Pawn->IsLocallyControlled() && ASC && SlotIndex >= 0 && SlotIndex <= 1)
-	{
-		ASC->AbilityLocalInputReleased(SlotIndex + 1);
-	}
-}
 
 void UNF_BuildComponent::OnRep_CurrentShop()
 {
 	const APawn* Pawn = Cast<APawn>(GetOwner());
 	if (Pawn && Pawn->IsLocallyControlled())
 	{
-		ReleaseActiveSkillInput(0);
-		ReleaseActiveSkillInput(1);
 		DraftBuild = CurrentBuild;
 		PendingActiveSkill = NAME_None;
 		bDraftDirty = false;
+
 		UpdateLocalShopUI();
 		OnDraftChanged.Broadcast();
 	}
@@ -581,14 +552,14 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 		Validation.Message = FText::FromString(Message);
 		return Validation;
 	};
-	
+
 	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
 	{
 		return Fail(
 			ENF_BuildResult::NotAuthority,
 			TEXT("빌드 적용은 서버에서만 가능합니다."));
 	}
-	
+
 	if (bApplyingBuild)
 	{
 		return Fail(ENF_BuildResult::BuildBlocked, TEXT("빌드 적용이 진행 중입니다."));
@@ -610,7 +581,7 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 			ENF_BuildResult::BuildBlocked,
 			TEXT("현재 상태에서는 빌드를 교체할 수 없습니다."));
 	}
-	
+
 	// 상점 검사는 이 함수에 넣지 않는다.
 	Validation = PreviewBuild(Selections);
 	if (Validation.Result != ENF_BuildResult::Success)
@@ -679,8 +650,8 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 		{
 			if (FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handles.AbilityHandle))
 			{
-				// Input IDs 1..N are reserved for active build slots. Slot movement keeps the spec.
-				Spec->InputID = Selection.SlotIndex + 1;
+				// 플레이어 입력과 동일하게 액티브 슬롯 0/1을 InputID로 사용하며 기존 Spec은 유지한다.
+				Spec->InputID = Selection.SlotIndex;
 				AbilitySystem->MarkAbilitySpecDirty(*Spec);
 			}
 		}
@@ -784,7 +755,7 @@ bool UNF_BuildComponent::GrantItem(
 	OutHandles.Definition = Definition;
 	if (Definition->AbilityClass)
 	{
-		const int32 InputId = Definition->ItemType == ENF_BuildItemType::ActiveSkill ? SlotIndex + 1 : INDEX_NONE;
+		const int32 InputId = Definition->ItemType == ENF_BuildItemType::ActiveSkill ? SlotIndex : INDEX_NONE;
 		OutHandles.AbilityHandle = AbilitySystem->GiveAbility(
 			FGameplayAbilitySpec(Definition->AbilityClass, Definition->AbilityLevel, InputId, Definition));
 		if (!OutHandles.AbilityHandle.IsValid())

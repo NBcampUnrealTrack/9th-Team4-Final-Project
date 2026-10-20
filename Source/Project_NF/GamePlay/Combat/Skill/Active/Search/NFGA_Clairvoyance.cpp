@@ -33,8 +33,8 @@ bool UNFGA_Clairvoyance::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
 
-//TODO @명현, 26.10.16 정준님 코드 빌드 에러로 임시 주석처리합니다
-/*void UNFGA_Clairvoyance::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+
+void UNFGA_Clairvoyance::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	if (!ActorInfo || !ActorInfo->IsNetAuthority() || !GetWorld() || !CanContinueSkillExecution()
@@ -48,7 +48,7 @@ bool UNFGA_Clairvoyance::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 	RevealSourceId = FGuid::NewGuid();
 	if (CastTime > 0.0f) { GetWorld()->GetTimerManager().SetTimer(CastTimer, this, &ThisClass::StartDetection, CastTime, false); }
 	else { StartDetection(); }
-}*/
+}
 
 
 void UNFGA_Clairvoyance::StartDetection()
