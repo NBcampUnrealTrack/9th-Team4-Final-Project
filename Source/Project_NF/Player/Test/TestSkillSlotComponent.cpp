@@ -1,22 +1,22 @@
-﻿#include "NF_TestSkillSlotComponent.h"
+﻿#include "TestSkillSlotComponent.h"
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "Abilities/GameplayAbility.h"
 #include "TimerManager.h"
-#include "NFGA_TestSkillPrint.h"
+#include "GA_TestSkillPrint.h"
 
 
-UNF_TestSkillSlotComponent::UNF_TestSkillSlotComponent()
+UTestSkillSlotComponent::UTestSkillSlotComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	
-	TestSlotAbilityArray.Add(UNFGA_TestSkillPrint::StaticClass());
-	TestSlotAbilityArray.Add(UNFGA_TestSkillPrint::StaticClass());
+	TestSlotAbilityArray.Add(UGA_TestSkillPrint::StaticClass());
+	TestSlotAbilityArray.Add(UGA_TestSkillPrint::StaticClass());
 }
 
 
-void UNF_TestSkillSlotComponent::BeginPlay()
+void UTestSkillSlotComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	
@@ -27,7 +27,7 @@ void UNF_TestSkillSlotComponent::BeginPlay()
 }
 
 
-void UNF_TestSkillSlotComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void UTestSkillSlotComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorld()->GetTimerManager().ClearTimer(GrantRetryTimerHandle);
 	
@@ -37,7 +37,7 @@ void UNF_TestSkillSlotComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 }
 
 
-void UNF_TestSkillSlotComponent::PressTestSkillInput(int32 SlotIndex)
+void UTestSkillSlotComponent::PressTestSkillInput(int32 SlotIndex)
 {
 	const auto* OwnerPawn = Cast<APawn>(GetOwner());
 	if (IsValid(OwnerPawn) == false) return;
@@ -53,7 +53,7 @@ void UNF_TestSkillSlotComponent::PressTestSkillInput(int32 SlotIndex)
 }
 
 
-void UNF_TestSkillSlotComponent::ReleaseTestSkillInput(int32 SlotIndex)
+void UTestSkillSlotComponent::ReleaseTestSkillInput(int32 SlotIndex)
 {
 	const auto* OwnerPawn = Cast<APawn>(GetOwner());
 	if (IsValid(OwnerPawn) == false) return;
@@ -68,7 +68,7 @@ void UNF_TestSkillSlotComponent::ReleaseTestSkillInput(int32 SlotIndex)
 }
 
 
-void UNF_TestSkillSlotComponent::TryGrantTestSkills()
+void UTestSkillSlotComponent::TryGrantTestSkills()
 {
 	GrantRetryCount++;
 	if (GrantRetryCount > MaxGrantRetryCount)
@@ -103,7 +103,7 @@ void UNF_TestSkillSlotComponent::TryGrantTestSkills()
 }
 
 
-void UNF_TestSkillSlotComponent::ClearGrantedTestSkills()
+void UTestSkillSlotComponent::ClearGrantedTestSkills()
 {
 	if (GetOwner()->HasAuthority() == false) return;
 	
@@ -119,7 +119,7 @@ void UNF_TestSkillSlotComponent::ClearGrantedTestSkills()
 }
 
 
-UAbilitySystemComponent* UNF_TestSkillSlotComponent::GetOwnerAbilitySystemComponent() const
+UAbilitySystemComponent* UTestSkillSlotComponent::GetOwnerAbilitySystemComponent() const
 {
 	const auto* AbilitySystemInterface = Cast<IAbilitySystemInterface>(GetOwner());
 	if (AbilitySystemInterface == nullptr) return nullptr;
