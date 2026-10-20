@@ -1,17 +1,17 @@
-﻿#include "NFGA_TestSkillPrint.h"
+﻿#include "GA_TestSkillPrint.h"
 
 #include "AbilitySystemComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 
-UNFGA_TestSkillPrint::UNFGA_TestSkillPrint()
+UGA_TestSkillPrint::UGA_TestSkillPrint()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
 
-void UNFGA_TestSkillPrint::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+void UGA_TestSkillPrint::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	int32 InputID = INDEX_NONE;

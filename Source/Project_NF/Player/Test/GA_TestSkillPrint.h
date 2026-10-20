@@ -2,16 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
-#include "NFGA_TestSkillPrint.generated.h"
+#include "GA_TestSkillPrint.generated.h"
 
 // 개인 테스트용: 슬롯 버튼으로 발동되면 화면에 글씨만 출력하고 바로 종료
 UCLASS()
-class PROJECT_NF_API UNFGA_TestSkillPrint : public UGameplayAbility
+class PROJECT_NF_API UGA_TestSkillPrint : public UGameplayAbility
 {
 	GENERATED_BODY()
 	
 public:
-	UNFGA_TestSkillPrint();
+	UGA_TestSkillPrint();
 	
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
