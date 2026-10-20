@@ -4,6 +4,7 @@
 
 class ANF_PlayerState;
 class ANF_BossBase;
+struct FNF_BossDefeatResult;
 
 // @Owner: 황준현 | 2026-10-19
 // Core의 기본 빌드 요청 계약. 적용과 Ready 갱신을 완료한 경우에만 true를 반환한다.
@@ -15,3 +16,7 @@ DECLARE_DELEGATE_RetVal(ANF_BossBase*,FNF_RequestBossSpawn);
 /** Synchronous Core request for the boss system to prepare and return the match boss. */
 DECLARE_DELEGATE_RetVal(ANF_BossBase*, FNF_RequestBossSpawn);
 
+// @Owner: 조민웅 | 2026-10-20
+// Core가 보스 처치 결과를 검증하고 최종 확정했을 때 발생한다.
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnBossDefeatResolved,const FNF_BossDefeatResult&
+);
