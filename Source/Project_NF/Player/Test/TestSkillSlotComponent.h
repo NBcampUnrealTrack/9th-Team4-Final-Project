@@ -3,19 +3,19 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayAbilitySpecHandle.h"
-#include "NF_TestSkillSlotComponent.generated.h"
+#include "TestSkillSlotComponent.generated.h"
 
 class UAbilitySystemComponent;
 class UGameplayAbility;
 
 // 개인 테스트용: NF_BuildComponent의 슬롯 InputID 등록(GrantItem)과 Press/Release 부분만 떼어 온 컴포넌트
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PROJECT_NF_API UNF_TestSkillSlotComponent : public UActorComponent
+class PROJECT_NF_API UTestSkillSlotComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UNF_TestSkillSlotComponent();
+	UTestSkillSlotComponent();
 	
 	UFUNCTION(BlueprintCallable, Category = "NF|Test")
 	void PressTestSkillInput(int32 SlotIndex);

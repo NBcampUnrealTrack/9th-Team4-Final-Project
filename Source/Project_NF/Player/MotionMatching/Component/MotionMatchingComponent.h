@@ -5,6 +5,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Enum/MotionMatchingTypes.h"
 #include "Engine/DataAsset.h" // [추가] A-5
+#include "GameplayTagContainer.h" // [추가] v0.0.7
 #include "MotionMatchingComponent.generated.h"
 
 class ACharacter;
@@ -53,6 +54,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override; // [추가]
+	
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override; // [추가] v0.0.7
 
 #pragma region Feature
 public:
@@ -286,6 +289,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MotionMatching|Movement|Traversal")
 	bool CanTraverse() const;
 
+	// [추가] v0.0.7: 트래버설 중에만 ASC에 붙일 태그 등록 (캐릭터 생성자·BeginPlay 등에서 호출). 트래버설 중에 바꾸면 바로 반영
+	UFUNCTION(BlueprintCallable, Category = "MotionMatching|Movement|Traversal")
+	void AddTraversalOwnedTag(FGameplayTag Tag);
+
+	// [추가] v0.0.7: 트래버설 중 태그 목록을 통째로 교체 (빈 목록 = 사용 안 함)
+	UFUNCTION(BlueprintCallable, Category = "MotionMatching|Movement|Traversal")
+	void SetTraversalOwnedTags(const FGameplayTagContainer& NewTags);
+
 public:
 	// [추가] A-6: 트래버설 시작/종료 알림 (각 화면에서 실행될 때마다 호출)
 	UPROPERTY(BlueprintAssignable, Category = "MotionMatching|Movement|Traversal")
@@ -310,6 +321,11 @@ protected:
 	// BP PlayMontage 노드와 동일: 중단되면 블렌드아웃 시작 시점, 정상 종료면 끝난 시점에 마무리
 	void HandleTraversalMontageBlendingOut(UAnimMontage* Montage, bool bIsInterrupted);
 	void HandleTraversalMontageEnded(UAnimMontage* Montage, bool bIsInterrupted);
+	
+	// [추가] v0.0.7: TraversalOwnedTags를 주인 액터의 ASC에 붙이거나 뗀다
+	void SetTraversalOwnedTagsApplied(bool bIsApplied);
+	UObject* CallAbilitySystemLibraryFunction(FName FunctionName, AActor* TargetActor) const;
+	
 
 protected:
 	// 트래버설 몽타주 후보를 고르는 Chooser (CBP Details에서 CHT_TraversalAnims 지정)
@@ -336,6 +352,16 @@ protected:
 
 	// [추가] 서버: 조종 중인 클라이언트가 자기 화면의 트래버설을 끝냈는지
 	bool bIsClientTraversalFinished = true;
+	
+	
+	// [추가] v0.0.7: 트래버설(파쿠르) 중에만 주인 액터의 ASC에 붙는 태그. 비우면 사용 안 함
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MotionMatching|Movement|Traversal")
+	FGameplayTagContainer TraversalOwnedTags;
+
+	bool bHasAppliedTraversalOwnedTags = false;
+
+	// 태그를 붙인 ASC의 주인 (뗄 때 같은 ASC에서 떼기 위해)
+	TWeakObjectPtr<AActor> TraversalOwnedTagsTarget;
 #pragma endregion
 
 #pragma region Sound
