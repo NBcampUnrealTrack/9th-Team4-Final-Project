@@ -21,6 +21,8 @@ public:
 	
 	AActor* GetCurrentTargetActor() const;
 	
+	void ConsiderTargetActor(AActor* CandidateActor);
+	
 	void SetCurrentTargetActor(AActor* NewTargetActor);
 
 	void ClearCurrentTargetActor();
@@ -47,9 +49,36 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|AI")
 	FName LastKnownLocationKeyName = TEXT("LastKnownLocation");
+	
+	// 타깃 변경 직후, 현재 타깃을 최소한 유지할 시간
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "NF|Monster|AI|Targeting",
+		meta = (ClampMin = "0.0", Units = "s"))
+	float TargetLockDuration = 2.0f;
+
+	// 잠금 시간이 끝난 뒤 새 후보가 이 거리만큼 더 가까울 때만 타깃을 바꾼다.
+	UPROPERTY(
+		EditDefaultsOnly,
+		BlueprintReadOnly,
+		Category = "NF|Monster|AI|Targeting",
+		meta = (ClampMin = "0.0", Units = "cm"))
+	float TargetSwitchDistanceMargin = 250.0f;
 
 	UFUNCTION()
 	void HandleTargetPerceptionUpdated(
 		AActor* UpdatedActor,
 		FAIStimulus Stimulus);
+	
+private:
+	bool IsValidPlayerTarget(AActor* TargetActor) const;
+
+	bool ShouldSwitchTarget(AActor* CandidateActor) const;
+
+	AActor* FindClosestPerceivedPlayer(
+		AActor* ExcludedActor) const;
+
+	// 서버 월드 시간 기준으로 타깃 변경이 다시 허용되는 시각
+	float TargetLockEndTime = 0.0f;
 };

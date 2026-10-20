@@ -255,7 +255,7 @@ void ANF_Monster::HandleMonsterDamaged(float Damage, AActor* DamageSource)
 	if (ANF_MonsterAIController* MonsterAIController =
 		Cast<ANF_MonsterAIController>(GetController()))
 	{
-		MonsterAIController->SetCurrentTargetActor(DamageSource);
+		MonsterAIController->ConsiderTargetActor(DamageSource);
 	}
 	
 	if (!MonsterASC) { return; }
