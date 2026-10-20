@@ -3,9 +3,13 @@
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
+#include "GAS/Tags/NFTag_Player.h"
 
 UNFGA_WeaponReload::UNFGA_WeaponReload()
 {
+	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Traversal);
+	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Traversal);
+	
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }

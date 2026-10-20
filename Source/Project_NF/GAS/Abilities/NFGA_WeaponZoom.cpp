@@ -1,10 +1,13 @@
 #include "GAS/Abilities/NFGA_WeaponZoom.h"
 
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
-#include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
+#include "GAS/Tags/NFTag_Player.h"
 
 UNFGA_WeaponZoom::UNFGA_WeaponZoom()
 {
+	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Traversal);
+	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Traversal);
+	
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
