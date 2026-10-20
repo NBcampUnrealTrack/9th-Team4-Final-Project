@@ -6,6 +6,7 @@
 #include "Player/Data/NF_PlayerActionType.h"
 #include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "Player/Data/NF_PlayerStateDelegate.h"
+#include "UI/Minimap/NF_MinimapRevealRegistry.h"
 #include "NF_PlayerController.generated.h"
 
 enum class ENF_PlayerActionType : uint8;
@@ -21,7 +22,12 @@ class PROJECT_NF_API ANF_PlayerController : public APlayerController
 {
 	GENERATED_BODY()
 	
+public:
+	UFUNCTION(BlueprintCallable, Category = "NF|Minimap|Reveal")
+	UNF_MinimapRevealRegistry* GetMinimapRevealRegistry();
+
 protected:
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	virtual void BeginPlay() override;
@@ -39,6 +45,9 @@ protected:
 	
 	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
 	
+	bool bIsToggleZoom = false;
+	bool bIsZoomIn = false;
+	
 	void InputConfig();
 	
 	void BindInputButton();
@@ -47,10 +56,23 @@ protected:
 	
 	void TryAction(ENF_PlayerActionType PlayerActionType);
 	
+	void IsBuildShopAction(ENF_PlayerActionType PlayerActionType);
+	void IsCombatAction(ENF_PlayerActionType PlayerActionType);
+	
+	void ZoomSelector(ENF_PlayerActionType PlayerActionType);
+	
 #pragma endregion 
 	
 
 private:
+	// Server keeps disclosure reasons; only the owning client receives the snapshot.
+	UPROPERTY(Transient)
+	TObjectPtr<UNF_MinimapRevealRegistry> MinimapRevealRegistry;
+	FTimerHandle MinimapRevealTimer;
+	bool bSentMinimapReveals = false;
+	void UpdateMinimapReveals();
+	UFUNCTION(Client, Reliable)
+	void ClientReceiveMinimapReveals(const TArray<FNF_MinimapRevealMarker>& Markers);
 	
 #pragma region BuildShop
 	

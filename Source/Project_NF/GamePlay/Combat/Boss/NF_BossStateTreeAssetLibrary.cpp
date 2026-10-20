@@ -36,7 +36,7 @@ namespace
 {
 	UDataTable* LoadOrCreateBossCombatDataTable()
 	{
-		static const FString PackageName = TEXT("/Game/ProjectNF/Data/Boss/DT_BossCombat");
+		static const FString PackageName = TEXT("/Game/ProjectNF/Persnal/Myungwoo/Data/Boss/DT_BossCombat");
 		UDataTable* DataTable = LoadObject<UDataTable>(nullptr, *(PackageName + TEXT(".DT_BossCombat")));
 		const bool bIsNewAsset = DataTable == nullptr;
 		UPackage* Package = bIsNewAsset ? CreatePackage(*PackageName) : DataTable->GetOutermost();
@@ -147,7 +147,7 @@ bool UNF_BossStateTreeAssetLibrary::AssignBossPatternCycleToTestBoss(UStateTree*
 		return false;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[BossStateTree] Assigned StateTree and combat abilities to BP_TestBoss"));
+	UE_LOG(LogTemp, Display, TEXT("[BossStateTree] Assigned StateTree and five boss abilities to BP_TestBoss"));
 	return true;
 #else
 	return false;
@@ -157,7 +157,7 @@ bool UNF_BossStateTreeAssetLibrary::AssignBossPatternCycleToTestBoss(UStateTree*
 UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 {
 #if WITH_EDITOR
-	static const FString PackageName = TEXT("/Game/ProjectNF/Gameplay/Boss/ST_BossPatternCycle");
+	static const FString PackageName = TEXT("/Game/ProjectNF/Persnal/Myungwoo/Gameplay/Boss/ST_BossPatternCycle");
 	UStateTree* StateTree = LoadObject<UStateTree>(nullptr, *(PackageName + TEXT(".ST_BossPatternCycle")));
 	const bool bIsNewAsset = StateTree == nullptr;
 	UPackage* Package = bIsNewAsset ? CreatePackage(*PackageName) : StateTree->GetOutermost();
@@ -189,7 +189,8 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 
 	UStateTreeState& Root = EditorData->AddRootState();
 	Root.Name = TEXT("BossEncounter");
-	Root.Description = TEXT("Runs the five combat patterns in order and enters LastGasp when the boss is defeated.");
+	
+	Root.Description = TEXT("Waits in Dormant until the server wakes the boss, then runs combat patterns and enters LastGasp when defeated.");
 	Root.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
 
 	UClass* FixedVolleyClass = LoadClass<UGameplayAbility>(nullptr,
@@ -205,12 +206,15 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 		GroundDamageZoneClass = UNFGA_BossGroundDamageZone::StaticClass();
 	}
 
+	UStateTreeState& Dormant = Root.AddChildState(TEXT("Dormant"));
 	UStateTreeState& FixedVolley = Root.AddChildState(TEXT("FixedPointVolley"));
 	UStateTreeState& ThreatVolley = Root.AddChildState(TEXT("RandomTargetVolley"));
 	UStateTreeState& GroundDamageZone = Root.AddChildState(TEXT("GroundDamageZones"));
 	UStateTreeState& Relocate = Root.AddChildState(TEXT("RelocateAndEmerge"));
 	UStateTreeState& CenterBlast = Root.AddChildState(TEXT("CenterBlast"));
 	UStateTreeState& LastGasp = Root.AddChildState(TEXT("LastGasp"));
+	Dormant.Description = TEXT("The boss remains idle until WakeBoss is called on the server.");
+	Dormant.AddTask<FNF_BossDormantTask>();
 
 	auto AddAbilityTask = [](UStateTreeState& State, const TSubclassOf<UGameplayAbility> AbilityClass,
 		const bool bAllowWhenDefeated)
@@ -244,6 +248,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	LastGasp.Description = TEXT("On boss defeat, mark each player's location and detonate after four seconds.");
 
 	FixedVolley.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
+	Dormant.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	ThreatVolley.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	GroundDamageZone.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	Relocate.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
@@ -251,6 +256,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	LastGasp.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
 
 	AddDefeatedTransition(FixedVolley);
+	AddDefeatedTransition(Dormant);
 	AddDefeatedTransition(ThreatVolley);
 	AddDefeatedTransition(GroundDamageZone);
 	AddDefeatedTransition(Relocate);

@@ -21,6 +21,8 @@ class UMaterialInterface;
 class UNF_BossStateTreeAssetLibrary;
 class UNF_BossRegistrySubsystem;
 class UDataTable;
+class UWidgetComponent;
+class ANF_PlayerState;
 
 /** Stationary GAS-enabled boss base. Boss patterns are granted as GameplayAbilities. */
 UCLASS(Blueprintable)
@@ -39,6 +41,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF|Boss|AI")
 	bool ActivateNextCombatPattern();
 
+	/** Wakes the boss on the server. The StateTree then advances from Dormant to its first combat pattern. */
+	UFUNCTION(BlueprintCallable, Category = "NF|Boss|AI")
+	bool WakeBoss();
+
+	UFUNCTION(BlueprintPure, Category = "NF|Boss|AI")
+	bool IsAwake() const { return bIsAwake; }
+
 	UFUNCTION(BlueprintPure, Category = "NF|Boss|AI")
 	bool IsCombatPatternActive() const;
 	bool ActivateAbilityClass(TSubclassOf<UGameplayAbility> AbilityClass, bool bAllowWhenDefeated = false);
@@ -54,7 +63,7 @@ public:
 	bool ActivateLastGasp();
 	bool IsLastGaspActive() const;
 
-	void RecordDamage(ANF_Player* Player, float DamageAmount);
+	void RecordDamage(ANF_PlayerState* PlayerState, float DamageAmount, bool bIsFatalDamage);
 	void HandleHealthUpdated(float NewHealth);
 	void CompleteDeathSequence();
 	void SetSubmerged(bool bNewSubmerged);
@@ -85,6 +94,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|Components")
 	TObjectPtr<USkeletalMeshComponent> BossSkeletalMesh;
 
+	/** World-space health display. Assign the shared boss health widget class in the boss Blueprint. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|Components|UI")
+	TObjectPtr<UWidgetComponent> BossHealthWidgetComponent;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|GAS")
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
 
@@ -114,7 +127,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
 	TSubclassOf<UGameplayAbility> InitialPatternAbility;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities", meta = (DisplayName = "Activate Initial Pattern When Woken"))
 	bool bActivateInitialPatternOnBeginPlay = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph")
@@ -148,6 +161,10 @@ protected:
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "NF|Boss|State")
 	bool bIsFlying = false;
 
+	/** Server-side encounter gate. Combat starts only after WakeBoss is called. */
+	UPROPERTY(Transient)
+	bool bIsAwake = false;
+
 private:
 	UFUNCTION()
 	void OnRep_IsDefeated();
@@ -157,10 +174,14 @@ private:
 
 	void ApplySubmergedPresentation();
 	void BeginDeathSequence();
+	void NotifyCoreBossDefeated();
+	void InitializeBossHealthWidgetForLocalPlayer();
 
-	TMap<TWeakObjectPtr<ANF_Player>, float> DamageContribution;
+	TMap<TWeakObjectPtr<ANF_PlayerState>, float> DamageContribution;
+	TWeakObjectPtr<ANF_PlayerState> LastHitPlayerState;
 	FNF_BossCombatDataRow ActiveCombatData;
 	bool bHasActiveCombatData = false;
 	int32 NextCombatPatternIndex = 0;
 	bool bDeathSequenceStarted = false;
+	FTimerHandle BossHealthWidgetInitTimer;
 };

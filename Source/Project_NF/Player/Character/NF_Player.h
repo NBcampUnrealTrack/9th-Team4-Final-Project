@@ -2,15 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystemInterface.h"
-#include "GameplayAbilitySpec.h"
 #include "GameFramework/Character.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "Player/Data/NF_PlayerActionType.h"
-#include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "NF_Player.generated.h"
 
+enum class ENF_WeaponType : uint8;
 enum class ENF_BuildShopUIState : uint8;
 enum class ENF_PlayerActionType : uint8;
 
+class UNF_ArmorComponent;
 class UNF_WeaponComponent;
 class UNF_BuildComponent;
 class UNF_GASFunctionLibraryComponent;
@@ -29,11 +30,16 @@ public:
 	
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override; 
 	
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
 	void OnTryAction(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	void OnSkillBind(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
+	
+	UPROPERTY(EditAnywhere, Replicated)
+	ENF_WeaponType NF_WeaponType = ENF_WeaponType::Pistol;
 	
 	
 protected:
@@ -57,10 +63,13 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Build")
 	TObjectPtr<UNF_BuildComponent> NF_BuildComponent;
 	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Weapon")
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
 	TObjectPtr<UNF_WeaponComponent> NF_WeaponComponent;
 	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "GAS|GameplayAbility")
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
+	TObjectPtr<UNF_ArmorComponent> NF_ArmorComponent;
+	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|GameplayAbility")
 	TArray<TSubclassOf<class UGameplayAbility>> GameplayAbilityArray;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
@@ -74,7 +83,7 @@ private:
 	
 	void TryStopAttack();
 	
-	void TryZoom();
+	void TryZoom(ENF_PlayerActionType ActionType);
 	
 	void TryReload();
 	

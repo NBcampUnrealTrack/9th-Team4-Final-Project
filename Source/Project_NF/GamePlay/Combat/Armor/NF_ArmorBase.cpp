@@ -41,7 +41,7 @@ float ANF_ArmorBase::GetAdditionalDefense() const
 	if (IsValid(ArmorData) == false)
 		return 0.f;
 	
-	return FMath::Max(0.f, ArmorData->AdditionalDefense);
+	return FMath::Max(0.f, ArmorData->AdditionalDefence);
 }
 
 void ANF_ArmorBase::ApplyArmorAppearance()
@@ -55,8 +55,8 @@ void ANF_ArmorBase::ApplyArmorAppearance()
 bool ANF_ArmorBase::SetArmorData(UNF_ArmorDataAsset* NewData)
 {
 	if (!HasAuthority() || !IsValid(NewData)) return false;
-	if (NewData->ArmorSlot != ENF_ArmorSlot::Head && NewData->ArmorSlot != ENF_ArmorSlot::Upper &&
-		NewData->ArmorSlot != ENF_ArmorSlot::Bottom) return false;
+	if (NewData->ArmorSlot != ENF_ArmorSlot::HeadArmor && NewData->ArmorSlot != ENF_ArmorSlot::BodyArmor &&
+		NewData->ArmorSlot != ENF_ArmorSlot::LegArmor) return false;
 	if (IsValid(ArmorData) && ArmorData->ArmorSlot != NewData->ArmorSlot) return false;
 	ArmorData = NewData;
 	OnRep_ArmorData();

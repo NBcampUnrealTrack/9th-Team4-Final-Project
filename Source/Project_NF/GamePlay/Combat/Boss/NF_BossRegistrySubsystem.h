@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/NF_CoreIntegrationTypes.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "NF_BossRegistrySubsystem.generated.h"
 
@@ -15,8 +16,14 @@ class PROJECT_NF_API UNF_BossRegistrySubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
+	virtual void Deinitialize() override;
+
 	void RegisterBoss(ANF_BossBase* Boss);
 	void UnregisterBoss(ANF_BossBase* Boss);
+
+	/** Stores the boss system's callback for future Core integration. Does not invoke it. */
+	bool RegisterBossSpawnHandler(FNF_RequestBossSpawn Handler);
+	void UnregisterBossSpawnHandler(const UObject* HandlerOwner);
 
 	ANF_BossBase* GetActiveBoss() const { return ActiveBoss.Get(); }
 
@@ -27,4 +34,5 @@ private:
 
 	TArray<TWeakObjectPtr<ANF_BossBase>> RegisteredBosses;
 	TWeakObjectPtr<ANF_BossBase> ActiveBoss;
+	FNF_RequestBossSpawn BossSpawnHandler;
 };

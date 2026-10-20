@@ -7,9 +7,10 @@
 UENUM(BlueprintType)
 enum class ENF_ArmorSlot : uint8
 {
-	Head,
-	Upper,
-	Bottom,
+	None,
+	HeadArmor,
+	BodyArmor,
+	LegArmor,
 	Unknown
 };
 

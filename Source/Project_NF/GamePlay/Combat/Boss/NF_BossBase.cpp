@@ -5,8 +5,11 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
 #include "GamePlay/Combat/Boss/NF_BossAttributeSet.h"
 #include "GamePlay/Combat/Boss/NF_BossRegistrySubsystem.h"
+#include "Core/NF_GameMode.h"
+#include "Data/Struct/NF_BossDefeatResult.h"
 #include "Engine/DataTable.h"
 #include "GamePlay/Combat/GameplayCue/NF_BossWarningMarker.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
@@ -14,8 +17,18 @@
 #include "Materials/MaterialInterface.h"
 #include "Components/StateTreeComponent.h"
 #include "Engine/World.h"
+#include "StateTree.h"
+#include "Engine/LocalPlayer.h"
+#include "INotifyFieldValueChanged.h"
+#include "MVVMSubsystem.h"
+#include "View/MVVMView.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Character/NF_Player.h"
+#include "Player/State/NF_PlayerState.h"
+#include "Project_NF.h"
+#include "UI/SubSystem/NF_ViewModelSubsystem.h"
+#include "UI/ViewModel/Status/NF_MonsterStatusViewModel.h"
+#include "Blueprint/UserWidget.h"
 
 ANF_BossBase::ANF_BossBase()
 {
@@ -37,6 +50,15 @@ ANF_BossBase::ANF_BossBase()
 	BossSkeletalMesh->SetupAttachment(SceneRoot);
 	BossSkeletalMesh->SetCollisionProfileName(TEXT("Pawn"));
 
+	BossHealthWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("BossHealthWidget"));
+	BossHealthWidgetComponent->SetupAttachment(BossSkeletalMesh);
+	BossHealthWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 500.0f));
+	BossHealthWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
+	BossHealthWidgetComponent->SetDrawSize(FVector2D(500.0f, 100.0f));
+	BossHealthWidgetComponent->SetPivot(FVector2D(0.5f, 0.5f));
+	BossHealthWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BossHealthWidgetComponent->SetIsReplicated(false);
+
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
@@ -57,6 +79,71 @@ UAbilitySystemComponent* ANF_BossBase::GetAbilitySystemComponent() const
 USkeletalMeshComponent* ANF_BossBase::GetBossSkeletalMesh() const
 {
 	return BossSkeletalMesh;
+}
+
+void ANF_BossBase::InitializeBossHealthWidgetForLocalPlayer()
+{
+	if (GetNetMode() == NM_DedicatedServer || !IsValid(BossHealthWidgetComponent))
+	{
+		return;
+	}
+
+	if (!BossHealthWidgetComponent->GetWidgetClass())
+	{
+		UE_LOG(LogProject_NF, Verbose,
+			TEXT("[BossHealthUI] No Widget Class assigned on %s."), *GetNameSafe(this));
+		GetWorldTimerManager().ClearTimer(BossHealthWidgetInitTimer);
+		return;
+	}
+
+	BossHealthWidgetComponent->InitWidget();
+	UUserWidget* Widget = BossHealthWidgetComponent->GetUserWidgetObject();
+	ULocalPlayer* LocalPlayer = GetWorld() ? GetWorld()->GetFirstLocalPlayerFromController() : nullptr;
+	UNF_ViewModelSubsystem* ViewModelSubsystem = IsValid(LocalPlayer)
+		? LocalPlayer->GetSubsystem<UNF_ViewModelSubsystem>()
+		: nullptr;
+	UNF_MonsterStatusViewModel* MonsterStatusViewModel = IsValid(ViewModelSubsystem)
+		? ViewModelSubsystem->GetMonsterStatusViewModel()
+		: nullptr;
+
+	if (!IsValid(Widget) || !IsValid(MonsterStatusViewModel))
+	{
+		// The replicated boss can arrive before the local PlayerController and its LocalPlayer subsystem.
+		if (!GetWorldTimerManager().IsTimerActive(BossHealthWidgetInitTimer))
+		{
+			GetWorldTimerManager().SetTimer(BossHealthWidgetInitTimer, this,
+				&ThisClass::InitializeBossHealthWidgetForLocalPlayer, 0.25f, true);
+		}
+		return;
+	}
+
+	UMVVMView* View = UMVVMSubsystem::GetViewFromUserWidget(Widget);
+	INotifyFieldValueChanged* ViewModelInterface = Cast<INotifyFieldValueChanged>(MonsterStatusViewModel);
+	if (!View || !ViewModelInterface)
+	{
+		UE_LOG(LogProject_NF, Error,
+			TEXT("[BossHealthUI] Widget %s has no initialized MVVM view or compatible ViewModel."),
+			*GetNameSafe(Widget));
+		GetWorldTimerManager().ClearTimer(BossHealthWidgetInitTimer);
+		return;
+	}
+
+	TScriptInterface<INotifyFieldValueChanged> ViewModel;
+	ViewModel.SetObject(MonsterStatusViewModel);
+	ViewModel.SetInterface(ViewModelInterface);
+	if (!View->SetViewModelByClass(ViewModel))
+	{
+		UE_LOG(LogProject_NF, Error,
+			TEXT("[BossHealthUI] Could not assign the existing monster status ViewModel to %s. Set its ViewModel creation type to Manual."),
+			*GetNameSafe(Widget));
+		GetWorldTimerManager().ClearTimer(BossHealthWidgetInitTimer);
+		return;
+	}
+
+	GetWorldTimerManager().ClearTimer(BossHealthWidgetInitTimer);
+	UE_LOG(LogProject_NF, Display,
+		TEXT("[BossHealthUI] Bound widget %s to local boss status ViewModel for %s."),
+		*GetNameSafe(Widget), *GetNameSafe(this));
 }
 
 void ANF_BossBase::HandleGameplayCue(UObject* Self, const FGameplayTag GameplayCueTag,
@@ -133,6 +220,7 @@ void ANF_BossBase::BeginPlay()
 			BossRegistry->RegisterBoss(this);
 		}
 	}
+	InitializeBossHealthWidgetForLocalPlayer();
 
 	if (!HasAuthority())
 	{
@@ -141,6 +229,11 @@ void ANF_BossBase::BeginPlay()
 
 	float ConfiguredMaxHealth = 10000.0f;
 	bHasActiveCombatData = false;
+	if (!BossCombatDataTable)
+	{
+		BossCombatDataTable = LoadObject<UDataTable>(nullptr,
+			TEXT("/Game/ProjectNF/Persnal/Myungwoo/Data/Boss/DT_BossCombat.DT_BossCombat"));
+	}
 	if (BossCombatDataTable)
 	{
 		static const FString ContextString(TEXT("ANF_BossBase::BeginPlay"));
@@ -190,30 +283,52 @@ void ANF_BossBase::BeginPlay()
 
 	if (InitialPatternAbility)
 	{
-		FGameplayAbilitySpecHandle AbilityHandle;
-		if (const FGameplayAbilitySpec* ExistingSpec = AbilitySystemComponent->FindAbilitySpecFromClass(InitialPatternAbility))
+		if (!AbilitySystemComponent->FindAbilitySpecFromClass(InitialPatternAbility))
 		{
-			AbilityHandle = ExistingSpec->Handle;
-		}
-		else
-		{
-			AbilityHandle = AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(InitialPatternAbility, 1, INDEX_NONE, this));
-		}
-		if (!BossStateTree && bActivateInitialPatternOnBeginPlay)
-		{
-			AbilitySystemComponent->TryActivateAbility(AbilityHandle);
+			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(InitialPatternAbility, 1, INDEX_NONE, this));
 		}
 	}
 
-	if (BossStateTree)
+	if (!BossStateTree)
 	{
+		BossStateTree = LoadObject<UStateTree>(nullptr,
+			TEXT("/Game/ProjectNF/Persnal/Myungwoo/Gameplay/Boss/ST_BossPatternCycle.ST_BossPatternCycle"));
+	}
+
+	UE_LOG(LogTemp, Display,
+		TEXT("[BossStateTreeDiag] Setup Boss=%s Tree=%s PatternAbilityCount=%d Awake=%d ASC=%s"),
+		*GetName(), *GetPathNameSafe(BossStateTree), CombatPatternAbilities.Num(), bIsAwake ? 1 : 0,
+		*GetNameSafe(AbilitySystemComponent));
+	for (int32 AbilityIndex = 0; AbilityIndex < CombatPatternAbilities.Num(); ++AbilityIndex)
+	{
+		const TSubclassOf<UGameplayAbility> AbilityClass = CombatPatternAbilities[AbilityIndex];
+		const bool bGranted = AbilityClass && AbilitySystemComponent
+			&& AbilitySystemComponent->FindAbilitySpecFromClass(AbilityClass) != nullptr;
+		UE_LOG(LogTemp, Display,
+			TEXT("[BossStateTreeDiag] ConfiguredPattern[%d]=%s Granted=%d"),
+			AbilityIndex, *GetNameSafe(AbilityClass), bGranted ? 1 : 0);
+	}
+
+	if (BossStateTree && StateTreeComponent)
+	{
+		UE_LOG(LogTemp, Display, TEXT("[BossStateTreeDiag] Assigning and starting tree %s on %s"),
+			*GetPathNameSafe(BossStateTree), *GetName());
 		StateTreeComponent->SetStateTree(BossStateTree);
 		StateTreeComponent->StartLogic();
+		UE_LOG(LogTemp, Display, TEXT("[BossStateTreeDiag] StartLogic returned; Running=%d Boss=%s"),
+			StateTreeComponent->IsRunning() ? 1 : 0, *GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[BossStateTreeDiag] Cannot start patterns: Tree=%s ComponentValid=%d Boss=%s"),
+			*GetPathNameSafe(BossStateTree), IsValid(StateTreeComponent) ? 1 : 0, *GetName());
 	}
 }
 
 void ANF_BossBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	GetWorldTimerManager().ClearTimer(BossHealthWidgetInitTimer);
 	if (UWorld* World = GetWorld())
 	{
 		if (UNF_BossRegistrySubsystem* BossRegistry = World->GetSubsystem<UNF_BossRegistrySubsystem>())
@@ -251,6 +366,35 @@ bool ANF_BossBase::ActivateNextCombatPattern()
 	return false;
 }
 
+bool ANF_BossBase::WakeBoss()
+{
+	if (!HasAuthority() || bIsDefeated || bIsAwake)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[BossStateTreeDiag] WakeBoss rejected Boss=%s Authority=%d Defeated=%d AlreadyAwake=%d Tree=%s"),
+			*GetName(), HasAuthority() ? 1 : 0, bIsDefeated ? 1 : 0, bIsAwake ? 1 : 0,
+			*GetPathNameSafe(BossStateTree));
+		return false;
+	}
+
+	bIsAwake = true;
+	UE_LOG(LogTemp, Display,
+		TEXT("[BossStateTreeDiag] WakeBoss succeeded Boss=%s TreeAssignedAtCall=%d Tree=%s StateTreeRunning=%d PatternAbilityCount=%d"),
+		*GetName(), BossStateTree ? 1 : 0, *GetPathNameSafe(BossStateTree),
+		StateTreeComponent && StateTreeComponent->IsRunning() ? 1 : 0, CombatPatternAbilities.Num());
+
+	// Without an assigned StateTree, retain the initial-ability fallback but start it only on wake.
+	if (!BossStateTree && bActivateInitialPatternOnBeginPlay && InitialPatternAbility && AbilitySystemComponent)
+	{
+		UE_LOG(LogTemp, Display,
+			TEXT("[BossStateTreeDiag] No tree assigned during WakeBoss; trying initial GA fallback Ability=%s"),
+			*GetNameSafe(InitialPatternAbility.Get()));
+		ActivateAbilityClass(InitialPatternAbility);
+	}
+
+	return true;
+}
+
 bool ANF_BossBase::IsCombatPatternActive() const
 {
 	if (!AbilitySystemComponent)
@@ -271,8 +415,42 @@ bool ANF_BossBase::IsCombatPatternActive() const
 bool ANF_BossBase::ActivateAbilityClass(const TSubclassOf<UGameplayAbility> AbilityClass,
 	const bool bAllowWhenDefeated)
 {
-	return HasAuthority() && (!bIsDefeated || bAllowWhenDefeated) && AbilityClass
-		&& AbilitySystemComponent && AbilitySystemComponent->TryActivateAbilityByClass(AbilityClass);
+	const UClass* AbilityUClass = AbilityClass.Get();
+	const FGameplayAbilitySpec* AbilitySpec = AbilityUClass && AbilitySystemComponent
+		? AbilitySystemComponent->FindAbilitySpecFromClass(AbilityClass)
+		: nullptr;
+
+	if (!HasAuthority() || (bIsDefeated && !bAllowWhenDefeated) || !AbilityUClass || !AbilitySystemComponent)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[BossGADiag] Activation blocked Boss=%s Ability=%s Authority=%d Defeated=%d AllowWhenDefeated=%d ASC=%s"),
+			*GetName(), *GetNameSafe(AbilityUClass), HasAuthority() ? 1 : 0, bIsDefeated ? 1 : 0,
+			bAllowWhenDefeated ? 1 : 0, *GetNameSafe(AbilitySystemComponent));
+		return false;
+	}
+
+	if (!AbilitySpec)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[BossGADiag] Activation failed: ability is not granted. Boss=%s Ability=%s"),
+			*GetName(), *GetNameSafe(AbilityUClass));
+		return false;
+	}
+
+	const bool bActivated = AbilitySystemComponent->TryActivateAbilityByClass(AbilityClass);
+	if (bActivated)
+	{
+		UE_LOG(LogTemp, Display,
+			TEXT("[BossGADiag] TryActivateAbilityByClass succeeded Boss=%s Ability=%s Active=%d"),
+			*GetName(), *GetNameSafe(AbilityUClass), AbilitySpec->IsActive() ? 1 : 0);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[BossGADiag] TryActivateAbilityByClass failed Boss=%s Ability=%s; check ability tags, costs, and activation requirements"),
+			*GetName(), *GetNameSafe(AbilityUClass));
+	}
+	return bActivated;
 }
 
 bool ANF_BossBase::IsAbilityClassActive(const TSubclassOf<UGameplayAbility> AbilityClass) const
@@ -290,9 +468,10 @@ ANF_Player* ANF_BossBase::GetHighestDamageTarget(const float MaxRange) const
 	ANF_Player* BestPlayer = nullptr;
 	float BestDamage = -1.0f;
 	const float MaxRangeSquared = FMath::Square(FMath::Max(MaxRange, 0.0f));
-	for (const TPair<TWeakObjectPtr<ANF_Player>, float>& Entry : DamageContribution)
+	for (const TPair<TWeakObjectPtr<ANF_PlayerState>, float>& Entry : DamageContribution)
 	{
-		ANF_Player* Player = Entry.Key.Get();
+		ANF_PlayerState* PlayerState = Entry.Key.Get();
+		ANF_Player* Player = IsValid(PlayerState) ? Cast<ANF_Player>(PlayerState->GetPawn()) : nullptr;
 		if (!IsValid(Player) || FVector::DistSquared(GetActorLocation(), Player->GetActorLocation()) > MaxRangeSquared)
 		{
 			continue;
@@ -350,11 +529,21 @@ bool ANF_BossBase::IsLastGaspActive() const
 	return IsAbilityClassActive(LastGaspAbility);
 }
 
-void ANF_BossBase::RecordDamage(ANF_Player* Player, const float DamageAmount)
+void ANF_BossBase::RecordDamage(ANF_PlayerState* PlayerState, const float DamageAmount,
+	const bool bIsFatalDamage)
 {
-	if (HasAuthority() && IsValid(Player) && DamageAmount > 0.0f)
+	if (!HasAuthority() || DamageAmount <= 0.0f)
 	{
-		DamageContribution.FindOrAdd(Player) += DamageAmount;
+		return;
+	}
+
+	if (IsValid(PlayerState))
+	{
+		DamageContribution.FindOrAdd(PlayerState) += DamageAmount;
+	}
+	if (bIsFatalDamage)
+	{
+		LastHitPlayerState = PlayerState;
 	}
 }
 
@@ -375,6 +564,7 @@ void ANF_BossBase::BeginDeathSequence()
 	bDeathSequenceStarted = true;
 	bIsDefeated = true;
 	OnRep_IsDefeated();
+	NotifyCoreBossDefeated();
 	if (AbilitySystemComponent)
 	{
 		AbilitySystemComponent->CancelAllAbilities();
@@ -389,6 +579,56 @@ void ANF_BossBase::BeginDeathSequence()
 		return;
 	}
 	CompleteDeathSequence();
+}
+
+void ANF_BossBase::NotifyCoreBossDefeated()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	ANF_GameMode* GameMode = IsValid(World) ? World->GetAuthGameMode<ANF_GameMode>() : nullptr;
+	if (!IsValid(GameMode))
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[BossDefeat] Could not notify Core: authoritative ANF_GameMode is unavailable. Boss=%s"),
+			*GetNameSafe(this));
+		return;
+	}
+
+	FNF_BossDefeatResult DefeatResult;
+	DefeatResult.DefeatedBoss = this;
+	DefeatResult.LastHitPlayerState = LastHitPlayerState.Get();
+	for (const TPair<TWeakObjectPtr<ANF_PlayerState>, float>& Entry : DamageContribution)
+	{
+		ANF_PlayerState* PlayerState = Entry.Key.Get();
+		if (!IsValid(PlayerState) || Entry.Value <= 0.0f)
+		{
+			continue;
+		}
+
+		FNF_BossDamageContribution& Contribution = DefeatResult.Contributions.AddDefaulted_GetRef();
+		Contribution.PlayerState = PlayerState;
+		Contribution.EffectiveDamage = Entry.Value;
+	}
+
+	const bool bAccepted = GameMode->NotifyBossDefeated(DefeatResult);
+	if (!bAccepted)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[BossDefeat] Core rejected defeat result; boss death continues without retry. Boss=%s LastHit=%s ContributionCount=%d"),
+			*GetNameSafe(this), *GetNameSafe(DefeatResult.LastHitPlayerState.Get()),
+			DefeatResult.Contributions.Num());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Display,
+			TEXT("[BossDefeat] Core accepted defeat result. Boss=%s LastHit=%s ContributionCount=%d"),
+			*GetNameSafe(this), *GetNameSafe(DefeatResult.LastHitPlayerState.Get()),
+			DefeatResult.Contributions.Num());
+	}
 }
 
 void ANF_BossBase::CompleteDeathSequence()
