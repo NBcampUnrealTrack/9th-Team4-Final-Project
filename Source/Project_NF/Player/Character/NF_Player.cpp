@@ -70,7 +70,6 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
-	
 	BindDelegate();
 }
 
@@ -140,9 +139,8 @@ void ANF_Player::BindDelegate()
 	#pragma region TryAction Function
 		void ANF_Player::TryStartAttack()
 		{
-			NF_WeaponComponent->StartFire();
 			UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, true);
-			UUpperBodyLayerLibrary::NotifyUpperBodyFire(this);
+			NF_WeaponComponent->StartFire();
 		}
 
 		void ANF_Player::TryStopAttack()

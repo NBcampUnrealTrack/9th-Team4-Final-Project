@@ -2,18 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystemInterface.h"
-#include "GameplayAbilitySpec.h"
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "Player/Data/NF_PlayerActionType.h"
-#include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "NF_Player.generated.h"
 
-class UNF_ArmorComponent;
 enum class ENF_WeaponType : uint8;
 enum class ENF_BuildShopUIState : uint8;
 enum class ENF_PlayerActionType : uint8;
 
+class UNF_ArmorComponent;
 class UNF_WeaponComponent;
 class UNF_BuildComponent;
 class UNF_GASFunctionLibraryComponent;
@@ -39,7 +37,6 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
-	
 	
 	UPROPERTY(EditAnywhere, Replicated)
 	ENF_WeaponType NF_WeaponType = ENF_WeaponType::Pistol;
@@ -72,7 +69,7 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
 	TObjectPtr<UNF_ArmorComponent> NF_ArmorComponent;
 	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "GAS|GameplayAbility")
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|GameplayAbility")
 	TArray<TSubclassOf<class UGameplayAbility>> GameplayAbilityArray;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
