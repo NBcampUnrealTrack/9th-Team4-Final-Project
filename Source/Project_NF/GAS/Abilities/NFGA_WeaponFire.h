@@ -2,19 +2,19 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
-#include "NF_GA_WeaponFire.generated.h"
+#include "NFGA_WeaponFire.generated.h"
 
 class ANF_WeaponBase;
 class UNF_WeaponComponent;
 
 /** Shared semi-auto / automatic fire. Activated by WeaponComponent on the server. */
 UCLASS()
-class PROJECT_NF_API UNF_GA_WeaponFire : public UGameplayAbility
+class PROJECT_NF_API UNFGA_WeaponFire : public UGameplayAbility
 {
 	GENERATED_BODY()
 
 public:
-	UNF_GA_WeaponFire();
+	UNFGA_WeaponFire();
 
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
