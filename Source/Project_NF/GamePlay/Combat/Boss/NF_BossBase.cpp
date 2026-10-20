@@ -6,6 +6,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GamePlay/Combat/Boss/NF_BossAttributeSet.h"
+#include "GamePlay/Combat/Boss/NF_BossRegistrySubsystem.h"
+#include "Engine/DataTable.h"
 #include "GamePlay/Combat/GameplayCue/NF_BossWarningMarker.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
 #include "GamePlay/Combat/GameplayCue/NF_BossTelegraphMarker.h"
@@ -17,6 +19,7 @@
 
 ANF_BossBase::ANF_BossBase()
 {
+	BossDisplayName = NSLOCTEXT("NF_BossBase", "DefaultBossDisplayName", "Boss");
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
 	SetReplicateMovement(true);
@@ -123,11 +126,52 @@ void ANF_BossBase::BeginPlay()
 	}
 
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	if (UWorld* MutableWorld = GetWorld())
+	{
+		if (UNF_BossRegistrySubsystem* BossRegistry = MutableWorld->GetSubsystem<UNF_BossRegistrySubsystem>())
+		{
+			BossRegistry->RegisterBoss(this);
+		}
+	}
 
 	if (!HasAuthority())
 	{
 		return;
 	}
+
+	float ConfiguredMaxHealth = 10000.0f;
+	bHasActiveCombatData = false;
+	if (BossCombatDataTable)
+	{
+		static const FString ContextString(TEXT("ANF_BossBase::BeginPlay"));
+		if (const FNF_BossCombatDataRow* CombatRow = BossCombatDataTable->FindRow<FNF_BossCombatDataRow>(
+			BossCombatDataRowName, ContextString, false))
+		{
+			ActiveCombatData = *CombatRow;
+			bHasActiveCombatData = true;
+			ConfiguredMaxHealth = ActiveCombatData.MaxHealth;
+			UE_LOG(LogTemp, Display,
+				TEXT("[BossData] Loaded table=%s row=%s MaxHealth=%.1f AreaVolley=%.1f ThreatVolley=%.1f GroundZoneTick=%.1f Relocate=%.1f CenterBlast=%.1f LastGasp=%.1f"),
+				*GetNameSafe(BossCombatDataTable), *BossCombatDataRowName.ToString(), ActiveCombatData.MaxHealth,
+				ActiveCombatData.AreaVolleyDamage, ActiveCombatData.ThreatVolleyDamage,
+				ActiveCombatData.GroundDamageZoneDamagePerTick, ActiveCombatData.RelocateDamage,
+				ActiveCombatData.CenterBlastDamage, ActiveCombatData.LastGaspDamage);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BossData] Row '%s' was not found in DataTable '%s'; using C++ defaults."),
+				*BossCombatDataRowName.ToString(), *GetNameSafe(BossCombatDataTable));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BossData] No combat DataTable assigned to %s; using C++ defaults."), *GetName());
+	}
+	if (BossAttributeSet)
+	{
+		BossAttributeSet->InitializeForBoss(ConfiguredMaxHealth);
+	}
+
 	for (const TSubclassOf<UGameplayAbility>& PatternAbility : CombatPatternAbilities)
 	{
 		if (PatternAbility && !AbilitySystemComponent->FindAbilitySpecFromClass(PatternAbility))
@@ -146,18 +190,9 @@ void ANF_BossBase::BeginPlay()
 
 	if (InitialPatternAbility)
 	{
-		FGameplayAbilitySpecHandle AbilityHandle;
-		if (const FGameplayAbilitySpec* ExistingSpec = AbilitySystemComponent->FindAbilitySpecFromClass(InitialPatternAbility))
+		if (!AbilitySystemComponent->FindAbilitySpecFromClass(InitialPatternAbility))
 		{
-			AbilityHandle = ExistingSpec->Handle;
-		}
-		else
-		{
-			AbilityHandle = AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(InitialPatternAbility, 1, INDEX_NONE, this));
-		}
-		if (!BossStateTree && bActivateInitialPatternOnBeginPlay)
-		{
-			AbilitySystemComponent->TryActivateAbility(AbilityHandle);
+			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(InitialPatternAbility, 1, INDEX_NONE, this));
 		}
 	}
 
@@ -166,6 +201,19 @@ void ANF_BossBase::BeginPlay()
 		StateTreeComponent->SetStateTree(BossStateTree);
 		StateTreeComponent->StartLogic();
 	}
+}
+
+void ANF_BossBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UNF_BossRegistrySubsystem* BossRegistry = World->GetSubsystem<UNF_BossRegistrySubsystem>())
+		{
+			BossRegistry->UnregisterBoss(this);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 bool ANF_BossBase::ActivateNextCombatPattern()
@@ -192,6 +240,25 @@ bool ANF_BossBase::ActivateNextCombatPattern()
 	}
 	UE_LOG(LogTemp, Warning, TEXT("[BossStateTree] No configured combat pattern could activate on %s"), *GetName());
 	return false;
+}
+
+bool ANF_BossBase::WakeBoss()
+{
+	if (!HasAuthority() || bIsDefeated || bIsAwake)
+	{
+		return false;
+	}
+
+	bIsAwake = true;
+	UE_LOG(LogTemp, Display, TEXT("[BossStateTree] Boss %s woke up; combat patterns may begin."), *GetName());
+
+	// Without an assigned StateTree, retain the initial-ability fallback but start it only on wake.
+	if (!BossStateTree && bActivateInitialPatternOnBeginPlay && InitialPatternAbility && AbilitySystemComponent)
+	{
+		AbilitySystemComponent->TryActivateAbilityByClass(InitialPatternAbility);
+	}
+
+	return true;
 }
 
 bool ANF_BossBase::IsCombatPatternActive() const
@@ -247,6 +314,40 @@ ANF_Player* ANF_BossBase::GetHighestDamageTarget(const float MaxRange) const
 		}
 	}
 	return BestPlayer;
+}
+
+float ANF_BossBase::GetPatternDamage(const ENF_BossPatternId PatternId, const float FallbackDamage) const
+{
+	if (!bHasActiveCombatData)
+	{
+		return FMath::Max(FallbackDamage, 0.0f);
+	}
+
+	float ConfiguredDamage = FallbackDamage;
+	switch (PatternId)
+	{
+	case ENF_BossPatternId::AreaVolley:
+		ConfiguredDamage = ActiveCombatData.AreaVolleyDamage;
+		break;
+	case ENF_BossPatternId::ThreatVolley:
+		ConfiguredDamage = ActiveCombatData.ThreatVolleyDamage;
+		break;
+	case ENF_BossPatternId::GroundDamageZone:
+		ConfiguredDamage = ActiveCombatData.GroundDamageZoneDamagePerTick;
+		break;
+	case ENF_BossPatternId::Relocate:
+		ConfiguredDamage = ActiveCombatData.RelocateDamage;
+		break;
+	case ENF_BossPatternId::CenterBlast:
+		ConfiguredDamage = ActiveCombatData.CenterBlastDamage;
+		break;
+	case ENF_BossPatternId::LastGasp:
+		ConfiguredDamage = ActiveCombatData.LastGaspDamage;
+		break;
+	default:
+		break;
+	}
+	return FMath::Max(ConfiguredDamage, 0.0f);
 }
 
 bool ANF_BossBase::ActivateLastGasp()

@@ -3,7 +3,6 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
-#include "TimerManager.h"
 #include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Engine/World.h"
@@ -160,6 +159,7 @@ bool ANF_WeaponBase::FireProjectile()
 
 	const FTransform MuzzleTransform = WeaponMeshComponent->GetSocketTransform(MuzzleSocketName,
 			RTS_World);
+	const FVector Forward = GetFireDirection(MuzzleTransform);
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = GetOwner();
@@ -169,7 +169,6 @@ bool ANF_WeaponBase::FireProjectile()
 
 	const int32 PelletCount = WeaponData->ProjectilesPerShot;
 	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
-	const FVector Forward = GetFireDirection(MuzzleTransform);
 	TArray<ANF_WeaponProjectile*, TInlineAllocator<64>> SpawnedProjectiles;
 
 	for (int32 Index = 0; Index < PelletCount; ++Index)
@@ -192,7 +191,7 @@ bool ANF_WeaponBase::FireProjectile()
 			OtherProjectile->IgnoreProjectile(Projectile);
 		}
 
-		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed);
+		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, WeaponData->Damage);
 		SpawnedProjectiles.Add(Projectile);
 	}
 
@@ -206,24 +205,29 @@ bool ANF_WeaponBase::FireProjectile()
 
 void ANF_WeaponBase::Reload()
 {
-	if (HasAuthority() == false)
-		return;
-	
-	if (IsValid(WeaponData) == false)
-		return;
+	if (GetOwner())
+	{
+		if (auto* Weapons = GetOwner()->FindComponentByClass<UNF_WeaponComponent>())
+		{
+			if (Weapons->GetEquippedWeapon() == this) Weapons->Reload();
+		}
+	}
+}
 
-	if (bIsReloading || CurrentAmmo >= WeaponData->MagazineSize)
-		return;
+bool ANF_WeaponBase::CanReload() const
+{
+	bool bCanReload = false;
 	
-	StopFire();
-	bIsReloading = true;
+	if (IsValid(WeaponData) && bIsReloading == false && CurrentAmmo < WeaponData->MagazineSize)
+		bCanReload = true;
 	
-	GetWorldTimerManager().SetTimer(
-		ReloadTimerHandle,
-		this,
-		&ANF_WeaponBase::FinishReload,
-		1.0f,
-		false);
+	return bCanReload;
+}
+
+void ANF_WeaponBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CancelReload();
+	Super::EndPlay(EndPlayReason);
 }
 
 void ANF_WeaponBase::CancelReload()
@@ -231,19 +235,27 @@ void ANF_WeaponBase::CancelReload()
 	if (HasAuthority() == false)
 		return;
 
-	GetWorldTimerManager().ClearTimer(ReloadTimerHandle);
+	if (GetOwner())
+	{
+		if (auto* Weapons = GetOwner()->FindComponentByClass<UNF_WeaponComponent>())
+		{
+			if (Weapons->GetEquippedWeapon() == this) Weapons->CancelReload();
+		}
+	}
 	bIsReloading = false;
 	ForceNetUpdate();
 }
 
 void ANF_WeaponBase::FinishReload()
 {
+	if (!HasAuthority() || !bIsReloading) return;
 	bIsReloading = false;
 	
 	if (IsValid(WeaponData))
 	{
 		CurrentAmmo = FMath::Max(0, WeaponData->MagazineSize);
 	}
+	ForceNetUpdate();
 }
 
 float ANF_WeaponBase::GetFireInterval() const

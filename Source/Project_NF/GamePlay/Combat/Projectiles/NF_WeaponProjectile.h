@@ -12,20 +12,23 @@ class PROJECT_NF_API ANF_WeaponProjectile : public AActor
 public:	
 	ANF_WeaponProjectile();
 
-	void InitializeProjectile(float InSpeed);
+	void InitializeProjectile(float InSpeed, float InDamage);
 	void IgnoreProjectile(ANF_WeaponProjectile* OtherProjectile);
 	
 protected:
 	virtual void BeginPlay() override;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Projectile")
-	TObjectPtr<class USphereComponent> SphereComponent;
+	TObjectPtr<class UCapsuleComponent> CapsuleComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Projectile")
 	TObjectPtr<class UStaticMeshComponent> StaticMeshComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Projectile")
 	TObjectPtr<class UProjectileMovementComponent> ProjectileMovementComponent;
+
+	UPROPERTY(Transient)
+	float ImpactDamage = 0.f;
 
 	UFUNCTION()
 	void OnProjectileHit(
@@ -34,4 +37,7 @@ protected:
 		UPrimitiveComponent* OtherComponent,
 		FVector NormalImpulse,
 		const FHitResult& Hit);
+
+private:
+	bool bHitProcessed = false;
 };

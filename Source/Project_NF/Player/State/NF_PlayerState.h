@@ -17,8 +17,8 @@ public:
 	ANF_PlayerState();
 	
 	//Core
-	UPROPERTY(EditAnywhere, Category = "Core|ID")
-	int32 NF_TeamID;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Core|ID")
+	int32 NF_TeamID = INDEX_NONE;
 	
 	UPROPERTY(EditAnywhere, Category = "Core|ID")
 	int32 NF_PlayerID;
@@ -26,6 +26,7 @@ public:
 
 	//GAS
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+	bool SetNFTeamID(int32 NewTeamID);
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS|ASC")
 	TObjectPtr<UNF_AbilitySystemComponent> PlayerASC;
@@ -36,6 +37,7 @@ public:
 	
 protected:
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	
 };

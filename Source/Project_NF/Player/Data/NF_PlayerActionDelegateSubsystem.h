@@ -7,9 +7,12 @@
 #include "NF_PlayerActionDelegateSubsystem.generated.h"
 
 enum class ENF_PlayerActionType : uint8;
+enum class ENF_BuildShopUIState : uint8;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerAction, APlayerController*, ENF_PlayerActionType);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerBindingSkill, APlayerController*, ENF_PlayerActionType);
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInteractBuildShop, ENF_BuildShopUIState);
 
 UCLASS()
 class PROJECT_NF_API UNF_PlayerActionDelegateSubsystem : public UWorldSubsystem
@@ -29,6 +32,8 @@ public:
 
 public:
 	FOnPlayerAction OnPlayerAction;
+	FOnPlayerBindingSkill OnPlayerBindingSkill;
+	FOnInteractBuildShop OnInteractBuildShop;
 };
 
 
@@ -36,16 +41,23 @@ public:
 
 #define NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(DelegateVar, OneParams, TwoParams)\
 	{\
-		UNF_PlayerActionDelegateSubsystem* PlayerActionDelegateManager = nullptr;\
-		if (IsValid(GetWorld()) == true) { PlayerActionDelegateManager = GetWorld()->GetSubsystem<UNF_PlayerActionDelegateSubsystem>(); }\
-		if (IsValid(PlayerActionDelegateManager) == true) { PlayerActionDelegateManager->DelegateVar.Broadcast(OneParams, TwoParams); }\
+		UNF_PlayerActionDelegateSubsystem* PADS = nullptr;\
+		if (IsValid(GetWorld()) == true) { PADS = GetWorld()->GetSubsystem<UNF_PlayerActionDelegateSubsystem>(); }\
+		if (IsValid(PADS) == true) { PADS->DelegateVar.Broadcast(OneParams, TwoParams); }\
+	}
+
+#define NF_BROADCAST_TO_PLAYER_DELEGATE_OneParam(DelegateVar, OneParam)\
+	{\
+		UNF_PlayerActionDelegateSubsystem* PADS = nullptr;\
+		if (IsValid(GetWorld()) == true) { PADS = GetWorld()->GetSubsystem<UNF_PlayerActionDelegateSubsystem>(); }\
+		if (IsValid(PADS) == true) { PADS->DelegateVar.Broadcast(OneParam); }\
 	}
 
 #define NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(DelegateVar, BindingFunc)\
 	{\
-		UNF_PlayerActionDelegateSubsystem* PlayerActionDelegateManager = nullptr;\
-		if (IsValid(GetWorld()) == true) { PlayerActionDelegateManager = GetWorld()->GetSubsystem<UNF_PlayerActionDelegateSubsystem>(); }\
-		if (IsValid(PlayerActionDelegateManager) == true) { PlayerActionDelegateManager->DelegateVar.AddUObject(this, &ThisClass::BindingFunc); }\
+		UNF_PlayerActionDelegateSubsystem* PADS = nullptr;\
+		if (IsValid(GetWorld()) == true) { PADS = GetWorld()->GetSubsystem<UNF_PlayerActionDelegateSubsystem>(); }\
+		if (IsValid(PADS) == true) { PADS->DelegateVar.AddUObject(this, &ThisClass::BindingFunc); }\
 	}
 
 #pragma endregion

@@ -7,12 +7,17 @@
 
 class ANF_WeaponBase;
 class UAbilitySystemComponent;
-class UNF_GA_WeaponFire;
-class UNF_GA_WeaponZoom;
+class UNFGA_WeaponFire;
+class UNFGA_WeaponZoom;
+class UNFGA_WeaponReload;
 class UCameraComponent;
 class UUserWidget;
 class APawn;
 class AController;
+class UMeshComponent;
+class USceneComponent;
+class USkeletalMeshComponent;
+enum class EVisibilityBasedAnimTickOption : uint8;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
@@ -47,8 +52,17 @@ public:
 	UFUNCTION(BlueprintPure, Category="Weapon|Zoom")
 	bool IsZooming() const { return bZoomActive; }
 
+	UFUNCTION(BlueprintPure, Category="Weapon|Zoom")
+	bool CanZoom() const;
+
+	UFUNCTION(BlueprintPure, Category="Weapon|Zoom")
+	float GetZoomSensitivityMultiplier() const;
+
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Reload();
+
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
+	void CancelReload();
 
 	/** Server only. Replaces the current weapon without destroying it; save it before calling if needed. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
@@ -67,28 +81,39 @@ protected:
 	TSubclassOf<ANF_WeaponBase> DefaultWeaponClass;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapon")
-	FName WeaponSocketName = TEXT("WeaponSocket");
+	FName WeaponSocketName = TEXT("WeaponSocket_R");
 
 	UPROPERTY(ReplicatedUsing=OnRep_EquippedWeapon, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<ANF_WeaponBase> EquippedWeapon;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
-	TSubclassOf<UNF_GA_WeaponFire> FireAbilityClass;
+	TSubclassOf<UNFGA_WeaponFire> FireAbilityClass;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
-	TSubclassOf<UNF_GA_WeaponZoom> ZoomAbilityClass;
+	TSubclassOf<UNFGA_WeaponZoom> ZoomAbilityClass;
 
-	UPROPERTY(EditDefaultsOnly, Category="Weapon|Zoom", meta=(ClampMin="5.0", ClampMax="170.0"))
-	float ZoomFieldOfView = 60.f;
-
-	UPROPERTY(EditDefaultsOnly, Category="Weapon|Zoom", meta=(ClampMin="0.0"))
-	float ZoomInterpSpeed = 12.f;
+	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
+	TSubclassOf<UNFGA_WeaponReload> ReloadAbilityClass;
 
 private:
-	friend class UNF_GA_WeaponZoom;
+	friend class UNFGA_WeaponZoom;
 	bool EnsureZoomAbility();
 	void SetZoomActive(bool bActive);
 	void RestoreZoomCamera();
+	void UpdateScopeCameraAttachment(bool bAttach);
+	bool bScopeCameraAttached = false;
+	TWeakObjectPtr<USceneComponent> OriginalCameraParent;
+	FName OriginalCameraSocket;
+	FTransform OriginalCameraTransform;
+	bool bOriginalAbsoluteLocation = false;
+	bool bOriginalAbsoluteRotation = false;
+	bool bOriginalAbsoluteScale = false;
+	bool bOriginalUsePawnControlRotation = false;
+	TMap<TWeakObjectPtr<USkeletalMeshComponent>, EVisibilityBasedAnimTickOption> ScopeMeshTickOptions;
+	void UpdateScopedMeshes(bool bHide);
+	TArray<TWeakObjectPtr<UMeshComponent>> HiddenScopeMeshes;
+	TWeakObjectPtr<ANF_WeaponBase> PresentedZoomWeapon;
+	float ActiveZoomInterpSpeed = 12.f;
 	TWeakObjectPtr<UAbilitySystemComponent> ZoomASC;
 	FGameplayAbilitySpecHandle ZoomAbilityHandle;
 	TWeakObjectPtr<UCameraComponent> ZoomCamera;
@@ -124,6 +149,9 @@ private:
 	bool bFireInputHeld = false;
 	TWeakObjectPtr<UAbilitySystemComponent> FireASC;
 	FGameplayAbilitySpecHandle FireAbilityHandle;
+	bool EnsureReloadAbility();
+	TWeakObjectPtr<UAbilitySystemComponent> ReloadASC;
+	FGameplayAbilitySpecHandle ReloadAbilityHandle;
 
 	UFUNCTION(Server, Reliable)
 	void ServerStartFire();

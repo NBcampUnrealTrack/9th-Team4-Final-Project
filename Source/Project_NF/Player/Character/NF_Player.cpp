@@ -9,14 +9,17 @@
 #include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
 #include "NF_PlayerStatusAttribute.h"
-#include "BuildSystem/Player/NF_BuildComponent.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "Data/Interface/NF_InteractionInterface.h"
+#include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
+#include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GAS/Tags/NFTag_Player.h"
+#include "Net/UnrealNetwork.h"
 #include "Player/Controller/NF_PlayerController.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/State/NF_PlayerState.h"
+#include "UpperBodyBlend/UpperBodyLayer.h"
 
 
 ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
@@ -51,11 +54,16 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//MotionMatching
 	MotionMatchingComponent = CreateDefaultSubobject<UMotionMatchingComponent>(TEXT("MotionMatchingComponent"));
 	CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
+	MotionMatchingComponent->AddTraversalOwnedTag(NFTag_Player::Player_State_Traversal);
+	
 	
 	//Build
 	NF_BuildComponent = CreateDefaultSubobject<UNF_BuildComponent>(TEXT("NF_BuildComponent"));
 	
+	
+	//Equipment
 	NF_WeaponComponent = CreateDefaultSubobject<UNF_WeaponComponent>(TEXT("NF_WeaponComponent"));
+	NF_ArmorComponent = CreateDefaultSubobject<UNF_ArmorComponent>(TEXT("NF_ArmorComponent"));
 }
 
 
@@ -63,49 +71,225 @@ void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, TryAction);
+	BindDelegate();
 }
 
 
-void ANF_Player::TryAction(APlayerController* SendController, ENF_PlayerActionType ActionType)
+void ANF_Player::BindDelegate()
+{
+	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, OnTryAction);
+	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerBindingSkill, OnSkillBind);
+	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnInteractBuildShop, OnEnablePlayerMovementFromType);
+}
+
+
+#pragma region OnTryAction
+	void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerActionType ActionType)
+	{
+		if (UNF_PlayerActionDelegateSubsystem::IsControllerMatchedToThisPawn(SendController, this) == false) return;
+		
+		if (ActionType == ENF_PlayerActionType::Fire)
+		{
+			TryStartAttack();
+			return;
+		}
+		
+		if (ActionType == ENF_PlayerActionType::StopFire)
+		{
+			TryStopAttack();
+			return;
+		}
+		
+		if (ActionType == ENF_PlayerActionType::ZoomIn)
+		{
+			TryZoom(ActionType);
+			return;
+		}
+	
+		if (ActionType == ENF_PlayerActionType::ZoomOut)
+		{
+			TryZoom(ActionType);
+			return;
+		}
+		
+		if (ActionType == ENF_PlayerActionType::Reload)
+		{
+			TryReload();
+			return;
+		}
+		
+		if (ActionType == ENF_PlayerActionType::SkillA)
+		{
+			TrySkillActionWithInputID(SkillButtonA_InputID);
+			return;
+		}
+		
+		if (ActionType == ENF_PlayerActionType::SkillB)
+		{
+			TrySkillActionWithInputID(SkillButtonB_InputID);
+			return;
+		}
+			
+		if (ActionType == ENF_PlayerActionType::Interaction)
+		{
+			TryInteraction(SendController);
+			return;
+		}
+	}
+
+	#pragma region TryAction Function
+		void ANF_Player::TryStartAttack()
+		{
+			NF_WeaponComponent->StartFire();
+			UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, true);
+			UUpperBodyLayerLibrary::NotifyUpperBodyFire(this);
+		}
+
+		void ANF_Player::TryStopAttack()
+		{
+			NF_WeaponComponent->StopFire();
+			UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, false);
+		}
+
+		void ANF_Player::TryZoom(ENF_PlayerActionType ActionType)
+		{
+			if (ActionType == ENF_PlayerActionType::ZoomIn)
+			{
+				NF_WeaponComponent->StartZoom();
+				UUpperBodyLayerLibrary::SetUpperBodyZoom(this, true);
+			}
+	
+			if (ActionType == ENF_PlayerActionType::ZoomOut)
+			{
+				NF_WeaponComponent->StopZoom();
+				UUpperBodyLayerLibrary::SetUpperBodyZoom(this, false);
+			}
+		}
+
+		void ANF_Player::TryReload()
+		{
+			NF_WeaponComponent->Reload();
+		}
+
+		void ANF_Player::TrySkillActionWithInputID(int32 InputID)
+		{
+			UKismetSystemLibrary::PrintString(this,
+			FString::Printf(TEXT("%d 번 스킬을 사용 합니다."), InputID + 1),
+				true, true, FColor::Magenta, 5.0f);
+			
+			GetAbilitySystemComponent()->AbilityLocalInputPressed(InputID);
+		}
+
+		void ANF_Player::TryInteraction(APlayerController* SendController)
+		{
+			FHitResult TraceResult = GetActorFromLineTrace();
+			ServerRPC_TryInteraction(SendController, TraceResult.GetActor());
+		}
+
+		void ANF_Player::ServerRPC_TryInteraction_Implementation(APlayerController* SendController, AActor* TargetActor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ServerRPC_상호작용"));
+			
+			auto* NF_InteractionInterface = Cast<INF_InteractionInterface>(TargetActor);
+			if (NF_InteractionInterface == nullptr) return;
+			
+			NF_InteractionInterface->NF_Interaction(SendController);
+		}
+
+		FHitResult ANF_Player::GetActorFromLineTrace()
+		{
+			FHitResult TraceResult;
+			
+			const FVector ViewLocation = CameraComponent->GetComponentLocation(); 
+			const FVector ViewDirection = CameraComponent->GetForwardVector();
+			
+			//카메라가 캐릭터 뒤에 있으니 그만큼 사거리 보정
+			const float CameraToPawnDistance = FVector::Dist(ViewLocation, this->GetActorLocation());   
+			
+			const FVector Start = ViewLocation;
+			const FVector End = (Start + (ViewDirection * (InteractionRange + CameraToPawnDistance))); 
+			
+			TArray<AActor*> ActorsToIgnore;   //자기 자신은 검출 제외
+			ActorsToIgnore.Add(this);
+			
+			const bool bHit = UKismetSystemLibrary::LineTraceSingle( 
+			this,
+			Start,
+			End,
+			ETraceTypeQuery::TraceTypeQuery1,
+			false,
+			ActorsToIgnore, 
+			EDrawDebugTrace::ForDuration,
+			TraceResult,
+			true,
+			FColor::Red,
+			FColor::Green,
+			5.0f
+			);
+			
+			if (bHit == false) return TraceResult;
+			
+			return TraceResult;
+		}
+	#pragma endregion 
+#pragma endregion 
+
+
+void ANF_Player::OnSkillBind(APlayerController* SendController, ENF_PlayerActionType ActionType)
 {
 	if (UNF_PlayerActionDelegateSubsystem::IsControllerMatchedToThisPawn(SendController, this) == false) return;
 	
-	if (ActionType == ENF_PlayerActionType::Fire)
-	{
-		TryStartAttack();
-		return;
-	}
-	
-	if (ActionType == ENF_PlayerActionType::StopFire)
-	{
-		TryStopAttack();
-		return;
-	}
-	
-	if (ActionType == ENF_PlayerActionType::Reload)
-	{
-		TryReload();
-		return;
-	}
-	
 	if (ActionType == ENF_PlayerActionType::SkillA)
 	{
-		TrySkillActionWithInputID(SkillButtonA_InputID);
+		NF_BuildComponent->AssignSelectedActiveSkill(SkillButtonA_InputID);
 		return;
 	}
 	
 	if (ActionType == ENF_PlayerActionType::SkillB)
 	{
-		TrySkillActionWithInputID(SkillButtonB_InputID);
+		NF_BuildComponent->AssignSelectedActiveSkill(SkillButtonB_InputID);
 		return;
 	}
-		
-	if (ActionType == ENF_PlayerActionType::Interaction)
+}
+
+
+void ANF_Player::OnEnablePlayerMovementFromType(ENF_BuildShopUIState BuildShopType)
+{
+	if (IsLocallyControlled() == true)
 	{
-		TryInteraction(SendController);
-		return;
+		if (BuildShopType == ENF_BuildShopUIState::BuildOpened)
+		{
+			GetCharacterMovement()->SetMovementMode(MOVE_None);
+		}
+	
+		if (BuildShopType == ENF_BuildShopUIState::BuildClosed)
+		{
+			GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+		}
 	}
+}
+
+
+void ANF_Player::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+}
+
+
+void ANF_Player::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	
+	InitAbilitySystem();
+}
+
+
+void ANF_Player::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	//클라이언트를 위한 ASC 초기화
+	InitAbilitySystem();
 }
 
 
@@ -117,131 +301,11 @@ UAbilitySystemComponent* ANF_Player::GetAbilitySystemComponent() const
 	return NF_PlayerState->GetAbilitySystemComponent();
 }
 
-
-void ANF_Player::TryStartAttack()
+void ANF_Player::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
-	NF_WeaponComponent->StartFire();
-}
-
-
-void ANF_Player::TryStopAttack()
-{
-	NF_WeaponComponent->StopFire();
-}
-
-
-void ANF_Player::TryReload()
-{
-	NF_WeaponComponent->Reload();
-}
-
-
-void ANF_Player::TrySkillActionWithInputID(int32 InputID)
-{
-	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(this);
-	if (IsValid(ASC) == false) return;
-
-	ASC->AbilityLocalInputPressed(InputID);
-}
-
-
-void ANF_Player::TryInteraction(APlayerController* SendController)
-{
-	FHitResult TraceResult = GetActorFromLineTrace();
-	ServerRPC_TryInteraction(SendController, TraceResult.GetActor());
-}
-
-
-void ANF_Player::ServerRPC_TryInteraction_Implementation(APlayerController* SendController, AActor* TargetActor)
-{
-	UE_LOG(LogTemp, Warning, TEXT("ServerRPC_상호작용"));
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
-	auto* NF_InteractionInterface = Cast<INF_InteractionInterface>(TargetActor);
-	if (NF_InteractionInterface == nullptr) return;
-	
-	NF_InteractionInterface->NF_Interaction(SendController);
-}
-
-
-FHitResult ANF_Player::GetActorFromLineTrace()
-{
-	FHitResult TraceResult;
-	
-	const FVector ViewLocation = CameraComponent->GetComponentLocation(); 
-	const FVector ViewDirection = CameraComponent->GetForwardVector();
-	
-	//카메라가 캐릭터 뒤에 있으니 그만큼 사거리 보정
-	const float CameraToPawnDistance = FVector::Dist(ViewLocation, this->GetActorLocation());   
-	
-	const FVector Start = ViewLocation;
-	const FVector End = (Start + (ViewDirection * (InteractionRange + CameraToPawnDistance))); 
-	
-	TArray<AActor*> ActorsToIgnore;   //자기 자신은 검출 제외
-	ActorsToIgnore.Add(this);
-	
-	const bool bHit = UKismetSystemLibrary::LineTraceSingle( 
-	this,
-	Start,
-	End,
-	ETraceTypeQuery::TraceTypeQuery1,
-	false,
-	ActorsToIgnore, 
-	EDrawDebugTrace::ForDuration,
-	TraceResult,
-	true,
-	FColor::Red,
-	FColor::Green,
-	5.0f
-	);
-	
-	if (bHit == false) return TraceResult;
-	
-	return TraceResult;
-}
-
-
-/*void ANF_Player::EnablePlayerMovementFromType(ENF_PlayerInteractTypeEnum NewPlayerType)
-{
-	CurrentPlayerInteractType = NewPlayerType;
-	
-	auto* NF_Player = Cast<ANF_Player>(this->GetPawn());
-	if (IsValid(NF_Player) == false) return;
-	
-	// TODO 상점 이용 중에는 스킬 사용을 막음 (이는 준현님의 브로드캐스트를 따를 예정)
-	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild)
-	{
-		NF_Player->GetCharacterMovement()->SetMovementMode(MOVE_None);
-	}
-	
-	else
-	{
-		NF_Player->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-	}
-}*/
-
-
-void ANF_Player::PostInitializeComponents()
-{
-	Super::PostInitializeComponents();
-	
-}
-
-
-void ANF_Player::PossessedBy(AController* NewController)
-{
-	Super::PossessedBy(NewController);
-	
-	InitAbilitySystem();
-	
-}
-
-
-void ANF_Player::OnRep_PlayerState()
-{
-	Super::OnRep_PlayerState();
-	
-	//클라이언트를 위한 ASC 초기화
-	InitAbilitySystem();
+	DOREPLIFETIME(ThisClass, NF_WeaponType);
 }
 
 
@@ -262,11 +326,11 @@ void ANF_Player::InitAbilitySystem()
 		PlayerStatusAttribute->OnOutOfShield.AddUniqueDynamic(this, &ThisClass::OnOutOfShieldCpp); 
 	}
 	
-	GiveAbility();
+	GiveDefaultAbility();
 }
 
 
-void ANF_Player::GiveAbility()
+void ANF_Player::GiveDefaultAbility()
 {
 	if (HasAuthority() == true)
 	{
@@ -274,6 +338,7 @@ void ANF_Player::GiveAbility()
 		if (IsValid(ASC) == false) return;
 		
 		AddGameplayAbility();
+		
 		for (const auto& EachAbility : GameplayAbilityArray)
 		{
 			if (IsValid(EachAbility) == false) continue;
@@ -289,13 +354,37 @@ void ANF_Player::GiveAbility()
 
 void ANF_Player::AddGameplayAbility()
 {
-	//GameplayAbilityArray.Add(UNFGA_Death::StaticClass()); //이건 예시이고, 실제로 어빌리티 왕창 추가해놔야함
-	
+	GameplayAbilityArray.Add(UNFGA_Death::StaticClass());
 }
 
 
 void ANF_Player::OnOutOfHealthCpp()
 {
+	if (HasAuthority())
+	{
+		APlayerState* KillerPlayerState = nullptr;
+		if (const ANF_PlayerState* VictimPlayerState = GetPlayerState<ANF_PlayerState>())
+		{
+			if (const UAbilitySystemComponent* ASC = VictimPlayerState->GetAbilitySystemComponent())
+			{
+				if (const UNF_PlayerStatusAttribute* PlayerStatusAttribute =
+					ASC->GetSet<UNF_PlayerStatusAttribute>())
+				{
+					KillerPlayerState = PlayerStatusAttribute->GetLethalDamageInstigatorPlayerState();
+				}
+			}
+		}
+
+		/*if (UWorld* World = GetWorld())
+		{
+			if (auto* GameMode = World->GetAuthGameMode<ANF_GameMode>())
+			{
+				GameMode->HandlePlayerEliminated(
+					GetPlayerState<ANF_PlayerState>(), KillerPlayerState, GetActorLocation(), this);
+			}
+		}*/
+	}
+	
 	UKismetSystemLibrary::PrintString(this,
 										  (TEXT("Death 실행 예정")),
 										  true, true, FColor::Magenta, 10.0f);

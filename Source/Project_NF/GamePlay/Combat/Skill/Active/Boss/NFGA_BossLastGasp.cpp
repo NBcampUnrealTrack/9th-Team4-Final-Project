@@ -46,7 +46,9 @@ void UNFGA_BossLastGasp::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 void UNFGA_BossLastGasp::DetonateMarkedZones()
 {
 	if (!IsActive()) return;
-	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag, Damage);
+	const ANF_BossBase* Boss = GetBoss();
+	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag,
+		Boss ? Boss->GetPatternDamage(ENF_BossPatternId::LastGasp, Damage) : Damage);
 	const FGameplayEffectSpecHandle StunSpec = MakeBossEffectSpec(StunEffectClass, FGameplayTag(), 0.0f);
 	for (const TPair<TWeakObjectPtr<ANF_Player>, FVector>& Entry : MarkedLocations)
 	{

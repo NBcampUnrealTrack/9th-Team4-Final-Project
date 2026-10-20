@@ -34,6 +34,26 @@ struct PROJECT_NF_API FNF_BossAbilityTask : public FStateTreeTaskCommonBase
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
 };
 
+/** Keeps the encounter idle until the server calls ANF_BossBase::WakeBoss(). */
+USTRUCT()
+struct FNF_BossDormantTaskInstanceData
+{
+	GENERATED_BODY()
+};
+
+USTRUCT(meta = (DisplayName = "NF Wait For Boss Wake"))
+struct PROJECT_NF_API FNF_BossDormantTask : public FStateTreeTaskCommonBase
+{
+	GENERATED_BODY()
+	using FInstanceDataType = FNF_BossDormantTaskInstanceData;
+
+	FNF_BossDormantTask();
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+		const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
+};
+
 USTRUCT()
 struct FNF_BossDefeatedConditionInstanceData
 {

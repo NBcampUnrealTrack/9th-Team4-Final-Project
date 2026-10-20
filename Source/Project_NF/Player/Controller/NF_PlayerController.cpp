@@ -4,25 +4,76 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Input/MotionMatchingInputLibrary.h"
+#include "Net/UnrealNetwork.h"
 #include "Player/Character/NF_Player.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/Data/NF_PlayerInputDataAsset.h"
+#include "TimerManager.h"
+#include "Engine/World.h"
+#include "Kismet/KismetStringLibrary.h"
+#include "Kismet/KismetStringTableLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 
-/*void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
-	DOREPLIFETIME(ThisClass, CurrentPlayerInteractType);
-}*/
+	DOREPLIFETIME(ThisClass, CurrentBuildShopType);
+}
 
 
 void ANF_PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+	GetMinimapRevealRegistry();
+	GetWorldTimerManager().SetTimer(MinimapRevealTimer, this, &ThisClass::UpdateMinimapReveals, 0.2f, true);
 	
-	//OnPlayerOpenShop.AddUObject(this, &ThisClass::EnablePlayerMovementFromType);
+	InputConfig();
 	
+	BindDelegate();
+}
+
+UNF_MinimapRevealRegistry* ANF_PlayerController::GetMinimapRevealRegistry()
+{
+	if (!MinimapRevealRegistry)
+	{
+		MinimapRevealRegistry = NewObject<UNF_MinimapRevealRegistry>(this);
+		MinimapRevealRegistry->Initialize(this);
+	}
+	return MinimapRevealRegistry;
+}
+
+void ANF_PlayerController::UpdateMinimapReveals()
+{
+	if (HasAuthority())
+	{
+		TArray<FNF_MinimapRevealMarker> Markers;
+		GetMinimapRevealRegistry()->BuildServerSnapshot(Markers);
+		if (!Markers.IsEmpty() || bSentMinimapReveals)
+		{
+			ClientReceiveMinimapReveals(Markers);
+		}
+		bSentMinimapReveals = !Markers.IsEmpty();
+	}
+	if (IsLocalController()) { GetMinimapRevealRegistry()->ExpireClientSnapshot(); }
+}
+
+void ANF_PlayerController::ClientReceiveMinimapReveals_Implementation(const TArray<FNF_MinimapRevealMarker>& Markers)
+{
+	GetMinimapRevealRegistry()->ReceiveSnapshot(Markers, 1.0f);
+}
+
+void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorldTimerManager().ClearTimer(MinimapRevealTimer);
+	if (MinimapRevealRegistry) { MinimapRevealRegistry->Clear(); }
+	Super::EndPlay(EndPlayReason);
+}
+
+
+void ANF_PlayerController::InputConfig()
+{
 	if (IsLocalController() == true)
 	{
 		auto* EILPS = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(this->GetLocalPlayer());
@@ -36,6 +87,12 @@ void ANF_PlayerController::BeginPlay()
 		
 		EILPS->AddMappingContext(NF_PlayerInputDataAsset->NF_PlayerIMC, 0);
 	}
+}
+
+
+void ANF_PlayerController::BindDelegate()
+{
+	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnInteractBuildShop, OnInteractBuildShop);
 }
 
 
@@ -60,13 +117,28 @@ void ANF_PlayerController::BindInputButton()
 	auto* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (IsValid(EnhancedInputComponent) == false) return;
 	
-	//Combat
+	//Test
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomToggleSettingButton, ETriggerEvent::Started, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::ToggleSettingButton);
+	
+	
+	//Attack
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::Fire);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Canceled, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ReloadButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::Reload);
+	
+	
+	//Zoom
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Started, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::ZoomIn);
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
+	
 	
 	//Skill
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
@@ -74,80 +146,130 @@ void ANF_PlayerController::BindInputButton()
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_B, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillB);
 	
+	
 	//상호작용
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->InteractButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::Interaction);
 }
 
-
+#pragma region TryAction
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
-	if (IsInBuildShop() == true)
+	//Toggle 옵션 키 (test용도)
+	if (PlayerActionType == ENF_PlayerActionType::ToggleSettingButton)
 	{
-		if (PlayerActionType == ENF_PlayerActionType::SkillA)
+		bIsToggleZoom = !bIsToggleZoom;
+		UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("토글 실행 %d"), bIsToggleZoom));
+	}
+	
+	IsBuildShopAction(PlayerActionType);
+	
+	IsCombatAction(PlayerActionType);
+}
+	#pragma region Actions
+	void ANF_PlayerController::IsBuildShopAction(ENF_PlayerActionType PlayerActionType)
+	{
+		if (CurrentBuildShopType == ENF_BuildShopUIState::BuildOpened)
 		{
+			if (PlayerActionType == ENF_PlayerActionType::SkillA)
+			{
+				NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerBindingSkill, this, PlayerActionType);
+				return;
+			}
+		
+			if (PlayerActionType == ENF_PlayerActionType::SkillB)
+			{
+				NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerBindingSkill, this, PlayerActionType);
+				return;
+			}
+			
 			return;
 		}
-	
-		if (PlayerActionType == ENF_PlayerActionType::SkillB)
+	}
+
+
+	void ANF_PlayerController::IsCombatAction(ENF_PlayerActionType PlayerActionType)
+	{
+		if (PlayerActionType == ENF_PlayerActionType::Fire)
 		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 			return;
 		}
 		
-		return;
+		if (PlayerActionType == ENF_PlayerActionType::StopFire)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::ZoomIn)
+		{
+			ZoomSelector(PlayerActionType);
+			return;
+		}
+		
+		if (bIsToggleZoom == false && PlayerActionType == ENF_PlayerActionType::ZoomOut)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::Reload)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::SkillA)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::SkillB)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::Interaction)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
 	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::Fire)
+
+
+	void ANF_PlayerController::ZoomSelector(ENF_PlayerActionType PlayerActionType)
 	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
+		if (bIsToggleZoom == false)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+			
+		if (bIsToggleZoom == true && bIsZoomIn == false)
+		{
+			bIsZoomIn = true;
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+		}
+			
+		else if (bIsToggleZoom == true && bIsZoomIn == true)
+		{
+			bIsZoomIn = false;
+			PlayerActionType = ENF_PlayerActionType::ZoomOut;
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+		}
 	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::StopFire)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::Reload)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::SkillA)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::SkillB)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::Interaction)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-}
+	#pragma endregion
+#pragma endregion
 
 
 #pragma region BuildShop
-//On_Rep
-/*void ANF_PlayerController::OnRep_OnChangedPlayerStateType()
-{
-	EnablePlayerMovementFromType(CurrentPlayerInteractType);
-}*/
 
-
-bool ANF_PlayerController::IsInBuildShop()
+void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopType)
 {
-	// TODO 상점 이용 중에는 스킬 사용을 막음 (이는 준현님의 브로드캐스트를 따를 예정)
-	if (CurrentPlayerInteractType == ENF_PlayerInteractTypeEnum::InteractingBuild) return true;
-	
-	return false;
+	CurrentBuildShopType = BuildShopType;
 }
+
 #pragma endregion

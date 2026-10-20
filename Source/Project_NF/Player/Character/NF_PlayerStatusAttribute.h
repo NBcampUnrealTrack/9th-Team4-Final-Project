@@ -29,6 +29,8 @@ public:
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 	
+	APlayerState* GetLethalDamageInstigatorPlayerState() const;
+	
 	UPROPERTY(BlueprintAssignable)
 	mutable FOnOutOfHealth OnOutOfHealth;	
 	
@@ -81,4 +83,5 @@ private:
 	bool bIsOutOfHealth = false;
 	bool bIsOutOfShield = false;
 	
+	TWeakObjectPtr<APlayerState> LethalDamageInstigatorPlayerState;
 };

@@ -2,23 +2,23 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "NF_WeaponTypes.h"
 #include "NF_WeaponDataAsset.generated.h"
-
-UENUM(BlueprintType)
-enum class ENF_WeaponType : uint8
-{
-	AR		UMETA(DisplayName = "Assault Rifle"),
-	Pistol	UMETA(DisplayName = "Pistol"),	
-	SG		UMETA(DisplayName = "Shotgun"),
-	SMG		UMETA(DisplayName = "Submachine Gun"),
-	SR		UMETA(DisplayName = "Sniper Rifle")
-};
 
 UENUM(BlueprintType)
 enum class ENF_FireMode : uint8
 {
+	None,
 	SemiAutomatic	UMETA(DisplayName="Semi Automatic"),
 	Automatic		UMETA(DisplayName="Automatic")
+};
+
+UENUM(BlueprintType)
+enum class ENF_ZoomMode : uint8
+{
+	None,
+	Aim,
+	Scope
 };
 
 UCLASS()
@@ -28,11 +28,32 @@ class PROJECT_NF_API UNF_WeaponDataAsset : public UDataAsset
 	
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
-	ENF_WeaponType WeaponType = ENF_WeaponType::Pistol;
+	ENF_WeaponType WeaponType = ENF_WeaponType::None;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
-	ENF_FireMode FireMode = ENF_FireMode::SemiAutomatic;
+	ENF_FireMode FireMode = ENF_FireMode::None;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom")
+	ENF_ZoomMode ZoomMode = ENF_ZoomMode::None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(ClampMin="5.0", ClampMax="170.0", EditCondition="ZoomMode != ENF_ZoomMode::None"))
+	float ZoomFieldOfView = 60.f;
+
+	// Zero applies the target FOV immediately.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(ClampMin="0.0", EditCondition="ZoomMode != ENF_ZoomMode::None"))
+	float ZoomInterpSpeed = 12.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(ClampMin="0.01", ClampMax="1.0", EditCondition="ZoomMode != ENF_ZoomMode::None"))
+	float ZoomSensitivityMultiplier = 0.7f;
+
+	// Hide character/weapon meshes only for the local player while scoped.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(EditCondition="ZoomMode == ENF_ZoomMode::Scope"))
+	bool bHideMeshesWhileScoped = true;
+
+	// Keep the serialized name to preserve existing asset overrides; attachment now uses ScopeSocketName.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(DisplayName="Attach Scope Camera To Scope Socket", EditCondition="ZoomMode == ENF_ZoomMode::Scope"))
+	bool bAttachScopeCameraToMuzzle = true;
+	
 	// 지정하면 BP의 메시/머티리얼 대신 이 DA의 외형을 적용한다. None이면 기존 BP 설정 유지.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Appearance")
 	TObjectPtr<class USkeletalMesh> WeaponMesh;
@@ -45,6 +66,10 @@ public:
 	// 장착 시 로컬 플레이어 화면에 표시할 위젯. None이면 표시하지 않는다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UI")
 	TSubclassOf<class UUserWidget> CrosshairWidgetClass;
+	
+	// Replaces the normal crosshair while zooming in Scope mode. None keeps the normal crosshair.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UI", meta=(EditCondition="ZoomMode == ENF_ZoomMode::Scope"))
+	TSubclassOf<class UUserWidget> ScopeWidgetClass;
 	
 	// 데미지
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")

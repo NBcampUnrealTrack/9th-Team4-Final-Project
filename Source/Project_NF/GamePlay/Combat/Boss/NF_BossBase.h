@@ -4,6 +4,7 @@
 #include "AbilitySystemInterface.h"
 #include "GameFramework/Actor.h"
 #include "GameplayCueInterface.h"
+#include "GamePlay/Combat/Boss/NF_BossCombatData.h"
 #include "NF_BossBase.generated.h"
 
 class UAbilitySystemComponent;
@@ -18,6 +19,8 @@ class ANF_Player;
 class ANF_BossTelegraphMarker;
 class UMaterialInterface;
 class UNF_BossStateTreeAssetLibrary;
+class UNF_BossRegistrySubsystem;
+class UDataTable;
 
 /** Stationary GAS-enabled boss base. Boss patterns are granted as GameplayAbilities. */
 UCLASS(Blueprintable)
@@ -30,9 +33,18 @@ public:
 	ANF_BossBase();
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	USkeletalMeshComponent* GetBossSkeletalMesh() const;
+	UFUNCTION(BlueprintPure, Category = "NF|Boss|UI")
+	FText GetBossDisplayName() const { return BossDisplayName; }
 
 	UFUNCTION(BlueprintCallable, Category = "NF|Boss|AI")
 	bool ActivateNextCombatPattern();
+
+	/** Wakes the boss on the server. The StateTree then advances from Dormant to its first combat pattern. */
+	UFUNCTION(BlueprintCallable, Category = "NF|Boss|AI")
+	bool WakeBoss();
+
+	UFUNCTION(BlueprintPure, Category = "NF|Boss|AI")
+	bool IsAwake() const { return bIsAwake; }
 
 	UFUNCTION(BlueprintPure, Category = "NF|Boss|AI")
 	bool IsCombatPatternActive() const;
@@ -44,6 +56,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "NF|Boss")
 	ANF_Player* GetHighestDamageTarget(float MaxRange) const;
+	UFUNCTION(BlueprintPure, Category = "NF|Boss|Combat")
+	float GetPatternDamage(ENF_BossPatternId PatternId, float FallbackDamage) const;
 	bool ActivateLastGasp();
 	bool IsLastGaspActive() const;
 
@@ -61,7 +75,11 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|UI")
+	FText BossDisplayName;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|Components")
 	TObjectPtr<USceneComponent> SceneRoot;
@@ -80,6 +98,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|GAS")
 	TObjectPtr<UNF_BossAttributeSet> BossAttributeSet;
 
+	/** Server-side tuning table. Assign a row for this boss variant in its Blueprint defaults. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Data")
+	TObjectPtr<UDataTable> BossCombatDataTable;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Data")
+	FName BossCombatDataRowName = TEXT("DefaultBoss");
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Boss|AI")
 	TObjectPtr<UStateTreeComponent> StateTreeComponent;
 
@@ -96,7 +121,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
 	TSubclassOf<UGameplayAbility> InitialPatternAbility;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities", meta = (DisplayName = "Activate Initial Pattern When Woken"))
 	bool bActivateInitialPatternOnBeginPlay = true;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph")
@@ -130,6 +155,10 @@ protected:
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "NF|Boss|State")
 	bool bIsFlying = false;
 
+	/** Server-side encounter gate. Combat starts only after WakeBoss is called. */
+	UPROPERTY(Transient)
+	bool bIsAwake = false;
+
 private:
 	UFUNCTION()
 	void OnRep_IsDefeated();
@@ -141,6 +170,8 @@ private:
 	void BeginDeathSequence();
 
 	TMap<TWeakObjectPtr<ANF_Player>, float> DamageContribution;
+	FNF_BossCombatDataRow ActiveCombatData;
+	bool bHasActiveCombatData = false;
 	int32 NextCombatPatternIndex = 0;
 	bool bDeathSequenceStarted = false;
 };
