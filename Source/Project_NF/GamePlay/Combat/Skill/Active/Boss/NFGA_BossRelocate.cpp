@@ -59,7 +59,7 @@ void UNFGA_BossRelocate::BeginTakeoff()
 	}
 	bIsInFlight = true;
 	Boss->SetFlying(true);
-	const FVector AirborneLocation = StartingLocation + FVector::UpVector * FMath::Max(FlightAltitude, 0.0f);
+	const FVector AirborneLocation = StartingLocation + FVector::UpVector * (FMath::Max(FlightAltitude, 0.0f) * 3.0f);
 	StartBossMovement(AirborneLocation, AscentDuration, EMovementPhase::TakingOff);
 }
 
