@@ -3,9 +3,8 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Data/Struct/NF_BossDefeatResult.h"
+#include "Core/NF_CoreIntegrationTypes.h"
 #include "NF_BossResolutionComponent.generated.h"
-
-DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnBossDefeatResolved,const FNF_BossDefeatResult&);
 
 
  //서버에서 보스 처치 결과를 검증하고 한 번만 확정
