@@ -4,10 +4,12 @@
 #include "AbilitySystemInterface.h"
 #include "GameplayAbilitySpec.h"
 #include "GameFramework/Character.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "Player/Data/NF_PlayerActionType.h"
 #include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "NF_Player.generated.h"
 
+enum class ENF_WeaponType : uint8;
 enum class ENF_BuildShopUIState : uint8;
 enum class ENF_PlayerActionType : uint8;
 
@@ -29,11 +31,17 @@ public:
 	
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override; 
 	
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
 	void OnTryAction(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	void OnSkillBind(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
+	
+	
+	UPROPERTY(EditAnywhere, Replicated)
+	ENF_WeaponType NF_WeaponType = ENF_WeaponType::Pistol;
 	
 	
 protected:

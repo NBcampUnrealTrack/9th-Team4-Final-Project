@@ -190,18 +190,9 @@ void ANF_BossBase::BeginPlay()
 
 	if (InitialPatternAbility)
 	{
-		FGameplayAbilitySpecHandle AbilityHandle;
-		if (const FGameplayAbilitySpec* ExistingSpec = AbilitySystemComponent->FindAbilitySpecFromClass(InitialPatternAbility))
+		if (!AbilitySystemComponent->FindAbilitySpecFromClass(InitialPatternAbility))
 		{
-			AbilityHandle = ExistingSpec->Handle;
-		}
-		else
-		{
-			AbilityHandle = AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(InitialPatternAbility, 1, INDEX_NONE, this));
-		}
-		if (!BossStateTree && bActivateInitialPatternOnBeginPlay)
-		{
-			AbilitySystemComponent->TryActivateAbility(AbilityHandle);
+			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(InitialPatternAbility, 1, INDEX_NONE, this));
 		}
 	}
 
@@ -249,6 +240,25 @@ bool ANF_BossBase::ActivateNextCombatPattern()
 	}
 	UE_LOG(LogTemp, Warning, TEXT("[BossStateTree] No configured combat pattern could activate on %s"), *GetName());
 	return false;
+}
+
+bool ANF_BossBase::WakeBoss()
+{
+	if (!HasAuthority() || bIsDefeated || bIsAwake)
+	{
+		return false;
+	}
+
+	bIsAwake = true;
+	UE_LOG(LogTemp, Display, TEXT("[BossStateTree] Boss %s woke up; combat patterns may begin."), *GetName());
+
+	// Without an assigned StateTree, retain the initial-ability fallback but start it only on wake.
+	if (!BossStateTree && bActivateInitialPatternOnBeginPlay && InitialPatternAbility && AbilitySystemComponent)
+	{
+		AbilitySystemComponent->TryActivateAbilityByClass(InitialPatternAbility);
+	}
+
+	return true;
 }
 
 bool ANF_BossBase::IsCombatPatternActive() const
