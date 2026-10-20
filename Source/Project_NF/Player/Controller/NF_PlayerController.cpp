@@ -155,7 +155,7 @@ void ANF_PlayerController::BindInputButton()
 #pragma region TryAction
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
-	//Toggle옵션 Test
+	//Toggle 옵션 키 (test용도)
 	if (PlayerActionType == ENF_PlayerActionType::ToggleSettingButton)
 	{
 		bIsToggleZoom = !bIsToggleZoom;
