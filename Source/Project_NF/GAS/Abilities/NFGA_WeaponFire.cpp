@@ -1,17 +1,21 @@
-#include "GAS/Abilities/NF_GA_WeaponFire.h"
+#include "GAS/Abilities/NFGA_WeaponFire.h"
 
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
+#include "GAS/Tags/NFTag_Player.h"
 
-UNF_GA_WeaponFire::UNF_GA_WeaponFire()
+UNFGA_WeaponFire::UNFGA_WeaponFire()
 {
+	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Traversal);
+	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Traversal);
+	
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
 
-void UNF_GA_WeaponFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+void UNFGA_WeaponFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
@@ -27,7 +31,7 @@ void UNF_GA_WeaponFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	TryFire();
 }
 
-void UNF_GA_WeaponFire::TryFire()
+void UNFGA_WeaponFire::TryFire()
 {
 	if (IsActive() == false)
 		return;
@@ -56,19 +60,19 @@ void UNF_GA_WeaponFire::TryFire()
 	WaitForNextShot(Weapon->GetFireInterval());
 }
 
-void UNF_GA_WeaponFire::WaitForNextShot(float Delay)
+void UNFGA_WeaponFire::WaitForNextShot(float Delay)
 {
 	auto* Task = UAbilityTask_WaitDelay::WaitDelay(this, FMath::Max(Delay, 0.001f));
-	Task->OnFinish.AddDynamic(this, &UNF_GA_WeaponFire::TryFire);
+	Task->OnFinish.AddDynamic(this, &UNFGA_WeaponFire::TryFire);
 	Task->ReadyForActivation();
 }
 
-void UNF_GA_WeaponFire::FinishFire()
+void UNFGA_WeaponFire::FinishFire()
 {
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
-void UNF_GA_WeaponFire::EndAbility(const FGameplayAbilitySpecHandle Handle,
+void UNFGA_WeaponFire::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {

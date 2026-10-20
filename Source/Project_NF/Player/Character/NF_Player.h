@@ -9,6 +9,7 @@
 #include "Player/Data/NF_PlayerInteractTypeEnum.h"
 #include "NF_Player.generated.h"
 
+class UNF_ArmorComponent;
 enum class ENF_WeaponType : uint8;
 enum class ENF_BuildShopUIState : uint8;
 enum class ENF_PlayerActionType : uint8;
@@ -65,8 +66,11 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Build")
 	TObjectPtr<UNF_BuildComponent> NF_BuildComponent;
 	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Weapon")
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
 	TObjectPtr<UNF_WeaponComponent> NF_WeaponComponent;
+	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
+	TObjectPtr<UNF_ArmorComponent> NF_ArmorComponent;
 	
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "GAS|GameplayAbility")
 	TArray<TSubclassOf<class UGameplayAbility>> GameplayAbilityArray;
@@ -82,7 +86,7 @@ private:
 	
 	void TryStopAttack();
 	
-	void TryZoom();
+	void TryZoom(ENF_PlayerActionType ActionType);
 	
 	void TryReload();
 	
