@@ -45,6 +45,9 @@ protected:
 	
 	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
 	
+	bool bIsToggleZoom = false;
+	bool bIsZoomIn = false;
+	
 	void InputConfig();
 	
 	void BindInputButton();

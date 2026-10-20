@@ -98,9 +98,15 @@ void ANF_Player::BindDelegate()
 			return;
 		}
 		
-		if (ActionType == ENF_PlayerActionType::Zoom)
+		if (ActionType == ENF_PlayerActionType::ZoomIn)
 		{
-			TryZoom();
+			TryZoom(ActionType);
+			return;
+		}
+	
+		if (ActionType == ENF_PlayerActionType::ZoomOut)
+		{
+			TryZoom(ActionType);
 			return;
 		}
 		
@@ -143,9 +149,19 @@ void ANF_Player::BindDelegate()
 			UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, false);
 		}
 
-		void ANF_Player::TryZoom()
+		void ANF_Player::TryZoom(ENF_PlayerActionType ActionType)
 		{
-			NF_WeaponComponent->ToggleZoom();
+			if (ActionType == ENF_PlayerActionType::ZoomIn)
+			{
+				NF_WeaponComponent->StartZoom();
+				UUpperBodyLayerLibrary::SetUpperBodyZoom(this, true);
+			}
+	
+			if (ActionType == ENF_PlayerActionType::ZoomOut)
+			{
+				NF_WeaponComponent->StopZoom();
+				UUpperBodyLayerLibrary::SetUpperBodyZoom(this, false);
+			}
 		}
 
 		void ANF_Player::TryReload()

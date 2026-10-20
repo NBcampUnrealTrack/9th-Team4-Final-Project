@@ -10,6 +10,9 @@
 #include "Player/Data/NF_PlayerInputDataAsset.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
+#include "Kismet/KismetStringLibrary.h"
+#include "Kismet/KismetStringTableLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 
 void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -114,6 +117,11 @@ void ANF_PlayerController::BindInputButton()
 	auto* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
 	if (IsValid(EnhancedInputComponent) == false) return;
 	
+	//Test
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomToggleSettingButton, ETriggerEvent::Started, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::ToggleSettingButton);
+	
+	
 	//Combat
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::Fire);
@@ -121,18 +129,20 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Canceled, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
-	
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Started, this, 
-		&ThisClass::TryAction, ENF_PlayerActionType::Zoom);
-	
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ReloadButton, ETriggerEvent::Started, this, 
-	&ThisClass::TryAction, ENF_PlayerActionType::Reload);
+		&ThisClass::TryAction, ENF_PlayerActionType::Reload);
+	
+	
+	//Zoom
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Started, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::ZoomIn);
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
 	
 	
 	//Skill
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillA);
-	
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_B, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillB);
 	
@@ -162,6 +172,12 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 		return;
 	}
 	
+	if (PlayerActionType == ENF_PlayerActionType::ToggleSettingButton)
+	{
+		bIsToggleZoom = !bIsToggleZoom;
+		UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("토글 실행 %d"), bIsToggleZoom));
+	}
+	
 	if (PlayerActionType == ENF_PlayerActionType::Fire)
 	{
 		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
@@ -174,7 +190,25 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 		return;
 	}
 	
-	if (PlayerActionType == ENF_PlayerActionType::Zoom)
+	if (PlayerActionType == ENF_PlayerActionType::ZoomIn)
+	{
+		if (bIsToggleZoom == false)
+		{
+			bIsZoomIn = true;
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+		}
+		
+		else if (bIsToggleZoom == true && bIsZoomIn == true)
+		{
+			bIsZoomIn = false;
+			PlayerActionType = ENF_PlayerActionType::ZoomOut;
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+		}
+		
+		return;
+	}
+	
+	if (bIsToggleZoom == false && PlayerActionType == ENF_PlayerActionType::ZoomOut)
 	{
 		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 		return;

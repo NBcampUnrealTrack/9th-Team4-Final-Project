@@ -82,7 +82,7 @@ private:
 	
 	void TryStopAttack();
 	
-	void TryZoom();
+	void TryZoom(ENF_PlayerActionType ActionType);
 	
 	void TryReload();
 	
