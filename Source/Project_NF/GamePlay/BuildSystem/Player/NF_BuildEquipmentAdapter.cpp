@@ -11,13 +11,13 @@ ENF_ArmorSlot FNF_BuildEquipmentAdapter::ResolveArmorSlot(
 	switch (Part)
 	{
 	case ENF_BuildArmorPart::Head:
-		return ENF_ArmorSlot::Head;
+		return ENF_ArmorSlot::HeadArmor;
 
 	case ENF_BuildArmorPart::UpperBody:
-		return ENF_ArmorSlot::Upper;
+		return ENF_ArmorSlot::BodyArmor;
 
 	case ENF_BuildArmorPart::LowerBody:
-		return ENF_ArmorSlot::Bottom;
+		return ENF_ArmorSlot::LegArmor;
 
 	default:
 		return ENF_ArmorSlot::Unknown;

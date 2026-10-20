@@ -1,11 +1,9 @@
-﻿
+﻿#include "GamePlay/BuildSystem/UI/NF_BuildShopScreen.h"
 
 #include "GameFramework/Pawn.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "UI/ViewModel/BuildShop/NF_BuildShopViewModel.h"
-#include "GamePlay/BuildSystem/UI/NF_BuildShopScreen.h"
-
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 
 void UNF_BuildShopScreen::NativeConstruct()
