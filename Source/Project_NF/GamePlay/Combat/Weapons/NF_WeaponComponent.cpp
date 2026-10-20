@@ -7,8 +7,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/MeshComponent.h"
 #include "Engine/World.h"
-#include "GAS/Abilities/NF_GA_WeaponFire.h"
-#include "GAS/Abilities/NF_GA_WeaponZoom.h"
+#include "GAS/Abilities/NFGA_WeaponFire.h"
+#include "GAS/Abilities/NFGA_WeaponZoom.h"
 #include "Camera/CameraComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Blueprint/UserWidget.h"
@@ -21,8 +21,8 @@ UNF_WeaponComponent::UNF_WeaponComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	SetIsReplicatedByDefault(true);
-	FireAbilityClass = UNF_GA_WeaponFire::StaticClass();
-	ZoomAbilityClass = UNF_GA_WeaponZoom::StaticClass();
+	FireAbilityClass = UNFGA_WeaponFire::StaticClass();
+	ZoomAbilityClass = UNFGA_WeaponZoom::StaticClass();
 }
 
 void UNF_WeaponComponent::BeginPlay()

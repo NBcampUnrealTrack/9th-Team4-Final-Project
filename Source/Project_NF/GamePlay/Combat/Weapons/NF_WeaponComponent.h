@@ -7,8 +7,8 @@
 
 class ANF_WeaponBase;
 class UAbilitySystemComponent;
-class UNF_GA_WeaponFire;
-class UNF_GA_WeaponZoom;
+class UNFGA_WeaponFire;
+class UNFGA_WeaponZoom;
 class UCameraComponent;
 class UUserWidget;
 class APawn;
@@ -83,13 +83,13 @@ protected:
 	TObjectPtr<ANF_WeaponBase> EquippedWeapon;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
-	TSubclassOf<UNF_GA_WeaponFire> FireAbilityClass;
+	TSubclassOf<UNFGA_WeaponFire> FireAbilityClass;
 
 	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
-	TSubclassOf<UNF_GA_WeaponZoom> ZoomAbilityClass;
+	TSubclassOf<UNFGA_WeaponZoom> ZoomAbilityClass;
 
 private:
-	friend class UNF_GA_WeaponZoom;
+	friend class UNFGA_WeaponZoom;
 	bool EnsureZoomAbility();
 	void SetZoomActive(bool bActive);
 	void RestoreZoomCamera();

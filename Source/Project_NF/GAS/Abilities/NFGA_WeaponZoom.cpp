@@ -1,15 +1,15 @@
-#include "GAS/Abilities/NF_GA_WeaponZoom.h"
+#include "GAS/Abilities/NFGA_WeaponZoom.h"
 
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 
-UNF_GA_WeaponZoom::UNF_GA_WeaponZoom()
+UNFGA_WeaponZoom::UNFGA_WeaponZoom()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
 
-void UNF_GA_WeaponZoom::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+void UNFGA_WeaponZoom::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
@@ -24,7 +24,7 @@ void UNF_GA_WeaponZoom::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	WeaponComponent->SetZoomActive(true);
 }
 
-void UNF_GA_WeaponZoom::EndAbility(const FGameplayAbilitySpecHandle Handle,
+void UNFGA_WeaponZoom::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {

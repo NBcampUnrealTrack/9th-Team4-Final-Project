@@ -2,17 +2,17 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
-#include "NF_GA_WeaponZoom.generated.h"
+#include "NFGA_WeaponZoom.generated.h"
 
 class UNF_WeaponComponent;
 
 UCLASS()
-class PROJECT_NF_API UNF_GA_WeaponZoom : public UGameplayAbility
+class PROJECT_NF_API UNFGA_WeaponZoom : public UGameplayAbility
 {
 	GENERATED_BODY()
 
 public:
-	UNF_GA_WeaponZoom();
+	UNFGA_WeaponZoom();
 
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
