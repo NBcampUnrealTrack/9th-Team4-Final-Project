@@ -8,6 +8,8 @@
 #include "Components/WidgetComponent.h"
 #include "GamePlay/Combat/Boss/NF_BossAttributeSet.h"
 #include "GamePlay/Combat/Boss/NF_BossRegistrySubsystem.h"
+#include "Core/NF_GameMode.h"
+#include "Data/Struct/NF_BossDefeatResult.h"
 #include "Engine/DataTable.h"
 #include "GamePlay/Combat/GameplayCue/NF_BossWarningMarker.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
@@ -22,6 +24,7 @@
 #include "View/MVVMView.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Character/NF_Player.h"
+#include "Player/State/NF_PlayerState.h"
 #include "Project_NF.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UI/ViewModel/Status/NF_MonsterStatusViewModel.h"
@@ -465,9 +468,10 @@ ANF_Player* ANF_BossBase::GetHighestDamageTarget(const float MaxRange) const
 	ANF_Player* BestPlayer = nullptr;
 	float BestDamage = -1.0f;
 	const float MaxRangeSquared = FMath::Square(FMath::Max(MaxRange, 0.0f));
-	for (const TPair<TWeakObjectPtr<ANF_Player>, float>& Entry : DamageContribution)
+	for (const TPair<TWeakObjectPtr<ANF_PlayerState>, float>& Entry : DamageContribution)
 	{
-		ANF_Player* Player = Entry.Key.Get();
+		ANF_PlayerState* PlayerState = Entry.Key.Get();
+		ANF_Player* Player = IsValid(PlayerState) ? Cast<ANF_Player>(PlayerState->GetPawn()) : nullptr;
 		if (!IsValid(Player) || FVector::DistSquared(GetActorLocation(), Player->GetActorLocation()) > MaxRangeSquared)
 		{
 			continue;
@@ -525,11 +529,21 @@ bool ANF_BossBase::IsLastGaspActive() const
 	return IsAbilityClassActive(LastGaspAbility);
 }
 
-void ANF_BossBase::RecordDamage(ANF_Player* Player, const float DamageAmount)
+void ANF_BossBase::RecordDamage(ANF_PlayerState* PlayerState, const float DamageAmount,
+	const bool bIsFatalDamage)
 {
-	if (HasAuthority() && IsValid(Player) && DamageAmount > 0.0f)
+	if (!HasAuthority() || DamageAmount <= 0.0f)
 	{
-		DamageContribution.FindOrAdd(Player) += DamageAmount;
+		return;
+	}
+
+	if (IsValid(PlayerState))
+	{
+		DamageContribution.FindOrAdd(PlayerState) += DamageAmount;
+	}
+	if (bIsFatalDamage)
+	{
+		LastHitPlayerState = PlayerState;
 	}
 }
 
@@ -550,6 +564,7 @@ void ANF_BossBase::BeginDeathSequence()
 	bDeathSequenceStarted = true;
 	bIsDefeated = true;
 	OnRep_IsDefeated();
+	NotifyCoreBossDefeated();
 	if (AbilitySystemComponent)
 	{
 		AbilitySystemComponent->CancelAllAbilities();
@@ -564,6 +579,56 @@ void ANF_BossBase::BeginDeathSequence()
 		return;
 	}
 	CompleteDeathSequence();
+}
+
+void ANF_BossBase::NotifyCoreBossDefeated()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	ANF_GameMode* GameMode = IsValid(World) ? World->GetAuthGameMode<ANF_GameMode>() : nullptr;
+	if (!IsValid(GameMode))
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[BossDefeat] Could not notify Core: authoritative ANF_GameMode is unavailable. Boss=%s"),
+			*GetNameSafe(this));
+		return;
+	}
+
+	FNF_BossDefeatResult DefeatResult;
+	DefeatResult.DefeatedBoss = this;
+	DefeatResult.LastHitPlayerState = LastHitPlayerState.Get();
+	for (const TPair<TWeakObjectPtr<ANF_PlayerState>, float>& Entry : DamageContribution)
+	{
+		ANF_PlayerState* PlayerState = Entry.Key.Get();
+		if (!IsValid(PlayerState) || Entry.Value <= 0.0f)
+		{
+			continue;
+		}
+
+		FNF_BossDamageContribution& Contribution = DefeatResult.Contributions.AddDefaulted_GetRef();
+		Contribution.PlayerState = PlayerState;
+		Contribution.EffectiveDamage = Entry.Value;
+	}
+
+	const bool bAccepted = GameMode->NotifyBossDefeated(DefeatResult);
+	if (!bAccepted)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("[BossDefeat] Core rejected defeat result; boss death continues without retry. Boss=%s LastHit=%s ContributionCount=%d"),
+			*GetNameSafe(this), *GetNameSafe(DefeatResult.LastHitPlayerState.Get()),
+			DefeatResult.Contributions.Num());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Display,
+			TEXT("[BossDefeat] Core accepted defeat result. Boss=%s LastHit=%s ContributionCount=%d"),
+			*GetNameSafe(this), *GetNameSafe(DefeatResult.LastHitPlayerState.Get()),
+			DefeatResult.Contributions.Num());
+	}
 }
 
 void ANF_BossBase::CompleteDeathSequence()

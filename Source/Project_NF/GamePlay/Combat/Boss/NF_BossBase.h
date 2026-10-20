@@ -22,6 +22,7 @@ class UNF_BossStateTreeAssetLibrary;
 class UNF_BossRegistrySubsystem;
 class UDataTable;
 class UWidgetComponent;
+class ANF_PlayerState;
 
 /** Stationary GAS-enabled boss base. Boss patterns are granted as GameplayAbilities. */
 UCLASS(Blueprintable)
@@ -62,7 +63,7 @@ public:
 	bool ActivateLastGasp();
 	bool IsLastGaspActive() const;
 
-	void RecordDamage(ANF_Player* Player, float DamageAmount);
+	void RecordDamage(ANF_PlayerState* PlayerState, float DamageAmount, bool bIsFatalDamage);
 	void HandleHealthUpdated(float NewHealth);
 	void CompleteDeathSequence();
 	void SetSubmerged(bool bNewSubmerged);
@@ -173,9 +174,11 @@ private:
 
 	void ApplySubmergedPresentation();
 	void BeginDeathSequence();
+	void NotifyCoreBossDefeated();
 	void InitializeBossHealthWidgetForLocalPlayer();
 
-	TMap<TWeakObjectPtr<ANF_Player>, float> DamageContribution;
+	TMap<TWeakObjectPtr<ANF_PlayerState>, float> DamageContribution;
+	TWeakObjectPtr<ANF_PlayerState> LastHitPlayerState;
 	FNF_BossCombatDataRow ActiveCombatData;
 	bool bHasActiveCombatData = false;
 	int32 NextCombatPatternIndex = 0;
