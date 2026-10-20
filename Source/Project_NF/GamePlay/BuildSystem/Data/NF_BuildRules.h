@@ -34,4 +34,9 @@ public:
 
 	int32 GetSlotCount(ENF_BuildItemType ItemType) const;
 	bool TryGetCostLimit(int32 PlayerLevel, int32& OutCostLimit) const;
+
+	// @Owner: 황준현 | 2026-10-19
+	// 빌드 제한시간 종료 시 미준비 플레이어에게 적용할 기본 구성.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build|Fallback")
+	TArray<FNF_BuildSelection> FallbackBuild;
 };

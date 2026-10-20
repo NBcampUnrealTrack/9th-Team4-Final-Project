@@ -3,13 +3,15 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
+#include "Core/NF_CoreIntegrationTypes.h"
 #include "NF_BuildReadyComponent.generated.h"
 
 class ANF_PlayerState;
 class UAbilitySystemComponent;
 
-// 기본 빌드 적용과 Ready 태그 갱신을 완료한 뒤 true를 반환
-DECLARE_DELEGATE_RetVal_OneParam(bool,FNF_ApplyFallbackBuild,ANF_PlayerState*);
+
+DECLARE_MULTICAST_DELEGATE(FNF_OnBuildResolveSucceeded);
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnBuildResolveFailed,const FString&);
 
 struct FNF_BuildReadyBinding
 {
@@ -35,6 +37,15 @@ public:
 	 // 미준비 플레이어에게 기본 빌드를 요청, 최종 준비 상태를 확인. 모두 준비된 경우에만 true 반환
 	bool ResolveUnreadyPlayers(int32 RequiredPlayerCount);
 
+	// Build 제한시간 종료 시 GameMode가 호출
+	void BeginResolve();
+
+	// 매치 중단·종료 또는 컴포넌트 종료 시 호출
+	void CancelResolve();
+
+	FNF_OnBuildResolveSucceeded OnBuildResolveSucceeded;
+	FNF_OnBuildResolveFailed OnBuildResolveFailed;
+	
 	// BuildSystem 연동 코드가 서버에서 바인딩
 	FNF_ApplyFallbackBuild ApplyFallbackBuild;
 
@@ -42,12 +53,26 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-	TMap<TWeakObjectPtr<ANF_PlayerState>, bool> PlayerBuildReadyStates;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|Deadline",meta = (ClampMin = "1"))
+	int32 MaxResolveAttempts = 3;
 
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|Deadline",meta = (ClampMin = "0.1"))
+	float ResolveRetryInterval = 1.0f;
+	
+	int32 ResolveAttempts = 0;
+	
+	bool bDeadlineResolving = false;
+	
+	bool bResolvingBuilds = false;
+	
+	TMap<TWeakObjectPtr<ANF_PlayerState>, bool> PlayerBuildReadyStates;
+	
 	TMap<TWeakObjectPtr<ANF_PlayerState>,FNF_BuildReadyBinding> BuildReadyBindings;
 
-	bool bResolvingBuilds = false;
-
+	FTimerHandle ResolveRetryTimerHandle;
+	
+	
 	bool HasServerAuthority() const;
 
 	void HandleBuildReadyTagChanged(const FGameplayTag Tag,int32 NewCount,TWeakObjectPtr<ANF_PlayerState> PlayerState);
@@ -58,4 +83,9 @@ private:
 	bool AreAllPlayersBuildReady(int32 RequiredPlayerCount) const;
 
 	void ClearBindings();
+	
+	void TryResolve();
+	
+	void FinishResolveFailure(const FString& Reason);
+	
 };

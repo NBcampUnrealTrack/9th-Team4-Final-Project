@@ -147,7 +147,7 @@ bool UNF_BossStateTreeAssetLibrary::AssignBossPatternCycleToTestBoss(UStateTree*
 		return false;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[BossStateTree] Assigned StateTree and combat abilities to BP_TestBoss"));
+	UE_LOG(LogTemp, Display, TEXT("[BossStateTree] Assigned StateTree and five boss abilities to BP_TestBoss"));
 	return true;
 #else
 	return false;
@@ -189,6 +189,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 
 	UStateTreeState& Root = EditorData->AddRootState();
 	Root.Name = TEXT("BossEncounter");
+	
 	Root.Description = TEXT("Waits in Dormant until the server wakes the boss, then runs combat patterns and enters LastGasp when defeated.");
 	Root.SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
 

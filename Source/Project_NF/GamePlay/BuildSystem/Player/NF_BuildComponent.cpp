@@ -18,6 +18,7 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
+#include "Core/NF_GameState.h"
 
 UNF_BuildComponent::UNF_BuildComponent()
 {
@@ -316,45 +317,16 @@ void UNF_BuildComponent::ApplyDraftBuild()
 	}
 }
 
-void UNF_BuildComponent::PressActiveSkillInput(int32 SlotIndex)
-{
-	APawn* Pawn = Cast<APawn>(GetOwner());
-	UAbilitySystemComponent* ASC = ResolveAbilitySystem();
-	if (!Pawn || !Pawn->IsLocallyControlled() || SlotIndex < 0 || SlotIndex > 1)
-	{
-		return;
-	}
-	if (IsValid(CurrentShop))
-	{
-		AssignSelectedActiveSkill(SlotIndex);
-		return;
-	}
-	if (ASC && Rules && SlotIndex < Rules->ActiveSkillSlots)
-	{
-		ASC->AbilityLocalInputPressed(SlotIndex + 1);
-	}
-}
-
-void UNF_BuildComponent::ReleaseActiveSkillInput(int32 SlotIndex)
-{
-	const APawn* Pawn = Cast<APawn>(GetOwner());
-	UAbilitySystemComponent* ASC = ResolveAbilitySystem();
-	if (Pawn && Pawn->IsLocallyControlled() && ASC && SlotIndex >= 0 && SlotIndex <= 1)
-	{
-		ASC->AbilityLocalInputReleased(SlotIndex + 1);
-	}
-}
 
 void UNF_BuildComponent::OnRep_CurrentShop()
 {
 	const APawn* Pawn = Cast<APawn>(GetOwner());
 	if (Pawn && Pawn->IsLocallyControlled())
 	{
-		ReleaseActiveSkillInput(0);
-		ReleaseActiveSkillInput(1);
 		DraftBuild = CurrentBuild;
 		PendingActiveSkill = NAME_None;
 		bDraftDirty = false;
+
 		UpdateLocalShopUI();
 		OnDraftChanged.Broadcast();
 	}
@@ -489,8 +461,89 @@ void UNF_BuildComponent::CompleteLocalBuildRequest(const FNF_BuildValidation& Va
 	OnBuildRequestCompleted.Broadcast(Validation);
 }
 
+
 FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
-	const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone)
+	const TArray<FNF_BuildSelection>& Selections,
+	ANF_BuildShopZone* ShopZone)
+{
+	FNF_BuildValidation Validation;
+
+	auto Fail = [&Validation](ENF_BuildResult Result, const TCHAR* Message)
+	{
+		Validation.Result = Result;
+		Validation.Message = FText::FromString(Message);
+		return Validation;
+	};
+
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return Fail(
+			ENF_BuildResult::NotAuthority,
+			TEXT("빌드 적용은 서버에서만 가능합니다."));
+	}
+
+	const APawn* PlayerPawn = Cast<APawn>(GetOwner());
+
+	if (!IsValid(ShopZone) ||
+		CurrentShop != ShopZone ||
+		!SessionController.IsValid() ||
+		!PlayerPawn ||
+		PlayerPawn->GetController() != SessionController.Get() ||
+		ShopZone->GetWorld() != GetWorld() ||
+		!ShopZone->CanBuild(GetOwner()))
+	{
+		return Fail(
+			ENF_BuildResult::NotInBuildZone,
+			TEXT("상점과 먼저 상호작용하고 사용 조건을 만족해야 합니다."));
+	}
+
+	return CommitBuildOnServer(Selections);
+}
+
+bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart()
+{
+	const ANF_GameState* GameState = GetWorld() ? GetWorld()->GetGameState<ANF_GameState>() : nullptr;
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || bApplyingBuild ||
+		!IsValid(GameState) || GameState->GetMatchPhase() != ENF_MatchPhase::Build || !IsValid(Rules))
+	{
+		return false;
+	}
+	if (!InitializeAbilitySystem(ResolveAbilitySystem()))
+	{
+		return false;
+	}
+	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다.
+	if (!CurrentBuild.IsEmpty() && PreviewBuild(CurrentBuild).Result == ENF_BuildResult::Success &&
+		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
+	{
+		return true;
+	}
+	// 적용 중 콜백으로 원본 구성이 바뀌지 않도록 복사한다.
+	const TArray<FNF_BuildSelection> Selections = Rules->FallbackBuild;
+	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections);
+	const bool bSucceeded = Validation.Result == ENF_BuildResult::Success &&
+		IsValid(AbilitySystem) && AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready);
+	if (bSucceeded)
+	{
+		CloseBuildSession();
+	}
+	return bSucceeded;
+}
+
+void UNF_BuildComponent::MarkBuildReady()
+{
+	if (!AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
+	{
+		// UE 5.7 API로 서버 태그와 소유 클라이언트의 카운트를 함께 갱신한다.
+		ReadyAbilitySystem = AbilitySystem;
+		bOwnsReadyTag = true;
+		AbilitySystem->AddLooseGameplayTag(
+			NFTag_Build::State_Build_Ready, 1, EGameplayTagReplicationState::CountToOwner);
+	}
+}
+
+FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
+	const TArray<FNF_BuildSelection>& Selections)
 {
 	FNF_BuildValidation Validation;
 	auto Fail = [&Validation](ENF_BuildResult Result, const TCHAR* Message)
@@ -500,32 +553,36 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 		return Validation;
 	};
 
-	if (!GetOwner()->HasAuthority())
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
 	{
-		return Fail(ENF_BuildResult::NotAuthority, TEXT("빌드 적용은 서버에서만 가능합니다."));
+		return Fail(
+			ENF_BuildResult::NotAuthority,
+			TEXT("빌드 적용은 서버에서만 가능합니다."));
 	}
+
 	if (bApplyingBuild)
 	{
 		return Fail(ENF_BuildResult::BuildBlocked, TEXT("빌드 적용이 진행 중입니다."));
 	}
 	TGuardValue<bool> ApplyGuard(bApplyingBuild, true);
-	if (!IsValid(AbilitySystem) || AbilitySystem->GetAvatarActor() != GetOwner())
+
+	if (!IsValid(AbilitySystem) ||
+		AbilitySystem->GetAvatarActor() != GetOwner())
 	{
 		return Fail(
-			ENF_BuildResult::MissingAbilitySystem, TEXT("플레이어 ASC의 ActorInfo와 빌드 컴포넌트를 연결해야 합니다."));
-	}
-	if (AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Locked))
-	{
-		return Fail(ENF_BuildResult::BuildBlocked, TEXT("현재 상태에서는 빌드를 교체할 수 없습니다."));
-	}
-	const APawn* PlayerPawn = Cast<APawn>(GetOwner());
-	if (!IsValid(ShopZone) || CurrentShop != ShopZone || !SessionController.IsValid() || !PlayerPawn ||
-		PlayerPawn->GetController() != SessionController.Get() || ShopZone->GetWorld() != GetWorld() || !ShopZone->
-		CanBuild(GetOwner()))
-	{
-		return Fail(ENF_BuildResult::NotInBuildZone, TEXT("상점과 먼저 상호작용하고 사용 거리 안에 있어야 합니다."));
+			ENF_BuildResult::MissingAbilitySystem,
+			TEXT("플레이어 ASC의 ActorInfo와 빌드 컴포넌트를 연결해야 합니다."));
 	}
 
+	if (AbilitySystem->HasMatchingGameplayTag(
+			NFTag_Build::State_Build_Locked))
+	{
+		return Fail(
+			ENF_BuildResult::BuildBlocked,
+			TEXT("현재 상태에서는 빌드를 교체할 수 없습니다."));
+	}
+
+	// 상점 검사는 이 함수에 넣지 않는다.
 	Validation = PreviewBuild(Selections);
 	if (Validation.Result != ENF_BuildResult::Success)
 	{
@@ -593,8 +650,8 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 		{
 			if (FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handles.AbilityHandle))
 			{
-				// Input IDs 1..N are reserved for active build slots. Slot movement keeps the spec.
-				Spec->InputID = Selection.SlotIndex + 1;
+				// 플레이어 입력과 동일하게 액티브 슬롯 0/1을 InputID로 사용하며 기존 Spec은 유지한다.
+				Spec->InputID = Selection.SlotIndex;
 				AbilitySystem->MarkAbilitySpecDirty(*Spec);
 			}
 		}
@@ -602,6 +659,7 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 
 	CurrentBuild = Selections;
 	GetOwner()->ForceNetUpdate();
+	MarkBuildReady();
 	OnRep_CurrentBuild();
 	Validation.Message = FText::FromString(TEXT("빌드를 적용했습니다."));
 	return Validation;
@@ -697,7 +755,7 @@ bool UNF_BuildComponent::GrantItem(
 	OutHandles.Definition = Definition;
 	if (Definition->AbilityClass)
 	{
-		const int32 InputId = Definition->ItemType == ENF_BuildItemType::ActiveSkill ? SlotIndex + 1 : INDEX_NONE;
+		const int32 InputId = Definition->ItemType == ENF_BuildItemType::ActiveSkill ? SlotIndex : INDEX_NONE;
 		OutHandles.AbilityHandle = AbilitySystem->GiveAbility(
 			FGameplayAbilitySpec(Definition->AbilityClass, Definition->AbilityLevel, InputId, Definition));
 		if (!OutHandles.AbilityHandle.IsValid())
@@ -766,6 +824,13 @@ void UNF_BuildComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	UpdateLocalShopUI();
 	if (GetOwner()->HasAuthority())
 	{
+		if (bOwnsReadyTag && ReadyAbilitySystem.IsValid())
+		{
+			ReadyAbilitySystem->RemoveLooseGameplayTag(
+				NFTag_Build::State_Build_Ready, 1, EGameplayTagReplicationState::CountToOwner);
+			bOwnsReadyTag = false;
+			ReadyAbilitySystem.Reset();
+		}
 		ReleaseBuildWeapon();
 		for (const TPair<FName, FNF_BuildGrantHandles>& Item : AppliedItems)
 		{

@@ -1,4 +1,5 @@
 #include "GamePlay/Combat/Skill/Portal/NF_Portal.h"
+#include "GamePlay/Combat/Skill/Portal/NF_PortalView.h"
 
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -6,6 +7,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -18,7 +21,9 @@
 ANF_Portal::ANF_Portal()
 {
 	bReplicates = true; SetReplicateMovement(true);
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.TickInterval = 0.1f;
+	PortalViewClass = ANF_PortalView::StaticClass();
 	SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("PortalRoot")));
 	EntranceTrigger = CreateDefaultSubobject<UBoxComponent>(TEXT("EntranceTrigger"));
 	EntranceTrigger->SetupAttachment(GetRootComponent());
@@ -172,6 +177,58 @@ void ANF_Portal::RefreshPortalState()
 	PortalMesh->SetVisibility(bActive, true);
 	if (UMaterialInterface* Material = bExitPortal ? ExitMaterial.Get() : EntranceMaterial.Get()) { PortalMesh->SetMaterial(0, Material); }
 	if (GetNetMode() != NM_DedicatedServer) { PortalStateChanged(bExitPortal, bActive); }
+	RefreshLocalViews();
+}
+
+FTransform ANF_Portal::GetViewTransform() const
+{
+	// Both gameplay actors face the travel direction. Their visible mouths face opposite sides:
+	// entrance toward the caster, exit toward the arrival area. This preserves the existing travel heading.
+	const FQuat MouthRotation = GetActorQuat() * FQuat(FVector::UpVector, bExitPortal ? 0.0f : PI);
+	return FTransform(MouthRotation, PortalMesh->GetComponentLocation());
+}
+
+void ANF_Portal::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	RefreshLocalViews();
+}
+
+void ANF_Portal::ClearLocalViews()
+{
+	for (auto& Pair : LocalViews) { if (Pair.Value.IsValid()) { Pair.Value->Destroy(); } }
+	LocalViews.Reset();
+}
+
+void ANF_Portal::RefreshLocalViews()
+{
+	if (GetNetMode() == NM_DedicatedServer) { return; }
+	if (!bActive || !bEnablePortalView || !PortalViewClass || !IsValid(LinkedPortal) || !LinkedPortal->IsPortalActive() || bClosing)
+	{
+		ClearLocalViews(); PortalMesh->SetVisibility(bActive, true); return;
+	}
+	UGameInstance* Instance = GetGameInstance();
+	if (!Instance) { return; }
+	for (auto It = LocalViews.CreateIterator(); It; ++It)
+	{
+		if (!It.Key().IsValid() || !Instance->GetLocalPlayers().Contains(It.Key().Get()) || !It.Value().IsValid())
+		{
+			if (It.Value().IsValid()) { It.Value()->Destroy(); }
+			It.RemoveCurrent();
+		}
+	}
+	for (ULocalPlayer* Player : Instance->GetLocalPlayers())
+	{
+		APlayerController* Controller = Player ? Player->GetPlayerController(GetWorld()) : nullptr;
+		if (!Controller || !Controller->IsLocalController() || LocalViews.Contains(Player)) { continue; }
+		FActorSpawnParameters Params; Params.Owner = Controller->GetViewTarget();
+		if (ANF_PortalView* View = GetWorld()->SpawnActor<ANF_PortalView>(PortalViewClass, GetViewTransform(), Params))
+		{
+			View->Initialize(this, Controller); LocalViews.Add(Player, View);
+		}
+	}
+	// Replace the opaque placeholder slab only where a local view surface exists.
+	PortalMesh->SetVisibility(bActive && LocalViews.IsEmpty(), true);
 }
 void ANF_Portal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -182,6 +239,7 @@ void ANF_Portal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 }
 void ANF_Portal::EndPlay(const EEndPlayReason::Type Reason)
 {
+	ClearLocalViews();
 	if (GetWorld()) { GetWorld()->GetTimerManager().ClearTimer(RetryTimer); }
 	if (HasAuthority()) { ClosePortalPair(); }
 	Super::EndPlay(Reason);

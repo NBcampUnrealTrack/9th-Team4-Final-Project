@@ -19,7 +19,7 @@ protected:
 	virtual void BeginPlay() override;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Projectile")
-	TObjectPtr<class USphereComponent> SphereComponent;
+	TObjectPtr<class UCapsuleComponent> CapsuleComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Projectile")
 	TObjectPtr<class UStaticMeshComponent> StaticMeshComponent;
@@ -37,4 +37,7 @@ protected:
 		UPrimitiveComponent* OtherComponent,
 		FVector NormalImpulse,
 		const FHitResult& Hit);
+
+private:
+	bool bHitProcessed = false;
 };
