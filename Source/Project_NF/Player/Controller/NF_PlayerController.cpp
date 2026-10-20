@@ -122,7 +122,7 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::ToggleSettingButton);
 	
 	
-	//Combat
+	//Attack
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::Fire);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Completed, this, 
@@ -152,92 +152,117 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::Interaction);
 }
 
-
+#pragma region TryAction
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
-	if (CurrentBuildShopType == ENF_BuildShopUIState::BuildOpened)
-	{
-		if (PlayerActionType == ENF_PlayerActionType::SkillA)
-		{
-			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerBindingSkill, this, PlayerActionType);
-			return;
-		}
-	
-		if (PlayerActionType == ENF_PlayerActionType::SkillB)
-		{
-			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerBindingSkill, this, PlayerActionType);
-			return;
-		}
-		
-		return;
-	}
-	
+	//Toggle옵션 Test
 	if (PlayerActionType == ENF_PlayerActionType::ToggleSettingButton)
 	{
 		bIsToggleZoom = !bIsToggleZoom;
 		UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("토글 실행 %d"), bIsToggleZoom));
 	}
 	
-	if (PlayerActionType == ENF_PlayerActionType::Fire)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
+	IsBuildShopAction(PlayerActionType);
 	
-	if (PlayerActionType == ENF_PlayerActionType::StopFire)
+	IsCombatAction(PlayerActionType);
+}
+	#pragma region Actions
+	void ANF_PlayerController::IsBuildShopAction(ENF_PlayerActionType PlayerActionType)
 	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
+		if (CurrentBuildShopType == ENF_BuildShopUIState::BuildOpened)
+		{
+			if (PlayerActionType == ENF_PlayerActionType::SkillA)
+			{
+				NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerBindingSkill, this, PlayerActionType);
+				return;
+			}
+		
+			if (PlayerActionType == ENF_PlayerActionType::SkillB)
+			{
+				NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerBindingSkill, this, PlayerActionType);
+				return;
+			}
+			
+			return;
+		}
 	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::ZoomIn)
+
+
+	void ANF_PlayerController::IsCombatAction(ENF_PlayerActionType PlayerActionType)
+	{
+		if (PlayerActionType == ENF_PlayerActionType::Fire)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::StopFire)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::ZoomIn)
+		{
+			ZoomSelector(PlayerActionType);
+			return;
+		}
+		
+		if (bIsToggleZoom == false && PlayerActionType == ENF_PlayerActionType::ZoomOut)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::Reload)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::SkillA)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::SkillB)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+		
+		if (PlayerActionType == ENF_PlayerActionType::Interaction)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+	}
+
+
+	void ANF_PlayerController::ZoomSelector(ENF_PlayerActionType PlayerActionType)
 	{
 		if (bIsToggleZoom == false)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+			
+		if (bIsToggleZoom == true && bIsZoomIn == false)
 		{
 			bIsZoomIn = true;
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 		}
-		
+			
 		else if (bIsToggleZoom == true && bIsZoomIn == true)
 		{
 			bIsZoomIn = false;
 			PlayerActionType = ENF_PlayerActionType::ZoomOut;
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 		}
-		
-		return;
 	}
-	
-	if (bIsToggleZoom == false && PlayerActionType == ENF_PlayerActionType::ZoomOut)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::Reload)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::SkillA)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::SkillB)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-	
-	if (PlayerActionType == ENF_PlayerActionType::Interaction)
-	{
-		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
-		return;
-	}
-}
+	#pragma endregion
+#pragma endregion
 
 
 #pragma region BuildShop

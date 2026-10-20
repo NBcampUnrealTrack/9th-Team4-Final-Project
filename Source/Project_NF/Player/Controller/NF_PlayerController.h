@@ -56,6 +56,11 @@ protected:
 	
 	void TryAction(ENF_PlayerActionType PlayerActionType);
 	
+	void IsBuildShopAction(ENF_PlayerActionType PlayerActionType);
+	void IsCombatAction(ENF_PlayerActionType PlayerActionType);
+	
+	void ZoomSelector(ENF_PlayerActionType PlayerActionType);
+	
 #pragma endregion 
 	
 
