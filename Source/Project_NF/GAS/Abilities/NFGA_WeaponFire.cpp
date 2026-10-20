@@ -1,10 +1,12 @@
 #include "GAS/Abilities/NFGA_WeaponFire.h"
 
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
+#include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GAS/Tags/NFTag_Player.h"
+#include "UpperBodyBlend/UpperBodyLayer.h"
 
 UNFGA_WeaponFire::UNFGA_WeaponFire()
 {
@@ -48,6 +50,12 @@ void UNFGA_WeaponFire::TryFire()
 	if (Remaining > 0.f)
 	{
 		WaitForNextShot(Remaining);
+		return;
+	}
+	
+	if (UUpperBodyLayerLibrary::NotifyUpperBodyFire(Cast<ACharacter>(GetAvatarActorFromActorInfo())) == false) 
+	{
+		WaitForNextShot(0.0f);
 		return;
 	}
 	
