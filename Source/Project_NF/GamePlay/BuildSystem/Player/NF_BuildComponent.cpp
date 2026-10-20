@@ -195,21 +195,29 @@ UNF_BuildItemDefinitionDataAsset* UNF_BuildComponent::FindItemDefinition(FName I
 }
 
 TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
-	ENF_BuildItemType ItemType, ENF_BuildArmorPart ArmorPart) const
+	ENF_BuildItemType ItemType,
+	ENF_BuildArmorPart ArmorPart) const
 {
 	TArray<UNF_BuildItemDefinitionDataAsset*> Result;
-	if (Rules)
+
+	if (!IsValid(Rules) || !bEntitlementsInitialized)
 	{
-		for (UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
-		{
-			if (IsValid(Definition) && Definition->ItemType == ItemType &&
-				(ItemType != ENF_BuildItemType::Armor || ArmorPart == ENF_BuildArmorPart::None ||
-					Definition->ArmorPart == ArmorPart))
-			{
-				Result.Add(Definition);
-			}
-		}
+		return Result;
 	}
+
+	for (UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
+	{
+		if (!IsValid(Definition)){continue;}
+		// 획득하지 않은 아이템은 목록에서 제외한다.
+		if (!UnlockedItemIds.Contains(Definition->ItemId)){continue;}
+		if (Definition->ItemType != ItemType){continue;}
+		// 방어구는 지정한 부위만 표시한다. None이면 전체 부위.
+		if (ItemType == ENF_BuildItemType::Armor &&
+			ArmorPart != ENF_BuildArmorPart::None &&
+			Definition->ArmorPart != ArmorPart){continue;}
+		Result.Add(Definition);
+	}
+
 	return Result;
 }
 
@@ -405,13 +413,8 @@ bool UNF_BuildComponent::ConfigureRules(UNF_BuildRules* InRules)
 
 bool UNF_BuildComponent::SetPlayerLevel(int32 NewLevel)
 {
-	int32 CostLimit = 0;
-	if (!GetOwner()->HasAuthority() || bApplyingBuild || !Rules || !Rules->TryGetCostLimit(NewLevel, CostLimit))
-	{
-		return false;
-	}
-	if (!CurrentBuild.IsEmpty() &&
-		FNF_BuildValidator::Validate(Rules, NewLevel, CurrentBuild).Result != ENF_BuildResult::Success)
+	// @Owner: 황준현 | 2026-10-20. 진행 시스템의 레벨 결정을 빌드 유효성으로 거절하지 않는다.
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || bApplyingBuild || NewLevel < 1)
 	{
 		return false;
 	}
@@ -421,11 +424,24 @@ bool UNF_BuildComponent::SetPlayerLevel(int32 NewLevel)
 	return true;
 }
 
-FNF_BuildValidation UNF_BuildComponent::PreviewBuild(const TArray<FNF_BuildSelection>& Selections) const
+FNF_BuildValidation UNF_BuildComponent::PreviewBuild(
+	const TArray<FNF_BuildSelection>& Selections) const
 {
-	return FNF_BuildValidator::Validate(Rules, PlayerLevel, Selections);
-}
+	if (!bEntitlementsInitialized)
+	{
+		FNF_BuildValidation Validation;
+		Validation.Result = ENF_BuildResult::InvalidRules;
+		Validation.Message =
+			FText::FromString(TEXT("플레이어의 빌드 조건이 아직 준비되지 않았습니다."));
+		return Validation;
+	}
 
+	return FNF_BuildValidator::Validate(
+		Rules,
+		CostLimit,
+		UnlockedItemIds,
+		Selections);
+}
 void UNF_BuildComponent::RequestApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone)
 {
 	if (GetOwner()->HasAuthority())
@@ -849,4 +865,48 @@ void UNF_BuildComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, Rules, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CurrentShop, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, ShopsInRange, COND_OwnerOnly);
+
+
+	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CostLimit, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UNF_BuildComponent, UnlockedItemIds, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UNF_BuildComponent, bEntitlementsInitialized, COND_OwnerOnly);
+}
+
+bool UNF_BuildComponent::UpdateBuildEntitlements(
+	int32 NewCostLimit,
+	const TArray<FName>& NewUnlockedItemIds)
+{
+	if (!IsValid(GetOwner()) ||
+		!GetOwner()->HasAuthority() ||
+		bApplyingBuild ||
+		NewCostLimit < 0)
+	{
+		return false;
+	}
+
+	TArray<FName> ValidatedIds;
+
+	for (FName ItemId : NewUnlockedItemIds)
+	{
+		if (ItemId.IsNone() || !FindItemDefinition(ItemId))
+		{
+			return false;
+		}
+
+		ValidatedIds.AddUnique(ItemId);
+	}
+
+	CostLimit = NewCostLimit;
+	UnlockedItemIds = MoveTemp(ValidatedIds);
+	bEntitlementsInitialized = true;
+
+	GetOwner()->ForceNetUpdate();
+	OnRep_BuildEntitlements();
+	return true;
+}
+
+void UNF_BuildComponent::OnRep_BuildEntitlements()
+{
+	OnBuildEntitlementsChanged.Broadcast();
+	OnDraftChanged.Broadcast();
 }

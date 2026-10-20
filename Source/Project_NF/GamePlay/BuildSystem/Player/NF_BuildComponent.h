@@ -25,14 +25,20 @@ struct FNF_BuildGrantHandles
 
 	FGameplayAbilitySpecHandle AbilityHandle;
 	TArray<FActiveGameplayEffectHandle> EffectHandles;
+
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildChanged);
+
+// @Owner: 황준현 | 2026-10-20. 개인별 코스트 상한과 사용 가능 목록 변경 알림.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildEntitlementsChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildRequestCompleted, const FNF_BuildValidation&, Validation);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopRangeChanged, ANF_BuildShopZone*, Shop,
 	ENF_BuildShopRangeState, RangeState);
+
+
 
 /** Attach to an owned replicated Pawn. The shop is never the client RPC owner. */
 UCLASS(ClassGroup = (NF), meta = (BlueprintSpawnableComponent))
@@ -43,6 +49,9 @@ class PROJECT_NF_API UNF_BuildComponent : public UActorComponent
 public:
 	UNF_BuildComponent();
 
+	// @Owner: 황준현 | 2026-10-20. 권한 있는 진행·획득 시스템에서 호출한다.
+	// 클라이언트 RPC로 제공하지 않는다.
+	bool UpdateBuildEntitlements(int32 NewCostLimit, const TArray<FName>& NewUnlockedItemIds);
 
 	/** @Owner: 황준현 | 2026-10-19. Core 연동 객체에서만 호출하는 서버 기본 적용 경로. RPC가 아니다. */
 	bool ApplyFallbackBuildForMatchStart();
@@ -99,6 +108,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Draft")
 	FNF_OnBuildChanged OnDraftChanged;
 
+	UPROPERTY(BlueprintAssignable, Category = "NF|Build")
+	FNF_OnBuildEntitlementsChanged OnBuildEntitlementsChanged;
+
 	/** Wire an already initialized ASC. Reject replacing it while a build is equipped. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build")
 	bool InitializeAbilitySystem(UAbilitySystemComponent* InAbilitySystem);
@@ -107,8 +119,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build")
 	bool ConfigureRules(UNF_BuildRules* InRules);
 
-	/** Called by the authoritative progression system; level/cost never come from the client. */
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build")
+	/** 기존 호출 호환용 레벨 기록. 상한과 사용 권한은 UpdateBuildEntitlements로 갱신한다. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build",
+		meta = (DeprecatedFunction, DeprecationMessage = "Use UpdateBuildEntitlements for cost and unlock changes."))
 	bool SetPlayerLevel(int32 NewLevel);
 
 	UFUNCTION(BlueprintPure, Category = "NF|Build")
@@ -140,6 +153,8 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build")
 	FNF_OnBuildRequestCompleted OnBuildRequestCompleted;
+
+
 
 protected:
 	virtual void BeginPlay() override;
@@ -237,4 +252,16 @@ private:
 	// 이 컴포넌트가 추가한 태그 기여분만 종료 시 회수한다.
 	TWeakObjectPtr<UAbilitySystemComponent> ReadyAbilitySystem;
 	bool bOwnsReadyTag = false;
+
+	UFUNCTION()
+	void OnRep_BuildEntitlements();
+
+	UPROPERTY(ReplicatedUsing = OnRep_BuildEntitlements)
+	int32 CostLimit = 0;
+
+	UPROPERTY(ReplicatedUsing = OnRep_BuildEntitlements)
+	TArray<FName> UnlockedItemIds;
+
+	UPROPERTY(ReplicatedUsing = OnRep_BuildEntitlements)
+	bool bEntitlementsInitialized = false;
 };
