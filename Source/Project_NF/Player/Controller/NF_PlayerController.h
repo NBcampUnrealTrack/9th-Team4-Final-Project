@@ -45,6 +45,9 @@ protected:
 	
 	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
 	
+	bool bIsToggleZoom = false;
+	bool bIsZoomIn = false;
+	
 	void InputConfig();
 	
 	void BindInputButton();
@@ -52,6 +55,11 @@ protected:
 	void BindDelegate();
 	
 	void TryAction(ENF_PlayerActionType PlayerActionType);
+	
+	void IsBuildShopAction(ENF_PlayerActionType PlayerActionType);
+	void IsCombatAction(ENF_PlayerActionType PlayerActionType);
+	
+	void ZoomSelector(ENF_PlayerActionType PlayerActionType);
 	
 #pragma endregion 
 	

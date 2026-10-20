@@ -12,11 +12,14 @@
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "Data/Interface/NF_InteractionInterface.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
+#include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GAS/Tags/NFTag_Player.h"
+#include "Net/UnrealNetwork.h"
 #include "Player/Controller/NF_PlayerController.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/State/NF_PlayerState.h"
+#include "UpperBodyBlend/UpperBodyLayer.h"
 
 
 ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
@@ -51,14 +54,16 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//MotionMatching
 	MotionMatchingComponent = CreateDefaultSubobject<UMotionMatchingComponent>(TEXT("MotionMatchingComponent"));
 	CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
+	MotionMatchingComponent->AddTraversalOwnedTag(NFTag_Player::Player_State_Traversal);
 	
 	
 	//Build
 	NF_BuildComponent = CreateDefaultSubobject<UNF_BuildComponent>(TEXT("NF_BuildComponent"));
 	
 	
-	//Weapon
+	//Equipment
 	NF_WeaponComponent = CreateDefaultSubobject<UNF_WeaponComponent>(TEXT("NF_WeaponComponent"));
+	NF_ArmorComponent = CreateDefaultSubobject<UNF_ArmorComponent>(TEXT("NF_ArmorComponent"));
 }
 
 
@@ -95,9 +100,15 @@ void ANF_Player::BindDelegate()
 			return;
 		}
 		
-		if (ActionType == ENF_PlayerActionType::Zoom)
+		if (ActionType == ENF_PlayerActionType::ZoomIn)
 		{
-			TryZoom();
+			TryZoom(ActionType);
+			return;
+		}
+	
+		if (ActionType == ENF_PlayerActionType::ZoomOut)
+		{
+			TryZoom(ActionType);
 			return;
 		}
 		
@@ -130,25 +141,35 @@ void ANF_Player::BindDelegate()
 		void ANF_Player::TryStartAttack()
 		{
 			NF_WeaponComponent->StartFire();
+			UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, true);
+			UUpperBodyLayerLibrary::NotifyUpperBodyFire(this);
 		}
-
 
 		void ANF_Player::TryStopAttack()
 		{
 			NF_WeaponComponent->StopFire();
+			UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, false);
 		}
 
-		void ANF_Player::TryZoom()
+		void ANF_Player::TryZoom(ENF_PlayerActionType ActionType)
 		{
-			NF_WeaponComponent->ToggleZoom();
+			if (ActionType == ENF_PlayerActionType::ZoomIn)
+			{
+				NF_WeaponComponent->StartZoom();
+				UUpperBodyLayerLibrary::SetUpperBodyZoom(this, true);
+			}
+	
+			if (ActionType == ENF_PlayerActionType::ZoomOut)
+			{
+				NF_WeaponComponent->StopZoom();
+				UUpperBodyLayerLibrary::SetUpperBodyZoom(this, false);
+			}
 		}
-
 
 		void ANF_Player::TryReload()
 		{
 			NF_WeaponComponent->Reload();
 		}
-
 
 		void ANF_Player::TrySkillActionWithInputID(int32 InputID)
 		{
@@ -159,13 +180,11 @@ void ANF_Player::BindDelegate()
 			GetAbilitySystemComponent()->AbilityLocalInputPressed(InputID);
 		}
 
-
 		void ANF_Player::TryInteraction(APlayerController* SendController)
 		{
 			FHitResult TraceResult = GetActorFromLineTrace();
 			ServerRPC_TryInteraction(SendController, TraceResult.GetActor());
 		}
-
 
 		void ANF_Player::ServerRPC_TryInteraction_Implementation(APlayerController* SendController, AActor* TargetActor)
 		{
@@ -176,7 +195,6 @@ void ANF_Player::BindDelegate()
 			
 			NF_InteractionInterface->NF_Interaction(SendController);
 		}
-
 
 		FHitResult ANF_Player::GetActorFromLineTrace()
 		{
@@ -281,6 +299,13 @@ UAbilitySystemComponent* ANF_Player::GetAbilitySystemComponent() const
 	if (IsValid(NF_PlayerState) == false) return nullptr;
 	
 	return NF_PlayerState->GetAbilitySystemComponent();
+}
+
+void ANF_Player::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	
+	DOREPLIFETIME(ThisClass, NF_WeaponType);
 }
 
 
