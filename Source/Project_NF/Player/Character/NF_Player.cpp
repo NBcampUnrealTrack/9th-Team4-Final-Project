@@ -70,7 +70,6 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
-	checkf(IsValid(UpperBodyLayerDataAsset) == true, TEXT("플레이어의 [UpperBodyLayerDataAsset]이 설정되지않았습니다."));
 	BindDelegate();
 }
 
