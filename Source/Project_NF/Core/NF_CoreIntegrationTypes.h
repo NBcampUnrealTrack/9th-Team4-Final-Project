@@ -13,8 +13,6 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FNF_ApplyFallbackBuild, ANF_PlayerState*)
 // @Owner: 조민웅 | 2026-10-19
 // Core의 보스 출현 요청 계약.서버에서 생성·GAS·AI 초기화 완료 후 보스를 반환한다. 실패 시 부분 생성 객체를 정리하고 nullptr를 반환한다.
 DECLARE_DELEGATE_RetVal(ANF_BossBase*,FNF_RequestBossSpawn);
-/** Synchronous Core request for the boss system to prepare and return the match boss. */
-DECLARE_DELEGATE_RetVal(ANF_BossBase*, FNF_RequestBossSpawn);
 
 // @Owner: 조민웅 | 2026-10-20
 // Core가 보스 처치 결과를 검증하고 최종 확정했을 때 발생한다.
