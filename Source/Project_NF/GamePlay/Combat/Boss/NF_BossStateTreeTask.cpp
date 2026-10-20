@@ -19,8 +19,24 @@ EStateTreeRunStatus FNF_BossAbilityTask::EnterState(FStateTreeExecutionContext& 
 {
 	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	ANF_BossBase* Boss = GetBossFromStateTreeContext(Context);
-	if (!Boss || !InstanceData.AbilityClass || !Boss->ActivateAbilityClass(InstanceData.AbilityClass, InstanceData.bAllowWhenBossDefeated))
+	if (!Boss)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[BossStateTreeDiag] Ability task has no ANF_BossBase owner"));
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (!InstanceData.AbilityClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[BossStateTreeDiag] Ability task has no configured GA on Boss=%s"), *Boss->GetName());
+		return EStateTreeRunStatus::Failed;
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("[BossStateTreeDiag] Entering pattern state Boss=%s Ability=%s"),
+		*Boss->GetName(), *GetNameSafe(InstanceData.AbilityClass.Get()));
+	if (!Boss->ActivateAbilityClass(InstanceData.AbilityClass, InstanceData.bAllowWhenBossDefeated))
+	{
+		UE_LOG(LogTemp, Error, TEXT("[BossStateTreeDiag] Pattern state failed to activate GA Boss=%s Ability=%s"),
+			*Boss->GetName(), *GetNameSafe(InstanceData.AbilityClass.Get()));
 		if (Boss && InstanceData.bAllowWhenBossDefeated)
 		{
 			Boss->CompleteDeathSequence();
@@ -43,9 +59,14 @@ EStateTreeRunStatus FNF_BossAbilityTask::Tick(FStateTreeExecutionContext& Contex
 		// Leave the state running so its high-priority OnTick transition can enter LastGasp.
 		return EStateTreeRunStatus::Running;
 	}
-	return Boss->IsAbilityClassActive(InstanceData.AbilityClass)
-		? EStateTreeRunStatus::Running
-		: EStateTreeRunStatus::Succeeded;
+	if (Boss->IsAbilityClassActive(InstanceData.AbilityClass))
+	{
+		return EStateTreeRunStatus::Running;
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("[BossStateTreeDiag] Pattern GA finished; completing state Boss=%s Ability=%s"),
+		*Boss->GetName(), *GetNameSafe(InstanceData.AbilityClass.Get()));
+	return EStateTreeRunStatus::Succeeded;
 }
 
 bool FNF_BossDefeatedCondition::TestCondition(FStateTreeExecutionContext& Context) const
@@ -63,7 +84,15 @@ FNF_BossDormantTask::FNF_BossDormantTask()
 EStateTreeRunStatus FNF_BossDormantTask::EnterState(FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
-	return GetBossFromStateTreeContext(Context) ? EStateTreeRunStatus::Running : EStateTreeRunStatus::Failed;
+	const ANF_BossBase* Boss = GetBossFromStateTreeContext(Context);
+	if (!Boss)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[BossStateTreeDiag] Dormant task has no ANF_BossBase owner"));
+		return EStateTreeRunStatus::Failed;
+	}
+	UE_LOG(LogTemp, Display, TEXT("[BossStateTreeDiag] Entered Dormant Boss=%s Awake=%d"),
+		*Boss->GetName(), Boss->IsAwake() ? 1 : 0);
+	return EStateTreeRunStatus::Running;
 }
 
 EStateTreeRunStatus FNF_BossDormantTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
@@ -73,5 +102,10 @@ EStateTreeRunStatus FNF_BossDormantTask::Tick(FStateTreeExecutionContext& Contex
 	{
 		return EStateTreeRunStatus::Failed;
 	}
-	return Boss->IsAwake() ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Running;
+	if (Boss->IsAwake())
+	{
+		UE_LOG(LogTemp, Display, TEXT("[BossStateTreeDiag] Dormant completed; boss is awake Boss=%s"), *Boss->GetName());
+		return EStateTreeRunStatus::Succeeded;
+	}
+	return EStateTreeRunStatus::Running;
 }

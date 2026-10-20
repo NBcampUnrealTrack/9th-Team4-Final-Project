@@ -31,8 +31,8 @@ public:
 
 	class USkeletalMeshComponent* GetHitMesh() const;
 
-	/** Search the hit bone then its parents on the selected mesh. Closest mapping wins.
-	 * Missing bones or no mapped ancestor return Unknown; explicit Unknown stops the search. */
+	/** Match only the hit bone's name on the selected mesh; parents are not searched.
+	 * Missing or unmapped bones return Unknown and receive no armor defense. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Armor|Hit Regions")
 	TMap<FName, ENF_ArmorSlot> BoneToSlot;
 

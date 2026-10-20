@@ -76,15 +76,7 @@ void UNFGA_BossThreatVolley::BeginAimedVolley()
 		return;
 	}
 
-	FVector GroundPoint;
-	if (!FindGroundPoint(Target, GroundPoint))
-	{
-		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
-		return;
-	}
-	FirstShotGroundPoint = GroundPoint;
 	FiredProjectileCount = 0;
-	ShowTelegraph(GroundPoint, ImpactRadius, TelegraphDuration, false, 0.0f, ShotTelegraphMaterial);
 	ElapsedFireTime = 0.0f;
 	GetWorld()->GetTimerManager().SetTimer(TelegraphTimer, this,
 		&UNFGA_BossThreatVolley::FireNextProjectile, FMath::Max(TelegraphDuration, 0.0f), false);
@@ -106,20 +98,11 @@ void UNFGA_BossThreatVolley::FireNextProjectile()
 		FMath::Max(ShotInterval, 0.01f), FMath::Max(TurnRateDegreesPerSecond, 0.0f)));
 
 	FVector GroundPoint;
-	bool bHasGroundPoint = false;
-	if (FiredProjectileCount == 0)
-	{
-		GroundPoint = FirstShotGroundPoint;
-		bHasGroundPoint = true;
-	}
-	else
-	{
-		bHasGroundPoint = FindGroundPoint(Target, GroundPoint);
-	}
+	const bool bHasGroundPoint = FindGroundPoint(Target, GroundPoint);
 	if (bHasGroundPoint)
 	{
-		// The first shot uses the warning shown before the telegraph delay. Every later
-		// shot gets its own marker at the exact ground point passed to the projectile.
+		// Resolve the target's ground position when each projectile launches so the
+		// first shot uses the player's position after the full telegraph delay.
 		if (FiredProjectileCount > 0)
 		{
 			ShowTelegraph(GroundPoint, ImpactRadius, TelegraphDuration, false,
@@ -165,7 +148,6 @@ void UNFGA_BossThreatVolley::EndAbility(const FGameplayAbilitySpecHandle Handle,
 		Timers.ClearTimer(RecoveryTimer);
 	}
 	SelectedTarget.Reset();
-	FirstShotGroundPoint = FVector::ZeroVector;
 	FiredProjectileCount = 0;
 	ElapsedFireTime = 0.0f;
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

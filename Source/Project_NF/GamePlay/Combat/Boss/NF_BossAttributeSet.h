@@ -18,6 +18,7 @@ public:
 	void InitializeForBoss(float InMaxHealth);
 
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
+	virtual bool PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data) override;
 	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 
 protected:
@@ -28,6 +29,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Boss|Attribute")
 	FGameplayAttributeData MaxHealth = 10000.0f;
+
+	float HealthBeforeGameplayEffect = 0.0f;
+	bool bHasHealthBeforeGameplayEffect = false;
 
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldValue);
