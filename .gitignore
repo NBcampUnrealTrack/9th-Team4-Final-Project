@@ -3874,3 +3874,7 @@ Content/ProjectNF/Persnal/Myunghyun/Player/Character/Resource/ParagonRevenant/FX
 Content/ProjectNF/Persnal/Myunghyun/Player/Character/Resource/ParagonRevenant/FX/VectorFields/VF_RandomNoise_01_90.uasset
 Content/ProjectNF/Persnal/Myunghyun/Player/Character/Resource/ParagonRevenant/FX/VectorFields/VF_TurbulentNoise_1_55.uasset
 Content/ProjectNF/Persnal/Myunghyun/Player/Character/Resource/ParagonRevenant/FX/VectorFields/Taker/VF_TakerPortal_Vortex_8_220.uasset
+Content/ProjectNF/Persnal/Myunghyun/Player/BP_NF_Controller.uasset
+Content/ProjectNF/Persnal/Myunghyun/Player/BP_NF_Player.uasset
+Content/ProjectNF/Persnal/Myunghyun/Player/BP_NF_PlayerState.uasset
+Content/ProjectNF/Persnal/Myunghyun/Player/Character/BP_NF_Player_MH.uasset
