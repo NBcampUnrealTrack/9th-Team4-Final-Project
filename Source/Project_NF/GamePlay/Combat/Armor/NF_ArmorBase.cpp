@@ -41,7 +41,7 @@ float ANF_ArmorBase::GetAdditionalDefense() const
 	if (IsValid(ArmorData) == false)
 		return 0.f;
 	
-	return FMath::Max(0.f, ArmorData->AdditionalDefense);
+	return FMath::Max(0.f, ArmorData->AdditionalDefence);
 }
 
 void ANF_ArmorBase::ApplyArmorAppearance()

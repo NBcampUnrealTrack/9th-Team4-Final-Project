@@ -118,14 +118,9 @@ ENF_ArmorSlot UNF_ArmorComponent::ResolveHitRegion(FName BoneName) const
 	if (!IsValid(HitMesh) || HitMesh->GetBoneIndex(BoneName) == INDEX_NONE)
 		return ENF_ArmorSlot::Unknown;
 
-	// Closest entry wins, including an explicit Unknown override.
-	// Only real bones from the selected hit mesh can participate in this lookup.
-	while (!BoneName.IsNone())
-	{
-		if (const ENF_ArmorSlot* Slot = BoneToSlot.Find(BoneName)) return *Slot;
-		BoneName = HitMesh->GetParentBone(BoneName);
-	}
-	return ENF_ArmorSlot::Unknown;
+	// Only explicitly mapped hit bones receive a region; parents do not provide coverage.
+	const ENF_ArmorSlot* Slot = BoneToSlot.Find(BoneName);
+	return Slot ? *Slot : ENF_ArmorSlot::Unknown;
 }
 
 float UNF_ArmorComponent::GetAdditionalDefenseForSlot(ENF_ArmorSlot Slot) const
