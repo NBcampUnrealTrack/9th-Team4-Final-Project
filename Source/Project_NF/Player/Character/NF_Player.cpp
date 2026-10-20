@@ -12,6 +12,7 @@
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "Data/Interface/NF_InteractionInterface.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
+#include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Net/UnrealNetwork.h"
@@ -60,8 +61,9 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	NF_BuildComponent = CreateDefaultSubobject<UNF_BuildComponent>(TEXT("NF_BuildComponent"));
 	
 	
-	//Weapon
+	//Equipment
 	NF_WeaponComponent = CreateDefaultSubobject<UNF_WeaponComponent>(TEXT("NF_WeaponComponent"));
+	NF_ArmorComponent = CreateDefaultSubobject<UNF_ArmorComponent>(TEXT("NF_ArmorComponent"));
 }
 
 
