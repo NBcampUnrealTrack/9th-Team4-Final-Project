@@ -36,7 +36,7 @@ namespace
 {
 	UDataTable* LoadOrCreateBossCombatDataTable()
 	{
-		static const FString PackageName = TEXT("/Game/ProjectNF/Data/Boss/DT_BossCombat");
+		static const FString PackageName = TEXT("/Game/ProjectNF/Persnal/Myungwoo/Data/Boss/DT_BossCombat");
 		UDataTable* DataTable = LoadObject<UDataTable>(nullptr, *(PackageName + TEXT(".DT_BossCombat")));
 		const bool bIsNewAsset = DataTable == nullptr;
 		UPackage* Package = bIsNewAsset ? CreatePackage(*PackageName) : DataTable->GetOutermost();
@@ -157,7 +157,7 @@ bool UNF_BossStateTreeAssetLibrary::AssignBossPatternCycleToTestBoss(UStateTree*
 UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 {
 #if WITH_EDITOR
-	static const FString PackageName = TEXT("/Game/ProjectNF/Gameplay/Boss/ST_BossPatternCycle");
+	static const FString PackageName = TEXT("/Game/ProjectNF/Persnal/Myungwoo/Gameplay/Boss/ST_BossPatternCycle");
 	UStateTree* StateTree = LoadObject<UStateTree>(nullptr, *(PackageName + TEXT(".ST_BossPatternCycle")));
 	const bool bIsNewAsset = StateTree == nullptr;
 	UPackage* Package = bIsNewAsset ? CreatePackage(*PackageName) : StateTree->GetOutermost();

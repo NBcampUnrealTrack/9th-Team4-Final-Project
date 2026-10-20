@@ -54,7 +54,7 @@ protected:
 	float ImpactRadius = 220.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern")
-	float ProjectileSpeed = 2500.0f;
+	float ProjectileSpeed = 2000.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Recovery")
 	float RecoveryDuration = 3.0f;
@@ -77,7 +77,6 @@ private:
 	void FinishPattern();
 
 	TWeakObjectPtr<ANF_Player> SelectedTarget;
-	FVector FirstShotGroundPoint = FVector::ZeroVector;
 	int32 FiredProjectileCount = 0;
 	FTimerHandle ChargeTimer;
 	FTimerHandle TelegraphTimer;
