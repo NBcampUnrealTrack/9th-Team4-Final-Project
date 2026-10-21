@@ -13,6 +13,7 @@ class UNF_BuildReadyComponent;
 class UNF_MatchDepartureComponent;
 class UNF_BossEncounterComponent;
 class UNF_BossResolutionComponent;
+class UNF_BossContributionRewardComponent;
 
 struct FNFServerTeamIdAssignment;
 struct FNF_BossDefeatResult;
@@ -102,6 +103,9 @@ private:
 	UPROPERTY(VisibleAnywhere,Category = "NF|Match|Boss")
 	TObjectPtr<UNF_BossResolutionComponent>BossResolutionComponent;
 	
+	UPROPERTY(VisibleAnywhere,Category = "NF|Match|Boss")
+	TObjectPtr<UNF_BossContributionRewardComponent>BossContributionRewardComponent;
+	
 	bool bTeamsReady = false;
 	
 	bool bMatchAborting = false;
@@ -111,6 +115,7 @@ private:
 public:
 	UNF_BossEncounterComponent* GetBossEncounterComponent() const;
 	UNF_BossResolutionComponent* GetBossResolutionComponent() const;
+	UNF_BossContributionRewardComponent*GetBossContributionRewardComponent() const;
 private:
 	void HandleFarmingPhaseExpired();
 
