@@ -7,6 +7,8 @@
 
 UNFGA_WeaponReload::UNFGA_WeaponReload()
 {
+	ActivationOwnedTags.AddTag(NFTag_Player::Player_State_Reload);
+	
 	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Traversal);
 	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Traversal);
 	

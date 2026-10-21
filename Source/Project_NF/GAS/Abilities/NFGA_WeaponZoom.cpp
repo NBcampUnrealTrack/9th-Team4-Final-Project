@@ -8,6 +8,8 @@ UNFGA_WeaponZoom::UNFGA_WeaponZoom()
 	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Traversal);
 	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Traversal);
 	
+	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Reload);
+	
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 }
