@@ -13,6 +13,7 @@
 #include "Data/Interface/NF_InteractionInterface.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
+#include "GamePlay/Combat/Components/NF_PlayerLifeComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Net/UnrealNetwork.h"
@@ -64,6 +65,10 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//Equipment
 	NF_WeaponComponent = CreateDefaultSubobject<UNF_WeaponComponent>(TEXT("NF_WeaponComponent"));
 	NF_ArmorComponent = CreateDefaultSubobject<UNF_ArmorComponent>(TEXT("NF_ArmorComponent"));
+	
+	
+	//Life
+	NF_PlayerLifeComponent = CreateDefaultSubobject<UNF_PlayerLifeComponent>(TEXT("NF_PlayerLifeComponent"));
 }
 
 
@@ -357,8 +362,36 @@ void ANF_Player::AddGameplayAbility()
 
 void ANF_Player::OnOutOfHealthCpp()
 {
-	if (HasAuthority())
+	UKismetSystemLibrary::PrintString(this,
+									  (TEXT("Death 실행 예정")),
+									  true, true, FColor::Magenta, 10.0f);
+	
+	//TODO 지우님 관련 코드로 나중에 다시 정해 질 예정
+	/*if (NF_LifeComponent->check동료가있나없나() == Enum::동료있음) //➡️동료가 살았음
 	{
+		NF_LifeComponent->기절();
+		
+	}
+	
+	else if (NF_LifeComponent->check동료가있나없나() == Enum::동료없음) //➡️동료 없음
+	{
+		NF_LifeComponent->죽음();
+	}
+	
+	else if (NF_LifeComponent->check동료가있나없나() == Enum::Unknown)  //➡️보류
+	{
+		NF_LifeComponent->bPendingHealthZeroCheck = true;
+		
+		return;
+	}*/
+	
+	
+	UNF_GASFunctionLibrary::NF_TryAbility(this, NFTag_Player::Player_Ability_Death);
+	
+	if (HasAuthority() == true)
+	{
+		NF_PlayerLifeComponent->StartHealthZeroDetection();
+		
 		APlayerState* KillerPlayerState = nullptr;
 		if (const ANF_PlayerState* VictimPlayerState = GetPlayerState<ANF_PlayerState>())
 		{
@@ -381,12 +414,6 @@ void ANF_Player::OnOutOfHealthCpp()
 			}
 		}*/
 	}
-	
-	UKismetSystemLibrary::PrintString(this,
-										  (TEXT("Death 실행 예정")),
-										  true, true, FColor::Magenta, 10.0f);
-	
-	UNF_GASFunctionLibrary::NF_TryAbility(this, NFTag_Player::Player_Ability_Death);
 }
 
 
