@@ -124,7 +124,7 @@ bool ANF_MonsterSpawner::IsSpawnLocationSeparated(
 
 bool ANF_MonsterSpawner::FindSafeSpawnLocation(FVector& OutSpawnLocation) const
 {
-    const UNavigationSystemV1* NavigationSystem =
+	UNavigationSystemV1* NavigationSystem =
         UNavigationSystemV1::GetCurrent(GetWorld());
 
     if (!NavigationSystem)
@@ -132,9 +132,29 @@ bool ANF_MonsterSpawner::FindSafeSpawnLocation(FVector& OutSpawnLocation) const
         return false;
     }
 
+    // A level designer places the spawner visually on the floor, but its actor
+    // origin is not guaranteed to sit exactly on the generated NavMesh plane.
+    // Project first so the reachable-point query always starts on navigation.
+    FNavLocation ProjectedSpawnerLocation;
+    const FVector ProjectionExtent(
+        FMath::Max(SpawnRadius, 100.0f),
+        FMath::Max(SpawnRadius, 100.0f),
+        2000.0f);
+
+    if (!NavigationSystem->ProjectPointToNavigation(
+        GetActorLocation(),
+        ProjectedSpawnerLocation,
+        ProjectionExtent))
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("MonsterSpawner %s has no NavMesh near its placed location."),
+            *GetName());
+        return false;
+    }
+
     FNavLocation NavigationLocation;
     if (!NavigationSystem->GetRandomReachablePointInRadius(
-        GetActorLocation(),
+        ProjectedSpawnerLocation.Location,
         SpawnRadius,
         NavigationLocation)
         || !IsSpawnLocationSeparated(NavigationLocation.Location))
