@@ -6,9 +6,12 @@
 
 namespace
 {
-	const FName TargetActorKeyName(TEXT("TargetActor"));
-	const FName CombatSlotLocationKeyName(TEXT("CombatSlotLocation"));
-	const FName CombatSlotAnchorLocationKeyName(TEXT("CombatSlotAnchorLocation"));
+	// Unity builds can combine this source with BT task source files into one
+	// translation unit. Keep these local names distinct from task-local keys.
+	const FName CombatSlotServiceTargetActorKeyName(TEXT("TargetActor"));
+	const FName CombatSlotServiceLocationKeyName(TEXT("CombatSlotLocation"));
+	const FName CombatSlotServiceAnchorLocationKeyName(
+		TEXT("CombatSlotAnchorLocation"));
 }
 
 UBTService_NF_MonsterUpdateCombatSlot::UBTService_NF_MonsterUpdateCombatSlot()
@@ -29,15 +32,16 @@ void UBTService_NF_MonsterUpdateCombatSlot::TickNode(
 		OwnerComp.GetBlackboardComponent();
 
 	if (!BlackboardComponent
-		|| !BlackboardComponent->IsVectorValueSet(CombatSlotLocationKeyName)
+		|| !BlackboardComponent->IsVectorValueSet(CombatSlotServiceLocationKeyName)
 		|| !BlackboardComponent->IsVectorValueSet(
-			CombatSlotAnchorLocationKeyName))
+			CombatSlotServiceAnchorLocationKeyName))
 	{
 		return;
 	}
 
 	AActor* TargetActor = Cast<AActor>(
-		BlackboardComponent->GetValueAsObject(TargetActorKeyName));
+		BlackboardComponent->GetValueAsObject(
+			CombatSlotServiceTargetActorKeyName));
 
 	if (!TargetActor)
 	{
@@ -46,7 +50,7 @@ void UBTService_NF_MonsterUpdateCombatSlot::TickNode(
 
 	const FVector PreviousTargetLocation =
 		BlackboardComponent->GetValueAsVector(
-			CombatSlotAnchorLocationKeyName);
+			CombatSlotServiceAnchorLocationKeyName);
 	const FVector CurrentTargetLocation = TargetActor->GetActorLocation();
 	const FVector TargetMovementDelta =
 		CurrentTargetLocation - PreviousTargetLocation;
@@ -57,10 +61,10 @@ void UBTService_NF_MonsterUpdateCombatSlot::TickNode(
 	}
 
 	BlackboardComponent->SetValueAsVector(
-		CombatSlotLocationKeyName,
-		BlackboardComponent->GetValueAsVector(CombatSlotLocationKeyName)
+		CombatSlotServiceLocationKeyName,
+		BlackboardComponent->GetValueAsVector(CombatSlotServiceLocationKeyName)
 			+ TargetMovementDelta);
 	BlackboardComponent->SetValueAsVector(
-		CombatSlotAnchorLocationKeyName,
+		CombatSlotServiceAnchorLocationKeyName,
 		CurrentTargetLocation);
 }
