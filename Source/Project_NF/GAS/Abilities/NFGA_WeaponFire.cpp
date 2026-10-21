@@ -10,6 +10,9 @@
 
 UNFGA_WeaponFire::UNFGA_WeaponFire()
 {
+	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Death);
+	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Death);
+	
 	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Traversal);
 	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Traversal);
 	
