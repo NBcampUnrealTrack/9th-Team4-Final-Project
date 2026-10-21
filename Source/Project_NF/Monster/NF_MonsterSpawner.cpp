@@ -44,65 +44,125 @@ bool ANF_MonsterSpawner::SpawnMonster()
         return false;
     }
 
-    const int32 ClassIndex = FMath::RandRange(
-        0,
-        MonsterClasses.Num() - 1);
-
-    const TSubclassOf<ANF_Monster> MonsterClass =
-        MonsterClasses[ClassIndex];
+    const TSubclassOf<ANF_Monster> MonsterClass = GetRandomMonsterClass();
 
     if (!MonsterClass)
     {
         return false;
     }
 
-    FVector SpawnLocation = GetActorLocation();
-
-    if (UNavigationSystemV1* NavigationSystem =
-    UNavigationSystemV1::GetCurrent(GetWorld()))
-    {
-        FNavLocation NavigationLocation;
-
-        if (NavigationSystem->GetRandomReachablePointInRadius(
-            GetActorLocation(),
-            SpawnRadius,
-            NavigationLocation))
-        {
-            SpawnLocation = NavigationLocation.Location;
-        }
-    }
-
-    const FRotator SpawnRotation(
-        0.0f,
-        FMath::FRandRange(-180.0f, 180.0f),
-        0.0f);
-
     FActorSpawnParameters SpawnParameters;
 
     SpawnParameters.Owner = this;
     SpawnParameters.SpawnCollisionHandlingOverride =
         ESpawnActorCollisionHandlingMethod::
-        AdjustIfPossibleButAlwaysSpawn;
+        AdjustIfPossibleButDontSpawnIfColliding;
 
-    ANF_Monster* SpawnedMonster =
-        GetWorld()->SpawnActor<ANF_Monster>(
-            MonsterClass,
-            SpawnLocation,
-            SpawnRotation,
-            SpawnParameters);
+    for (int32 AttemptIndex = 0;
+        AttemptIndex < MaxSpawnLocationAttempts;
+        ++AttemptIndex)
+    {
+        FVector SpawnLocation;
+        if (!FindSafeSpawnLocation(SpawnLocation))
+        {
+            continue;
+        }
 
-    if (!SpawnedMonster)
+        const FRotator SpawnRotation(
+            0.0f,
+            FMath::FRandRange(-180.0f, 180.0f),
+            0.0f);
+
+        ANF_Monster* SpawnedMonster =
+            GetWorld()->SpawnActor<ANF_Monster>(
+                MonsterClass,
+                SpawnLocation,
+                SpawnRotation,
+                SpawnParameters);
+
+        if (!SpawnedMonster)
+        {
+            // The point is on NavMesh but the monster capsule still overlaps
+            // geometry or another actor. Try another candidate instead.
+            continue;
+        }
+
+        SpawnedMonster->OnMonsterDied.AddUniqueDynamic(
+            this,
+            &ThisClass::HandleMonsterDied);
+
+        AliveMonsters.Add(SpawnedMonster);
+
+        return true;
+    }
+
+    UE_LOG(LogTemp, Warning,
+        TEXT("MonsterSpawner %s could not find a safe spawn location after %d attempts."),
+        *GetName(), MaxSpawnLocationAttempts);
+    return false;
+}
+
+bool ANF_MonsterSpawner::IsSpawnLocationSeparated(
+    const FVector& CandidateLocation) const
+{
+    const float MinimumSeparationSquared =
+        FMath::Square(MinimumSpawnSeparation);
+
+    for (const TObjectPtr<ANF_Monster>& LivingMonster : AliveMonsters)
+    {
+        if (IsValid(LivingMonster)
+            && FVector::DistSquared2D(
+                CandidateLocation,
+                LivingMonster->GetActorLocation()) < MinimumSeparationSquared)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool ANF_MonsterSpawner::FindSafeSpawnLocation(FVector& OutSpawnLocation) const
+{
+    const UNavigationSystemV1* NavigationSystem =
+        UNavigationSystemV1::GetCurrent(GetWorld());
+
+    if (!NavigationSystem)
     {
         return false;
     }
 
-    SpawnedMonster->OnMonsterDied.AddUniqueDynamic(
-        this,
-        &ThisClass::HandleMonsterDied);
+    FNavLocation NavigationLocation;
+    if (!NavigationSystem->GetRandomReachablePointInRadius(
+        GetActorLocation(),
+        SpawnRadius,
+        NavigationLocation)
+        || !IsSpawnLocationSeparated(NavigationLocation.Location))
+    {
+        return false;
+    }
 
-    AliveMonsters.Add(SpawnedMonster);
-
+    OutSpawnLocation = NavigationLocation.Location;
     return true;
+}
+
+TSubclassOf<ANF_Monster> ANF_MonsterSpawner::GetRandomMonsterClass() const
+{
+    TArray<TSubclassOf<ANF_Monster>> ValidMonsterClasses;
+    for (const TSubclassOf<ANF_Monster>& MonsterClass : MonsterClasses)
+    {
+        if (MonsterClass)
+        {
+            ValidMonsterClasses.Add(MonsterClass);
+        }
+    }
+
+    if (ValidMonsterClasses.IsEmpty())
+    {
+        return nullptr;
+    }
+
+    return ValidMonsterClasses[FMath::RandRange(0, ValidMonsterClasses.Num() - 1)];
 }
 
 void ANF_MonsterSpawner::HandleMonsterDied(

@@ -44,8 +44,20 @@ public:
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
 		Category = "NF|Monster|Spawner",
-		meta = (ClampMin = "0.0"))
+		meta = (ClampMin = "50.0", ToolTip = "Spawner origin around which valid NavMesh points are sampled."))
 	float SpawnRadius = 300.0f;
+
+	/** Keeps the initial group from spawning on top of itself. */
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Spawner",
+		meta = (ClampMin = "0.0", ToolTip = "Minimum 2D separation between living monsters from this spawner."))
+	float MinimumSpawnSeparation = 120.0f;
+
+	/** Number of NavMesh candidates tried before this spawn request gives up safely. */
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Spawner",
+		meta = (ClampMin = "1", ClampMax = "50"))
+	int32 MaxSpawnLocationAttempts = 12;
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
 		Category = "NF|Monster|Spawner")
@@ -60,6 +72,10 @@ public:
 	TSet<TObjectPtr<ANF_Monster>> AliveMonsters;
 
 private:
+	bool IsSpawnLocationSeparated(const FVector& CandidateLocation) const;
+	bool FindSafeSpawnLocation(FVector& OutSpawnLocation) const;
+	TSubclassOf<ANF_Monster> GetRandomMonsterClass() const;
+
 	int32 PendingRespawnCount = 0;
 
 	FTimerHandle RespawnTimerHandle;
