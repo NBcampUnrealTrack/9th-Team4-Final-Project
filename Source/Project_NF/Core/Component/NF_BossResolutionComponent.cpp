@@ -57,14 +57,54 @@ FNF_BossDefeatResult UNF_BossResolutionComponent::MakeConfirmedResult(const FNF_
 {
 	FNF_BossDefeatResult Result = DefeatResult;
 
-	if (!IsValid(Result.LastHitPlayerState))
+	if (IsValid(Result.LastHitPlayerState))
+	{
+		// 보스 시스템이 전달한 ID 값과 PlayerState를 기준으로 확정
+		Result.LastHitPlayerID = Result.LastHitPlayerState->GetPlayerId();
+	}
+	else
 	{
 		Result.LastHitPlayerID = INDEX_NONE;
-		return Result;
+	}
+	//보스 기여도 계산
+	NormalizeContributions(Result);
+
+	return Result;
+}
+
+void UNF_BossResolutionComponent::NormalizeContributions(FNF_BossDefeatResult& DefeatResult) const
+{
+	TMap<ANF_PlayerState*, float> AggregatedDamage;
+
+	for (const FNF_BossDamageContribution& Entry: DefeatResult.Contributions)
+	{
+		if (!IsValid(Entry.PlayerState)) continue;
+		if (!FMath::IsFinite(Entry.EffectiveDamage)) continue;
+		if (Entry.EffectiveDamage <= 0.0f) continue;
+		
+		AggregatedDamage.FindOrAdd(Entry.PlayerState) += Entry.EffectiveDamage;
 	}
 
-	// 보스 시스템이 전달한 ID 값과 PlayerState를 기준으로 확정
-	Result.LastHitPlayerID =Result.LastHitPlayerState->GetPlayerId();
-	
-	return Result;
+	DefeatResult.Contributions.Reset();
+	DefeatResult.Contributions.Reserve(AggregatedDamage.Num());
+
+	for (const TPair<ANF_PlayerState*, float>& Pair: AggregatedDamage)
+	{
+		FNF_BossDamageContribution ConfirmedEntry;
+		ConfirmedEntry.PlayerState = Pair.Key;
+		ConfirmedEntry.EffectiveDamage = Pair.Value;
+
+		DefeatResult.Contributions.Add(ConfirmedEntry
+		);
+	}
+
+	// 로그와 테스트 결과를 일정하게 만들기 위한 정렬
+	DefeatResult.Contributions.Sort([](const FNF_BossDamageContribution& Left,const FNF_BossDamageContribution& Right)
+		{
+			if (!IsValid(Left.PlayerState)) {return false;}
+			if (!IsValid(Right.PlayerState)) {return true;}
+
+			return Left.PlayerState->GetPlayerId() < Right.PlayerState->GetPlayerId();
+		}
+	);
 }
