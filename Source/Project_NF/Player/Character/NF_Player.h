@@ -7,6 +7,7 @@
 #include "Player/Data/NF_PlayerActionType.h"
 #include "NF_Player.generated.h"
 
+class UNF_PlayerLifeComponent;
 enum class ENF_WeaponType : uint8;
 enum class ENF_BuildShopUIState : uint8;
 enum class ENF_PlayerActionType : uint8;
@@ -68,6 +69,9 @@ protected:
 	
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
 	TObjectPtr<UNF_ArmorComponent> NF_ArmorComponent;
+	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
+	TObjectPtr<UNF_PlayerLifeComponent> NF_PlayerLifeComponent;
 	
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|GameplayAbility")
 	TArray<TSubclassOf<class UGameplayAbility>> GameplayAbilityArray;
