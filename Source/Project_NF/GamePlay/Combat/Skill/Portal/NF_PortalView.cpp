@@ -68,8 +68,10 @@ void ANF_PortalView::Tick(float DeltaSeconds)
 	APlayerController* Viewer = Recipient.Get();
 	if (!Source.IsValid() || Source->IsActorBeingDestroyed() || !IsValid(Viewer) || !Viewer->IsLocalController()) { Destroy(); return; }
 	ANF_Portal* Exit = Source->GetLinkedPortal();
-	const bool bReady = Source->IsPortalActive() && IsValid(Exit) && Exit->IsPortalActive() && !Exit->IsActorBeingDestroyed();
+	const bool bReady = Source->IsPortalVisualVisible() && IsValid(Exit) && Exit->IsPortalVisualVisible() && !Exit->IsActorBeingDestroyed();
 	Surface->SetVisibility(bReady && MaterialInstance != nullptr);
+	Surface->SetRelativeScale3D(FVector(FMath::Max(1.0, SurfaceSize.Y) / 100.0, FMath::Max(1.0, SurfaceSize.X) / 100.0, 1.0)
+		* FMath::Max(Source->GetVisualScaleAlpha(), 0.0001f));
 	if (!bReady || !MaterialInstance || !Viewer->PlayerCameraManager || !Viewer->GetLocalPlayer()) { return; }
 	// Only this player's view sees this surface, including in split-screen.
 	if (GetOwner() != Viewer->GetViewTarget()) { SetOwner(Viewer->GetViewTarget()); }

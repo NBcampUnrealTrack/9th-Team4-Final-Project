@@ -96,10 +96,20 @@ public:
 	void ClearConfirmedTargetData();
 	UFUNCTION(BlueprintPure, Category = "NF|Skill")
 	bool CanContinueSkillExecution() const;
+	// Active NF skills only. Weapon/basic movement abilities outside this hierarchy are unaffected.
+	bool IsAffectedByEMP() const { return SkillType == ENF_SkillType::Active && bAffectedByEMP; }
+	bool IsBlockedByEMP() const;
 
 	// 지속/무한 자기 GE만 추적한다. 공유 스택 GE는 전용 시스템에서 수명을 관리한다.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Skill|Passive")
 	void TrackPassiveEffect(FActiveGameplayEffectHandle EffectHandle);
+	// @Owner: 이정준 (구현: Codex) | 2026-10-22 | Call only after the passive's own condition succeeds.
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Skill|Passive|Visual")
+	void NotifyPassiveTriggered(AActor* AffectedActor, FVector Location, float Magnitude);
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Skill|Passive|Visual")
+	void StartPassiveActiveCue();
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Skill|Passive|Visual")
+	void StopPassiveActiveCue();
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual void OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 
@@ -143,6 +153,15 @@ public:
 	float GetExecutionDuration() const { return ExecutionDuration; }
 
 protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive|Visual", meta = (Categories = "GameplayCue"))
+	FGameplayTag ActivationCueTag;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive|Visual", meta = (Categories = "GameplayCue"))
+	FGameplayTag ActiveCueTag;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|EMP")
+	bool bAffectedByEMP = true;
+	// False permits an already-running skill to finish, but still prevents new casts while sealed.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|EMP", meta = (EditCondition = "bAffectedByEMP"))
+	bool bCancelOnEMP = true;
 	// 지정하면 공통 베이스가 생성/초기화/Commit/시전 대기/종료를 관리한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Execution")
 	TSubclassOf<ANF_SkillExecutionActor> ExecutionActorClass;
@@ -209,6 +228,11 @@ protected:
 	int32 BuildCost = 0;
 
 private:
+	friend class FNF_BerserkerTest;
+	TWeakObjectPtr<UAbilitySystemComponent> PassiveCueASC;
+	FGameplayTag RegisteredActiveCueTag;
+	friend class FNF_EMPTest;
+	friend class FNF_SkillDeathBlockTest;
 	bool UsesProjectileExecution() const;
 	void StartAutomaticExecution();
 	void FinishAutomaticExecution();
@@ -220,6 +244,7 @@ private:
 	void BindCancellationTags();
 	void UnbindCancellationTags();
 	void OnCancellationTagChanged(FGameplayTag Tag, int32 NewCount);
+	void InterruptForEMP();
 	void InitializePassive();
 	void CleanupPassive();
 	void HandlePassiveGameplayEvent(FGameplayTag EventTag, const FGameplayEventData* Payload);

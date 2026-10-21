@@ -113,7 +113,8 @@ void UNFGA_Portal::CreatePortalPair()
 	PendingEntrance = GetWorld()->SpawnActorDeferred<ANF_Portal>(PortalClass, EntranceTransform, Character, Character, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	PendingExit = GetWorld()->SpawnActorDeferred<ANF_Portal>(PortalClass, ExitTransform, Character, Character, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	if (!IsValid(PendingEntrance) || !IsValid(PendingExit)) { FailPlacement(TEXT("portal actor spawn failed")); return; }
-	PendingEntrance->InitializePortal(PendingExit, false, Character); PendingExit->InitializePortal(PendingEntrance, true, Character);
+	PendingEntrance->InitializePortal(PendingExit, false, Character, GetAbilitySystemComponentFromActorInfo());
+	PendingExit->InitializePortal(PendingEntrance, true, Character, GetAbilitySystemComponentFromActorInfo());
 	PendingEntrance->FinishSpawning(EntranceTransform);
 	if (!IsActive()) { return; }
 	if (!IsValid(PendingEntrance) || !IsValid(PendingExit)) { FailPlacement(TEXT("portal was removed during initialization")); return; }

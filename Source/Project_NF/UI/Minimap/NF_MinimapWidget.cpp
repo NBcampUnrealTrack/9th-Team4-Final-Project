@@ -9,6 +9,7 @@
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
 #include "Player/Controller/NF_PlayerController.h"
+#include "Player/State/NF_PlayerState.h"
 #include "UI/Minimap/NF_MinimapRevealRegistry.h"
 
 // @owner: 이정준 (구현: Codex) | 2026-10-15
@@ -74,7 +75,7 @@ bool UNF_MinimapWidget::ProjectWorldToMinimap(FVector Location, FVector ViewLoca
 void UNF_MinimapWidget::NativeTick(const FGeometry& Geometry, float DeltaTime)
 {
 	Super::NativeTick(Geometry, DeltaTime);
-	UpdateTemporaryPlayers(DeltaTime);
+	UpdateTeammates(DeltaTime);
 	if (bShowRegisteredReveals && Cast<ANF_PlayerController>(GetOwningPlayer())) { InvalidateLayoutAndVolatility(); }
 	if (bFollowOwningPawn)
 	{
@@ -92,12 +93,28 @@ void UNF_MinimapWidget::NativeTick(const FGeometry& Geometry, float DeltaTime)
 	}
 }
 
-void UNF_MinimapWidget::UpdateTemporaryPlayers(float DeltaTime)
+bool UNF_MinimapWidget::ArePlayerStatesTeammates(const APlayerState* Viewer, const APlayerState* Other)
 {
-	if (!bTemporaryShowAllPlayers || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
+	const auto* Local = Cast<ANF_PlayerState>(Viewer);
+	const auto* Target = Cast<ANF_PlayerState>(Other);
+	return IsValid(Local) && IsValid(Target) && Local->NF_TeamID >= 1 && Local->NF_TeamID == Target->NF_TeamID;
+}
+
+int32 UNF_MinimapWidget::GetViewerTeamID() const
+{
+	const APlayerState* State = GetOwningPlayer() ? GetOwningPlayer()->PlayerState.Get() : nullptr;
+	if (!State && GetOwningPlayerPawn()) { State = GetOwningPlayerPawn()->GetPlayerState(); }
+	const auto* NFState = Cast<ANF_PlayerState>(State);
+	return NFState ? NFState->NF_TeamID : INDEX_NONE;
+}
+
+void UNF_MinimapWidget::UpdateTeammates(float DeltaTime)
+{
+	DisplayedTeammates.Reset();
+	if (!bShowTeammates || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
 	{
-		if (!TemporaryPlayerMarkers.IsEmpty()) { TemporaryPlayerMarkers.Reset(); InvalidateLayoutAndVolatility(); }
-		TemporaryPlayerPawns.Reset(); PlayerRefreshCountdown = 0.0f;
+		if (!TeammateMarkers.IsEmpty()) { TeammateMarkers.Reset(); InvalidateLayoutAndVolatility(); }
+		PlayerPawns.Reset(); PlayerRefreshCountdown = 0.0f;
 		return;
 	}
 	// 캐릭터 종류에 의존하지 않아 기본 TPS Pawn도 지원한다. 원격 Pawn에는 Controller가
@@ -110,26 +127,31 @@ void UNF_MinimapWidget::UpdateTemporaryPlayers(float DeltaTime)
 	PlayerRefreshCountdown -= DeltaTime;
 	if (PlayerRefreshCountdown <= 0.0f)
 	{
-		TemporaryPlayerPawns.Reset();
+		PlayerPawns.Reset();
 		for (TActorIterator<APawn> It(GetWorld()); It; ++It)
 		{
-			if (IsPlayerPawn(*It)) { TemporaryPlayerPawns.Add(*It); }
+			if (IsPlayerPawn(*It)) { PlayerPawns.Add(*It); }
 		}
 		PlayerRefreshCountdown = 0.5f;
 	}
-	const bool bHadMarkers = !TemporaryPlayerMarkers.IsEmpty();
-	TemporaryPlayerMarkers.Reset();
+	const bool bHadMarkers = !TeammateMarkers.IsEmpty();
+	TeammateMarkers.Reset();
 	const APawn* LocalPawn = GetOwningPlayerPawn();
-	for (const TWeakObjectPtr<APawn>& WeakPawn : TemporaryPlayerPawns)
+	const APlayerState* LocalState = GetOwningPlayer() ? GetOwningPlayer()->PlayerState.Get() : nullptr;
+	if (!LocalState && LocalPawn) { LocalState = LocalPawn->GetPlayerState(); }
+	for (const TWeakObjectPtr<APawn>& WeakPawn : PlayerPawns)
 	{
 		const APawn* Pawn = WeakPawn.Get();
 		if (!IsPlayerPawn(Pawn) || Pawn == LocalPawn || Pawn->GetWorld() != GetWorld()) { continue; }
-		FNF_MinimapMarker& Marker = TemporaryPlayerMarkers.AddDefaulted_GetRef();
+		// Recheck each tick: team IDs may arrive after the Pawn or change without a respawn.
+		if (!ArePlayerStatesTeammates(LocalState, Pawn->GetPlayerState())) { continue; }
+		DisplayedTeammates.Add(TWeakObjectPtr<APlayerState>(Pawn->GetPlayerState()));
+		FNF_MinimapMarker& Marker = TeammateMarkers.AddDefaulted_GetRef();
 		Marker.Id = Pawn->GetFName(); Marker.WorldLocation = Pawn->GetActorLocation();
-		Marker.Type = ENF_MinimapMarkerType::Player;
-		Marker.Size = FMath::IsFinite(TemporaryPlayerMarkerSize) ? FMath::Max(1.0f, TemporaryPlayerMarkerSize) : 20.0f;
+		Marker.Type = ENF_MinimapMarkerType::Teammate;
+		Marker.Size = FMath::IsFinite(TeammateMarkerSize) ? FMath::Max(1.0f, TeammateMarkerSize) : 20.0f;
 	}
-	if (bHadMarkers || !TemporaryPlayerMarkers.IsEmpty()) { InvalidateLayoutAndVolatility(); }
+	if (bHadMarkers || !TeammateMarkers.IsEmpty()) { InvalidateLayoutAndVolatility(); }
 }
 
 FLinearColor UNF_MinimapWidget::GetMarkerColor(ENF_MinimapMarkerType Type) const
@@ -203,15 +225,21 @@ int32 UNF_MinimapWidget::NativePaint(const FPaintArgs& Args, const FGeometry& Ge
 			if (Entry.ExpiresAt > 0.0 && Entry.ExpiresAt <= Now) { continue; }
 			DrawMarker(Entry.Marker);
 		}
-		if (bTemporaryShowAllPlayers) { for (const FNF_MinimapMarker& Marker : TemporaryPlayerMarkers) { DrawMarker(Marker); } }
+		if (bShowTeammates) { for (const FNF_MinimapMarker& Marker : TeammateMarkers) { DrawMarker(Marker); } }
 		if (bShowRegisteredReveals)
 		{
 			if (ANF_PlayerController* Controller = Cast<ANF_PlayerController>(GetOwningPlayer()))
 			{
 				for (const FNF_MinimapRevealMarker& Reveal : Controller->GetMinimapRevealRegistry()->GetVisibleMarkers())
 				{
+					const int32 ViewerTeam = GetViewerTeamID();
+					const bool bTeammate = ViewerTeam >= 1 && ViewerTeam == Reveal.PlayerTeamID;
+					// Teammates already have a blue marker; do not paint a second red clairvoyance marker over it.
+					if (bShowTeammates && bTeammate && Reveal.Kind == ENF_MinimapRevealKind::Clairvoyance
+						&& DisplayedTeammates.Contains(TWeakObjectPtr<APlayerState>(Reveal.PlayerState.Get()))) { continue; }
 					FNF_MinimapMarker Marker; Marker.Id = Reveal.TargetId; Marker.WorldLocation = Reveal.WorldLocation;
-					Marker.Type = Reveal.Kind == ENF_MinimapRevealKind::EscapeKey ? ENF_MinimapMarkerType::Objective : ENF_MinimapMarkerType::RevealedEnemy;
+					Marker.Type = Reveal.Kind == ENF_MinimapRevealKind::EscapeKey ? ENF_MinimapMarkerType::Objective
+						: (bTeammate ? ENF_MinimapMarkerType::Teammate : ENF_MinimapMarkerType::RevealedEnemy);
 					Marker.Size = FMath::IsFinite(RevealMarkerSize) ? FMath::Max(1.0f, RevealMarkerSize) : 20.0f;
 					DrawMarker(Marker);
 				}

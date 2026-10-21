@@ -6,6 +6,7 @@
 #include "NF_MinimapWidget.generated.h"
 
 class APawn;
+class APlayerState;
 
 // @owner: 이정준 (구현: Codex) | 2026-10-15
 // 목적: 북쪽=+X / 동쪽=+Y 지도 배경·좌표 변환·아이콘 표시. 탐색/복제/GAS는 외부에서 담당한다.
@@ -37,6 +38,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NF|Minimap")
 	static bool ProjectWorldToMinimap(FVector WorldLocation, FVector ViewLocation,
 		float WorldSize, FVector2D WidgetSize, FVector2D& OutLocalPosition);
+	static bool ArePlayerStatesTeammates(const APlayerState* Viewer, const APlayerState* Other);
 
 protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -61,9 +63,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|View")
 	bool bShowLocalPlayer = true;
 	// @owner: 이정준 (구현: Codex) | 2026-10-15
-	// 목적: ViewModel 연결 전 테스트용. 로컬에 복제된 모든 플레이어를 팀 검사 없이 표시한다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Temporary")
+	// Serialized compatibility only. All-player debug display is no longer used.
+	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|Temporary", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Use Show Teammates; other players require registered reveals."))
 	bool bTemporaryShowAllPlayers = false;
+	// @Owner: 이정준 (구현: Codex) | 2026-10-21
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|View")
+	bool bShowTeammates = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Style", meta = (ClampMin = "1.0"))
+	float TeammateMarkerSize = 20.0f;
 	// @owner: 이정준 (구현: Codex) | 2026-10-15
 	// 목적: ViewModel 연결 전 수신한 공통 공개 목록을 직접 표시한다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|View")
@@ -71,8 +78,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Style", meta = (ClampMin = "1.0"))
 	float RevealMarkerSize = 20.0f;
 	// @owner: 이정준 (구현: Codex) | 2026-10-15
-	// 목적: 임시 전체 플레이어 표시를 쉽게 식별하도록 크기를 별도 조절한다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Temporary", meta = (ClampMin = "1.0"))
+	// Serialized compatibility only. TeammateMarkerSize now controls automatic player markers.
+	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|Temporary", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Use Teammate Marker Size."))
 	float TemporaryPlayerMarkerSize = 20.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Style")
 	FLinearColor PlayerColor = FLinearColor(1.0f, 0.85f, 0.05f);
@@ -94,14 +101,16 @@ protected:
 	float LocalPlayerSize = 12.0f;
 
 private:
-	void UpdateTemporaryPlayers(float DeltaTime);
+	void UpdateTeammates(float DeltaTime);
+	int32 GetViewerTeamID() const;
 	FLinearColor GetMarkerColor(ENF_MinimapMarkerType Type) const;
 	UPROPERTY(Transient)
 	TArray<FNF_MinimapEntry> Entries;
-	// 외부 API 마커와 분리하여 임시 기능을 꺼도 외부 표시 데이터는 유지한다.
+	// Automatic teammate markers are separate from externally supplied markers and authorized reveals.
 	UPROPERTY(Transient)
-	TArray<FNF_MinimapMarker> TemporaryPlayerMarkers;
-	TArray<TWeakObjectPtr<APawn>> TemporaryPlayerPawns;
+	TArray<FNF_MinimapMarker> TeammateMarkers;
+	TArray<TWeakObjectPtr<APawn>> PlayerPawns;
+	TSet<TWeakObjectPtr<APlayerState>> DisplayedTeammates;
 	float PlayerRefreshCountdown = 0.0f;
 	FVector Center = FVector::ZeroVector;
 	float CenterYaw = 0.0f;

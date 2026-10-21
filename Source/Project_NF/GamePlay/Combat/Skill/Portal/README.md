@@ -56,7 +56,25 @@ E 해제 → 클라이언트 지면 목표 전달 → 서버 거리·바닥·가
 
 기본 수직 중력/직립 Character를 전제로 한다. 층 선택, 벽 부착 포탈, 양방향 이동, 팀 전용 허용, 다른 포탈 쌍 사이의 전역 이용 쿨다운은 구현 범위에 포함하지 않는다. 홀딩 장판은 지면 목표만 표시하며 입출구 체적/도착 공간까지 미리 검증해 색을 바꾸지는 않는다. 최종 설치 가능 여부는 서버에서 결정한다.
 
-## 실패 확인
+## 출구 방향·생성/종료 스케일 연출 (2026-10-21)
+
+출구(목표지점)의 `Portal Visual Root`만 Yaw 180도 회전한다. 입구 외형과 게임플레이 원점/도착 방향/반대편 촬영 기준은 유지한다. 포탈 BP에서 장식 메시를 추가할 때 `Portal Visual Root` 아래에 배치하면 회전·스케일이 함께 적용된다. 기존 BP에서 PortalRoot에 직접 붙인 MeshComponent는 BeginPlay에 자동으로 VisualRoot 아래로 옮기며 기존 월드 배치를 보존한다. 별도의 SceneComponent 아래에 장식 그룹을 만들었다면 그 그룹을 VisualRoot 아래로 직접 옮긴다. EntranceTrigger는 VisualRoot 아래로 옮기지 않는다.
+
+Class Defaults → `NF > Portal > Visual`의 `Open Scale Duration`(기본 0.3초), `Close Scale Duration`(기본 0.3초)로 시간을 지정한다. 0이면 즉시 전환한다. 생성 시 0→원래 스케일, 종료 시 현재 스케일→0으로 부드럽게 보간한다. 생성 도중 EMP/종료돼도 원래 크기로 튀지 않고 현재 크기에서 축소한다. 서버 전환 시간을 복제하고 각 클라이언트가 연출을 계산한다. 텔레포트 판정은 종료 시작 시 즉시 끄고, 액터 제거는 축소 시간+0.1초 이상 기다린다. 외부 BP가 직접 DestroyActor를 호출하면 축소가 생략되므로 정상 종료는 ClosePortalPair/EndDeployment를 사용한다.
+
+반대편 화면 Surface도 같은 배율로 조절한다. 화면용 placeholder PortalMesh만 숨기고 그 아래 장식 메시에는 숨김을 전파하지 않는다. 배율은 원래 메시 설정을 유지하며 시각 루트에만 적용한다. 충돌 트리거와 카메라 기준점은 커졌다 작아지지 않는다. 타임라인/이벤트 그래프 연결은 필요 없다.
+
+테스트 소스 `NF.Skills.Portal.VisualRotationAndScaleLifetime`을 추가했다. 출구 전용 회전, 추가 메시 편입, 스케일 보간, 카메라 기준/충돌 크기 유지, 종료 연출 수명 확보를 검사한다. 빌드·테스트 실행·PIE 연출 확인은 수행하지 않았다. 기존 BP 에셋은 수정하지 않았다.
+
+## 시전자의 EMP로 설치물 종료 (2026-10-20)
+
+포탈 BP의 `Deployment` 컴포넌트 → `NF > Deployable > Cancellation > End On Caster Tags`에 `State.Debuff.EMP`가 기본 등록된다. 설치 후 GA가 끝나도 시전자의 ASC를 감시하며, EMP 태그가 붙으면 연결된 포탈 두 개를 함께 종료한다. EMP가 끝나도 포탈이 다시 생성되지는 않는다. 기존 BP에서 목록을 덮어썼다면 이 태그를 직접 추가한다.
+
+일반 `NF_SkillExecutionActor`에 추가한 Deployable에도 같은 설정을 사용할 수 있다. 방벽은 목록을 비워 두면 EMP와 관계없이 기존 체력/수명으로 유지된다. 이 목록은 설치물에 부여하는 상태가 아니라 **시전자에게 붙었을 때 설치물을 종료시키는 조건**이다. 종료 이벤트 `On Deployment Ended`의 `CasterTag` 이유로 연출을 구분할 수 있다. 직접 코드로 설치 컴포넌트를 시작하는 경우 `SetCasterAbilitySystem`으로 시전자의 ASC를 먼저 전달한다.
+
+EMP 연출 태그 `GameplayCue.Debuff.EMP`는 `NFTag_Skill`에 등록했다. EMP GE와 GameplayCueNotify BP 양쪽에 같은 Cue 태그를 지정한다. Cue BP/Niagara 에셋은 이 코드 변경에서 생성하지 않는다. 변경된 C++를 빌드하고 에디터를 다시 연 뒤 설정한다.
+
+## 실패 로그
 
 Output Log의 `[Portal] Placement failed`를 확인한다. 지면이 Visibility 채널을 Block해야 기존 지면 목표 검증을 통과한다. 위치가 너무 가깝거나, 포탈 Box 크기만큼 빈 공간이 없거나, 출구 바로 앞이 낭떠러지/계단/벽이면 실패할 수 있다. 기본 메시를 바꿔도 충돌 판정은 EntranceTrigger와 이용자 캡슐을 기준으로 한다.
 

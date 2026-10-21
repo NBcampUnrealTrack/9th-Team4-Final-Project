@@ -1,5 +1,7 @@
 #include "GamePlay/Combat/Skill/Portal/NF_Portal.h"
 #include "GamePlay/Combat/Skill/Portal/NF_PortalView.h"
+#include "AbilitySystemGlobals.h"
+#include "GAS/Tags/NFTag_Skill.h"
 
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -12,6 +14,8 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/GameStateBase.h"
+#include "Components/MeshComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
@@ -22,7 +26,7 @@ ANF_Portal::ANF_Portal()
 {
 	bReplicates = true; SetReplicateMovement(true);
 	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.TickInterval = 0.1f;
+	PrimaryActorTick.TickInterval = 0.0f;
 	PortalViewClass = ANF_PortalView::StaticClass();
 	SetRootComponent(CreateDefaultSubobject<USceneComponent>(TEXT("PortalRoot")));
 	EntranceTrigger = CreateDefaultSubobject<UBoxComponent>(TEXT("EntranceTrigger"));
@@ -33,8 +37,10 @@ ANF_Portal::ANF_Portal()
 	EntranceTrigger->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	EntranceTrigger->SetGenerateOverlapEvents(true);
 	EntranceTrigger->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PortalVisualRoot = CreateDefaultSubobject<USceneComponent>(TEXT("PortalVisualRoot"));
+	PortalVisualRoot->SetupAttachment(GetRootComponent());
 	PortalMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PortalMesh"));
-	PortalMesh->SetupAttachment(GetRootComponent());
+	PortalMesh->SetupAttachment(PortalVisualRoot);
 	PortalMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PortalMesh->SetRelativeLocation(FVector(0, 0, 110));
 	PortalMesh->SetRelativeScale3D(FVector(0.08, 1.8, 2.2));
@@ -43,6 +49,7 @@ ANF_Portal::ANF_Portal()
 	PortalMesh->SetStaticMesh(Cube.Object);
 	Deployment = CreateDefaultSubobject<UNF_DeployableComponent>(TEXT("Deployment"));
 	Deployment->SetManagedStart(true);
+	Deployment->EndOnCasterTags.AddTag(NFTag_Skill::State_Debuff_EMP);
 }
 void ANF_Portal::OnConstruction(const FTransform& Transform)
 {
@@ -52,17 +59,20 @@ void ANF_Portal::OnConstruction(const FTransform& Transform)
 }
 bool ANF_Portal::HasValidSettings() const
 {
-	return Deployment && Deployment->HasValidSettings() && EntranceTrigger
+	return Deployment && Deployment->HasValidSettings() && EntranceTrigger && PortalVisualRoot
 		&& !EntranceTrigger->GetUnscaledBoxExtent().ContainsNaN() && EntranceTrigger->GetUnscaledBoxExtent().GetMin() > 0.0
 		&& FMath::IsFinite(ExitForwardOffset) && ExitForwardOffset > 0.0f
 		&& FMath::IsFinite(ArrivalSearchHeight) && ArrivalSearchHeight > 0.0f
 		&& FMath::IsFinite(ArrivalSearchDepth) && ArrivalSearchDepth > 0.0f
 		&& FMath::IsFinite(GroundClearance) && GroundClearance >= 1.0f
-		&& FMath::IsFinite(ReentryCooldown) && ReentryCooldown >= 0.1f;
+		&& FMath::IsFinite(ReentryCooldown) && ReentryCooldown >= 0.1f
+		&& FMath::IsFinite(OpenScaleDuration) && OpenScaleDuration >= 0.0f
+		&& FMath::IsFinite(CloseScaleDuration) && CloseScaleDuration >= 0.0f;
 }
 void ANF_Portal::BeginPlay()
 {
 	Super::BeginPlay();
+	InitializeVisualRoot();
 	if (HasAuthority())
 	{
 		Deployment->OnDeploymentEnded.AddDynamic(this, &ThisClass::HandleDeploymentEnded);
@@ -70,10 +80,11 @@ void ANF_Portal::BeginPlay()
 	}
 	RefreshPortalState();
 }
-void ANF_Portal::InitializePortal(ANF_Portal* Other, bool bIsExit, ACharacter* Caster)
+void ANF_Portal::InitializePortal(ANF_Portal* Other, bool bIsExit, ACharacter* Caster, UAbilitySystemComponent* CasterASC)
 {
 	if (!HasAuthority() || bActive || bClosing || !IsValid(Other) || Other == this) { return; }
 	LinkedPortal = Other; bExitPortal = bIsExit; SourceCharacter = Caster;
+	Deployment->SetCasterAbilitySystem(CasterASC ? CasterASC : UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Caster));
 }
 bool ANF_Portal::CanPlaceFor(ACharacter* Character) const
 {
@@ -108,6 +119,7 @@ bool ANF_Portal::StartPortal()
 	if (!HasAuthority() || bClosing || bActive || !IsValid(LinkedPortal) || LinkedPortal->bClosing
 		|| (!bExitPortal && !LinkedPortal->bActive) || !HasValidSettings() || !Deployment->StartDeployment()) { return false; }
 	if (bClosing || IsActorBeingDestroyed()) { return false; }
+	VisualTransitionTime = GetVisualServerTime(); ClosingStartAlpha = 0.0f;
 	bActive = true; RefreshPortalState(); ForceNetUpdate();
 	if (!bExitPortal && bActive && !bClosing)
 	{
@@ -162,19 +174,22 @@ bool ANF_Portal::TryTeleport(ACharacter* Character)
 void ANF_Portal::ClosePortalPair()
 {
 	if (!HasAuthority() || bClosing) { return; }
+	ClosingStartAlpha = GetVisualScaleAlpha();
+	VisualTransitionTime = GetVisualServerTime();
 	bClosing = true; bActive = false;
+	Deployment->SetMinimumDestroyDelay(CloseScaleDuration + 0.1f);
 	if (GetWorld()) { GetWorld()->GetTimerManager().ClearTimer(RetryTimer); }
 	RefreshPortalState(); ForceNetUpdate();
 	if (IsValid(LinkedPortal)) { LinkedPortal->ClosePortalPair(); }
 	Deployment->EndDeployment();
-	if (!IsActorBeingDestroyed() && GetLifeSpan() <= 0.0f) { SetLifeSpan(0.5f); }
+	if (!IsActorBeingDestroyed() && GetLifeSpan() <= 0.0f) { SetLifeSpan(FMath::Max(0.5f, CloseScaleDuration + 0.1f)); }
 }
 void ANF_Portal::HandleDeploymentEnded(ENF_DeploymentEndReason Reason) { ClosePortalPair(); }
 void ANF_Portal::OnRep_PortalState() { if (HasActorBegunPlay()) { RefreshPortalState(); } }
 void ANF_Portal::RefreshPortalState()
 {
 	EntranceTrigger->SetCollisionEnabled(HasAuthority() && bActive && !bExitPortal ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
-	PortalMesh->SetVisibility(bActive, true);
+	UpdateVisualScale();
 	if (UMaterialInterface* Material = bExitPortal ? ExitMaterial.Get() : EntranceMaterial.Get()) { PortalMesh->SetMaterial(0, Material); }
 	if (GetNetMode() != NM_DedicatedServer) { PortalStateChanged(bExitPortal, bActive); }
 	RefreshLocalViews();
@@ -185,13 +200,61 @@ FTransform ANF_Portal::GetViewTransform() const
 	// Both gameplay actors face the travel direction. Their visible mouths face opposite sides:
 	// entrance toward the caster, exit toward the arrival area. This preserves the existing travel heading.
 	const FQuat MouthRotation = GetActorQuat() * FQuat(FVector::UpVector, bExitPortal ? 0.0f : PI);
-	return FTransform(MouthRotation, PortalMesh->GetComponentLocation());
+	// The camera anchor must not move while the visual root scales around its center.
+	return FTransform(MouthRotation, bVisualRootInitialized
+		? GetActorTransform().TransformPosition(ViewAnchorLocal) : PortalMesh->GetComponentLocation());
 }
 
 void ANF_Portal::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	UpdateVisualScale();
 	RefreshLocalViews();
+}
+
+double ANF_Portal::GetVisualServerTime() const
+{
+	if (const auto* State = GetWorld() ? GetWorld()->GetGameState() : nullptr) { return State->GetServerWorldTimeSeconds(); }
+	return GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+}
+
+float ANF_Portal::GetVisualScaleAlpha() const
+{
+	const double Elapsed = FMath::Max(0.0, GetVisualServerTime() - VisualTransitionTime);
+	const float Duration = bActive ? OpenScaleDuration : CloseScaleDuration;
+	const float Progress = Duration > 0.0f ? FMath::Clamp(static_cast<float>(Elapsed / Duration), 0.0f, 1.0f) : 1.0f;
+	const float Smooth = Progress * Progress * (3.0f - 2.0f * Progress);
+	return bActive ? Smooth : ClosingStartAlpha * (1.0f - Smooth);
+}
+
+void ANF_Portal::InitializeVisualRoot()
+{
+	// Keep existing BP offsets. Automatically adopt extra meshes attached directly to PortalRoot.
+	TArray<UMeshComponent*> Meshes; GetComponents(Meshes);
+	for (auto* Mesh : Meshes)
+	{
+		if (Mesh->GetAttachParent() == GetRootComponent()) { Mesh->AttachToComponent(PortalVisualRoot, FAttachmentTransformRules::KeepWorldTransform); }
+	}
+	ViewAnchorLocal = GetActorTransform().InverseTransformPosition(PortalMesh->GetComponentLocation());
+	TArray<USceneComponent*> VisualChildren;
+	for (USceneComponent* Child : PortalVisualRoot->GetAttachChildren()) { VisualChildren.Add(Child); }
+	TArray<FTransform> Transforms;
+	for (auto* Child : VisualChildren) { Transforms.Add(Child->GetComponentTransform()); }
+	// Scale around the portal opening, rather than around ground-level gameplay origin.
+	PortalVisualRoot->SetWorldLocation(PortalMesh->GetComponentLocation());
+	for (int32 Index = 0; Index < VisualChildren.Num(); ++Index) { VisualChildren[Index]->SetWorldTransform(Transforms[Index]); }
+	VisualBaseRotation = PortalVisualRoot->GetRelativeRotation().Quaternion();
+	VisualBaseScale = PortalVisualRoot->GetRelativeScale3D();
+	bVisualRootInitialized = true;
+}
+
+void ANF_Portal::UpdateVisualScale()
+{
+	if (GetNetMode() == NM_DedicatedServer) { return; }
+	const float Alpha = GetVisualScaleAlpha();
+	PortalVisualRoot->SetRelativeRotation(VisualBaseRotation * FQuat(FVector::UpVector, bExitPortal ? PI : 0.0f));
+	PortalVisualRoot->SetRelativeScale3D(VisualBaseScale * FMath::Max(Alpha, 0.0001f));
+	PortalVisualRoot->SetVisibility(IsPortalVisualVisible(), true);
 }
 
 void ANF_Portal::ClearLocalViews()
@@ -203,9 +266,9 @@ void ANF_Portal::ClearLocalViews()
 void ANF_Portal::RefreshLocalViews()
 {
 	if (GetNetMode() == NM_DedicatedServer) { return; }
-	if (!bActive || !bEnablePortalView || !PortalViewClass || !IsValid(LinkedPortal) || !LinkedPortal->IsPortalActive() || bClosing)
+	if (!IsPortalVisualVisible() || !bEnablePortalView || !PortalViewClass || !IsValid(LinkedPortal) || !LinkedPortal->IsPortalVisualVisible())
 	{
-		ClearLocalViews(); PortalMesh->SetVisibility(bActive, true); return;
+		ClearLocalViews(); PortalMesh->SetVisibility(IsPortalVisualVisible(), false); return;
 	}
 	UGameInstance* Instance = GetGameInstance();
 	if (!Instance) { return; }
@@ -228,7 +291,8 @@ void ANF_Portal::RefreshLocalViews()
 		}
 	}
 	// Replace the opaque placeholder slab only where a local view surface exists.
-	PortalMesh->SetVisibility(bActive && LocalViews.IsEmpty(), true);
+	// Hide only the placeholder, not decorative meshes attached beneath it in existing BPs.
+	PortalMesh->SetVisibility(IsPortalVisualVisible() && LocalViews.IsEmpty(), false);
 }
 void ANF_Portal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -236,6 +300,8 @@ void ANF_Portal::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	DOREPLIFETIME(ANF_Portal, LinkedPortal);
 	DOREPLIFETIME(ANF_Portal, bExitPortal);
 	DOREPLIFETIME(ANF_Portal, bActive);
+	DOREPLIFETIME(ANF_Portal, VisualTransitionTime);
+	DOREPLIFETIME(ANF_Portal, ClosingStartAlpha);
 }
 void ANF_Portal::EndPlay(const EEndPlayReason::Type Reason)
 {

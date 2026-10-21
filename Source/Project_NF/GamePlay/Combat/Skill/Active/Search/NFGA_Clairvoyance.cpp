@@ -80,6 +80,8 @@ void UNFGA_Clairvoyance::ScanTargets()
 	FNF_TargetQuerySettings Settings;
 	Settings.Shape.Shape = ENF_AreaDamageShape::Sphere; Settings.Shape.Radius = DetectionRadius;
 	Settings.Filter = TargetFilter; Settings.Filter.bIncludeSource = false;
+	// Clairvoyance reveals all player teams within the configured range, even for old BP team overrides.
+	Settings.Filter.Team = ENF_TargetTeamFilter::All;
 	Settings.ObjectChannels = { ECC_Pawn }; Settings.bRequireLineOfSight = false;
 	TArray<FNF_TargetQueryResult> Results;
 	const FNF_AreaDamageTargetFilter Filter;
