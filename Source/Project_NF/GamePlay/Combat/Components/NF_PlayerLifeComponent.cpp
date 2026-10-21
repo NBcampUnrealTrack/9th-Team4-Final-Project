@@ -179,6 +179,9 @@ bool UNF_PlayerLifeComponent::ChangeLifeState(ENFPlayerLifeState NewState)
 	
 	LifeState = NewState;
 	
+	// 체력 0 판정 대기 취소
+	bPendingHealthZeroCheck = false;
+	
 	// 기절하면 제한 시간 시작
 	if (LifeState == ENFPlayerLifeState::Downed)
 	{
@@ -268,8 +271,8 @@ bool UNF_PlayerLifeComponent::ConfirmTeamAssignment()
 		return false;
 	}
 	
-	// 팀 ID가 0~3인지 확인
-	if (PlayerState->NF_TeamID < 0 || PlayerState->NF_TeamID >= 4)
+	// 팀 ID가 1~4인지 확인
+	if (PlayerState->NF_TeamID < 1 || PlayerState->NF_TeamID > 4)
 	{
 		return false;
 	}
@@ -277,7 +280,77 @@ bool UNF_PlayerLifeComponent::ConfirmTeamAssignment()
 	// 실제 배정 완료 후 이 함수를 호출했다는 전제로
 	bTeamAssignmentConfirmed = true;
 	
+	// 이전에 체력 0 판정이 보류됐으면 다시 검사
+	RetryPendingHealthZeroCheck();
+	
 	return true;
+}
+
+// 보류중인 체력 0 판정 다시
+bool UNF_PlayerLifeComponent::RetryPendingHealthZeroCheck()
+{
+	// 다시 확인할 판정이 없으면 실행x
+	if (!bPendingHealthZeroCheck)
+	{
+		return false;
+	}
+	
+	// 서버에서만 재판정
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return false;
+	}
+	
+	// 현재 체력을 감지하고 있는 ASC 가져옴
+	UAbilitySystemComponent* ASC = ObserverASC.Get();
+	
+	if (!IsValid(ASC) || ASC->GetAvatarActor() != GetOwner())
+	{
+		return false;
+	}
+	
+	// 이미 기절했거나 죽었으면 안 기다림
+	if (LifeState != ENFPlayerLifeState::Alive)
+	{
+		bPendingHealthZeroCheck = false;
+		return false;
+	}
+	
+	// 현재 체력 확인
+	const float CurrentHealth =
+		ASC->GetNumericAttribute(
+			UNF_PlayerStatusAttribute::GetHealthAttribute());
+	
+	// 체력 값이 잘못됐으면 임의로 상태 결정x
+	if (!FMath::IsFinite(CurrentHealth))
+	{
+		return false;
+	}
+	
+	// 체력이 회복됐으면 이전 판정 대기 취소
+	if (CurrentHealth > 0.0f)
+	{
+		bPendingHealthZeroCheck = false;
+		return false;
+	}
+	
+	// 현재 살아 있는 팀원이 있는지
+	const ENFTeammateCheckResult TeammateResult = CheckAliveTeammate();
+	
+	// 정보가 여전히 부족하면 다음 알림까지 대기
+	if (TeammateResult == ENFTeammateCheckResult::Unknown)
+	{
+		return false;
+	}
+	
+	// 살아 있는 팀원이 있으면 Downed로 전환
+	if (TeammateResult == ENFTeammateCheckResult::AliveTeammate)
+	{
+		return EnterDowned();
+	}
+	
+	// 살아 있는 팀원이 없다면 Dead로 전환
+	return EnterDead();
 }
 
 // 팀원의 생존 상태를 확인
@@ -305,10 +378,10 @@ ENFTeammateCheckResult UNF_PlayerLifeComponent::CheckAliveTeammate() const
 		return ENFTeammateCheckResult::Unknown;
 	}
 	
-	// 팀 ID가 0~3인지 확인
+	// 팀 ID가 1~4인지 확인
 	const int32 MyTeamID = MyPlayerState->NF_TeamID;
 	
-	if (MyTeamID < 0 || MyTeamID >= 4)
+	if (MyTeamID < 1 || MyTeamID > 4)
 	{
 		return ENFTeammateCheckResult::Unknown;
 	}
@@ -394,7 +467,7 @@ ENFTeammateCheckResult UNF_PlayerLifeComponent::CheckAliveTeammate() const
 		return ENFTeammateCheckResult::NoAliveTeammate;
 	}
 	
-	// 팀원의 ASc 확인
+	// 팀원의 ASC 확인
 	UAbilitySystemComponent* TeammateASC =
 		TeammateState->GetAbilitySystemComponent();
 	
@@ -471,6 +544,7 @@ bool UNF_PlayerLifeComponent::StartHealthZeroDetection()
 // Health 0 감지 후 팀원 생존 여부에 따라 상태 변경
 void UNF_PlayerLifeComponent::OnHealthChanged(const FOnAttributeChangeData& Data)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[LifeTest] OnHealthChanged Called"));
     if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
     {
         return;
@@ -482,6 +556,12 @@ void UNF_PlayerLifeComponent::OnHealthChanged(const FOnAttributeChangeData& Data
 	if (!IsValid(ASC) || ASC->GetAvatarActor() != GetOwner())
 	{
 		return;
+	}
+	
+	// 판정 보류 중 체력이 회복되면 대기 취소
+	if (bPendingHealthZeroCheck && Data.NewValue > 0.0f)
+	{
+		bPendingHealthZeroCheck = false;
 	}
 	
 	// 살아 있을 때 체력이 양수에서 0으로 떨어진 경우만 감지
@@ -515,10 +595,11 @@ void UNF_PlayerLifeComponent::OnHealthChanged(const FOnAttributeChangeData& Data
 		{
 			EnterDead();
 		}
-		// 팀원 정보를 확인할 수 없으면 상태 변경x
+		// 팀원 정보가 부족하면 체력 0 판정 보류
 		else
 		{
-			// 팀 정보가 준비된 뒤 재판정하는 기능은 추후 연결
+			bPendingHealthZeroCheck = true;
+			UE_LOG(LogTemp, Warning, TEXT("[LifeTest] Health 0 - Unknown, Pending = true"));
 			return;
 		}
 	}
@@ -537,6 +618,9 @@ void UNF_PlayerLifeComponent::StopHealthZeroDetection()
 	
 	HealthChangedHandle.Reset();
 	ObserverASC.Reset();
+	
+	// 감지 기능이 종료되면 보류 중인 판정 취소
+	bPendingHealthZeroCheck = false;
 }
 
 void UNF_PlayerLifeComponent::OnRep_LifeState()

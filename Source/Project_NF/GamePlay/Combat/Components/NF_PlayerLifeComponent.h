@@ -68,6 +68,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Life|Team")
 	bool ConfirmTeamAssignment();
 	
+	// 팀원 정보가 준비되면 보류 중인 체력 0 판정 다시함
+	UFUNCTION(BlueprintCallable, Category = "Life|Health")
+	bool RetryPendingHealthZeroCheck();
+	
 	// 생존 상태 변경 알림
 	UPROPERTY(BlueprintAssignable, Category = "Life")
 	FOnPlayerLifeStateChanged OnLifeStateChanged;
@@ -116,6 +120,9 @@ private:
 	
 	// 팀원이 살아 있는지 확인
 	ENFTeammateCheckResult CheckAliveTeammate() const;
+	
+	// 팀원 정보를 몰라서 체력 0 판정을 기다리고 있는지 저장
+	bool bPendingHealthZeroCheck = false;
 	
 	// Health 변경 감지를 등록한 ASC 기억
 	TWeakObjectPtr<UAbilitySystemComponent> ObserverASC;
