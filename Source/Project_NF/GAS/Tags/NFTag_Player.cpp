@@ -10,4 +10,7 @@ namespace  NFTag_Player
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Ability_Death, "Player.Ability.Death", "Character_Ability_Death -> Player_Ability_Death 로 변경 됨")
 	// @Owner: 명현 | 2026-10-19
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_State_Traversal, "Player.State.Traversal", "파쿠르 시 공격 및 줌 기능이 금지 되게 하기 위함")
+	
+	// @Owner: 명현 | 2026-10-21
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Event_HitCheck, "Player.Event.HitCheck", "해당 Event가 Send 되면 HitCheck GA가 발동 됨")
 }
