@@ -324,6 +324,12 @@ void ANF_MonsterAIController::SetCurrentTargetActor(
 		BlackboardComponent->ClearValue(
 			LastKnownLocationKeyName);
 
+		BlackboardComponent->ClearValue(
+			CombatSlotLocationKeyName);
+
+		BlackboardComponent->ClearValue(
+			CombatSlotAnchorLocationKeyName);
+
 		if (UWorld* World = GetWorld())
 		{
 			TargetLockEndTime =
@@ -363,6 +369,12 @@ void ANF_MonsterAIController::ClearCurrentTargetActor()
 
 	BlackboardComponent->ClearValue(
 		LastKnownLocationKeyName);
+
+	BlackboardComponent->ClearValue(
+		CombatSlotLocationKeyName);
+
+	BlackboardComponent->ClearValue(
+		CombatSlotAnchorLocationKeyName);
 
 	BlackboardComponent->ClearValue(
 		TargetActorKeyName);

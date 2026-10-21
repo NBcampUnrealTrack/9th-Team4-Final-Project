@@ -5,11 +5,43 @@
 #include "AbilitySystemInterface.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "GameFramework/Pawn.h"
+#include "GameplayAbilitySpec.h"
 #include "GAS/Tags/NFTag_Monster.h"
+
+namespace
+{
+	bool IsBasicAttackAbilityActive(const UAbilitySystemComponent* MonsterASC)
+	{
+		if (!MonsterASC)
+		{
+			return false;
+		}
+
+		FGameplayTagContainer AbilityTags;
+		AbilityTags.AddTag(NFTag_Monster::Ability_Monster_BasicAttack);
+
+		TArray<FGameplayAbilitySpec*> MatchingAbilitySpecs;
+		MonsterASC->GetActivatableGameplayAbilitySpecsByAllMatchingTags(
+			AbilityTags,
+			MatchingAbilitySpecs,
+			false);
+
+		for (const FGameplayAbilitySpec* AbilitySpec : MatchingAbilitySpecs)
+		{
+			if (AbilitySpec && AbilitySpec->IsActive())
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+}
 
 UBTTask_NF_MonsterBasicAttack::UBTTask_NF_MonsterBasicAttack()
 {
 	NodeName = TEXT("Monster Basic Attack");
+	bNotifyTick = true;
 }
 
 EBTNodeResult::Type UBTTask_NF_MonsterBasicAttack::ExecuteTask(
@@ -45,6 +77,35 @@ EBTNodeResult::Type UBTTask_NF_MonsterBasicAttack::ExecuteTask(
 			true);
 
 	return bActivated
-		? EBTNodeResult::Succeeded
+		? EBTNodeResult::InProgress
 		: EBTNodeResult::Failed;
+}
+
+void UBTTask_NF_MonsterBasicAttack::TickTask(
+	UBehaviorTreeComponent& OwnerComp,
+	uint8* NodeMemory,
+	float DeltaSeconds)
+{
+	Super::TickTask(OwnerComp, NodeMemory, DeltaSeconds);
+
+	AAIController* MonsterAIController = OwnerComp.GetAIOwner();
+	APawn* MonsterPawn = MonsterAIController
+		? MonsterAIController->GetPawn()
+		: nullptr;
+	IAbilitySystemInterface* AbilitySystemInterface =
+		Cast<IAbilitySystemInterface>(MonsterPawn);
+	UAbilitySystemComponent* MonsterASC = AbilitySystemInterface
+		? AbilitySystemInterface->GetAbilitySystemComponent()
+		: nullptr;
+
+	if (!MonsterASC)
+	{
+		FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
+		return;
+	}
+
+	if (!IsBasicAttackAbilityActive(MonsterASC))
+	{
+		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+	}
 }

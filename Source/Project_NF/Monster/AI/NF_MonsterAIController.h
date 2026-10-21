@@ -49,6 +49,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|AI")
 	FName LastKnownLocationKeyName = TEXT("LastKnownLocation");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|AI")
+	FName CombatSlotLocationKeyName = TEXT("CombatSlotLocation");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|AI")
+	FName CombatSlotAnchorLocationKeyName = TEXT("CombatSlotAnchorLocation");
 	
 	// 타깃 변경 직후, 현재 타깃을 최소한 유지할 시간
 	UPROPERTY(
