@@ -7,7 +7,7 @@
 #include "NF_BossResolutionComponent.generated.h"
 
 
- //서버에서 보스 처치 결과를 검증하고 한 번만 확정
+ //서버에서 보스 처치 결과를 검증하고 한 번만 확정 및 처치 시 기여도 계산
 UCLASS(ClassGroup = (NF))
 class PROJECT_NF_API UNF_BossResolutionComponent : public UActorComponent
 {
@@ -40,4 +40,8 @@ private:
 
 	UPROPERTY()
 	FNF_BossDefeatResult ConfirmedResult;
+	
+	//기여도 계산 부
+	void NormalizeContributions(FNF_BossDefeatResult& DefeatResult) const;
+	
 };
