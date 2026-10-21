@@ -35,6 +35,8 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 		GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		VisualMesh->SetupAttachment(GetMesh());
 		VisualMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		VisualMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		VisualMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	}
 	
 	
