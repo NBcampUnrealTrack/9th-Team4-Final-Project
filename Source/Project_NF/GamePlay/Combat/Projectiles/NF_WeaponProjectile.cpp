@@ -194,7 +194,12 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 	UE_LOG(LogTemp, Warning, TEXT("[WeaponHit] Target=%s Component=%s Bone=%s Region=%s Armor=%s AdditionalDefense=%.2f"),
 		*GetNameSafe(OtherActor), *GetNameSafe(OtherComponent), *BoneName.ToString(),
 		*StaticEnum<ENF_ArmorSlot>()->GetNameStringByValue(static_cast<int64>(Slot)), *GetNameSafe(Armor), Defense);
-
+	
+	// 발사체 충돌 처리 함수 안에서, Destroy() 호출 전에 표시
+	// Hit는 해당 충돌 이벤트로 받은 FHitResult
+	DrawDebugSphere(
+		GetWorld(), Hit.ImpactPoint, 12.f, 12,
+		FColor::Magenta, false, 3.f);
 	
 	Destroy();
 }
