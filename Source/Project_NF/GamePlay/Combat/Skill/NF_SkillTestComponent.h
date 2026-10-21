@@ -12,8 +12,20 @@ class UEnhancedInputLocalPlayerSubsystem;
 class APlayerController;
 class AController;
 
+USTRUCT()
+struct FNF_TestSkillSlotState
+{
+	GENERATED_BODY()
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UNFGA_SkillBase> PendingReleaseAbility;
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> Action;
+	bool bWaitingForRelease = false;
+	bool bPressed = false;
+};
+
 /** @Owner: 스킬 담당 (구현: Codex) | 2026-10-12
- * 목적: Pawn에 컴포넌트를 추가하고 GA를 지정하면 E 키로 실행하는 임시 테스트 ASC.
+ * 목적: Pawn에 컴포넌트를 추가하고 GA를 지정하면 E/Q/LeftShift로 실행하는 임시 테스트 ASC.
  * 캐릭터 클래스 수정이나 별도 입력 에셋 없이 사용한다. 기존 ASC가 없는 테스트 Pawn용이다.
  */
 UCLASS(ClassGroup = (NF), meta = (BlueprintSpawnableComponent), BlueprintType)
@@ -32,23 +44,26 @@ protected:
 	virtual bool GetShouldTick() const override { return true; }
 
 	// 플레이 전에 GA BP를 드래그/선택한다. 플레이 중 교체는 지원하지 않는다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Replicated, Category = "NF|Skill Test")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Replicated, Category = "NF|Skill Test", meta = (DisplayName = "Test Skill Class (E)"))
 	TSubclassOf<UNFGA_SkillBase> TestSkillClass;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Replicated, Category = "NF|Skill Test", meta = (DisplayName = "Test Skill Class (Q)"))
+	TSubclassOf<UNFGA_SkillBase> TestSkillClassQ;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Replicated, Category = "NF|Skill Test", meta = (DisplayName = "Test Skill Class (Left Shift)"))
+	TSubclassOf<UNFGA_SkillBase> TestSkillClassShift;
 
 private:
 	void RefreshTestInput();
 	void RemoveTestInput();
-	void ActivateTestSkill();
-	void BeginTestSkillAim();
-	void ReleaseTestSkillAim();
-	void CancelTestSkillAim();
+	void ActivateTestSkill(int32 SlotIndex);
+	void BeginTestSkillAim(int32 SlotIndex);
+	void ReleaseTestSkillAim(int32 SlotIndex);
+	void CancelTestSkillAim(int32 SlotIndex);
+	TSubclassOf<UNFGA_SkillBase> GetTestSkillClass(int32 SlotIndex) const;
+	FGameplayAbilitySpec* FindTestSkillSpec(int32 SlotIndex);
+	static constexpr int32 SlotCount = 3;
+	static constexpr int32 FirstTestInputID = 100;
 	UPROPERTY(Transient)
-	TWeakObjectPtr<UNFGA_SkillBase> PendingReleaseAbility;
-
-	bool bWaitingForRelease = false;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UInputAction> TestAction;
+	TArray<FNF_TestSkillSlotState> SlotStates;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> TestMapping;
@@ -65,5 +80,5 @@ private:
 	UPROPERTY(Transient)
 	TWeakObjectPtr<AController> CachedController;
 
-	FGameplayAbilitySpecHandle TestSkillHandle;
+	TArray<FGameplayAbilitySpecHandle> TestSkillHandles;
 };

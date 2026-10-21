@@ -5,6 +5,7 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
+#include "GamePlay/Combat/Damage/NF_WeaponDamageLibrary.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
@@ -204,6 +205,9 @@ bool ANF_WeaponBase::FireProjectile()
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	const int32 PelletCount = WeaponData->ProjectilesPerShot;
+	// Snapshot before consuming ammo; all pellets from this shot use the same bonuses.
+	const float ShotDamage = UNF_WeaponDamageLibrary::CalculateShotDamage(
+		IsValid(GetInstigator()) ? GetInstigator() : GetOwner(), WeaponData->Damage, CurrentAmmo == 1);
 	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
 	TArray<ANF_WeaponProjectile*, TInlineAllocator<64>> SpawnedProjectiles;
 
@@ -227,7 +231,7 @@ bool ANF_WeaponBase::FireProjectile()
 			OtherProjectile->IgnoreProjectile(Projectile);
 		}
 
-		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, WeaponData->Damage);
+		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, ShotDamage);
 		SpawnedProjectiles.Add(Projectile);
 		
 		// 발사체를 Spawn한 직후, 생성된 발사체의 실제 위치 표시

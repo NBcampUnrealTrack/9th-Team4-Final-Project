@@ -20,7 +20,8 @@ public:
 	UNF_DetonationComponent();
 	bool HasValidSettings() const;
 	float GetPreviewTime() const;
-	bool Arm(UPrimitiveComponent* Collision);
+	// Ground travel reports obstacles explicitly; ordinary floor contacts must not detonate it.
+	bool Arm(UPrimitiveComponent* Collision, bool bListenForCollision = true);
 	void Disarm();
 	void PlayCosmetic(FVector Location, float Radius);
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Detonation")
