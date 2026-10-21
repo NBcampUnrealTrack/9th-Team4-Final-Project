@@ -11,6 +11,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Engine/SkeletalMesh.h"
 #include "Materials/MaterialInterface.h"
+#include "DrawDebugHelpers.h"
 
 ANF_WeaponBase::ANF_WeaponBase()
 {
@@ -149,6 +150,35 @@ FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) cons
 	{
 		return ViewDirection;
 	}
+	
+	const FVector MuzzleLocation = MuzzleTransform.GetLocation();
+	constexpr float DebugDuration = 3.f;
+
+	// 초록: 카메라에서 검사한 전체 트레이스
+	DrawDebugLine(
+		GetWorld(), ViewLocation, TraceEnd,
+		FColor::Green, false, DebugDuration, 0, 1.f);
+
+	// 파랑: 카메라 위치
+	DrawDebugSphere(
+		GetWorld(), ViewLocation, 8.f, 12,
+		FColor::Blue, false, DebugDuration);
+
+	// 노랑: 총구 위치 (예상 발사 시작점)
+	DrawDebugSphere(
+		GetWorld(), MuzzleLocation, 8.f, 12,
+		FColor::Yellow, false, DebugDuration);
+
+	// 빨강: 트레이스 충돌 지점, 미충돌 시 흰색으로 끝점 표시
+	DrawDebugSphere(
+		GetWorld(), AimPoint, 10.f, 12,
+		bHit ? FColor::Red : FColor::White, false, DebugDuration);
+
+	// 청록: 총구에서 조준점까지의 선
+	DrawDebugLine(
+		GetWorld(), MuzzleLocation, AimPoint,
+		FColor::Cyan, false, DebugDuration, 0, 2.f);
+	
 	return MuzzleToTarget.GetSafeNormal();
 }
 
@@ -199,6 +229,11 @@ bool ANF_WeaponBase::FireProjectile()
 
 		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, WeaponData->Damage);
 		SpawnedProjectiles.Add(Projectile);
+		
+		// 발사체를 Spawn한 직후, 생성된 발사체의 실제 위치 표시
+		DrawDebugSphere(
+			GetWorld(), Projectile->GetActorLocation(), 10.f, 12,
+			FColor::Yellow, false, 3.f);
 	}
 
 	if (SpawnedProjectiles.IsEmpty())
