@@ -15,4 +15,6 @@ namespace NFTag_Player
 	
 	// @Owner: 명현 | 2026-10-21
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Event_HitCheck);
+	// @Owner: 명현 | 2026-10-21
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_State_Death);
 };

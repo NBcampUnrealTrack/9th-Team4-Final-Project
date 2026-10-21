@@ -13,4 +13,6 @@ namespace  NFTag_Player
 	
 	// @Owner: 명현 | 2026-10-21
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Event_HitCheck, "Player.Event.HitCheck", "해당 Event가 Send 되면 HitCheck GA가 발동 됨")
+	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_State_Death, "Player.State.Death", "죽음 상태를 의미하며, 다른 GA들의 사용을 막음")
 }
