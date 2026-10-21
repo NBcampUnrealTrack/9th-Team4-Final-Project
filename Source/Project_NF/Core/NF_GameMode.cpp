@@ -5,12 +5,14 @@
 #include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "Component/NF_BossEncounterComponent.h"
+#include "Component/NF_BossResolutionComponent.h"
 #include "Component/NF_BuildReadyComponent.h"
 #include "Component/NF_MatchDepartureComponent.h"
 #include "Player/State/NF_PlayerState.h"
 #include "GameFramework/PlayerController.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
-
+#include "Data/Struct/NF_BossDefeatResult.h"
+#include "Component/NF_BossContributionRewardComponent.h"
 
 ANF_GameMode::ANF_GameMode()
 {
@@ -19,6 +21,8 @@ ANF_GameMode::ANF_GameMode()
 	BuildReadyComponent = CreateDefaultSubobject<UNF_BuildReadyComponent>(TEXT("BuildReadyComponent"));
 	MatchDepartureComponent = CreateDefaultSubobject<UNF_MatchDepartureComponent>(TEXT("MatchDepartureComponent"));
 	BossEncounterComponent = CreateDefaultSubobject<UNF_BossEncounterComponent>(TEXT("BossEncounterComponent"));
+	BossResolutionComponent =CreateDefaultSubobject<UNF_BossResolutionComponent>(TEXT("BossResolutionComponent"));
+	BossContributionRewardComponent =CreateDefaultSubobject<UNF_BossContributionRewardComponent>(TEXT("BossContributionRewardComponent"));
 }
 
 void ANF_GameMode::BeginPlay()
@@ -42,6 +46,11 @@ void ANF_GameMode::BeginPlay()
 		MatchDepartureComponent->OnDepartureLimitReached.AddUObject(this, &ThisClass::AbortMatchDueToDepartures);
 	}
 
+	if (IsValid(BossResolutionComponent))
+	{
+		BossResolutionComponent->OnBossDefeatResolved.AddUObject(this,&ThisClass::HandleBossDefeatResolved);
+	}
+	
 	ANF_GameState* NFGameState = GetNFGameState();
 	if (!NFGameState)return;
 
@@ -213,6 +222,15 @@ void ANF_GameMode::NotifyTeamsReady()
 	TryStartBuild();
 }
 
+bool ANF_GameMode::NotifyBossDefeated(const FNF_BossDefeatResult& DefeatResult)
+{
+	if (!HasAuthority()) {return false;}
+
+	if (!IsValid(BossResolutionComponent)) {return false;}
+
+	return BossResolutionComponent->ResolveBossDefeat(DefeatResult);
+}
+
 void ANF_GameMode::TryStartBuild()
 {
 	const ANF_GameState* NFGameState = GetNFGameState();
@@ -314,16 +332,6 @@ void ANF_GameMode::EnterBoss()
 	}
 }
 
-void ANF_GameMode::NotifyBossResolved()
-{
-	const ANF_GameState* NFGameState = GetNFGameState();
-
-	if (!NFGameState) return;
-	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Boss) return;
-
-	EnterEscape();
-}
-
 void ANF_GameMode::EnterEscape()
 {
 	ANF_GameState* NFGameState = GetNFGameState();
@@ -343,6 +351,16 @@ void ANF_GameMode::NotifyEscapeSucceeded()
 	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Escape) return;
 
 	EnterFinished();
+}
+
+UNF_BossResolutionComponent* ANF_GameMode::GetBossResolutionComponent() const
+{
+	return BossResolutionComponent;
+}
+
+UNF_BossContributionRewardComponent* ANF_GameMode::GetBossContributionRewardComponent() const
+{
+	return BossContributionRewardComponent;
 }
 
 void ANF_GameMode::EnterFinished()
@@ -495,6 +513,41 @@ void ANF_GameMode::HandleBossSpawnFailed(const FString& Reason)
 	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Farming)return;
 
 	AbortMatch(Reason);
+}
+
+void ANF_GameMode::HandleBossDefeatResolved(const FNF_BossDefeatResult& DefeatResult)
+{
+	if (!HasAuthority())return;
+	if (bMatchAborting)return;
+
+	const ANF_GameState* NFGameState =GetNFGameState();
+	
+	if (!IsValid(NFGameState))return;
+	if (NFGameState->GetMatchPhase()!= ENF_MatchPhase::Boss)return;
+	
+	// 먼저 Escape로 전환하여 부활 및 소생 제한을 매치 정책에 반영
+	EnterEscape();
+
+	NFGameState = GetNFGameState();
+
+	if (!IsValid(NFGameState))return;
+
+	if (NFGameState->GetMatchPhase()!= ENF_MatchPhase::Escape)
+	{
+		UE_LOG(LogTemp,Error,TEXT("[GameMode] Escape 페이즈 전환에 ""실패하여 기여도 보상을 적용하지 않습니다."));
+		return;
+	}
+
+	if (!IsValid(BossContributionRewardComponent))
+	{
+		UE_LOG(LogTemp,Error,TEXT("[GameMode] 보스 기여도 보상 ""컴포넌트가 없습니다."));
+		return;
+	}
+
+	if (!BossContributionRewardComponent->ApplyRewards(DefeatResult))
+	{
+		UE_LOG(LogTemp,Error,TEXT("[GameMode] 보스 기여도 보상 ""적용에 실패했습니다."));
+	}
 }
 
 

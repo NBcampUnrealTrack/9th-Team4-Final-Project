@@ -10,21 +10,6 @@ UNF_ArmorComponent::UNF_ArmorComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
-	// for (const TCHAR* Bone : { TEXT("head"), TEXT("neck_01"), TEXT("neck_02") })
-	// 	BoneToSlot.Add(FName(Bone), ENF_ArmorSlot::Head);
-	// for (const TCHAR* Bone : { TEXT("spine_01"), TEXT("spine_02"), TEXT("spine_03"), TEXT("spine_04"), TEXT("spine_05") })
-	// 	BoneToSlot.Add(FName(Bone), ENF_ArmorSlot::Upper);
-	// BoneToSlot.Add(TEXT("pelvis"), ENF_ArmorSlot::Bottom);
-	// for (const TCHAR* Side : { TEXT("l"), TEXT("r") })
-	// {
-	// 	for (const TCHAR* Bone : { TEXT("clavicle"), TEXT("upperarm"), TEXT("lowerarm"), TEXT("hand"), TEXT("upperarm_twist_01"), TEXT("lowerarm_twist_01") })
-	// 		BoneToSlot.Add(FName(*FString::Printf(TEXT("%s_%s"), Bone, Side)), ENF_ArmorSlot::Upper);
-	// 	for (const TCHAR* Finger : { TEXT("thumb"), TEXT("index"), TEXT("middle"), TEXT("ring"), TEXT("pinky") })
-	// 		for (int32 Joint = 1; Joint <= 3; ++Joint)
-	// 			BoneToSlot.Add(FName(*FString::Printf(TEXT("%s_%02d_%s"), Finger, Joint, Side)), ENF_ArmorSlot::Upper);
-	// 	for (const TCHAR* Bone : { TEXT("thigh"), TEXT("calf"), TEXT("foot"), TEXT("ball"), TEXT("thigh_twist_01"), TEXT("calf_twist_01") })
-	// 		BoneToSlot.Add(FName(*FString::Printf(TEXT("%s_%s"), Bone, Side)), ENF_ArmorSlot::Bottom);
-	// }
 }
 
 void UNF_ArmorComponent::BeginPlay()
@@ -61,9 +46,9 @@ FName UNF_ArmorComponent::GetSocketName(ENF_ArmorSlot Slot) const
 {
 	switch (Slot)
 	{
-	case ENF_ArmorSlot::Head: return HeadSocketName;
-	case ENF_ArmorSlot::Upper: return UpperSocketName;
-	case ENF_ArmorSlot::Bottom: return BottomSocketName;
+	case ENF_ArmorSlot::HeadArmor: return HeadSocketName;
+	case ENF_ArmorSlot::BodyArmor: return UpperSocketName;
+	case ENF_ArmorSlot::LegArmor: return BottomSocketName;
 	default: return NAME_None;
 	}
 }
@@ -100,7 +85,7 @@ bool UNF_ArmorComponent::EquipArmor(ANF_ArmorBase* NewArmor)
 	
 
 	const ENF_ArmorSlot Slot = NewArmor->GetArmorSlot();
-	if (Slot != ENF_ArmorSlot::Head && Slot != ENF_ArmorSlot::Upper && Slot != ENF_ArmorSlot::Bottom) return false;
+	if (Slot != ENF_ArmorSlot::HeadArmor && Slot != ENF_ArmorSlot::BodyArmor && Slot != ENF_ArmorSlot::LegArmor) return false;
 	const FName SocketName = GetSocketName(Slot);
 	if (bAttachArmorToSockets && (!IsValid(Character->GetMesh()) || SocketName.IsNone() ||
 		!Character->GetMesh()->DoesSocketExist(SocketName)))
@@ -133,14 +118,9 @@ ENF_ArmorSlot UNF_ArmorComponent::ResolveHitRegion(FName BoneName) const
 	if (!IsValid(HitMesh) || HitMesh->GetBoneIndex(BoneName) == INDEX_NONE)
 		return ENF_ArmorSlot::Unknown;
 
-	// Closest entry wins, including an explicit Unknown override.
-	// Only real bones from the selected hit mesh can participate in this lookup.
-	while (!BoneName.IsNone())
-	{
-		if (const ENF_ArmorSlot* Slot = BoneToSlot.Find(BoneName)) return *Slot;
-		BoneName = HitMesh->GetParentBone(BoneName);
-	}
-	return ENF_ArmorSlot::Unknown;
+	// Only explicitly mapped hit bones receive a region; parents do not provide coverage.
+	const ENF_ArmorSlot* Slot = BoneToSlot.Find(BoneName);
+	return Slot ? *Slot : ENF_ArmorSlot::Unknown;
 }
 
 float UNF_ArmorComponent::GetAdditionalDefenseForSlot(ENF_ArmorSlot Slot) const

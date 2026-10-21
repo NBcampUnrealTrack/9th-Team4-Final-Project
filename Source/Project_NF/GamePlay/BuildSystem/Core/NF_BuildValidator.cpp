@@ -7,8 +7,7 @@
 #include "GameplayEffectComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 
-FNF_BuildValidation FNF_BuildValidator::Validate(
-	const UNF_BuildRules* Rules, int32 PlayerLevel, const TArray<FNF_BuildSelection>& Selections)
+FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules,int32 CostLimit,const TArray<FName>& AllowedItemIds, const TArray<FNF_BuildSelection>& Selections)
 {
 	FNF_BuildValidation Validation;
 	auto Fail = [&Validation](ENF_BuildResult Result, const TCHAR* Message)
@@ -18,12 +17,23 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 		return Validation;
 	};
 
-	if (!IsValid(Rules) || !Rules->TryGetCostLimit(PlayerLevel, Validation.CostLimit) || Rules->WeaponSlots != 1 ||
-		Rules->ArmorSlots != 3 || Rules->ActiveSkillSlots != 2 || Rules->PassiveSkillSlots != 1)
-	{
-		return Fail(ENF_BuildResult::InvalidRules, TEXT("코스트 상한과 슬롯 수(무기 1, 방어구 3, 액티브 2, 패시브 1)를 확인하세요."));
+	if (!IsValid(Rules) || CostLimit < 0){
+		return Fail(
+			ENF_BuildResult::InvalidRules,
+			TEXT("빌드 규칙 또는 코스트 상한이 잘못되었습니다."));
 	}
+	Validation.CostLimit = CostLimit;
 
+	if (Rules->WeaponSlots != 1 ||
+		Rules->ArmorSlots != 3 ||
+		Rules->ActiveSkillSlots != 2 ||
+		Rules->PassiveSkillSlots != 1)
+	{
+		return Fail(
+			ENF_BuildResult::InvalidRules,
+			TEXT("빌드 슬롯 수를 확인하세요."));
+	}
+	
 	TMap<FName, const UNF_BuildItemDefinitionDataAsset*> Catalog;
 	for (const UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
 	{
@@ -53,10 +63,18 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
 		const UNF_BuildItemDefinitionDataAsset* const* Found = Catalog.Find(Selection.ItemId);
+		
 		if (!Found)
 		{
-			return Fail(ENF_BuildResult::UnknownItem, TEXT("상점 카탈로그에 없는 항목입니다."));
+			return Fail(ENF_BuildResult::UnknownItem,TEXT("상점 카탈로그에 없는 항목입니다."));
 		}
+
+		// 여기 추가
+		if (!AllowedItemIds.Contains(Selection.ItemId))
+		{
+			return Fail(ENF_BuildResult::ItemNotUnlocked,TEXT("아직 획득하지 않은 항목입니다."));
+		}
+		
 		const UNF_BuildItemDefinitionDataAsset* Definition = *Found;
 		if (ItemIds.Contains(Selection.ItemId))
 		{
@@ -121,9 +139,9 @@ FNF_BuildValidation FNF_BuildValidator::Validate(
 	{
 		return Fail(ENF_BuildResult::RequiredWeaponMissing, TEXT("주무기를 하나 이상 선택해야 합니다."));
 	}
-	if (TotalCost > Validation.CostLimit)
+	if (TotalCost > CostLimit)
 	{
-		return Fail(ENF_BuildResult::CostLimitExceeded, TEXT("레벨에서 제공하는 코스트 상한을 초과했습니다."));
+		return Fail(ENF_BuildResult::CostLimitExceeded,TEXT("플레이어의 코스트 상한을 초과했습니다."));
 	}
 	Validation.Message = FText::FromString(TEXT("적용 가능한 빌드입니다."));
 	return Validation;

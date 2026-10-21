@@ -7,12 +7,16 @@
 
 class ANF_GameState;
 class APlayerController;
+class ANF_PlayerState;
+class ANF_BossBase;
 class UNF_BuildReadyComponent;
 class UNF_MatchDepartureComponent;
-class ANF_PlayerState;
-struct FNFServerTeamIdAssignment;
-class ANF_BossBase;
 class UNF_BossEncounterComponent;
+class UNF_BossResolutionComponent;
+class UNF_BossContributionRewardComponent;
+
+struct FNFServerTeamIdAssignment;
+struct FNF_BossDefeatResult;
 
 // 매치메이킹 연동 코드가 서버에서 바인딩. 남은 클라이언트의 복귀 및 세션 정리를 요청
 DECLARE_DELEGATE_OneParam(FNF_RequestMatchAbort,const FString&);
@@ -32,9 +36,9 @@ public:
 	
 	// 서버에서 팀 배정과 PlayerState 반영을 완료한 뒤 호출
 	void NotifyTeamsReady();
-
-	// 보스 사망 처리와 열쇠 부여가 모두 성공한 뒤 호출
-	void NotifyBossResolved();
+	
+	// 보스 시스템이 보스 처치 결과를 Core에 전달
+	bool NotifyBossDefeated(const FNF_BossDefeatResult& DefeatResult);
 
 	// 탈출 시스템이 서버에서 터치다운 조건을 검증한 뒤 호출
 	void NotifyEscapeSucceeded();
@@ -64,8 +68,6 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Match")
 	float FarmingDuration = 900.0f;
-	
-	FTimerHandle PhaseTimerHandle;
 	
 	ANF_GameState* GetNFGameState() const;
 	
@@ -98,6 +100,12 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "NF|Match|Departure")
 	TObjectPtr<UNF_BossEncounterComponent> BossEncounterComponent;
 	
+	UPROPERTY(VisibleAnywhere,Category = "NF|Match|Boss")
+	TObjectPtr<UNF_BossResolutionComponent>BossResolutionComponent;
+	
+	UPROPERTY(VisibleAnywhere,Category = "NF|Match|Boss")
+	TObjectPtr<UNF_BossContributionRewardComponent>BossContributionRewardComponent;
+	
 	bool bTeamsReady = false;
 	
 	bool bMatchAborting = false;
@@ -106,12 +114,16 @@ private:
 #pragma region BossPhase
 public:
 	UNF_BossEncounterComponent* GetBossEncounterComponent() const;
-
+	UNF_BossResolutionComponent* GetBossResolutionComponent() const;
+	UNF_BossContributionRewardComponent*GetBossContributionRewardComponent() const;
 private:
 	void HandleFarmingPhaseExpired();
 
 	void HandleBossSpawnSucceeded(ANF_BossBase* Boss);
 	void HandleBossSpawnFailed(const FString& Reason);
 
+	void HandleBossDefeatResolved(const FNF_BossDefeatResult& DefeatResult);
+	
+	FTimerHandle PhaseTimerHandle;
 #pragma endregion
 };

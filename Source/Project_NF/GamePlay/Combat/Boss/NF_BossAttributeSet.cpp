@@ -4,7 +4,8 @@
 #include "GameplayEffectExtension.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "Net/UnrealNetwork.h"
-#include "Player/Character/NF_Player.h"
+#include "GameFramework/Pawn.h"
+#include "Player/State/NF_PlayerState.h"
 
 UNF_BossAttributeSet::UNF_BossAttributeSet()
 {
@@ -32,6 +33,23 @@ void UNF_BossAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribut
 	}
 }
 
+bool UNF_BossAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data)
+{
+	const bool bCanExecute = Super::PreGameplayEffectExecute(Data);
+	if (!bCanExecute)
+	{
+		return false;
+	}
+
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	{
+		HealthBeforeGameplayEffect = GetHealth();
+		bHasHealthBeforeGameplayEffect = true;
+	}
+
+	return true;
+}
+
 void UNF_BossAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
@@ -40,24 +58,32 @@ void UNF_BossAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCal
 		return;
 	}
 
-	SetHealth(FMath::Clamp(GetHealth(), 0.0f, GetMaxHealth()));
+	const float HealthAfterGameplayEffect = FMath::Clamp(GetHealth(), 0.0f, GetMaxHealth());
+	const float HealthBeforeGameplayEffectValue = bHasHealthBeforeGameplayEffect
+		? HealthBeforeGameplayEffect : HealthAfterGameplayEffect;
+	bHasHealthBeforeGameplayEffect = false;
+	SetHealth(HealthAfterGameplayEffect);
 	ANF_BossBase* Boss = Cast<ANF_BossBase>(GetOwningActor());
 	if (!Boss || !Boss->HasAuthority())
 	{
 		return;
 	}
 
-	const float AppliedMagnitude = Data.EvaluatedData.Magnitude;
-	if (AppliedMagnitude < 0.0f)
+	const float EffectiveDamage = FMath::Max(HealthBeforeGameplayEffectValue - HealthAfterGameplayEffect, 0.0f);
+	if (EffectiveDamage > 0.0f)
 	{
-		UAbilitySystemComponent* InstigatorASC = Data.EffectSpec.GetContext().GetOriginalInstigatorAbilitySystemComponent();
+		UAbilitySystemComponent* InstigatorASC =
+			Data.EffectSpec.GetContext().GetOriginalInstigatorAbilitySystemComponent();
 		AActor* InstigatorAvatar = InstigatorASC ? InstigatorASC->GetAvatarActor() : nullptr;
-		ANF_Player* Player = Cast<ANF_Player>(InstigatorAvatar);
-		if (!Player && InstigatorASC)
+		APawn* InstigatorPawn = Cast<APawn>(InstigatorAvatar);
+		ANF_PlayerState* InstigatorPlayerState = InstigatorPawn
+			? InstigatorPawn->GetPlayerState<ANF_PlayerState>() : nullptr;
+		if (!InstigatorPlayerState && InstigatorASC)
 		{
-			Player = Cast<ANF_Player>(InstigatorASC->GetOwnerActor());
+			InstigatorPlayerState = Cast<ANF_PlayerState>(InstigatorASC->GetOwnerActor());
 		}
-		Boss->RecordDamage(Player, -AppliedMagnitude);
+
+		Boss->RecordDamage(InstigatorPlayerState, EffectiveDamage, HealthAfterGameplayEffect <= 0.0f);
 	}
 
 	Boss->HandleHealthUpdated(GetHealth());

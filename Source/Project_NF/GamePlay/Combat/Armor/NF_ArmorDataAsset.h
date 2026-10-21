@@ -12,10 +12,13 @@ class PROJECT_NF_API UNF_ArmorDataAsset : public UDataAsset
 
 public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
-	ENF_ArmorSlot ArmorSlot = ENF_ArmorSlot::Head;
+	ENF_ArmorSlot ArmorSlot = ENF_ArmorSlot::None;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
-	float AdditionalDefense = 0.f;
+	float BaseDefence = 0.f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
+	float AdditionalDefence = 0.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Appearance")
 	TObjectPtr<class UStaticMesh> ArmorMesh;

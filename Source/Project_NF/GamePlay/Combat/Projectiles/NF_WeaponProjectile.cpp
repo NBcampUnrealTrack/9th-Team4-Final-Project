@@ -113,15 +113,6 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 	if (IsValid(OtherActor) == false || OtherActor == this || OtherActor == GetOwner() || OtherActor == GetInstigator())
 		return;
 
-		
-	const FString HitMessage = FString::Printf(
-		TEXT("[Projectile Debug] %s hit %s (Component: %s)"),
-		*GetNameSafe(this),
-		*GetNameSafe(OtherActor),
-		*GetNameSafe(OtherComponent));
-
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *HitMessage);
-
 	if (ANF_BossBase* Boss = Cast<ANF_BossBase>(OtherActor))
 	{
 		UAbilitySystemComponent* BossASC = Boss->GetAbilitySystemComponent();
