@@ -5,10 +5,12 @@
 #include "Data/Struct/NF_MatchState.h"
 #include "GameFramework/GameState.h"
 #include "Data/Enum/NF_BuildShopType.h"
+#include "Data/Struct/NF_KeyPublicState.h"
 
 #include "NF_GameState.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnMatchStateChanged, FNF_MatchState&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnKeyPublicStateChanged, const FNF_KeyPublicState&);
 
 UCLASS()
 class PROJECT_NF_API ANF_GameState : public AGameState
@@ -33,12 +35,27 @@ public:
 	bool AuthoritySetTimedMatchPhase(ENF_MatchPhase NewPhase,float Duration);
 	//제한시간 없는 페이즈용
 	bool AuthoritySetUntimedMatchPhase(ENF_MatchPhase NewPhase);
+	// 결과 기록과 Finished 전환을 한 번에 수행.
+	bool AuthorityFinishMatch(const FNF_MatchResult& Result);
 	
 	FNF_OnMatchStateChanged OnMatchStateChanged;
+
+	UFUNCTION(BlueprintPure, Category = "NF|Escape|Key")
+	FNF_KeyPublicState GetKeyPublicState() const;
+
+	bool AuthoritySetKeyPublicState(const FNF_KeyPublicState& NewState);
+
+	FNF_OnKeyPublicStateChanged OnKeyPublicStateChanged;
 
 private:
 	UPROPERTY(ReplicatedUsing = OnRep_NFMatchState)
 	FNF_MatchState NF_MatchState;
+
+	UPROPERTY(ReplicatedUsing = OnRep_KeyPublicState)
+	FNF_KeyPublicState KeyPublicState;
+
+	UFUNCTION()
+	void OnRep_KeyPublicState();
 	
 	UFUNCTION()
 	void OnRep_NFMatchState();
