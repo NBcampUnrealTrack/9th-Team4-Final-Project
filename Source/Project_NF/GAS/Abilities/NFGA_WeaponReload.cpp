@@ -6,6 +6,9 @@
 
 UNFGA_WeaponReload::UNFGA_WeaponReload()
 {
+	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Death);
+	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Death);
+	
 	ActivationOwnedTags.AddTag(NFTag_Player::Player_State_Reload);
 
 	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Traversal);
