@@ -29,6 +29,9 @@ public:
 	ANF_Monster();
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	/** Maximum target distance at which a basic-attack hit can be applied. */
+	float GetBasicAttackHitRange() const { return BasicAttackHitRange; }
 	
 	void ApplyBasicAttackHit();
 	
