@@ -37,7 +37,8 @@ enum class ENF_BuildResult : uint8
 	RequiredWeaponMissing,
 	CostLimitExceeded,
 	InvalidGrant,
-	GrantFailed
+	GrantFailed, 
+	ItemNotUnlocked
 };
 
 // @Owner: 황준현 | 2026-10-15

@@ -8,6 +8,7 @@
 class UGameplayAbility;
 class UGameplayEffect;
 class ANF_WeaponBase;
+class ANF_ArmorBase;
 
 /** One definition per item/tier. No mesh swapping is required by the prototype. */
 UCLASS(BlueprintType)
@@ -29,6 +30,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build",
 		meta = (EditCondition = "ItemType == ENF_BuildItemType::Armor", EditConditionHides))
 	ENF_BuildArmorPart ArmorPart = ENF_BuildArmorPart::None;
+	
+	// @Owner: 황준현 | 2026-10-20
+	// 확정 시 장비 시스템에 전달할 방어구 클래스.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build|Armor", 
+		meta = (EditCondition = "ItemType == ENF_BuildItemType::Armor", EditConditionHides))
+	TSubclassOf<ANF_ArmorBase> ArmorClass;
 
 	/** 머리=0, 상의=1, 하의=2. 그 외 단일 슬롯 항목은 0을 사용한다. */
 	UFUNCTION(BlueprintPure, Category = "NF|Build")
