@@ -239,6 +239,56 @@ void ANF_MonsterAIController::ConsiderTargetActor(
 	SetCurrentTargetActor(CandidateActor);
 }
 
+void ANF_MonsterAIController::ApplyDamageAggro(AActor* DamageSource)
+{
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster damage aggro requested: Monster=%s / Source=%s"),
+		*GetNameSafe(GetPawn()),
+		*GetNameSafe(DamageSource));
+
+	if (!IsValidPlayerTarget(DamageSource))
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster damage aggro skipped: source is not a player-controlled pawn."));
+
+		return;
+	}
+
+	UBlackboardComponent* BlackboardComponent = GetBlackboardComponent();
+	if (!BlackboardComponent)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster damage aggro skipped: BlackboardComponent is null."));
+
+		return;
+	}
+
+	SetCurrentTargetActor(DamageSource);
+
+	BlackboardComponent->SetValueAsVector(
+		LastKnownLocationKeyName,
+		DamageSource->GetActorLocation());
+
+	BlackboardComponent->SetValueAsBool(
+		HasLineOfSightKeyName,
+		true);
+
+	SetFocus(DamageSource, EAIFocusPriority::Gameplay);
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster damage aggro: Monster=%s / Target=%s"),
+		*GetNameSafe(GetPawn()),
+		*GetNameSafe(DamageSource));
+}
+
 AActor* ANF_MonsterAIController::FindClosestPerceivedPlayer(
 	AActor* ExcludedActor) const
 {
