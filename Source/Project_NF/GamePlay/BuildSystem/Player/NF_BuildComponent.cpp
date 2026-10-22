@@ -35,7 +35,25 @@ void UNF_BuildComponent::BeginPlay()
 	SetComponentTickEnabled(GetOwner()->HasAuthority());
 	if (GetOwner()->HasAuthority())
 	{
+		InitializeDefaultBuildEntitlements();
 		UpdateShopsInRange();
+	}
+}
+
+void UNF_BuildComponent::InitializeDefaultBuildEntitlements()
+{
+	// 외부 시스템이 먼저 전달한 개인별 조건을 기본값으로 덮어쓰지 않는다.
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() ||
+		!bInitializeEntitlementsFromDefaults || bEntitlementsInitialized || !IsValid(Rules))
+	{
+		return;
+	}
+
+	if (!UpdateBuildEntitlements(InitialCostLimit, InitialUnlockedItemIds))
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("빌드 초기 조건 적용 실패: %s. 초기 코스트와 Rules Catalog의 ItemId를 확인하세요."),
+			*GetNameSafe(GetOwner()));
 	}
 }
 
@@ -410,6 +428,7 @@ bool UNF_BuildComponent::ConfigureRules(UNF_BuildRules* InRules)
 		return false;
 	}
 	Rules = InRules;
+	InitializeDefaultBuildEntitlements();
 	GetOwner()->ForceNetUpdate();
 	OnDraftChanged.Broadcast();
 	return true;

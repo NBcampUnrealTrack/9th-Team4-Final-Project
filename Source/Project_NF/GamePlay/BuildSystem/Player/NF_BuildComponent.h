@@ -163,6 +163,19 @@ public:
 
 
 protected:
+	// @Owner: 황준현 | 2026-10-22. 외부 진행 시스템 연결 전 명시적으로 설정한 초기 조건을 사용한다.
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|Initial Entitlements")
+	bool bInitializeEntitlementsFromDefaults = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|Initial Entitlements",
+		meta = (ClampMin = "0", EditCondition = "bInitializeEntitlementsFromDefaults"))
+	int32 InitialCostLimit = 0;
+
+	// Rules의 Catalog에 존재하는 ItemId만 지정한다. 전체 카탈로그를 자동 해금하지 않는다.
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|Initial Entitlements",
+		meta = (EditCondition = "bInitializeEntitlementsFromDefaults"))
+	TArray<FName> InitialUnlockedItemIds;
+
 	virtual void BeginPlay() override;
 	virtual void
 	TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* TickFunction) override;
@@ -180,6 +193,8 @@ protected:
 	bool bAutomaticallyShowWidget = true;
 
 private:
+	void InitializeDefaultBuildEntitlements();
+
 	// @Owner: 황준현 | 2026-10-15. 범위 상태는 사용 세션과 분리하여 소유 클라이언트에 복제한다.
 	void UpdateShopsInRange();
 	UFUNCTION()
