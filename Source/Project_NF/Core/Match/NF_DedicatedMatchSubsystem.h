@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Core/Match/NF_MatchRules.h"
+#include "Data/Struct/NF_MatchResult.h"
 #include "NF_DedicatedMatchSubsystem.generated.h"
 
 class APlayerController;
@@ -30,6 +31,7 @@ public:
 	bool SubmitTeamAssignments(APlayerController* Submitter, const FString& ClaimedPlayerId,
 		const TArray<FNFMatchTeamAssignment>& Teams);
 	void HandleMatchAbort(const FString& Reason);
+	void HandleMatchCompleted(const FNF_MatchResult& Result);
 
 	/** Broadcast once on the server after every PlayerState has its final replicated TeamId. */
 	FNFOnServerTeamIdsAssigned OnServerTeamIdsAssigned;
@@ -41,12 +43,17 @@ private:
 	void ScheduleDedicatedServerExit();
 	void ExitDedicatedServer();
 	void HandleSessionDestroyed(FName SessionName, bool bWasSuccessful);
+	void BeginSessionCleanup();
+	void HandleSessionCleanupTimeout();
 
 	TMap<FString, TWeakObjectPtr<ANF_PlayerState>> SubmittedPlayerStates;
 	TSet<FString> SubmittedPlayerIds;
 	TArray<FNFMatchTeamAssignment> CurrentTeams;
 	FString ExpectedAssignmentSignature;
 	FTimerHandle DedicatedServerExitTimerHandle;
+	FTimerHandle SessionCleanupTimerHandle;
+	FNF_MatchResult CompletedResult;
+	bool bMatchCompletedHandled = false;
 	FDelegateHandle DestroySessionCompleteHandle;
 	bool bTeamAssignmentsApplied = false;
 	bool bMatchAbortHandled = false;

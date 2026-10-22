@@ -14,13 +14,13 @@ bool UNF_DetonationComponent::HasValidSettings() const
 		&& FMath::IsFinite(FuseTime) && FuseTime >= 0.01f && FMath::IsFinite(MaxLifetime) && MaxLifetime >= 0.01f;
 }
 float UNF_DetonationComponent::GetPreviewTime() const { return Mode == ENF_DetonationMode::Impact ? MaxLifetime : FuseTime; }
-bool UNF_DetonationComponent::Arm(UPrimitiveComponent* Collision)
+bool UNF_DetonationComponent::Arm(UPrimitiveComponent* Collision, bool bListenForCollision)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !GetWorld() || bDetonated || bArmed || !HasValidSettings()
 		|| (Mode != ENF_DetonationMode::Fuse && !IsValid(Collision))) { return false; }
 	bArmed = true;
 	BoundCollision = Collision;
-	if (Collision && Mode != ENF_DetonationMode::Fuse) { Collision->OnComponentHit.AddDynamic(this, &UNF_DetonationComponent::HandleHit); }
+	if (bListenForCollision && Collision && Mode != ENF_DetonationMode::Fuse) { Collision->OnComponentHit.AddDynamic(this, &UNF_DetonationComponent::HandleHit); }
 	GetWorld()->GetTimerManager().SetTimer(DetonationTimer, this, &UNF_DetonationComponent::Detonate, GetPreviewTime(), false);
 	return true;
 }

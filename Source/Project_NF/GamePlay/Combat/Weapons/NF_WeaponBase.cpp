@@ -5,6 +5,7 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
+#include "GamePlay/Combat/Damage/NF_WeaponDamageLibrary.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
@@ -12,6 +13,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "DrawDebugHelpers.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 ANF_WeaponBase::ANF_WeaponBase()
 {
@@ -134,30 +136,41 @@ FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) cons
 	const FVector ViewDirection = ViewRotation.Vector();
 	const FVector TraceEnd = ViewLocation + ViewDirection * FMath::Max(AimTraceDistance, 1.f);
 
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(WeaponAim), false);
-	QueryParams.AddIgnoredActor(this);
-	QueryParams.AddIgnoredActor(GetOwner());
-	QueryParams.AddIgnoredActor(GetInstigator());
-
-	FHitResult Hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(
-		Hit, ViewLocation, TraceEnd, ECC_Visibility, QueryParams);
-	const FVector AimPoint = bHit ? Hit.ImpactPoint : TraceEnd;
-	const FVector MuzzleToTarget = AimPoint - MuzzleTransform.GetLocation();
-
-	// 가까운 장애물 때문에 탄환이 뒤로 발사되는 것을 방지
-	if (FVector::DotProduct(MuzzleToTarget, ViewDirection) <= KINDA_SMALL_NUMBER)
-	{
-		return ViewDirection;
-	}
-	
-	const FVector MuzzleLocation = MuzzleTransform.GetLocation();
+	const float AimTraceRadius = IsValid(WeaponData) ? FMath::Max(WeaponData->AimTraceRadius, 0.f) : 0.f;
 	constexpr float DebugDuration = 3.f;
 
-	// 초록: 카메라에서 검사한 전체 트레이스
-	DrawDebugLine(
-		GetWorld(), ViewLocation, TraceEnd,
-		FColor::Green, false, DebugDuration, 0, 1.f);
+	TArray<AActor*> ActorsToIgnore;
+	ActorsToIgnore.Add(GetOwner());
+	ActorsToIgnore.Add(GetInstigator());
+
+	FHitResult Hit;
+	bool bHit = UKismetSystemLibrary::SphereTraceSingle(
+		this,
+		ViewLocation, TraceEnd,
+		AimTraceRadius,
+		UEngineTypes::ConvertToTraceType(ECC_Visibility),
+		false,                          // bTraceComplex
+		ActorsToIgnore,
+		EDrawDebugTrace::ForDuration,   // 끄려면 None
+		Hit,
+		true,                           // bIgnoreSelf
+		FLinearColor::Green,            // 충돌 전 구간
+		FLinearColor::Red,              // 충돌 이후 구간
+		DebugDuration);
+
+	// 시작 지점이 이미 겹쳐 있으면 ImpactPoint를 신뢰할 수 없으므로 라인 트레이스로 대체
+	if (bHit && Hit.bStartPenetrating)
+	{
+		bHit = UKismetSystemLibrary::LineTraceSingle(
+			this, ViewLocation, TraceEnd,
+			UEngineTypes::ConvertToTraceType(ECC_Visibility),
+			false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true,
+			FLinearColor::Green, FLinearColor::Red, DebugDuration);
+	}
+
+	const FVector MuzzleLocation = MuzzleTransform.GetLocation();
+	const FVector AimPoint = bHit ? Hit.ImpactPoint : TraceEnd;
+	const FVector MuzzleToTarget = AimPoint - MuzzleLocation;
 
 	// 파랑: 카메라 위치
 	DrawDebugSphere(
@@ -178,6 +191,12 @@ FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) cons
 	DrawDebugLine(
 		GetWorld(), MuzzleLocation, AimPoint,
 		FColor::Cyan, false, DebugDuration, 0, 2.f);
+
+	// 가까운 장애물 때문에 탄환이 뒤로 발사되는 것을 방지
+	if (FVector::DotProduct(MuzzleToTarget, ViewDirection) <= KINDA_SMALL_NUMBER)
+	{
+		return ViewDirection;
+	}
 	
 	return MuzzleToTarget.GetSafeNormal();
 }
@@ -204,6 +223,9 @@ bool ANF_WeaponBase::FireProjectile()
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	const int32 PelletCount = WeaponData->ProjectilesPerShot;
+	// Snapshot before consuming ammo; all pellets from this shot use the same bonuses.
+	const float ShotDamage = UNF_WeaponDamageLibrary::CalculateShotDamage(
+		IsValid(GetInstigator()) ? GetInstigator() : GetOwner(), WeaponData->Damage, CurrentAmmo == 1);
 	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
 	TArray<ANF_WeaponProjectile*, TInlineAllocator<64>> SpawnedProjectiles;
 
@@ -227,7 +249,7 @@ bool ANF_WeaponBase::FireProjectile()
 			OtherProjectile->IgnoreProjectile(Projectile);
 		}
 
-		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, WeaponData->Damage);
+		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, ShotDamage);
 		SpawnedProjectiles.Add(Projectile);
 		
 		// 발사체를 Spawn한 직후, 생성된 발사체의 실제 위치 표시

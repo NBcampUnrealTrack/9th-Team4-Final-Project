@@ -1,6 +1,7 @@
 #include "GamePlay/Combat/Components/NF_DeployableComponent.h"
 
 #include "GameFramework/Actor.h"
+#include "AbilitySystemComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Net/UnrealNetwork.h"
@@ -9,6 +10,40 @@ UNF_DeployableComponent::UNF_DeployableComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
+}
+
+void UNF_DeployableComponent::SetCasterAbilitySystem(UAbilitySystemComponent* ASC)
+{
+	if (Status.State == ENF_DeploymentState::NotStarted) { CasterAbilitySystem = ASC; }
+}
+
+void UNF_DeployableComponent::BindCasterTags()
+{
+	UAbilitySystemComponent* ASC = CasterAbilitySystem.Get();
+	if (!ASC) { return; }
+	for (const FGameplayTag& Tag : EndOnCasterTags)
+	{
+		CasterTagHandles.Add(Tag, ASC->RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved)
+			.AddUObject(this, &ThisClass::HandleCasterTagChanged));
+	}
+	if (ASC->HasAnyMatchingGameplayTags(EndOnCasterTags)) { EndDeployment(ENF_DeploymentEndReason::CasterTag); }
+}
+
+void UNF_DeployableComponent::UnbindCasterTags()
+{
+	if (UAbilitySystemComponent* ASC = CasterAbilitySystem.Get())
+	{
+		for (const auto& Pair : CasterTagHandles)
+		{
+			ASC->RegisterGameplayTagEvent(Pair.Key, EGameplayTagEventType::NewOrRemoved).Remove(Pair.Value);
+		}
+	}
+	CasterTagHandles.Reset();
+}
+
+void UNF_DeployableComponent::HandleCasterTagChanged(FGameplayTag Tag, int32 Count)
+{
+	if (Count > 0 && IsDeploymentActive()) { EndDeployment(ENF_DeploymentEndReason::CasterTag); }
 }
 
 void UNF_DeployableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -27,7 +62,8 @@ void UNF_DeployableComponent::BeginPlay()
 bool UNF_DeployableComponent::StartDeployment()
 {
 	if (!IsValid(GetOwner()) || GetOwner()->IsActorBeingDestroyed() || !GetOwner()->HasAuthority() || !GetWorld()
-		|| Status.State != ENF_DeploymentState::NotStarted || !FMath::IsFinite(Lifetime) || Lifetime < 0.0f)
+		|| Status.State != ENF_DeploymentState::NotStarted || !FMath::IsFinite(Lifetime) || Lifetime < 0.0f
+		|| (!EndOnCasterTags.IsEmpty() && !CasterAbilitySystem.IsValid()))
 	{
 		return false;
 	}
@@ -38,6 +74,7 @@ bool UNF_DeployableComponent::StartDeployment()
 	}
 	GetOwner()->ForceNetUpdate();
 	NotifyStatus();
+	if (IsDeploymentActive()) { BindCasterTags(); }
 	return IsDeploymentActive();
 }
 
@@ -51,6 +88,7 @@ void UNF_DeployableComponent::EndDeployment(ENF_DeploymentEndReason Reason)
 	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || Status.State == ENF_DeploymentState::Ended) { return; }
 	Status.State = ENF_DeploymentState::Ended;
 	Status.Reason = Reason;
+	UnbindCasterTags();
 	if (GetWorld()) { GetWorld()->GetTimerManager().ClearTimer(LifetimeTimer); }
 	GetOwner()->ForceNetUpdate();
 	// 정리를 먼저 통지한다. 종료 이벤트는 반드시 서버/클라이언트 구분해서 사용한다.
@@ -83,6 +121,7 @@ void UNF_DeployableComponent::NotifyStatus()
 
 void UNF_DeployableComponent::EndPlay(const EEndPlayReason::Type Reason)
 {
+	UnbindCasterTags();
 	if (GetWorld()) { GetWorld()->GetTimerManager().ClearTimer(LifetimeTimer); }
 	if (Status.State == ENF_DeploymentState::Active && !bEndedNotified)
 	{

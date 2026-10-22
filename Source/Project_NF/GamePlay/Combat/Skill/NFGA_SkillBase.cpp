@@ -9,6 +9,8 @@
 #include "GamePlay/Combat/Skill/Preview/NF_SkillPreviewActor.h"
 #include "GamePlay/Combat/Skill/Execution/NF_SkillExecutionActor.h"
 #include "GamePlay/Combat/Components/NF_GroundTargetingComponent.h"
+#include "GAS/Tags/NFTag_Skill.h"
+#include "GAS/Tags/NFTag_Player.h"
 
 namespace
 {
@@ -27,6 +29,9 @@ namespace
 // @Owner: 스킬 담당 | 2026-10-12
 UNFGA_SkillBase::UNFGA_SkillBase()
 {
+	// @Owner: 이정준 (구현: Codex) | 2026-10-22
+	// Inherited by every player skill; the death ability itself does not derive from this base.
+	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Death);
 	// 각 ASC의 스킬 인스턴스에서 실행 상태를 보관한다.
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
@@ -119,7 +124,12 @@ void UNFGA_SkillBase::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 	}
 	ANF_SkillExecutionActor* Actor = ActiveExecutionActor;
 	ActiveExecutionActor = nullptr;
-	if (IsValid(Actor)) { Actor->OnExecutionEnded.RemoveAll(this); Actor->StopExecution(); }
+	if (IsValid(Actor))
+	{
+		Actor->OnExecutionEnded.RemoveAll(this);
+		// Also protect launched/deployed results from EMP when their GA was configured as Timed.
+		if (!(bWasCancelled && IsBlockedByEMP() && Actor->SurvivesCasterEMP())) { Actor->StopExecution(); }
+	}
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -214,8 +224,15 @@ void UNFGA_SkillBase::CheckLocalInputValidity()
 bool UNFGA_SkillBase::CanContinueSkillExecution() const
 {
 	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	return ASC && !ASC->HasAnyMatchingGameplayTags(InputCancelTags)
+	return ASC && !ASC->HasMatchingGameplayTag(NFTag_Player::Player_State_Death)
+		&& (!bCancelOnEMP || !IsBlockedByEMP()) && !ASC->HasAnyMatchingGameplayTags(InputCancelTags)
 		&& !ASC->HasAnyMatchingGameplayTags(ActivationBlockedTags);
+}
+
+bool UNFGA_SkillBase::IsBlockedByEMP() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	return IsAffectedByEMP() && ASC && ASC->HasMatchingGameplayTag(NFTag_Skill::State_Debuff_EMP);
 }
 
 bool UNFGA_SkillBase::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -226,7 +243,10 @@ bool UNFGA_SkillBase::CanActivateAbility(const FGameplayAbilitySpecHandle Handle
 	if (ExecutionActorClass && (NetExecutionPolicy != EGameplayAbilityNetExecutionPolicy::ServerOnly
 		|| !FMath::IsFinite(CastTime) || CastTime < 0.0f || !FMath::IsFinite(ExecutionDuration)
 		|| (SkillExecutionMode == ENF_SkillExecutionMode::Timed && ExecutionDuration <= 0.0f))) { return false; }
-	return ASC && !ASC->HasAnyMatchingGameplayTags(InputCancelTags)
+	// Also enforce death explicitly: an old BP can override/clear the inherited editable tag container.
+	return ASC && !ASC->HasMatchingGameplayTag(NFTag_Player::Player_State_Death)
+		&& (!IsAffectedByEMP() || !ASC->HasMatchingGameplayTag(NFTag_Skill::State_Debuff_EMP))
+		&& !ASC->HasAnyMatchingGameplayTags(InputCancelTags)
 		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
 
@@ -381,7 +401,8 @@ void UNFGA_SkillBase::FinishAutomaticExecution()
 
 bool UNFGA_SkillBase::UsesProjectileExecution() const
 {
-	return ExecutionActorClass && ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->HasProjectileLaunch();
+	return ExecutionActorClass && (ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->HasProjectileLaunch()
+		|| ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->HasGroundTravel());
 }
 
 bool UNFGA_SkillBase::PrepareConfirmedTargetData(const FGameplayAbilityTargetDataHandle& TargetData)
@@ -438,11 +459,14 @@ void UNFGA_SkillBase::BindCancellationTags()
 	if (!ASC) { return; }
 	FGameplayTagContainer Tags = InputCancelTags;
 	Tags.AppendTags(ActivationBlockedTags);
+	Tags.AddTag(NFTag_Player::Player_State_Death);
+	if (IsAffectedByEMP()) { Tags.AddTag(NFTag_Skill::State_Debuff_EMP); }
 	for (const FGameplayTag& Tag : Tags)
 	{
 		CancellationDelegates.Add(Tag, ASC->RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved)
 			.AddUObject(this, &UNFGA_SkillBase::OnCancellationTagChanged));
 	}
+	if (IsBlockedByEMP()) { InterruptForEMP(); }
 }
 
 void UNFGA_SkillBase::UnbindCancellationTags()
@@ -459,6 +483,11 @@ void UNFGA_SkillBase::UnbindCancellationTags()
 
 void UNFGA_SkillBase::OnCancellationTagChanged(FGameplayTag Tag, int32 NewCount)
 {
+	if (Tag == NFTag_Skill::State_Debuff_EMP)
+	{
+		if (NewCount > 0 && IsAffectedByEMP()) { InterruptForEMP(); }
+		return;
+	}
 	if (NewCount > 0)
 	{
 		CancelLocalInput();
@@ -466,6 +495,18 @@ void UNFGA_SkillBase::OnCancellationTagChanged(FGameplayTag Tag, int32 NewCount)
 		{
 			CancelAbility(CurrentSpecHandle, GetCurrentActorInfo(), CurrentActivationInfo, true);
 		}
+	}
+}
+
+void UNFGA_SkillBase::InterruptForEMP()
+{
+	CancelLocalInput();
+	if (!IsActive() || bCancelOnEMP) { ClearConfirmedTargetData(); }
+	if (IsActive() && bCancelOnEMP)
+	{
+		// EMP is a forced interruption. Do not leave non-cancellable casting/maintained effects alive.
+		// Virtual EndAbility invokes each skill's cleanup, including its timers and reveal requests.
+		EndAbility(CurrentSpecHandle, GetCurrentActorInfo(), CurrentActivationInfo, true, true);
 	}
 }
 
@@ -525,6 +566,7 @@ void UNFGA_SkillBase::TrackPassiveEffect(FActiveGameplayEffectHandle EffectHandl
 
 void UNFGA_SkillBase::CleanupPassive()
 {
+	StopPassiveActiveCue();
 	if (!bPassiveInitialized) { return; }
 	bPassiveInitialized = false;
 	UAbilitySystemComponent* ASC = RegisteredASC.Get();
@@ -546,4 +588,46 @@ void UNFGA_SkillBase::CleanupPassive()
 void UNFGA_SkillBase::HandlePassiveGameplayEvent(FGameplayTag EventTag, const FGameplayEventData* Payload)
 {
 	if (bPassiveInitialized && Payload && CanContinueSkillExecution()) { PassiveGameplayEvent(EventTag, *Payload); }
+}
+
+void UNFGA_SkillBase::NotifyPassiveTriggered(AActor* AffectedActor, FVector Location, float Magnitude)
+{
+	const auto* Info = GetCurrentActorInfo();
+	auto* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!Info || !Info->IsNetAuthority() || !ASC || SkillType != ENF_SkillType::Passive || !ActivationCueTag.IsValid()) { return; }
+	FGameplayCueParameters Parameters;
+	Parameters.EffectContext = ASC->MakeEffectContext();
+	Parameters.Instigator = GetAvatarActorFromActorInfo();
+	Parameters.EffectCauser = GetAvatarActorFromActorInfo();
+	Parameters.SourceObject = AffectedActor;
+	Parameters.Location = Location;
+	Parameters.RawMagnitude = Magnitude;
+	Parameters.AbilityLevel = GetAbilityLevel();
+	// Execute on the caster's ASC: cue target is the passive owner, SourceObject is the affected actor.
+	ASC->ExecuteGameplayCue(ActivationCueTag, Parameters);
+}
+
+void UNFGA_SkillBase::StartPassiveActiveCue()
+{
+	const auto* Info = GetCurrentActorInfo();
+	auto* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!Info || !Info->IsNetAuthority() || !ASC || SkillType != ENF_SkillType::Passive || !ActiveCueTag.IsValid()) { return; }
+	if (PassiveCueASC.Get() == ASC && RegisteredActiveCueTag == ActiveCueTag) { return; }
+	StopPassiveActiveCue();
+	FGameplayCueParameters Parameters;
+	Parameters.EffectContext = ASC->MakeEffectContext();
+	Parameters.Instigator = GetAvatarActorFromActorInfo();
+	Parameters.EffectCauser = GetAvatarActorFromActorInfo();
+	if (const auto* Avatar = GetAvatarActorFromActorInfo()) { Parameters.Location = Avatar->GetActorLocation(); }
+	// Store ownership before invoking cue callbacks, which may synchronously unequip the passive.
+	PassiveCueASC = ASC; RegisteredActiveCueTag = ActiveCueTag;
+	ASC->AddGameplayCue(ActiveCueTag, Parameters);
+}
+
+void UNFGA_SkillBase::StopPassiveActiveCue()
+{
+	auto* ASC = PassiveCueASC.Get();
+	const auto Tag = RegisteredActiveCueTag;
+	PassiveCueASC.Reset(); RegisteredActiveCueTag = FGameplayTag();
+	if (ASC && Tag.IsValid()) { ASC->RemoveGameplayCue(Tag); }
 }

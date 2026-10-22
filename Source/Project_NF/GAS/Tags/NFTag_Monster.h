@@ -4,7 +4,7 @@
 
 namespace NFTag_Monster
 {
-	//@경환 | 2026-10-12
+	//@Owner: 경환 | 2026-10-12
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Monster_Dead);
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Monster_Attacking);
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Monster_HitReact);
@@ -14,4 +14,10 @@ namespace NFTag_Monster
 	
 	// @Owner: 경환 | 2026-10-14
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_Monster_Damage);
+	
+	// @Owner: 경환 | 2026-10-15
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Monster_RangedAttack);
+	
+	// @Owner: 경환 | 2026-10-19
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Monster_LeapAttack);
 }
