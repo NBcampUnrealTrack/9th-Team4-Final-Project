@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Data/Struct/NF_MatchResult.h"
 #include "GameFramework/PlayerController.h"
 #include "Core/Match/NF_MatchRules.h"
 #include "NF_MatchLobbyPlayerController.generated.h"
@@ -42,6 +43,9 @@ protected:
 	bool ShouldUseTouchControls() const;
 
 public:
+	UFUNCTION(Client, Reliable)
+	void ClientHandleMatchCompleted(const FNF_MatchResult& Result);
+
 	/** Submit the lobby's finalized roster after this controller reaches the allocated match server. */
 	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Server")
 	bool SubmitPendingMatchTeamsToServer();

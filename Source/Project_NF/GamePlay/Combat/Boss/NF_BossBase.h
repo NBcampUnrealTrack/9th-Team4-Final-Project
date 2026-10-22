@@ -56,6 +56,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NF|Boss")
 	bool IsDefeated() const { return bIsDefeated; }
 
+	/** Synchronous spawn contract: GAS and the configured AI path are ready. */
+	bool IsReadyForEncounter() const;
+
 	UFUNCTION(BlueprintPure, Category = "NF|Boss")
 	ANF_Player* GetHighestDamageTarget(float MaxRange) const;
 	UFUNCTION(BlueprintPure, Category = "NF|Boss|Combat")

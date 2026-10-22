@@ -27,6 +27,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Projectile")
 	TObjectPtr<class UProjectileMovementComponent> ProjectileMovementComponent;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Projectile|Damage")
+	TSubclassOf<class UGameplayEffect> MonsterDamageEffectClass;
+	
 	UPROPERTY(Transient)
 	float ImpactDamage = 0.f;
 

@@ -1,4 +1,5 @@
 #include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
+
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
@@ -15,7 +16,8 @@
 #include "GamePlay/Combat/Damage/NF_DamageLibrary.h"
 #include "Player/Character/NF_Player.h"
 #include "Player/State/NF_PlayerState.h"
-
+#include "GameplayEffect.h"
+#include "Monster/NF_Monster.h"
 
 ANF_WeaponProjectile::ANF_WeaponProjectile()
 {
@@ -148,6 +150,38 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 		}
 	}
 
+	else if (ANF_Monster* Monster = Cast<ANF_Monster>(OtherActor))
+	{
+		AActor* DamageSource = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
+		UAbilitySystemComponent* SourceASC =
+			UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(DamageSource);
+		UAbilitySystemComponent* MonsterASC =
+			UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Monster);
+
+		if (IsValid(SourceASC) && IsValid(MonsterASC) && MonsterDamageEffectClass
+			&& FMath::IsFinite(ImpactDamage) && ImpactDamage > 0.f)
+		{
+			FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+			EffectContext.AddSourceObject(this);
+			EffectContext.AddHitResult(Hit);
+
+			FGameplayEffectSpecHandle DamageSpec = SourceASC->MakeOutgoingSpec(
+				MonsterDamageEffectClass, 1.f, EffectContext);
+
+			if (DamageSpec.IsValid())
+			{
+				DamageSpec.Data->SetSetByCallerMagnitude(NFTag_BossCombat::Data_Damage, ImpactDamage);
+				MonsterASC->ApplyGameplayEffectSpecToSelf(*DamageSpec.Data.Get());
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[WeaponProjectile] Monster hit but damage was not applied. SourceASC=%s MonsterASC=%s EffectClass=%s Damage=%.2f"),
+				*GetNameSafe(SourceASC), *GetNameSafe(MonsterASC), *GetNameSafe(MonsterDamageEffectClass.Get()), ImpactDamage);
+		}
+	}
+	
 	else if (ANF_Player* TargetPlayer = Cast<ANF_Player>(OtherActor))
 	{
 		AActor* DamageSource = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
