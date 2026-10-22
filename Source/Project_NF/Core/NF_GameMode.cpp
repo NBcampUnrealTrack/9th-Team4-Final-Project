@@ -610,6 +610,11 @@ void ANF_GameMode::HandleBossSpawnSucceeded(ANF_BossBase* Boss)
 		return;
 	}
 
+	if (ANF_GameState* NFGameState = GetNFGameState())
+	{
+		NFGameState->MulticastShowAnnouncement(FText::FromString(TEXT("보스가 나타났습니다!")), 3.0f);
+	}
+
 	EnterBoss();
 }
 
@@ -626,7 +631,15 @@ void ANF_GameMode::HandleBossSpawnFailed(const FString& Reason)
 
 void ANF_GameMode::HandleBossDefeatResolved(const FNF_BossDefeatResult& DefeatResult)
 {
+<<<<<<< HEAD
 	if (!HasAuthority() || bMatchAborting || bMatchFinalized)return;
+=======
+	UE_LOG(LogTemp,Log,TEXT("[GameMode] 보스 처치 확정. ""PlayerID=%d"),DefeatResult.LastHitPlayerID);
+	if (ANF_GameState* NFGameState = GetNFGameState())
+	{
+		NFGameState->MulticastShowAnnouncement(FText::FromString(TEXT("보스를 처치했습니다!")), 3.0f);
+	}
+>>>>>>> 6f3bffb (feat : 사운드 매니저와 UI 매니저)
 
 	const ANF_GameState* NFGameState =GetNFGameState();
 	

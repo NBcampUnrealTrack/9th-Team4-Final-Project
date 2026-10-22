@@ -47,6 +47,10 @@ public:
 
 	FNF_OnKeyPublicStateChanged OnKeyPublicStateChanged;
 
+	/** Server broadcasts a one-shot announcement to every connected player. */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastShowAnnouncement(const FText& Message, float Duration = 3.0f);
+
 private:
 	UPROPERTY(ReplicatedUsing = OnRep_NFMatchState)
 	FNF_MatchState NF_MatchState;
