@@ -1,7 +1,10 @@
 ﻿#include "Core/NF_GameState.h"
 
 #include "NF_BuildShopAccessPolicy.h"
+#include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
 #include "Net/UnrealNetwork.h"
+#include "UI/SubSystem/NF_UIManagerSubsystem.h"
 
 ANF_GameState::ANF_GameState()
 {
@@ -76,4 +79,26 @@ void ANF_GameState::OnRep_NFMatchState()
 void ANF_GameState::BroadcastMatchStateChanged()
 {
 	OnMatchStateChanged.Broadcast(NF_MatchState);
+}
+
+void ANF_GameState::MulticastShowAnnouncement_Implementation(const FText& Message, const float Duration)
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	if (!IsValid(GameInstance))
+	{
+		return;
+	}
+
+	for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
+	{
+		if (!IsValid(LocalPlayer))
+		{
+			continue;
+		}
+
+		if (UNF_UIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>())
+		{
+			UIManager->ShowAnnouncement(Message, Duration);
+		}
+	}
 }
