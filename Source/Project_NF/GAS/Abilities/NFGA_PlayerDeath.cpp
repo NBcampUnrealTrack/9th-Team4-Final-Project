@@ -1,5 +1,5 @@
 ﻿
-#include "NFGA_Death.h"
+#include "NFGA_PlayerDeath.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
@@ -11,7 +11,7 @@
 #include "Player/Data/NF_PlayerDataAsset.h"
 
 
-UNFGA_Death::UNFGA_Death()
+UNFGA_PlayerDeath::UNFGA_PlayerDeath()
 {
 	AbilityTags.AddTag(NFTag_Player::Player_Ability_Death);
 	
@@ -19,7 +19,7 @@ UNFGA_Death::UNFGA_Death()
 }
 
 
-void UNFGA_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+void UNFGA_PlayerDeath::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
                                   const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
@@ -44,7 +44,6 @@ void UNFGA_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnFailedMontage);
 	MontageTask->ReadyForActivation();
 	
-	
 	UAbilityTask_WaitGameplayEvent* WaitGameplayEvent = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 		this, NFTag_Player::Player_Event_Destroy, nullptr, false, true);
 	if (IsValid(WaitGameplayEvent) == false) return EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
@@ -54,20 +53,20 @@ void UNFGA_Death::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 }
 
 
-void UNFGA_Death::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+void UNFGA_PlayerDeath::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
                           const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 
-void UNFGA_Death::OnFailedMontage()
+void UNFGA_PlayerDeath::OnFailedMontage()
 {
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
 
-void UNFGA_Death::OnCompleteMontage(FGameplayEventData EventData)
+void UNFGA_PlayerDeath::OnCompleteMontage(FGameplayEventData EventData)
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (IsValid(AvatarActor) == true)      

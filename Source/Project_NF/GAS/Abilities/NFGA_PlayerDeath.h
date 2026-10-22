@@ -1,18 +1,16 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
-#include "NFGA_Death.generated.h"
+#include "NFGA_PlayerDeath.generated.h"
 
 UCLASS()
-class PROJECT_NF_API UNFGA_Death : public UGameplayAbility
+class PROJECT_NF_API UNFGA_PlayerDeath : public UGameplayAbility
 {
 	GENERATED_BODY()
 
 public:
-	UNFGA_Death();
+	UNFGA_PlayerDeath();
 
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,

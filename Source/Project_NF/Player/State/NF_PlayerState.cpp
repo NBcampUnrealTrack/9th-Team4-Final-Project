@@ -6,7 +6,6 @@
 #include "Player/Data/NF_PlayerDataAsset.h" 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 #include "Net/UnrealNetwork.h"
-#include "Player/Character/NFGA_Death.h"
 #include "Player/Character/NFGA_MeleeAttack.h"
 
 ANF_PlayerState::ANF_PlayerState()
@@ -18,12 +17,7 @@ ANF_PlayerState::ANF_PlayerState()
 	PlayerASC = CreateDefaultSubobject<UNF_AbilitySystemComponent>(TEXT("PlayerASC"));
 	PlayerASC->SetIsReplicated(true);
 	PlayerASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
-	
 	PlayerStatusAttribute = CreateDefaultSubobject<UNF_PlayerStatusAttribute>(TEXT("PlayerStatusAttribute"));
-	
-	/*//GA부여
-	NF_PlayerDataAsset->GameplayAbilityArray.Add(UNFGA_Death::StaticClass());
-	NF_PlayerDataAsset->GameplayAbilityArray.Add(UNFGA_MeleeAttack::StaticClass());*/
 }
 
 void ANF_PlayerState::InitAbilitySystem(APawn* AvatarPawn)
