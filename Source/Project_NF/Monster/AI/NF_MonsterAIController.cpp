@@ -5,6 +5,7 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Engine/World.h"
+#include "Monster/AI/Tasks/BTTask_NF_MonsterReserveCombatSlot.h"
 
 ANF_MonsterAIController::ANF_MonsterAIController()
 {
@@ -87,6 +88,9 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 		ConsiderTargetActor(UpdatedActor);
 
 		if (GetCurrentTargetActor() != UpdatedActor) { return; }
+		
+		//시야 이탈 시 재 감지
+		SetFocus(UpdatedActor, EAIFocusPriority::Gameplay);
 
 		BlackboardComponent->SetValueAsVector(
 			LastKnownLocationKeyName,
@@ -317,6 +321,10 @@ void ANF_MonsterAIController::SetCurrentTargetActor(
 
 	if (bTargetChanged)
 	{
+		// A slot is only valid for the target and combat session that created it.
+		// Do not let a new target inherit an old movement destination.
+		UBTTask_NF_MonsterReserveCombatSlot::ReleaseReservation(GetPawn());
+
 		BlackboardComponent->SetValueAsBool(
 			HasLineOfSightKeyName,
 			false);
@@ -360,6 +368,7 @@ void ANF_MonsterAIController::ClearCurrentTargetActor()
 	if (!BlackboardComponent) {	return;	}
 
 	ClearFocus(EAIFocusPriority::Gameplay);
+	UBTTask_NF_MonsterReserveCombatSlot::ReleaseReservation(GetPawn());
 		
 	TargetLockEndTime = 0.0f;
 

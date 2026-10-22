@@ -4,6 +4,8 @@
 #include "BehaviorTree/BTTaskNode.h"
 #include "BTTask_NF_MonsterReserveCombatSlot.generated.h"
 
+class APawn;
+
 UCLASS()
 class PROJECT_NF_API UBTTask_NF_MonsterReserveCombatSlot : public UBTTaskNode
 {
@@ -11,6 +13,9 @@ class PROJECT_NF_API UBTTask_NF_MonsterReserveCombatSlot : public UBTTaskNode
 
 public:
 	UBTTask_NF_MonsterReserveCombatSlot();
+
+	/** Releases this monster's cached combat slot when combat ends or changes. */
+	static void ReleaseReservation(APawn* MonsterPawn);
 
 protected:
 	virtual EBTNodeResult::Type ExecuteTask(

@@ -75,6 +75,18 @@ UBTTask_NF_MonsterReserveCombatSlot::UBTTask_NF_MonsterReserveCombatSlot()
 	NodeName = TEXT("Monster Reserve Combat Slot");
 }
 
+void UBTTask_NF_MonsterReserveCombatSlot::ReleaseReservation(
+	APawn* MonsterPawn)
+{
+	if (!IsValid(MonsterPawn))
+	{
+		return;
+	}
+
+	MonsterCombatSlotReservations.Remove(
+		TWeakObjectPtr<APawn>(MonsterPawn));
+}
+
 EBTNodeResult::Type UBTTask_NF_MonsterReserveCombatSlot::ExecuteTask(
 	UBehaviorTreeComponent& OwnerComp,
 	uint8* NodeMemory)
