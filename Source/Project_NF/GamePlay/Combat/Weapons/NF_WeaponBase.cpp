@@ -134,19 +134,25 @@ FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) cons
 	FRotator ViewRotation;
 	Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
 	const FVector ViewDirection = ViewRotation.Vector();
-	const FVector TraceEnd = ViewLocation + ViewDirection * FMath::Max(AimTraceDistance, 1.f);
+	const FVector MuzzleLocation = MuzzleTransform.GetLocation();
+
+	// 총구를 카메라 시선 위로 투영한 지점에서 트레이스 시작
+	// (카메라와 캐릭터 사이의 물체에 조준점이 걸리는 것을 방지, 시선 위이므로 크로스헤어 정렬은 유지)
+	const float StartOffset = FMath::Max(0.f, FVector::DotProduct(MuzzleLocation - ViewLocation, ViewDirection));
+	const FVector TraceStart = ViewLocation + ViewDirection * StartOffset;
+	const FVector TraceEnd = TraceStart + ViewDirection * FMath::Max(AimTraceDistance, 1.f);
 
 	const float AimTraceRadius = IsValid(WeaponData) ? FMath::Max(WeaponData->AimTraceRadius, 0.f) : 0.f;
 	constexpr float DebugDuration = 3.f;
 
 	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(GetOwner());
-	ActorsToIgnore.Add(GetInstigator());
+	ActorsToIgnore.AddUnique(GetOwner());
+	ActorsToIgnore.AddUnique(GetInstigator());
 
 	FHitResult Hit;
 	bool bHit = UKismetSystemLibrary::SphereTraceSingle(
 		this,
-		ViewLocation, TraceEnd,
+		TraceStart, TraceEnd,
 		AimTraceRadius,
 		UEngineTypes::ConvertToTraceType(ECC_Visibility),
 		false,                          // bTraceComplex
@@ -162,13 +168,12 @@ FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) cons
 	if (bHit && Hit.bStartPenetrating)
 	{
 		bHit = UKismetSystemLibrary::LineTraceSingle(
-			this, ViewLocation, TraceEnd,
+			this, TraceStart, TraceEnd,
 			UEngineTypes::ConvertToTraceType(ECC_Visibility),
 			false, ActorsToIgnore, EDrawDebugTrace::ForDuration, Hit, true,
 			FLinearColor::Green, FLinearColor::Red, DebugDuration);
 	}
 
-	const FVector MuzzleLocation = MuzzleTransform.GetLocation();
 	const FVector AimPoint = bHit ? Hit.ImpactPoint : TraceEnd;
 	const FVector MuzzleToTarget = AimPoint - MuzzleLocation;
 
@@ -176,6 +181,11 @@ FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) cons
 	DrawDebugSphere(
 		GetWorld(), ViewLocation, 8.f, 12,
 		FColor::Blue, false, DebugDuration);
+
+	// 회색: 트레이스에서 건너뛴 구간 (카메라 → 트레이스 시작점)
+	DrawDebugLine(
+		GetWorld(), ViewLocation, TraceStart,
+		FColor::Silver, false, DebugDuration, 0, 1.f);
 
 	// 노랑: 총구 위치 (예상 발사 시작점)
 	DrawDebugSphere(
@@ -197,7 +207,7 @@ FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) cons
 	{
 		return ViewDirection;
 	}
-	
+
 	return MuzzleToTarget.GetSafeNormal();
 }
 

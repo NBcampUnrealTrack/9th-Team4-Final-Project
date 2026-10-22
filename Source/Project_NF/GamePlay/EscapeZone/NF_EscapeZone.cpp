@@ -46,10 +46,16 @@ bool ANF_EscapeZone::ContainsPawn(const APawn* Pawn) const
 	return FVector::DistSquared(EscapeRange->GetComponentLocation(), Pawn->GetActorLocation()) <= FMath::Square(Radius);
 }
 
-float ANF_EscapeZone::GetEscapeDuration() const
+float ANF_EscapeZone::GetTeamEscapeDuration() const
 {
-	if (!FMath::IsFinite(EscapeDuration)) return 5.0f;
-	return FMath::Max(0.1f, EscapeDuration);
+	if (!FMath::IsFinite(TeamEscapeDuration)) return 10.0f;
+	return FMath::Max(0.1f, TeamEscapeDuration);
+}
+
+float ANF_EscapeZone::GetSoloEscapeDuration() const
+{
+	if (!FMath::IsFinite(SoloEscapeDuration)) return 20.0f;
+	return FMath::Max(0.1f, SoloEscapeDuration);
 }
 
 FNF_EscapeProgress ANF_EscapeZone::GetEscapeProgress() const
