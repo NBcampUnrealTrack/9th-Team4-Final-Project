@@ -205,7 +205,7 @@ bool UNF_PlayerLifeComponent::ChangeLifeState(ENFPlayerLifeState NewState)
 		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 	
 	// Build 잠금
-	if (!IsValid(ASC))
+	if (IsValid(ASC))
 	{
 		const FGameplayTag BuildLockedTag =
 			FGameplayTag::RequestGameplayTag(FName(TEXT("State.Build.Locked")));
