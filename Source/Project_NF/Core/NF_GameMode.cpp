@@ -45,6 +45,7 @@ void ANF_GameMode::BeginPlay()
 			if (UNF_DedicatedMatchSubsystem* MatchSubsystem = GameInstance->GetSubsystem<UNF_DedicatedMatchSubsystem>())
 			{
 				RequestMatchAbort.BindUObject(MatchSubsystem, &UNF_DedicatedMatchSubsystem::HandleMatchAbort);
+				RequestMatchCompleted.BindUObject(MatchSubsystem, &UNF_DedicatedMatchSubsystem::HandleMatchCompleted);
 
 				MatchSubsystem->OnServerTeamIdsAssigned.AddUObject(this, &ThisClass::HandleServerTeamIdsAssigned);
 			}
@@ -172,6 +173,7 @@ void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		if (UNF_DedicatedMatchSubsystem* MatchSubsystem = GameInstance->GetSubsystem<UNF_DedicatedMatchSubsystem>())
 		{
 			MatchSubsystem->OnServerTeamIdsAssigned.RemoveAll(this);
+				if (RequestMatchCompleted.IsBoundToObject(MatchSubsystem)) RequestMatchCompleted.Unbind();
 		}
 	}
 	if (IsValid(BossEncounterComponent))
@@ -200,7 +202,6 @@ void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	
 	RequestMatchAbort.Unbind();
-	RequestMatchCompleted.Unbind();
 	
 	BuildReadyComponent->CancelResolve();
 
