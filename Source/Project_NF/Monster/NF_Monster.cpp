@@ -23,6 +23,10 @@ ANF_Monster::ANF_Monster()
 {
 	bReplicates = true;
 
+	// 2026-10-22 몬스터 Mesh 의 콜리전 설정 수정 요청
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	
 	MonsterASC =
 	CreateDefaultSubobject<UNF_AbilitySystemComponent>(
 		TEXT("MonsterASC"));
