@@ -22,6 +22,9 @@ public:
 	AActor* GetCurrentTargetActor() const;
 	
 	void ConsiderTargetActor(AActor* CandidateActor);
+
+	/** Applies immediate combat awareness when a player damages this monster. */
+	void ApplyDamageAggro(AActor* DamageSource);
 	
 	void SetCurrentTargetActor(AActor* NewTargetActor);
 
