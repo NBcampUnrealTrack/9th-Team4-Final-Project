@@ -2,6 +2,8 @@
 
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/Pawn.h"
+#include "Player/State/NF_PlayerState.h"
 
 // @owner: 이정준 (구현: Codex) | 2026-10-15
 // 목적: 공개 사유를 서버에서 합산하고 클라이언트에는 허용된 좌표 스냅샷만 보관한다.
@@ -66,6 +68,10 @@ void UNF_MinimapRevealRegistry::BuildServerSnapshot(TArray<FNF_MinimapRevealMark
 			Marker->WorldLocation = Location; Marker->Kind = Reveal.Kind;
 		}
 		else if (Reveal.Kind == ENF_MinimapRevealKind::EscapeKey) { Marker->Kind = Reveal.Kind; }
+		const auto* Pawn = Cast<APawn>(Reveal.Target.Get());
+		Marker->PlayerState = Pawn ? Pawn->GetPlayerState() : nullptr;
+		const auto* State = Pawn ? Pawn->GetPlayerState<ANF_PlayerState>() : nullptr;
+		Marker->PlayerTeamID = State ? State->NF_TeamID : INDEX_NONE;
 	}
 	Out.Sort([](const FNF_MinimapRevealMarker& A, const FNF_MinimapRevealMarker& B) { return A.TargetId.LexicalLess(B.TargetId); });
 }

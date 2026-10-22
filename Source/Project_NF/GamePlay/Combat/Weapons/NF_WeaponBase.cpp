@@ -5,12 +5,14 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
+#include "GamePlay/Combat/Damage/NF_WeaponDamageLibrary.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/SkeletalMesh.h"
 #include "Materials/MaterialInterface.h"
+#include "DrawDebugHelpers.h"
 
 ANF_WeaponBase::ANF_WeaponBase()
 {
@@ -149,6 +151,35 @@ FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) cons
 	{
 		return ViewDirection;
 	}
+	
+	const FVector MuzzleLocation = MuzzleTransform.GetLocation();
+	constexpr float DebugDuration = 3.f;
+
+	// 초록: 카메라에서 검사한 전체 트레이스
+	DrawDebugLine(
+		GetWorld(), ViewLocation, TraceEnd,
+		FColor::Green, false, DebugDuration, 0, 1.f);
+
+	// 파랑: 카메라 위치
+	DrawDebugSphere(
+		GetWorld(), ViewLocation, 8.f, 12,
+		FColor::Blue, false, DebugDuration);
+
+	// 노랑: 총구 위치 (예상 발사 시작점)
+	DrawDebugSphere(
+		GetWorld(), MuzzleLocation, 8.f, 12,
+		FColor::Yellow, false, DebugDuration);
+
+	// 빨강: 트레이스 충돌 지점, 미충돌 시 흰색으로 끝점 표시
+	DrawDebugSphere(
+		GetWorld(), AimPoint, 10.f, 12,
+		bHit ? FColor::Red : FColor::White, false, DebugDuration);
+
+	// 청록: 총구에서 조준점까지의 선
+	DrawDebugLine(
+		GetWorld(), MuzzleLocation, AimPoint,
+		FColor::Cyan, false, DebugDuration, 0, 2.f);
+	
 	return MuzzleToTarget.GetSafeNormal();
 }
 
@@ -174,6 +205,9 @@ bool ANF_WeaponBase::FireProjectile()
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	const int32 PelletCount = WeaponData->ProjectilesPerShot;
+	// Snapshot before consuming ammo; all pellets from this shot use the same bonuses.
+	const float ShotDamage = UNF_WeaponDamageLibrary::CalculateShotDamage(
+		IsValid(GetInstigator()) ? GetInstigator() : GetOwner(), WeaponData->Damage, CurrentAmmo == 1);
 	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
 	TArray<ANF_WeaponProjectile*, TInlineAllocator<64>> SpawnedProjectiles;
 
@@ -197,8 +231,13 @@ bool ANF_WeaponBase::FireProjectile()
 			OtherProjectile->IgnoreProjectile(Projectile);
 		}
 
-		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, WeaponData->Damage);
+		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, ShotDamage);
 		SpawnedProjectiles.Add(Projectile);
+		
+		// 발사체를 Spawn한 직후, 생성된 발사체의 실제 위치 표시
+		DrawDebugSphere(
+			GetWorld(), Projectile->GetActorLocation(), 10.f, 12,
+			FColor::Yellow, false, 3.f);
 	}
 
 	if (SpawnedProjectiles.IsEmpty())

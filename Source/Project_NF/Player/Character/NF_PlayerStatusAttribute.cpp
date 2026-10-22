@@ -10,7 +10,7 @@
 UNF_PlayerStatusAttribute::UNF_PlayerStatusAttribute()
 {
 	InitHealth(GetMaxHealth());
-	InitDefence(GetMaxDefence());
+	//InitDefence(GetMaxDefence());
 	InitShield(GetMaxShield());
 }
 
@@ -29,7 +29,7 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxHealth());
 	}
 	
-	if (Attribute == GetMaxDefenceAttribute())
+	/*if (Attribute == GetMaxDefenceAttribute())
 	{
 		NewValue = FMath::Max<float>(1.0f, NewValue);
 	}
@@ -37,7 +37,7 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 	else if (Attribute == GetDefenceAttribute())
 	{
 		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxDefence());
-	}
+	}*/
 	
 	if (Attribute == GetMaxShieldAttribute())
 	{
@@ -64,7 +64,11 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 			bIsOutOfHealth = true;
 			OnOutOfHealth.Broadcast();
 		}
-		
+		else if (GetHealth() > 0.0f)
+		{
+			bIsOutOfHealth = false;
+			//TODO 체력이 바뀜에 대한 브로드캐스트?
+		}
 		return;
 	}
 	
@@ -77,9 +81,15 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 			bIsOutOfShield = true;
 			OnOutOfShield.Broadcast();
 		}
-		
+		else if (GetShield() > 0.0f)
+		{
+			bIsOutOfHealth = false;
+			//TODO 쉴드량이 바뀜에 대한 브로드캐스트?
+		}
 		return;
 	}
+	
+	
 }
 
 
@@ -95,7 +105,7 @@ void UNF_PlayerStatusAttribute::GetLifetimeReplicatedProps(TArray<class FLifetim
 	
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxHealth, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Health, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxDefence, COND_None, REPNOTIFY_Always);
+	//DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxDefence, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Defence, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxShield, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Shield, COND_None, REPNOTIFY_Always);
@@ -114,10 +124,10 @@ void UNF_PlayerStatusAttribute::OnRep_Health(const FGameplayAttributeData& OldHe
 }
 
 
-void UNF_PlayerStatusAttribute::OnRep_MaxDefence(const FGameplayAttributeData& OldMaxDefence)
+/*void UNF_PlayerStatusAttribute::OnRep_MaxDefence(const FGameplayAttributeData& OldMaxDefence)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MaxDefence, OldMaxDefence);
-}
+}*/
 
 
 void UNF_PlayerStatusAttribute::OnRep_Defence(const FGameplayAttributeData& OldDefence)

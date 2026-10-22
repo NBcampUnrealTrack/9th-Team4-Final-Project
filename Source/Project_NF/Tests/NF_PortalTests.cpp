@@ -1,5 +1,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Misc/AutomationTest.h"
+#include "AbilitySystemComponent.h"
 #include "Components/BoxComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -27,9 +28,11 @@ bool FNF_PortalPlacementTest::RunTest(const FString& Parameters)
 	AActor* Floor = Obstacle(FVector(0, 0, -20), FVector(10000, 10000, 20));
 	FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ACharacter* Character = World->SpawnActor<ACharacter>(FVector(0, 0, 100), FRotator::ZeroRotator, Params);
+	auto* ASC = NewObject<UAbilitySystemComponent>(Character);
+	Character->AddInstanceComponent(ASC); ASC->RegisterComponent(); ASC->InitAbilityActorInfo(Character, Character);
 	ANF_Portal* Entrance = World->SpawnActor<ANF_Portal>(FVector(300, 0, 0), FRotator::ZeroRotator, Params);
 	ANF_Portal* Exit = World->SpawnActor<ANF_Portal>(FVector(1500, 0, 0), FRotator::ZeroRotator, Params);
-	Entrance->InitializePortal(Exit, false, Character); Exit->InitializePortal(Entrance, true, Character);
+	Entrance->InitializePortal(Exit, false, Character, ASC); Exit->InitializePortal(Entrance, true, Character, ASC);
 	World->Tick(LEVELTICK_All, 0.016f);
 	FVector Arrival;
 	TestTrue(TEXT("Portal fits in open area"), Exit->CanPlaceFor(Character));
