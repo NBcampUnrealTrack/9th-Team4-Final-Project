@@ -1,8 +1,7 @@
 #include "NF_CommonDamageEffects.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
-#include "AbilitySystemComponent.h"
-#include "GameplayEffectExtension.h"
+#include "GAS/Attributes/NF_KeyHolderAttributeSet.h"
 
 namespace 
 {
@@ -28,6 +27,7 @@ namespace
 	{
 		DECLARE_ATTRIBUTE_CAPTUREDEF(Defence);
 		DECLARE_ATTRIBUTE_CAPTUREDEF(Shield);
+		DECLARE_ATTRIBUTE_CAPTUREDEF(DamageReductionRate);
 		
 		FCommonDamageCapture()
 		{
@@ -42,6 +42,14 @@ namespace
 			ShieldProperty = UNF_PlayerStatusAttribute::GetShieldAttribute().GetUProperty();
 			ShieldDef = FGameplayEffectAttributeCaptureDefinition(
 				UNF_PlayerStatusAttribute::GetShieldAttribute(),
+				EGameplayEffectAttributeCaptureSource::Target,
+				false);
+			
+			// 열쇠 보유자의 받는 피해 감소 가져오기
+			DamageReductionRateProperty =
+				UNF_KeyHolderAttributeSet::GetDamageReductionRateAttribute().GetUProperty();
+			DamageReductionRateDef = FGameplayEffectAttributeCaptureDefinition(
+				UNF_KeyHolderAttributeSet::GetDamageReductionRateAttribute(),
 				EGameplayEffectAttributeCaptureSource::Target,
 				false);
 		}
@@ -62,6 +70,10 @@ UNFExecCalc_CommonDamage::UNFExecCalc_CommonDamage()
 	
 	RelevantAttributesToCapture.Add(
 		GetCommonDamageCapture().ShieldDef);
+	
+	// 열쇠 보유 효과 받피감
+	RelevantAttributesToCapture.Add(
+		GetCommonDamageCapture().DamageReductionRateDef);
 }
 
 void UNFExecCalc_CommonDamage::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams, FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
@@ -88,6 +100,7 @@ void UNFExecCalc_CommonDamage::Execute_Implementation(const FGameplayEffectCusto
 	
 	float Defence = 0.0f;
 	float Shield = 0.0f;
+	float DamageReductionRate = 0.0f;
 	
 	// 피해를 받는 플레이어의 현재 방어력 가져옴
 	const bool bHasDefence =
@@ -102,6 +115,13 @@ void UNFExecCalc_CommonDamage::Execute_Implementation(const FGameplayEffectCusto
 			GetCommonDamageCapture().ShieldDef,
 			EvaluateParams,
 			Shield);
+	
+	// 받피감으로 얼마나 감소하는지
+	const bool bHasDamageReduction =
+		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(
+			GetCommonDamageCapture().DamageReductionRateDef,
+			EvaluateParams,
+			DamageReductionRate);
 	
 	// 방어력 or 실드 못 가져오면 피해x
 	if (!bHasDefence || !bHasShield)
@@ -118,9 +138,21 @@ void UNFExecCalc_CommonDamage::Execute_Implementation(const FGameplayEffectCusto
 	Defence = FMath::Max(Defence, 0.0f);
 	Shield = FMath::Max(Shield, 0.0f);
 	
+	// 받피감 가져오지 못하면 받피감 없이 계산
+	if (!bHasDamageReduction || !FMath::IsFinite(DamageReductionRate))
+	{
+		DamageReductionRate = 0.0f;
+	}
+	
+	DamageReductionRate = FMath::Clamp(DamageReductionRate, 0.0f, 1.0f);
+	
 	// 데미지에서 방어력을 빼서 실제 데미지 계산
-	const float FinalDamage =
+	const float DamageAfterDefence =
 		FMath::Max(AttackDamage - Defence, 0.0f);
+	
+	// 받피감 적용
+	const float FinalDamage =
+		DamageAfterDefence * (1.0f - DamageReductionRate);
 	
 	// 데미지가 방어력을 뚫지 못하면 종료
 	if (FinalDamage <= 0.0f)
