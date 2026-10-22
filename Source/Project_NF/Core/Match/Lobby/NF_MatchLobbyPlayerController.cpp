@@ -96,6 +96,17 @@ void ANF_MatchLobbyPlayerController::ClientHandleMatchAborted_Implementation(con
 	}
 }
 
+void ANF_MatchLobbyPlayerController::ClientHandleMatchCompleted_Implementation(const FNF_MatchResult& Result)
+{
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UNF_MatchmakingSubsystem* Match = GI->GetSubsystem<UNF_MatchmakingSubsystem>())
+		{
+			Match->HandleDedicatedMatchCompleted(Result);
+		}
+	}
+}
+
 void ANF_MatchLobbyPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();

@@ -9,6 +9,7 @@
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 #include "GamePlay/BuildSystem/UI/NF_BuildShopWidget.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayEffect.h"
@@ -19,6 +20,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Core/NF_GameState.h"
+#include "UI/SubSystem/NF_UIManagerSubsystem.h"
 
 UNF_BuildComponent::UNF_BuildComponent()
 {
@@ -368,26 +370,22 @@ void UNF_BuildComponent::UpdateLocalShopUI()
 	{
 		return;
 	}
-	if (IsValid(CurrentShop) && bAutomaticallyShowWidget && BuildWidgetClass && !BuildWidget)
+
+	ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
+	UNF_UIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>();
+	if (!IsValid(UIManager))
 	{
-		BuildWidget = CreateWidget<UUserWidget>(Controller, BuildWidgetClass);
-		if (BuildWidget)
-		{
-			bSavedMouseCursor = Controller->bShowMouseCursor;
-			BuildWidget->AddToViewport();
-			FInputModeGameAndUI Mode;
-			Mode.SetWidgetToFocus(BuildWidget->TakeWidget());
-			Mode.SetHideCursorDuringCapture(false);
-			Controller->SetInputMode(Mode);
-			Controller->bShowMouseCursor = true;
-		}
+		return;
 	}
-	else if (!IsValid(CurrentShop) && BuildWidget)
+
+	if (IsValid(CurrentShop) && bAutomaticallyShowWidget && BuildWidgetClass)
 	{
-		BuildWidget->RemoveFromParent();
+		BuildWidget = UIManager->PushWidget(BuildWidgetClass, ENF_UIInputMode::GameAndUI, true, 100);
+	}
+	else if (!IsValid(CurrentShop) && IsValid(BuildWidget))
+	{
+		UIManager->RemoveWidget(BuildWidget);
 		BuildWidget = nullptr;
-		Controller->SetInputMode(FInputModeGameOnly());
-		Controller->bShowMouseCursor = bSavedMouseCursor;
 	}
 }
 
