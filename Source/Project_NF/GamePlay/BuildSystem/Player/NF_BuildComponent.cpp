@@ -398,9 +398,14 @@ void UNF_BuildComponent::UpdateLocalShopUI()
 
 	if (IsValid(CurrentShop) && bAutomaticallyShowWidget && BuildWidgetClass)
 	{
-		BuildWidget = UIManager->PushWidget(BuildWidgetClass, ENF_UIInputMode::GameAndUI, true, 100);
+		// 다른 화면에 가려져도 부모가 유지되는 상점은 재사용한다.
+		if (!IsValid(BuildWidget) || BuildWidget->GetParent() == nullptr)
+		{
+			BuildWidget = UIManager->PushScreen(
+				BuildWidgetClass, ENF_ScreenInputMode::GameAndUI);
+		}
 	}
-	else if (!IsValid(CurrentShop) && IsValid(BuildWidget))
+	else if (IsValid(BuildWidget))
 	{
 		UIManager->RemoveWidget(BuildWidget);
 		BuildWidget = nullptr;
