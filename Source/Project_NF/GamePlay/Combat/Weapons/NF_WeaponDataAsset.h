@@ -33,6 +33,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	ENF_FireMode FireMode = ENF_FireMode::None;
 
+	// 무기 메시에서 투사체가 발사되는 소켓.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	FName MuzzleSocketName = TEXT("Muzzle");
+
+	// 스코프 카메라를 부착할 무기 메시 소켓.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom")
+	FName ScopeSocketName = TEXT("Scope");
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom")
 	ENF_ZoomMode ZoomMode = ENF_ZoomMode::None;
 
@@ -98,6 +106,11 @@ public:
 		meta=(ClampMin="0.0", ClampMax="90.0", Units="deg"))
 	float SpreadAngleDegrees = 0.f;
 	
+	// 카메라 조준점 탐색 거리.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Projectile",
+		meta=(ClampMin="1.0", Units="cm"))
+	float AimTraceDistance = 100000.f;
+
 	// 카메라 조준점 탐색용 스피어 트레이스 반지름. 0이면 라인 트레이스와 동일하게 동작한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Projectile",
 		meta=(ClampMin="0.0", Units="cm"))
