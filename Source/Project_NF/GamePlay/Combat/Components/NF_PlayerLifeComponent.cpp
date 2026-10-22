@@ -201,10 +201,31 @@ bool UNF_PlayerLifeComponent::ChangeLifeState(ENFPlayerLifeState NewState)
 	// 변경된 생존 상태에 맞춰 태그 갱신
 	SyncLifeStateTags();
 	
-	// 기절 GA
 	UAbilitySystemComponent* ASC =
 		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 	
+	// Build 잠금
+	if (!IsValid(ASC))
+	{
+		const FGameplayTag BuildLockedTag =
+			FGameplayTag::RequestGameplayTag(FName(TEXT("State.Build.Locked")));
+		
+		const bool bShouldLockBuild =
+			LifeState == ENFPlayerLifeState::Downed || LifeState == ENFPlayerLifeState::Dead;
+		
+		if (bShouldLockBuild && !bLifeBuildLockApplied)
+		{
+			ASC->AddLooseGameplayTag(BuildLockedTag);
+			bLifeBuildLockApplied = true;
+		}
+		else if (!bShouldLockBuild && bLifeBuildLockApplied)
+		{
+			ASC->RemoveLooseGameplayTag(BuildLockedTag);
+			bLifeBuildLockApplied = false;
+		}
+	}
+	
+	// Downed GA
 	if (IsValid(ASC))
 	{
 		if (LifeState == ENFPlayerLifeState::Downed)
@@ -213,10 +234,10 @@ bool UNF_PlayerLifeComponent::ChangeLifeState(ENFPlayerLifeState NewState)
 		}
 		else
 		{
-			FGameplayTagContainer DownedABilityTag;
-			DownedABilityTag.AddTag(NFTag_LifeState::Ability_Life_Downed);
+			FGameplayTagContainer DownedAbilityTag;
+			DownedAbilityTag.AddTag(NFTag_LifeState::Ability_Life_Downed);
 			
-			ASC->CancelAbilities(&DownedABilityTag);
+			ASC->CancelAbilities(&DownedAbilityTag);
 		}
 	}
 	// 사망 상태가 확정되면 Death GA 실행 요청
