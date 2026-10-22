@@ -1,6 +1,7 @@
 #include "GamePlay/Combat/Armor/NF_ArmorBase.h"
 #include "Components/StaticMeshComponent.h"
 #include "GamePlay/Combat/Armor/NF_ArmorDataAsset.h"
+#include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
 #include "Net/UnrealNetwork.h"
 
 ANF_ArmorBase::ANF_ArmorBase()
@@ -36,7 +37,15 @@ ENF_ArmorSlot ANF_ArmorBase::GetArmorSlot() const
 	return ArmorData->ArmorSlot;
 }
 
-float ANF_ArmorBase::GetAdditionalDefense() const
+float ANF_ArmorBase::GetBaseDefence() const
+{
+	if (IsValid(ArmorData) == false)
+		return 0.f;
+	
+	return FMath::Max(0.f, ArmorData->BaseDefence);
+}
+
+float ANF_ArmorBase::GetAdditionalDefence() const
 {
 	if (IsValid(ArmorData) == false)
 		return 0.f;
@@ -61,6 +70,14 @@ bool ANF_ArmorBase::SetArmorData(UNF_ArmorDataAsset* NewData)
 	ArmorData = NewData;
 	OnRep_ArmorData();
 	ForceNetUpdate();
+	if (AActor* ArmorOwner = GetOwner())
+	{
+		if (UNF_ArmorComponent* ArmorComponent = ArmorOwner->FindComponentByClass<UNF_ArmorComponent>())
+		{
+			if (ArmorComponent->GetEquippedArmor(GetArmorSlot()) == this)
+				ArmorComponent->RefreshArmorDefence();
+		}
+	}
 	return true;
 }
 
