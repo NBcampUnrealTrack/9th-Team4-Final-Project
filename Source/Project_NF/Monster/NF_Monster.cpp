@@ -257,10 +257,26 @@ void ANF_Monster::ApplyBasicAttackHit()
 
 void ANF_Monster::HandleMonsterDamaged(float Damage, AActor* DamageSource)
 {
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster damage callback: Monster=%s / Source=%s / Controller=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(DamageSource),
+		*GetNameSafe(GetController()));
+
 	if (ANF_MonsterAIController* MonsterAIController =
 		Cast<ANF_MonsterAIController>(GetController()))
 	{
-		MonsterAIController->ConsiderTargetActor(DamageSource);
+		MonsterAIController->ApplyDamageAggro(DamageSource);
+	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster damage aggro skipped: %s has no ANF_MonsterAIController."),
+			*GetNameSafe(this));
 	}
 	
 	if (!MonsterASC) { return; }
