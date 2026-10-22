@@ -214,7 +214,6 @@ private:
 	FName PendingActiveSkill;
 	bool bDraftDirty = false;
 	bool bAwaitingBuildResult = false;
-	bool bSavedMouseCursor = false;
 	TWeakObjectPtr<APlayerController> SessionController;
 	UFUNCTION(Server, Reliable)
 	void ServerApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone);
