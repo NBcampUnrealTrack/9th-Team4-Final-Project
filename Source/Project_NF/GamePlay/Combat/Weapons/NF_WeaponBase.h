@@ -79,6 +79,7 @@ protected:
 	bool bIsReloading = false;
 
 private:
+	friend class FNF_WeaponPassivesTest;
 	friend class UNFGA_WeaponReload;
 	void ApplyWeaponAppearance();
 

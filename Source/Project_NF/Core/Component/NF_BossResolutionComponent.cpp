@@ -1,6 +1,5 @@
 ﻿#include "Core/Component/NF_BossResolutionComponent.h"
 
-#include "Core/NF_GameMode.h"
 #include "Core/NF_GameState.h"
 #include "Data/Enum/NF_MatchPhase.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
@@ -14,59 +13,68 @@ UNF_BossResolutionComponent::UNF_BossResolutionComponent()
 	SetIsReplicatedByDefault(false);
 }
 
-bool UNF_BossResolutionComponent::ResolveBossDefeat(const FNF_BossDefeatResult& DefeatResult)
+bool UNF_BossResolutionComponent::ResolveBossDefeat(const FNF_BossDefeatResult& DefeatResult,const ANF_BossBase* ActiveBoss)
 {
-	const ANF_GameMode* NFGameMode =Cast<ANF_GameMode>(GetOwner());
+	const AActor* OwnerActor = GetOwner();
 
-	if (!IsValid(NFGameMode)) {return false;}
-	
-	if (!NFGameMode->HasAuthority()) {return false;}
+	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority()){return false;}
 
-	if (bBossDefeatResolved)
-	{
-		UE_LOG(LogTemp,Warning,TEXT("[BossResolution] 보스 처치 결과가 ""이미 확정되었습니다."));
-		return false;
-	}
+	if (bBossDefeatResolved){return false;}
 
-	if (!ValidateDefeatResult(DefeatResult)){return false;}
-	
-	bBossDefeatResolved = true;
+	if (!ValidateDefeatResult(DefeatResult, ActiveBoss)){return false;}
+
 	ConfirmedResult = MakeConfirmedResult(DefeatResult);
 
-	OnBossDefeatResolved.Broadcast(ConfirmedResult);
+	// 이벤트 내부에서 재진입하더라도 중복 처리를 차단한다.
+	bBossDefeatResolved = true;
 
+	OnBossDefeatResolved.Broadcast(ConfirmedResult);
 	return true;
 }
 
-bool UNF_BossResolutionComponent::ValidateDefeatResult(const FNF_BossDefeatResult& DefeatResult) const
+bool UNF_BossResolutionComponent::ValidateDefeatResult(const FNF_BossDefeatResult& DefeatResult,const ANF_BossBase* ActiveBoss) const
 {
 	const UWorld* World = GetWorld();
-	if (!IsValid(World)) {return false;}
+
+	if (!IsValid(World)){return false;}
 
 	const ANF_GameState* NFGameState =World->GetGameState<ANF_GameState>();
-	if (!IsValid(NFGameState)) {return false;}
 
-	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Boss) {return false;}
+	if (!IsValid(NFGameState)){return false;}
 
-	if (!IsValid(DefeatResult.DefeatedBoss)) {return false;}
-	
-	return true;
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Boss){return false;}
+
+	if (!IsValid(ActiveBoss)){return false;}
+
+	if (DefeatResult.DefeatedBoss.Get() != ActiveBoss){return false;}
+
+	if (ActiveBoss->GetWorld() != World){return false;}
+
+	return ActiveBoss->IsDefeated();
 }
 
 FNF_BossDefeatResult UNF_BossResolutionComponent::MakeConfirmedResult(const FNF_BossDefeatResult& DefeatResult) const
 {
 	FNF_BossDefeatResult Result = DefeatResult;
 
-	if (IsValid(Result.LastHitPlayerState))
+	// 직전 ValidateDefeatResult()에서 World와 GameState를 검증했다.
+	const ANF_GameState* NFGameState =GetWorld()->GetGameState<ANF_GameState>();
+
+	ANF_PlayerState* LastHitPlayerState =Result.LastHitPlayerState.Get();
+
+	const bool bValidRecipient =IsValid(LastHitPlayerState) &&LastHitPlayerState->GetWorld() == GetWorld() &&NFGameState->PlayerArray.Contains(LastHitPlayerState);
+
+	if (bValidRecipient)
 	{
-		// 보스 시스템이 전달한 ID 값과 PlayerState를 기준으로 확정
-		Result.LastHitPlayerID = Result.LastHitPlayerState->GetPlayerId();
+		Result.LastHitPlayerID = LastHitPlayerState->GetPlayerId();
 	}
 	else
 	{
+		// 지급 대상이 없어도 보스 처치는 정상 확정한다.
+		Result.LastHitPlayerState = nullptr;
 		Result.LastHitPlayerID = INDEX_NONE;
 	}
-	//보스 기여도 계산
+
 	NormalizeContributions(Result);
 
 	return Result;

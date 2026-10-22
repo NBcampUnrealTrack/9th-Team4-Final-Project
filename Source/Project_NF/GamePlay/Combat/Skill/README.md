@@ -231,6 +231,114 @@ BeamTargeting이 매 프레임 시전자 시점을 다시 계산하므로 발사
 
 ## 8. 예제: 자신에게 가속화·버프
 
+### 가시갑옷: NFGA_Thorns (2026-10-22)
+
+부모 NFGA_Thorns으로 GA BP를 만든다. Skill Type Passive, Activation Method On Granted, Activate Passive on Grant 끔, 실행/프리뷰 액터 None으로 사용한다. `NF > Thorns > Reflection Ratio`는 0.3이면 실제 체력 손실의 30%, Internal Cooldown은 기본 1초다. Reflection Effect Class는 기본 NFGE_ThornsDamage를 사용한다. 별도 컴포넌트/이벤트 그래프/Passive Effects 수동 등록은 필요 없다. 장착 시스템에서 GA를 부여하거나 NF_SkillTest 슬롯에 지정하고 PIE를 시작하면 구독하며, GA 제거 시 해제한다.
+
+서버 ASC의 기존 Health 변경 알림(FOnAttributeChangeData)의 OldValue/NewValue와 GEModData를 사용한다. `(피해 전 체력 - Max(피해 후 체력, 0)) × 반사율`이며 손실은 0부터 피해 전 체력까지만 인정한다. 체력 100에서 1000 피해를 받아도 반사율 30%면 30을 요청한다. 100→70이면 9, 실드만 감소/회복/GE 정보 없는 직접 스탯 변경/자해/공격자 없는 피해는 반사하지 않는다. 반사 시도 전에 내부 쿨타임을 예약하며 반사 피해 Spec에 Damage.Reflected를 붙여 재반사를 막는다. 이 표시는 다른 반사 GE를 직접 사용할 때도 유지된다. 반사량 태그는 Data.Damage.Reflected다.
+
+가시갑옷 관찰 대상은 NF_PlayerStatusAttribute.Health가 있는 플레이어 ASC다. 임시 SkillTest ASC에 체력이 없으면 아바타의 정식 ASC에서 해당 속성을 찾아 관찰한다. 기본 TPS에 이 체력 AttributeSet 자체가 없으면 경고를 출력하고 구독하지 않는다. 플레이어 AttributeSet/사망/무기 소스는 수정하지 않았다. 단순 원시 체력 감소 중계라 사망 상태로 이미 바뀌었다는 이유만으로 방금 받은 치명타격의 실제 체력 손실을 제외하지 않는다. 사망 처리에서 GA 자체를 먼저 제거하면 구독도 해제되므로 팀의 사망 처리 순서에 따라 추가 검증이 필요하다.
+
+기본 반사 GE는 공격자의 플레이어/보스 Health 또는 몬스터/설치물 IncomingDamage에 피해를 전달한다. 기존 직접 체력 피해 흐름처럼 별도의 공격자 실드 흡수/방어력 감소 계산은 추가하지 않는다. 향후 공통 피해 계산을 도입하면 Reflection Effect Class를 해당 반사 피해 GE로 교체할 수 있다. 이 설정은 **피격자의 실드 피해를 반사 기준에서 제외**하는 규칙과 구분한다. 보호/면역 GE가 반사 피해를 거부하는 경우에도 발동 시도에 대한 내부 쿨타임은 소비한다.
+
+테스트 소스 NF.Skills.Thorns.ActualHealthLossCooldownAndNoRecursion 추가: 초과 피해 상한, 실제 Health GE 콜백 반사, 실드/회복 제외, 내부 쿨타임, 재반사 방지, 장착 해제 검사. 빌드·테스트 실행·PIE는 수행하지 않았다.
+
+### 사망 상태 발동 차단 처리 완료 (2026-10-22)
+
+`NFGA_SkillBase` 생성자에 `ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Death)`를 추가했다. 이 베이스를 상속하는 조합 스킬, 이동/가속화/그랩/EMP/탐색/포탈 및 패시브 GA에 공통 적용된다. 기존 BP가 상속 차단 태그 목록을 덮어써도 우회하지 못하도록 CanActivateAbility/CanContinueSkillExecution에서도 같은 상태를 확인한다. 사망 태그 변경을 공통 취소 감시에 등록해 로컬 조준을 해제하고 취소 가능한 실행 중 스킬을 기존 정리 경로로 종료한다.
+
+무기 Fire/Reload/Zoom GA는 이미 사망 차단 태그가 있어 변경하지 않았다. 플레이어 사망 GA/몬스터 전용 기본 공격 GA/플레이어 테스트 전용 GA는 변경하지 않았다. `CancelAbilitiesWithTag`는 발동 시 다른 능력을 취소하는 설정이며 사망 태그 감시 기능이 아니므로 공통 베이스에 추가하지 않았다. 사망 시 취소는 기존 태그 변경 감시를 사용한다. 기본 패시브 GE와 이미 GA에서 분리된 설치물/발사체를 사망만으로 제거하는 정책은 이번 변경 범위에 포함하지 않는다.
+
+플레이어 사망 처리에서 **스킬이 부여된 ASC에 `Player.State.Death`를 실제 부여해야** 차단된다. 플레이어 소스와 사망 태그 부여/해제 정책은 수정하지 않았다. 별도 NF_SkillTest ASC로 테스트하는 경우 플레이어 본 ASC의 태그가 자동 공유되지는 않는다. 이 테스트 구성의 ASC 통합은 별도 연결이 필요하다.
+
+처리 내용: 공통 스킬 GA 생성자 사망 차단 태그 등록, BP 태그 덮어쓰기 우회 방지, 시전 중 사망 취소 연결. 테스트 소스 `NF.Skills.Death.BlockCastAndCancelPendingExecution` 추가. 빌드·테스트 실행·PIE 사망 검증은 수행하지 않았다.
+
+### 공격력 증가·마탄: 무기 패시브 (2026-10-21)
+
+| 스킬 | GA BP 부모 | 디테일 | 기본값 |
+|---|---|---|---|
+| 공격력 증가 | NFGA_AttackPower | NF > Attack Power > Attack Damage Bonus | +10, Build Cost 1 |
+| 마탄 | NFGA_MagicBullet | NF > Magic Bullet > Last Round Damage Multiplier | 2배, Build Cost 3 |
+
+두 GA 모두 Skill Type Passive, Category Attack, Activation Method On Granted, Execution/Preview Actor None, Activate Passive on Grant 끔으로 사용한다. 이벤트 그래프·추가 컴포넌트는 필요 없다. GE를 Passive Effects에 수동 추가하지 않는다. 각 GA가 네이티브 Infinite GE를 생성하고 SetByCaller 수치를 전달하며 공통 패시브 정리 기능에 등록한다. 직접 GE를 추가하면 중복 적용되거나 필수 SetByCaller 값이 누락될 수 있다.
+
+서버가 GA를 부여할 때 소유 ASC에 `NF_OffenseAttributeSet`을 자동 등록한다. 기존 플레이어 AttributeSet/PlayerState 소스를 수정하지 않는다. 속성은 `AttackDamageBonus`(기본 0), `LastRoundDamageMultiplier`(기본 1)이다. GA를 제거하면 자신이 적용한 GE만 제거한다. 다른 패시브가 남을 수 있으므로 AttributeSet 자체는 제거하지 않는다. EMP는 두 패시브를 중단시키지 않는다.
+
+장착 시스템에서 GA를 부여하거나 NF_SkillTest의 비어 있는 E/Q/Shift 슬롯에 두 GA를 지정하고 PIE를 시작한다. 패시브라 키를 누를 필요 없다. NF_SkillTest의 능력 부여 시 적용되며 직접 키로 활성화를 시도하면 거부되는 것이 정상이다. 해제는 ClearAbility 등으로 실제 Ability Spec을 제거해야 한다.
+
+`NF_WeaponBase::FireProjectile()`가 **탄약 차감 전** `CurrentAmmo == 1`을 판정하고 `(WeaponData.Damage + 공격력 보너스) × (마지막 탄환이면 마탄 배율, 아니면 1)`로 이번 발사 피해를 확정한다. 기본 30/+10/마탄 2배면 일반 탄환 40, 마지막 탄환 80이다. 샷건은 해당 발사의 모든 펠릿에 같은 값을 전달한다. 마지막 탄환에 발동한 마탄은 빗나가도 소모한 발사에 해당하며, 명중 시점에 다시 탄약이나 패시브를 조회하지 않는다. 이미 발사된 탄환은 패시브 해제/무기 교체 이후에도 저장된 피해를 유지한다. WeaponData 원본과 탄약/재장전 로직은 변경하지 않는다.
+
+공격력 증가 GE가 중복 부여되면 보너스는 합산되고, 마탄 GE가 중복 부여되면 배율은 Multiply Compound로 곱해진다. 같은 스킬 중복 장착을 금지하려면 장착 시스템에서 제한한다. 기본 플레이어 ASC와 임시 NF_SkillTest ASC가 함께 존재하는 테스트 환경에서는 현재 발사자 아바타에 연결된 ASC들의 공격 보너스를 중복 조회 없이 합산/곱산한다.
+
+이 변경은 **무기 탄환의 피해량 계산**만 연결한다. 수류탄·레이저 등 독립 스킬 피해에는 자동 반영되지 않는다. 일반 몬스터·플레이어 대상 명중 피해 GE 연결을 새로 추가하지도 않는다. 실제 대상의 체력 감소는 기존 탄환 명중 처리 지원 범위에 따른다. 공격 보너스 SetByCaller 태그는 `Data.Weapon.AttackDamageBonus`, 마탄은 `Data.Weapon.LastRoundMultiplier`이며 NFTag_Skill에 소유자·날짜·목적과 함께 등록했다.
+
+테스트 소스: `NF.Skills.WeaponPassives.AttackBonusLastRoundAndProjectileSnapshot`. 실제 무기 발사 루프의 펠릿 피해 스냅샷·마지막 탄환·원본 데이터 유지·장착 해제·중복 효과·EMP 유지·별도 테스트 ASC 조회를 검사한다. 빌드/자동화 테스트 실행/PIE 확인은 수행하지 않았다. BP 에셋은 변경하지 않았다.
+
+### 더블점프: NFGA_DoubleJump (2026-10-21)
+
+부모 클래스를 **NFGA_DoubleJump**으로 선택해 `GA_DoubleJump` BP를 만든다. Max Jump Count는 2, Skill Type은 Passive, Category는 Utility, Activation Method는 On Granted로 둔다. Execution Actor/Preview Actor는 None, Activate Passive on Grant는 끈다. Passive Effects에는 기본으로 등록된 `NFGE_DoubleJump`를 유지한다. 이 GE가 기존 `State.DoubleJumpEnabled` 태그를 부여한다. 이벤트 그래프 연결은 필요 없다.
+
+장착 시스템에서 GA를 서버 ASC에 부여하면 즉시 적용되고, 해당 Ability Spec을 제거하면 해제된다. 임시 테스트는 NF_SkillTest의 비어 있는 E/Q/Shift 슬롯에 이 GA를 지정해 플레이를 시작하면 된다. **E/Q/Shift를 누르는 방식이 아니다.** 서버 BeginPlay의 능력 부여 시 적용되므로 Space → 공중에서 Space로 확인한다. 키를 눌러 직접 활성화하려 하면 패시브이므로 거부되는 것이 정상이다. 실행 중 Test Skill Class만 바꾸는 것은 능력 제거가 아니므로 해제 테스트는 장착 시스템의 ClearAbility 또는 PIE 재시작으로 한다.
+
+기존 Character.Jump 입력을 그대로 사용한다. 캐릭터의 점프 입력이 연결되어 있어야 하며, 기본 Character 및 모션매칭 캐릭터 모두 대상으로 한다. 새 키 바인딩/플레이어 소스 수정은 없다. 커스텀 캐릭터가 별도 CanJump 정책으로 공중 점프를 막으면 그 정책 확인이 필요하다. 이 작업에서 플레이어 입력·애니메이션은 수정하지 않았다.
+
+스킬 내부 `NF_JumpCountEffect`가 캐릭터별 요청을 묶어 점프 횟수를 `Max(원래 횟수, 요청 횟수)`로 설정한다. 중복 장착은 횟수를 합산하지 않으며 마지막 요청이 해제되면 원래 횟수를 복구한다. 아바타 교체 시 이전 캐릭터는 복구하고 새 캐릭터에 다시 적용한다. JumpCurrentCount를 초기화하지 않아 공중 장착으로 사용 횟수를 리필하지 않는다. EMP는 패시브를 제거하지 않는다.
+
+UE 5.7 Character.cpp는 JumpMaxCount의 기본 복제를 비활성화하므로 스킬 내부 보조 액터가 요청 횟수를 복제해 서버/클라이언트 양쪽에 적용한다. 보조 액터 BP/컴포넌트 추가는 필요 없다. 장착/해제 반영에는 네트워크 지연이 있을 수 있다. 별도 점프 횟수 제어 코드가 동시에 값을 직접 쓰는 정책은 팀 간 조율이 필요하며, 해제 시 외부 변경 값이 확인되면 덮어쓰지 않는다.
+
+자동화 테스트 소스 `NF.Skills.DoubleJump.GrantRemoveOverlapAndAvatarChange`를 추가했다. 빌드·테스트 실행·PIE 멀티 점프 검증은 수행하지 않았다.
+
+### 롤링 봄: 지면 이동 조합 (2026-10-20)
+
+`BP_RollingBomb`의 부모는 `NF_SkillExecutionActor`를 유지한다. 기존 `NF Projectile Launch`와 `Projectile Movement`를 **제거**하고 아래 조합을 사용한다. 이벤트 그래프 연결은 필요 없다.
+
+| 컴포넌트 | 설정 예시 |
+|---|---|
+| Sphere Collision | 반지름 15cm. 이동 컴포넌트가 루트/충돌을 자동 설정 |
+| Static Mesh | 폭탄 메시. Sphere 아래 배치, Simulate Physics 끔 |
+| NF Ground Travel | Travel Speed 1000cm/s, Initial Boost Multiplier 2, Boost Duration 0.4초, Max Travel Distance 2500cm, Spawn Forward Distance 100cm |
+| NF Detonation | Mode Impact, Max Lifetime 10초 |
+| NF Area Damage | Sphere, Radius 400cm |
+
+Class Defaults의 Follow Source는 끄고, Damage Effect Class·Damage Magnitude Tag·Damage Magnitude는 기존 피해 설정을 유지한다. Repeat/Deployable/GroundTargeting/BeamTargeting/HitEffect는 넣지 않는다. ApplyEffect를 쓰는 경우 Query 모드로 Area와 조합한다.
+
+GA 부모는 `NFGA_SkillBase`, Execution Actor Class는 `BP_RollingBomb`, Mode는 Instant, Cast Time 0, Activate on Input Release 끔, Requires Confirmed Target Data 끔, Preview Actor Class None으로 시작한다. 이동 컴포넌트를 감지해 바라보는 방향 데이터를 자동 전달하며 수직 조준은 수평으로 투영한다. 투척용 포물선 프리뷰는 사용하지 않는다. GA를 NF_SkillTest의 원하는 키에 지정한다.
+
+폭탄은 캐릭터의 발 높이를 기준으로 전방 지면에 생성되어 초기 부스트 후 순항 속도로 경사를 따라 전진한다. 아래 트레이스로 지면을 찾고 Sphere를 SafeMoveUpdatedComponent로 이동한다. 적/벽 충돌, 급경사, 지면 끊김, 최대 거리에서 이동을 끝내고 폭발을 요청한다. 바닥 접촉 자체로는 폭발하지 않는다. 낭떠러지에서는 떨어지지 않고 끝 지점에서 폭발한다. 시작 지면이나 발사 공간이 없으면 생성 준비를 거부한다. 이동은 서버에서만 수행하고 실행 액터의 위치 복제를 사용한다.
+
+`NF Ground Travel > Boost`의 Initial Boost Multiplier가 출발 배율, Boost Duration이 순항 속도로 내려오는 시간이다. 기본 1000cm/s × 2배 = 2000cm/s로 출발해 0.4초 동안 부드럽게 1000cm/s로 내려온다. 배율 1 또는 시간 0으로 기존 일정 속도를 사용할 수 있다. 부스트는 실제 이동속도 변화이며 별도 이펙트/사운드는 추가하지 않았다. 부스트 거리도 최대 이동거리에 포함되고 벽/적 충돌 판정은 그대로 유지한다. 빌드·실행 검증은 수행하지 않았다.
+
+Ground Search Depth는 아래 지면 탐색 깊이, Step Height는 위쪽 탐색 여유, Ground Clearance는 지면과 Sphere의 간격, Min Ground Normal Z는 허용 경사 기준이다. 별도 점프/단차 오르기/물리 굴림은 구현하지 않는다. 메시의 바퀴 회전·추진 연출은 별도 cosmetic 작업이다.
+
+이동 종료에 따른 폭발은 Detonation의 타이머와 별개로 요청한다. Impact 모드에서는 Max Lifetime이 빗나갔을 때의 최대 수명이다. Fuse/FuseOrImpact 모드를 선택하면 Fuse Time이 추가 시간 제한이 된다. BP 에셋 변경·빌드·PIE는 수행하지 않았으며 자동화 테스트 소스 `NF.Skills.GroundTravel.GroundWallDistanceAndComposition`을 추가했다.
+
+### 가속화: NFGA_Acceleration (2026-10-20)
+
+부모 클래스를 `NFGA_Acceleration`으로 선택해 `GA_Acceleration` BP를 만든다. 이벤트 그래프·실행 액터·속도 GE는 필요 없다.
+
+| 항목 | 설정 |
+|---|---|
+| NF > Acceleration > Speed Multiplier | 1.3 = 30% 증가 |
+| Skill Type / Category | Active / Movement |
+| Skill Execution Mode / Execution Duration | Timed / 5초 |
+| Cast Time | 0 (원하면 시전 대기 시간 지정) |
+| Execution Actor Class / Preview Actor Class | None / None |
+| Activate on Input Release / Requires Confirmed Target Data | 모두 끔 |
+| Affected by EMP / Cancel on EMP | 모두 켬 |
+| Cooldown Gameplay Effect Class | 필요하면 기존 쿨타임 GE 지정 |
+
+캐릭터의 `NF_SkillTest` E/Q/Shift 중 원하는 Test Skill Class에 새 GA를 지정한다. 누르면 시전 대기 후 배율을 적용하고, 키를 떼어도 지속시간 동안 유지한다. 시간 종료·EMP·취소·캐릭터 제거 시 자신이 곱했던 배율만 한 번 나누어 해제한다. 시전 대기 중 취소하면 배율과 비용/쿨타임을 적용하지 않는다.
+
+대상은 Character와 CharacterMovement가 있어야 한다. 실제 `MotionMatchingCharacterMovementComponent`와 `MotionMatchingComponent`를 함께 쓰면 기존 배율 API/복제를 사용한다. 일반 TPS의 기본 CharacterMovement는 `MaxWalkSpeed`와 `MaxWalkSpeedCrouched`에 배율을 적용한다. 이 값들은 엔진에서 자동 복제하지 않으므로 GA가 내부 `NF_AccelerationEffect`를 생성해 서버·클라이언트 양쪽에 적용하고 종료 시 해제한다. 보조 액터용 BP나 수동 연결은 필요 없다. 플레이어 소스는 수정하지 않는다. 가속화가 켜진 상태에서 재입력해도 같은 GA의 효과를 중복 적용하지 않는다.
+
+일반 TPS에 테스트 목적으로 `MotionMatchingComponent`만 추가했다면 제거한다. 해당 컴포넌트는 매 틱 `MaxWalkSpeed`를 다시 쓰므로 기본 이동 경로와 충돌하며 `[Acceleration]` 경고를 출력한다. 완전한 모션매칭 캐릭터의 컴포넌트는 제거하지 않는다.
+
+다른 속도 효과도 현재 배율에 곱하고 해제 시 자신의 배율로 나누는 규칙을 사용하면 함께 유지된다. 다른 코드가 Setter로 절대 배율을 덮어쓰면 복구 결과가 어긋날 수 있다. 이 구현은 해당 문제를 해결하는 공통 배율 목록을 플레이어에 추가하지 않는다. 네트워크 예측은 구현하지 않아 클라이언트의 체감 반영은 기존 복제 지연을 따른다.
+
+자동화 테스트 소스: `NF.Skills.Acceleration.LifetimeEMPAndFactorCleanup`. 빌드·테스트 실행·PIE 검증은 수행하지 않았다.
+
+### GE를 사용하는 일반 자기 버프
+
 실행 BP에 `ApplyEffect`만 추가하고 Target Mode Self로 설정한다. GA는 Instant, Activate On Input Release 끔, Requires Confirmed Target Data 끔, Preview Actor Class None으로 설정한다.
 
 가속화 GE 예시:
@@ -247,6 +355,39 @@ BeamTargeting이 매 프레임 시전자 시점을 다시 계산하므로 발사
 **현재 이 작업 범위에는 플레이어 MoveSpeed Attribute가 구현되어 있지 않다.** 목록에 없으면 선택할 수 없으며 Attribute 추가·캐릭터 ASC 등록·CharacterMovement.MaxWalkSpeed 반영 연결이 선행되어야 한다. GE만 추가한다고 캐릭터가 빨라지지 않는다. 이동속도 변화·GE 만료가 실제 이동에 반영되도록 플레이어 담당과 GAS 연결을 맞춘다.
 
 플레이어 체력·공격력·방어력 증가도 해당 Attribute와 게임 로직 연결이 먼저 있어야 한다. 상시 장착 패시브는 GA의 Passive Effects에 지속/무한 자기 GE를 지정하는 기존 경로를 사용할 수 있다.
+
+### 버서커: 실제 체력 피해에 따른 공격력 중첩
+
+`NFGA_Berserker`를 부모로 GA BP를 만들고 장착/부여한다. 입력으로 실행하는 액티브가 아니라 부여 중 서버에서 체력 변화를 관찰하는 패시브다. 실행 액터나 별도 GE BP는 필요 없다.
+
+| 설정 | 기본값 | 의미 |
+|---|---|---|
+| Damage Bonus Per Stack | 3 | 중첩당 무기 공격력 가산 |
+| Max Stacks | 5 | 최대 중첩 수 (기본 최대 +15) |
+| Stack Duration | 0초 | 0이면 사망/장착 해제까지 유지. 양수이면 피격마다 전체 중첩 시간이 갱신되고 만료 시 함께 제거 |
+
+GE 적용으로 실제 Health가 감소한 경우에만 타격당 1중첩이다. 실드 피해·회복·직접 Health setter는 제외하며, 자해/도트/반사 피해도 실제 Health를 감소시키면 포함한다. 치명타격으로 체력이 0이 되면 새 중첩 대신 초기화한다. 사망 태그, 아바타 변경, 장착 해제 시에도 초기화한다.
+
+기존 `NFGE_AttackDamageBonus`의 SetByCaller 수치만 갱신하며 자신의 GE만 제거하므로 공격력 증가 패시브와 함께 사용할 수 있다. 공격력은 현재 `WeaponBase`의 발사 시점 피해량 계산에 반영되며, 독립적인 수류탄/스킬 피해에 자동 적용되지는 않는다. 플레이어 코드는 수정하지 않는다. `NF.Skills.Berserker.HealthOnlyStacksAndCleanup` 테스트 소스를 추가했으며 이번 작업에서 빌드/실행하지 않았다.
+
+### 패시브 발동 이펙트 설정
+
+GA BP의 `NF > Skill > Passive > Visual`에서 다음을 설정한다. 조건 태그를 추가할 필요는 없으며, 실제 발동에 성공한 코드가 공통 함수를 호출한다.
+
+| 항목 | 설정 |
+|---|---|
+| Activation Cue Tag | 순간 연출용. 비우면 연출 생략 |
+| Active Cue Tag | 지속 연출용. 비우면 연출 생략. 서로 다른 패시브는 서로 다른 태그 사용 |
+
+가시갑옷 기본 순간 태그는 `GameplayCue.Skill.Thorns.Activate`, 버서커는 `GameplayCue.Skill.Berserker.Activate`다. 같은 태그를 지정한 `GameplayCueNotify_Static` BP를 만들어 `On Execute`에서 Niagara/Sound를 재생한다. Cue BP는 프로젝트 Gameplay Cue 검색 경로 아래에 두어야 한다. 현재 별도 경로 설정이 없으므로 기본 `/Game` 검색을 사용한다. 서버에서 ASC의 Cue 경로를 호출하며, 실제 멀티 연출은 네트워크 관련성이 있는 클라이언트에서 확인한다.
+
+`My Target`은 패시브 소유 캐릭터다. Parameters의 `Location`은 발동 위치, `Source Object`는 영향받은 액터, `Raw Magnitude`는 가시갑옷의 반사 요청 피해량 또는 버서커의 현재 중첩 수다. Source Object는 대상이 클라이언트에 복제되지 않으면 없을 수 있으므로 위치를 대체값으로 사용한다. 가시갑옷은 반사 GE 적용 성공 시에만, 버서커는 새 중첩이 생길 때만 순간 연출을 보낸다. 버서커가 최대 중첩에서 시간을 갱신할 때는 순간 연출을 반복하지 않는다.
+
+버서커 지속 연출이 필요하면 별도 태그를 등록해 `Active Cue Tag`에 지정하고, 같은 태그의 `GameplayCueNotify_Actor` BP에서 `On Active`/`While Active`에 캐릭터 부착 이펙트를 만든다. `On Remove`에서 Niagara를 중지/제거하고 자동 종료 설정을 확인한다. 첫 중첩에서 시작하고 중첩 만료·사망·장착 해제·아바타 변경 시 종료한다. 같은 ASC에 같은 Active Cue 태그를 다른 경로로 중복 추가하지 않는다. 지속 무적 GE를 쓰는 불굴은 향후 그 GE의 Gameplay Cues에 직접 연결하는 방식도 가능하다.
+
+공통 API는 `NotifyPassiveTriggered(AffectedActor, Location, Magnitude)`, `StartPassiveActiveCue`, `StopPassiveActiveCue`이며 서버에서 호출한다. 실제 발동 로직과 자동 연결되어 있지 않은 패시브는 성공 지점에서 이 함수를 호출해야 한다. 장착만으로 발동 이펙트를 재생하지 않는다.
+
+**더블점프 연결 대기:** 기본 태그 `GameplayCue.Skill.DoubleJump.Activate`만 설정했다. 현재 스킬은 JumpMaxCount를 확장할 뿐 실제 점프 성공 이벤트를 받지 않는다. 플레이어 담당이 서버의 `OnJumped` 성공 지점에서 `JumpCurrentCount >= 2`인 경우 부여된 더블점프 GA 인스턴스의 `NotifyPassiveTriggered(Character, CharacterLocation, JumpCurrentCount)`를 호출하는 연결이 필요하다. 플레이어 수정 전 확인 요청 원칙에 따라 이번 작업에서는 플레이어 코드를 수정하지 않았다. 불굴은 발동 로직이 아직 없어 자동 연결하지 않았다. Cue BP/나이아가라 에셋은 직접 제작하며, 이번 작업에서는 빌드/자동화 테스트를 실행하지 않았다.
 
 ## 9. 예제: 명중형 투사체 / 지속 피해 장판
 

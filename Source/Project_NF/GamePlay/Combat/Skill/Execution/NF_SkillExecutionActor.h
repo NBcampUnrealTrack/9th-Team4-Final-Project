@@ -40,7 +40,10 @@ public:
 	bool ValidateComposition() const;
 	bool PrepareExecution();
 	bool CanRunIndependently() const;
+	// Started projectiles and stationary deployments survive caster EMP; maintained beams/followers do not.
+	bool SurvivesCasterEMP() const;
 	bool HasProjectileLaunch() const;
+	bool HasGroundTravel() const;
 	bool GetProjectilePreviewData(AActor* Avatar, FNF_SkillPreviewData& Data) const;
 	bool ValidateProjectileDirection(AActor* Avatar, FVector Direction) const;
 	bool StartExecution();
@@ -71,10 +74,13 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, Category = "NF|Skill Execution")
 	void DetonationCosmetic(FVector Location, float Radius);
 private:
+	friend class FNF_EMPTest;
 	UFUNCTION()
 	void HandleHitEffectsSubmitted(AActor* Target, int32 EffectCount);
 	UFUNCTION()
 	void HandleDetonated();
+	UFUNCTION()
+	void HandleGroundTravelEnded();
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastDetonation(FVector Location, float Radius);
 	UFUNCTION()
