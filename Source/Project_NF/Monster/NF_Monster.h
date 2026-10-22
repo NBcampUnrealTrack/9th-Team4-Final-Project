@@ -10,6 +10,15 @@ class UNF_MonsterAttributeSet;
 class UGameplayEffect;
 class UGameplayAbility;
 class UAnimMontage;
+struct FOnAttributeChangeData;
+class ANF_Monster;
+class AActor;
+
+//사망 알림 deligate
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FNFOnMonsterDied,
+	ANF_Monster*,
+	DeadMonster);
 
 UCLASS()
 class PROJECT_NF_API ANF_Monster : public ACharacter , public IAbilitySystemInterface
@@ -20,8 +29,21 @@ public:
 	ANF_Monster();
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	/** Maximum target distance at which a basic-attack hit can be applied. */
+	float GetBasicAttackHitRange() const { return BasicAttackHitRange; }
 	
 	void ApplyBasicAttackHit();
+	
+	void ApplyLandingDamage(
+	const FVector& LandingLocation,
+	float DamageRadius,
+	float DamageMultiplier);
+	
+	UPROPERTY(BlueprintAssignable, Category = "NF|Monster|Death")
+	FNFOnMonsterDied OnMonsterDied;
+	
+	FVector GetHomeLocation() const;
 	
 protected:
 	virtual void BeginPlay() override;
@@ -47,7 +69,7 @@ protected:
 	
 	//hit
 	UFUNCTION()
-	void HandleMonsterDamaged(float Damage);
+	void HandleMonsterDamaged(float Damage,	AActor* DamageSource);
 
 	UFUNCTION()
 	void ClearHitReactState();
@@ -69,4 +91,18 @@ protected:
 	float CorpseLifeSpan = 5.0f;
 
 	bool bIsDead = false;
+	
+	//몬스터 종류별 MoveSpeed
+	void HandleMoveSpeedChanged(
+	const FOnAttributeChangeData& Data);
+
+	void SetMonsterMoveSpeed(float NewMoveSpeed);
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "NF|Monster|AI",
+		meta = (ClampMin = "0.0"))
+	float PatrolRadius = 500.0f;
+	
+private:
+	FVector HomeLocation;
 };

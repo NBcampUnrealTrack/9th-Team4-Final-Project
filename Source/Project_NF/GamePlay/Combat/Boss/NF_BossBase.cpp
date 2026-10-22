@@ -49,6 +49,8 @@ ANF_BossBase::ANF_BossBase()
 	BossSkeletalMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BossSkeletalMesh"));
 	BossSkeletalMesh->SetupAttachment(SceneRoot);
 	BossSkeletalMesh->SetCollisionProfileName(TEXT("Pawn"));
+	BossSkeletalMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	BossSkeletalMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
 	BossHealthWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("BossHealthWidget"));
 	BossHealthWidgetComponent->SetupAttachment(BossSkeletalMesh);
@@ -324,6 +326,25 @@ void ANF_BossBase::BeginPlay()
 			TEXT("[BossStateTreeDiag] Cannot start patterns: Tree=%s ComponentValid=%d Boss=%s"),
 			*GetPathNameSafe(BossStateTree), IsValid(StateTreeComponent) ? 1 : 0, *GetName());
 	}
+}
+
+bool ANF_BossBase::IsReadyForEncounter() const
+{
+	if (!HasAuthority() || !HasActorBegunPlay() || IsActorBeingDestroyed() || IsDefeated() ||
+		!IsValid(AbilitySystemComponent) || AbilitySystemComponent->GetAvatarActor() != this ||
+		AbilitySystemComponent->GetOwnerActor() != this || !IsValid(BossAttributeSet) ||
+		BossAttributeSet->GetHealth() <= 0.0f)
+	{
+		return false;
+	}
+
+	if (BossStateTree)
+	{
+		return IsValid(StateTreeComponent) && StateTreeComponent->IsRunning();
+	}
+
+	return bActivateInitialPatternOnBeginPlay && InitialPatternAbility &&
+		AbilitySystemComponent->FindAbilitySpecFromClass(InitialPatternAbility) != nullptr;
 }
 
 void ANF_BossBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -679,7 +700,7 @@ void ANF_BossBase::ApplySubmergedPresentation()
 	if (BossSkeletalMesh)
 	{
 		BossSkeletalMesh->SetVisibility(!bIsSubmerged, true);
-		BossSkeletalMesh->SetCollisionEnabled(bIsSubmerged ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryAndPhysics);
+		BossSkeletalMesh->SetCollisionEnabled(bIsSubmerged ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryOnly);
 	}
 }
 

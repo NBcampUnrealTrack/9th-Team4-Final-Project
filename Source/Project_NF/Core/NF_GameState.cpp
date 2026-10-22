@@ -1,8 +1,11 @@
 ﻿#include "Core/NF_GameState.h"
 
 #include "NF_BuildShopAccessPolicy.h"
+#include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/State/NF_PlayerState.h"
+#include "UI/SubSystem/NF_UIManagerSubsystem.h"
 
 ANF_GameState::ANF_GameState()
 {
@@ -144,4 +147,26 @@ void ANF_GameState::OnRep_KeyPublicState()
 {
 	const FNF_KeyPublicState PublishedState = KeyPublicState;
 	OnKeyPublicStateChanged.Broadcast(PublishedState);
+}
+
+void ANF_GameState::MulticastShowAnnouncement_Implementation(const FText& Message, const float Duration)
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	if (!IsValid(GameInstance))
+	{
+		return;
+	}
+
+	for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
+	{
+		if (!IsValid(LocalPlayer))
+		{
+			continue;
+		}
+
+		if (UNF_UIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>())
+		{
+			UIManager->ShowAnnouncement(Message, Duration);
+		}
+	}
 }

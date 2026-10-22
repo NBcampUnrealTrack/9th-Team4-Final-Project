@@ -18,12 +18,12 @@
 #include "PoseSearch/PoseSearchResult.h"
 #include "MotionWarpingComponent.h"
 #include "AnimationWarpingLibrary.h"
-#include "Kismet/GameplayStatics.h" // [추가]
 #include "Sound/SoundBase.h" // [추가]
 #include "HAL/IConsoleManager.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
+#include "Core/Audio/NF_AudioSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMotionMatching, Log, All);
 
@@ -1302,7 +1302,11 @@ void UMotionMatchingComponent::PlaySoundAtOwnerMesh(USoundBase* Sound, float Vol
 	const USkeletalMeshComponent* MeshComponent = OwnerCharacter->GetMesh();
 	if (IsValid(MeshComponent) == false) return;
 
-	UGameplayStatics::PlaySoundAtLocation(this, Sound, MeshComponent->GetComponentLocation(), VolumeMultiplier, 1.0f);
+	if (UNF_AudioSubsystem* AudioSubsystem = UNF_AudioSubsystem::Get(this))
+	{
+		AudioSubsystem->PlaySFXAtLocation(Sound, MeshComponent->GetComponentLocation(),
+			FRotator::ZeroRotator, VolumeMultiplier);
+	}
 }
 
 

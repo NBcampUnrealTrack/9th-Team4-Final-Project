@@ -72,6 +72,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Life|Health")
 	bool RetryPendingHealthZeroCheck();
 	
+	// Health가 0이 됐을 때 살아 있는 팀원이 있는지 확인하고 생존 상태 결정
+	bool HandleHealthReachedZero();
+	
+	// 팀원이 살아 있는지 확인
+	ENFTeammateCheckResult CheckAliveTeammate() const;
+	
+	// 팀원 정보를 몰라서 체력 0 판정을 기다리도록
+	bool MarkHealthZeroCheckPending();
+	
 	// 생존 상태 변경 알림
 	UPROPERTY(BlueprintAssignable, Category = "Life")
 	FOnPlayerLifeStateChanged OnLifeStateChanged;
@@ -88,9 +97,9 @@ protected:
 	// 컴포넌트가 종료될 때 기절 타이머 정리
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
-	// 기절 유지 시간 (테스트용 5초)
+	// 기절 유지 시간 (임시 30초)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Life|Downed", meta = (ClampMin = "0.1"))
-	float DownedDurationSeconds = 5.0f;
+	float DownedDurationSeconds = 30.0f;
 	
 	// 소생 시 Health를 회복시킬 GE
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Life|Revive")
@@ -117,9 +126,6 @@ private:
 	
 	// 팀 ID 배정 완료를 알림 받았는지 저장
 	bool bTeamAssignmentConfirmed = false;
-	
-	// 팀원이 살아 있는지 확인
-	ENFTeammateCheckResult CheckAliveTeammate() const;
 	
 	// 팀원 정보를 몰라서 체력 0 판정을 기다리고 있는지 저장
 	bool bPendingHealthZeroCheck = false;

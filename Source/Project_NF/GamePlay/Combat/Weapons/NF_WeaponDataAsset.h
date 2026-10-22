@@ -97,4 +97,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Projectile",
 		meta=(ClampMin="0.0", ClampMax="90.0", Units="deg"))
 	float SpreadAngleDegrees = 0.f;
+	
+	// 카메라 조준점 탐색용 스피어 트레이스 반지름. 0이면 라인 트레이스와 동일하게 동작한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Projectile",
+		meta=(ClampMin="0.0", Units="cm"))
+	float AimTraceRadius = 0.f;
 };

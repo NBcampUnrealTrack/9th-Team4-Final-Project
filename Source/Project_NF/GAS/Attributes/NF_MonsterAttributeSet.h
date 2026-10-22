@@ -13,10 +13,12 @@ struct FGameplayEffectModCallbackData;
     GAMEPLAYATTRIBUTE_VALUE_SETTER(PropertyName) \
     GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FNFOnMonsterDamaged,
 	float,
-	Damage);
+	Damage,
+	AActor*,
+	DamageSource);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(
 	FNFOnMonsterOutOfHealth);

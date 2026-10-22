@@ -6,6 +6,7 @@
 #include "NF_BossRegistrySubsystem.generated.h"
 
 class ANF_BossBase;
+class ANF_GameMode;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnActiveBossChanged, ANF_BossBase*);
 
@@ -21,7 +22,7 @@ public:
 	void RegisterBoss(ANF_BossBase* Boss);
 	void UnregisterBoss(ANF_BossBase* Boss);
 
-	/** Stores the boss system's callback for future Core integration. Does not invoke it. */
+	/** Registers the same UObject callback with Core. Success means both are connected. */
 	bool RegisterBossSpawnHandler(FNF_RequestBossSpawn Handler);
 	void UnregisterBossSpawnHandler(const UObject* HandlerOwner);
 
@@ -35,4 +36,5 @@ private:
 	TArray<TWeakObjectPtr<ANF_BossBase>> RegisteredBosses;
 	TWeakObjectPtr<ANF_BossBase> ActiveBoss;
 	FNF_RequestBossSpawn BossSpawnHandler;
+	TWeakObjectPtr<ANF_GameMode> SpawnGameMode;
 };
