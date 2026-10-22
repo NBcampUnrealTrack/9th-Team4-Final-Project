@@ -314,6 +314,12 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 
 	MonsterASC->CancelAllAbilities();
 
+	if (ANF_MonsterAIController* MonsterAIController =
+		Cast<ANF_MonsterAIController>(GetController()))
+	{
+		MonsterAIController->ClearCurrentTargetActor();
+	}
+
 	if (AAIController* MonsterAIController =
 		Cast<AAIController>(GetController()))
 	{
