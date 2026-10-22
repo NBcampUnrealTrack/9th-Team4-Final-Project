@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "GameplayEffectTypes.h"
 #include "GamePlay/Combat/Armor/NF_ArmorTypes.h"
 #include "NF_ArmorComponent.generated.h"
 
@@ -29,14 +30,22 @@ public:
 	UFUNCTION(BlueprintPure, Category="Armor|Hit Regions")
 	float GetAdditionalDefenseForSlot(ENF_ArmorSlot Slot) const;
 
+	UFUNCTION(BlueprintPure, Category="Armor")
+	float GetTotalBaseDefence() const;
+
+	/** Reapply equipment defence after equipment changes or ASC initialization. Server only. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Armor")
+	void RefreshArmorDefence();
+
+	void ClearArmorDefence();
+	
 	class USkeletalMeshComponent* GetHitMesh() const;
 
-	/** Match only the hit bone's name on the selected mesh; parents are not searched.
-	 * Missing or unmapped bones return Unknown and receive no armor defense. */
+	// physics asset 의 본 컨테이너
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Armor|Hit Regions")
 	TMap<FName, ENF_ArmorSlot> BoneToSlot;
 
-	/** None uses Character.GetMesh(). Set VisualMesh to use NF_Player's visible mesh. */
+	// 피격 판정을 담당하는 메시 이름 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Armor|Hit Regions")
 	FName HitMeshComponentName;
 
@@ -69,4 +78,6 @@ private:
 	FName GetSocketName(ENF_ArmorSlot Slot) const;
 	class ANF_ArmorBase* UnequipArmorInternal(ENF_ArmorSlot Slot);
 	bool bChangingArmor = false;
+	TWeakObjectPtr<class UAbilitySystemComponent> DefenceASC;
+	FActiveGameplayEffectHandle DefenceEffectHandle;
 };

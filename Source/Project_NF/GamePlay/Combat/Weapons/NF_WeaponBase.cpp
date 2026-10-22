@@ -114,6 +114,16 @@ float ANF_WeaponBase::GetRemainingFireDelay() const
 	return RemainingFireDelay;
 }
 
+FName ANF_WeaponBase::GetMuzzleSocketName() const
+{
+	return IsValid(WeaponData) ? WeaponData->MuzzleSocketName : GetDefault<UNF_WeaponDataAsset>()->MuzzleSocketName;
+}
+
+FName ANF_WeaponBase::GetScopeSocketName() const
+{
+	return IsValid(WeaponData) ? WeaponData->ScopeSocketName : GetDefault<UNF_WeaponDataAsset>()->ScopeSocketName;
+}
+
 FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) const
 {
 	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
@@ -140,6 +150,8 @@ FVector ANF_WeaponBase::GetFireDirection(const FTransform& MuzzleTransform) cons
 	// (카메라와 캐릭터 사이의 물체에 조준점이 걸리는 것을 방지, 시선 위이므로 크로스헤어 정렬은 유지)
 	const float StartOffset = FMath::Max(0.f, FVector::DotProduct(MuzzleLocation - ViewLocation, ViewDirection));
 	const FVector TraceStart = ViewLocation + ViewDirection * StartOffset;
+	const float AimTraceDistance = IsValid(WeaponData)
+		? WeaponData->AimTraceDistance : GetDefault<UNF_WeaponDataAsset>()->AimTraceDistance;
 	const FVector TraceEnd = TraceStart + ViewDirection * FMath::Max(AimTraceDistance, 1.f);
 
 	const float AimTraceRadius = IsValid(WeaponData) ? FMath::Max(WeaponData->AimTraceRadius, 0.f) : 0.f;
@@ -222,7 +234,7 @@ bool ANF_WeaponBase::FireProjectile()
 	if (GetRemainingFireDelay() > 0.f)
 		return false;
 
-	const FTransform MuzzleTransform = WeaponMeshComponent->GetSocketTransform(MuzzleSocketName,
+	const FTransform MuzzleTransform = WeaponMeshComponent->GetSocketTransform(GetMuzzleSocketName(),
 			RTS_World);
 	const FVector Forward = GetFireDirection(MuzzleTransform);
 
