@@ -16,6 +16,7 @@
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Monster/NF_MonsterItemDrop.h"
 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
@@ -304,6 +305,11 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 
 	bIsDead = true;
 	
+	if (HasAuthority())
+	{
+		SpawnMonsterDrops();
+	}
+	
 	OnMonsterDied.Broadcast(this);
 
 	MonsterASC->RemoveLooseGameplayTag(
@@ -364,6 +370,97 @@ void ANF_Monster::SetMonsterMoveSpeed(float NewMoveSpeed)
 FVector ANF_Monster::GetHomeLocation() const
 {
 	return HomeLocation;
+}
+
+void ANF_Monster::SpawnMonsterDrops()
+{
+	UWorld* World = GetWorld();
+	if (!World)	{ return; }
+
+	for (const FNF_MonsterDropEntry& DropEntry : DropEntries)
+	{
+		const float DropChance = FMath::Clamp(DropEntry.DropChance, 0.0f, 1.0f);
+		if (!DropEntry.DropActorClass || FMath::FRand() > DropChance)
+		{
+			continue;
+		}
+
+		FVector DropLocation;
+		if (!FindMonsterDropLocation(DropLocation))
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("Monster drop skipped because no ground was found. Monster=%s"),
+				*GetNameSafe(this));
+			continue;
+		}
+
+		const int32 MinimumQuantity = FMath::Max(DropEntry.MinQuantity, 1);
+		const int32 MaximumQuantity = FMath::Max(
+			DropEntry.MaxQuantity,
+			MinimumQuantity);
+		const int32 Quantity = FMath::RandRange(
+			MinimumQuantity,
+			MaximumQuantity);
+
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.Owner = this;
+		SpawnParameters.Instigator = this;
+		SpawnParameters.SpawnCollisionHandlingOverride =
+			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+
+		ANF_MonsterItemDrop* SpawnedDrop = World->SpawnActor<ANF_MonsterItemDrop>(
+			DropEntry.DropActorClass,
+			DropLocation,
+			FRotator::ZeroRotator,
+			SpawnParameters);
+
+		if (IsValid(SpawnedDrop))
+		{
+			SpawnedDrop->InitializeDrop(Quantity);
+		}
+	}
+}
+
+bool ANF_Monster::FindMonsterDropLocation(FVector& OutDropLocation) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const float RandomAngle = FMath::FRandRange(0.0f, 2.0f * PI);
+	const float RandomDistance = FMath::Sqrt(FMath::FRand()) * DropScatterRadius;
+	const FVector CandidateLocation = GetActorLocation() + FVector(
+		FMath::Cos(RandomAngle) * RandomDistance,
+		FMath::Sin(RandomAngle) * RandomDistance,
+		0.0f);
+
+	FCollisionObjectQueryParams ObjectQueryParams;
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+
+	FCollisionQueryParams QueryParams(
+		SCENE_QUERY_STAT(MonsterItemDropGroundTrace),
+		false,
+		this);
+
+	FHitResult GroundHit;
+	const FVector TraceStart = CandidateLocation + FVector(0.0f, 0.0f, 500.0f);
+	const FVector TraceEnd = CandidateLocation - FVector(0.0f, 0.0f, 2000.0f);
+
+	if (!World->LineTraceSingleByObjectType(
+		GroundHit,
+		TraceStart,
+		TraceEnd,
+		ObjectQueryParams,
+		QueryParams))
+	{
+		return false;
+	}
+
+	OutDropLocation = GroundHit.ImpactPoint + GroundHit.ImpactNormal * 5.0f;
+	return true;
 }
 
 void ANF_Monster::ApplyLandingDamage(
@@ -488,3 +585,4 @@ void ANF_Monster::ApplyLandingDamage(
 			-DamageAmount);
 	}
 }
+
