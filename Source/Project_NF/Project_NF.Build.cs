@@ -19,6 +19,7 @@ public class Project_NF : ModuleRules
 			"InputCore",
 			"EnhancedInput",
 			"AIModule",
+			"NavigationSystem", //@경환   몬스터	NavMesh를 위해 추가함
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
