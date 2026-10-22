@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
+#include "Data/Struct/NF_MatchResult.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "NF_MatchRules.h"
@@ -32,6 +34,8 @@ struct FNFMatchQueueEntry
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNFMatchStateChanged, ENFMatchState, NewState);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNFQueueCountChanged, int32, PlayerCount, int32, RequiredPlayers);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNFMatchmakingFailed, const FString&, Reason);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNFMatchCompleted, const FNF_MatchResult&, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNFMatchCleanupFinished, bool, bSuccess);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNFMatchTeamsAssigned, const TArray<FNFMatchTeamAssignment>&, Teams);
 
 /** Local matchmaking coordinator backed by a Steam OSS lobby session. */
@@ -94,6 +98,22 @@ public:
 	FString GetLocalMatchPlayerId() const;
 	bool HasDedicatedServerAllocation() const { return !PendingDedicatedServerAddress.IsEmpty(); }
 	void HandleDedicatedMatchAborted(const FString& Reason);
+	void HandleDedicatedMatchCompleted(const FNF_MatchResult& Result);
+
+	UFUNCTION(BlueprintPure, Category = "Matchmaking|Result")
+	FNF_MatchResult GetLastMatchResult() const { return LastMatchResult; }
+
+	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Result")
+	void RetryCompletedMatchCleanup();
+
+	UFUNCTION(BlueprintPure, Category = "Matchmaking|Result")
+	bool IsMatchCleanupPending() const { return bCompletionCleanupPending; }
+
+	UPROPERTY(BlueprintAssignable, Category = "Matchmaking|Result")
+	FNFMatchCompleted OnMatchCompleted;
+
+	UPROPERTY(BlueprintAssignable, Category = "Matchmaking|Result")
+	FNFMatchCleanupFinished OnMatchCleanupFinished;
 
 	UFUNCTION(BlueprintPure, Category = "Matchmaking")
 	ENFMatchState GetMatchState() const { return MatchState; }
@@ -117,6 +137,15 @@ public:
 	FNFMatchTeamsAssigned OnMatchTeamsAssigned;
 
 private:
+	bool TickCompletedMatchCleanup(float DeltaTime);
+	FTSTicker::FDelegateHandle CompletionCleanupTicker;
+	UPROPERTY(Transient)
+	FNF_MatchResult LastMatchResult;
+	bool bCompletionHandled = false;
+	bool bCompletionCleanupPending = false;
+	bool bCompletionCleanupFailed = false;
+	int32 CompletionCleanupAttempts = 0;
+	double NextCompletionCleanupAttempt = 0.0;
 	struct FPartyRecord
 	{
 		FString PartyId;
