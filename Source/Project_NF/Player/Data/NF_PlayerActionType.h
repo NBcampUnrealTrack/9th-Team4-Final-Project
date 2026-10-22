@@ -7,6 +7,7 @@ UENUM(BlueprintType)
 enum class ENF_PlayerActionType : uint8
 {
 	None UMETA(DisplayName = "None"),
+	MeleeAttack UMETA(DisplayName = "MeleeAttack"),
 	Fire UMETA(DisplayName = "Fire"),
 	StopFire UMETA(DisplayName = "StopFire"),
 	ZoomIn UMETA(DisplayName = "ZoomIn"),

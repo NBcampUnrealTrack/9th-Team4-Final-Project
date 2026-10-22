@@ -25,6 +25,7 @@ public:
 	{
 		if (IsValid(SendController) == false) return false;
 		if (IsValid(ThisPawn) == false) return false;
+		
 		if (ThisPawn->GetController() == SendController) return true;
 
 		return false;
