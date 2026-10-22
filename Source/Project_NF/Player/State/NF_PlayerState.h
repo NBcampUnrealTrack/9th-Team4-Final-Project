@@ -26,6 +26,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Player|Data")
 	TObjectPtr<UNF_PlayerDataAsset> NF_PlayerDataAsset;  
 	
+	
 	//Core
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Core|ID")
 	int32 NF_TeamID = INDEX_NONE;
@@ -37,6 +38,7 @@ public:
 	//GAS
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	bool SetNFTeamID(int32 NewTeamID);
+	
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|ASC")
 	TObjectPtr<UNF_AbilitySystemComponent> PlayerASC;

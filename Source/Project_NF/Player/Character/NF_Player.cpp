@@ -1,22 +1,21 @@
 #include "NF_Player.h"
 
 #include "AbilitySystemComponent.h"
-#include "NFGA_Death.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Component/MotionMatchingComponent.h"
-#include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
 #include "NFGA_MeleeAttack.h"
 #include "NF_PlayerStatusAttribute.h"
-#include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "Data/Interface/NF_InteractionInterface.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
 #include "GamePlay/Combat/Components/NF_PlayerLifeComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
+#include "GAS/Abilities/NFGA_PlayerDeath.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/Component/NF_CharacterMovementComponent.h"
 #include "Player/Controller/NF_PlayerController.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/State/NF_PlayerState.h"
@@ -24,8 +23,7 @@
 
 
 ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UMotionMatchingCharacterMovementComponent>
-		(ACharacter::CharacterMovementComponentName))
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UNF_CharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	//VisualMesh
 	VisualMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("VisualMesh"));
@@ -37,6 +35,7 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 		VisualMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		VisualMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		VisualMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		VisualMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	}
 	
 	
@@ -90,8 +89,6 @@ void ANF_Player::BindDelegate()
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerBindingSkill, OnSkillBind);
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnInteractBuildShop, OnEnablePlayerMovementFromType);
 }
-
-
 
 
 #pragma region OnTryAction
@@ -202,13 +199,19 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 	void ANF_Player::TryInteraction(APlayerController* SendController)
 	{
 		FHitResult TraceResult = GetActorFromLineTrace();
+		
+		//해당 수정 사항 제대로 검증 되는지 테스트하기
+		
 		ServerRPC_TryInteraction(SendController, TraceResult.GetActor());
+	
 	}
 
 	void ANF_Player::ServerRPC_TryInteraction_Implementation(APlayerController* SendController, AActor* TargetActor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ServerRPC_상호작용"));
-				
+	
+		if (UNF_PlayerActionDelegateSubsystem::IsControllerMatchedToThisPawn(SendController, this) == false) return;
+	
 		auto* NF_InteractionInterface = Cast<INF_InteractionInterface>(TargetActor);
 		if (NF_InteractionInterface == nullptr) return;
 				
@@ -320,6 +323,7 @@ UAbilitySystemComponent* ANF_Player::GetAbilitySystemComponent() const
 	return NF_PlayerState->GetAbilitySystemComponent();
 }
 
+
 void ANF_Player::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -349,35 +353,11 @@ void ANF_Player::InitAbilitySystem()
 
 void ANF_Player::OnOutOfHealthCpp()
 {
-	UKismetSystemLibrary::PrintString(this,
-									  (TEXT("Death 실행 예정")),
-									  true, true, FColor::Magenta, 10.0f);
-	
-	//TODO 지우님 관련 코드로 나중에 다시 정해 질 예정
-	/*if (NF_LifeComponent->check동료가있나없나() == Enum::동료있음) //➡️동료가 살았음
-	{
-		NF_LifeComponent->기절();
-		
-	}
-	
-	else if (NF_LifeComponent->check동료가있나없나() == Enum::동료없음) //➡️동료 없음
-	{
-		NF_LifeComponent->죽음();
-	}
-	
-	else if (NF_LifeComponent->check동료가있나없나() == Enum::Unknown)  //➡️보류
-	{
-		NF_LifeComponent->bPendingHealthZeroCheck = true;
-		
-		return;
-	}*/
-	
-	
-	GetAbilitySystemComponent()->TryActivateAbilityByClass(UNFGA_Death::StaticClass());	
-	
 	if (HasAuthority() == true)
 	{
-		NF_PlayerLifeComponent->StartHealthZeroDetection();
+		GetAbilitySystemComponent()->TryActivateAbilityByClass(UNFGA_PlayerDeath::StaticClass());
+		
+		NF_PlayerLifeComponent->HandleHealthReachedZero();
 		
 		APlayerState* KillerPlayerState = nullptr;
 		if (const ANF_PlayerState* VictimPlayerState = GetPlayerState<ANF_PlayerState>())
@@ -392,6 +372,7 @@ void ANF_Player::OnOutOfHealthCpp()
 			}
 		}
 
+		//TODO 명우님 요청 사항으로 주석 된 내용
 		/*if (UWorld* World = GetWorld())
 		{
 			if (auto* GameMode = World->GetAuthGameMode<ANF_GameMode>())

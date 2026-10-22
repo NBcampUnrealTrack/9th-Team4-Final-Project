@@ -7,6 +7,7 @@
 #include "Player/Data/NF_PlayerActionType.h"
 #include "NF_Player.generated.h"
 
+class UNF_PlayerDataAsset;
 class UNF_PlayerLifeComponent;
 enum class ENF_WeaponType : uint8;
 enum class ENF_BuildShopUIState : uint8;
@@ -75,7 +76,6 @@ protected:
 	
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
 	TObjectPtr<UNF_PlayerLifeComponent> NF_PlayerLifeComponent;
-	
 	
 	//TODO 데이터어셋화 하기
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
