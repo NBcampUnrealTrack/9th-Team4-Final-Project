@@ -83,7 +83,7 @@ void ANF_GameMode::BeginPlay()
 	
 	if (IsValid(EscapeComponent))
 	{
-		EscapeComponent->ValidateEscapeRequest.BindUObject(this, &ThisClass::ValidateEscapeRequest);
+		EscapeComponent->EvaluateEscapeRequest.BindUObject(this, &ThisClass::EvaluateEscapeRequest);
 		EscapeComponent->OnEscapeSucceeded.AddUObject(this, &ThisClass::NotifyEscapeSucceeded);
 		OnMatchCleanup.AddUObject(EscapeComponent.Get(), &UNF_EscapeComponent::CancelEscape);
 		OnMatchPlayerLeaving.AddUObject(EscapeComponent.Get(), &UNF_EscapeComponent::HandlePlayerLeaving);
@@ -162,7 +162,7 @@ void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (IsValid(EscapeComponent))
 	{
 		EscapeComponent->CancelEscape();
-		EscapeComponent->ValidateEscapeRequest.Unbind();
+		EscapeComponent->EvaluateEscapeRequest.Unbind();
 		EscapeComponent->OnEscapeSucceeded.RemoveAll(this);
 		OnMatchCleanup.RemoveAll(EscapeComponent.Get());
 		OnMatchPlayerLeaving.RemoveAll(EscapeComponent.Get());
@@ -713,53 +713,93 @@ void ANF_GameMode::NotifyEscapeRangeExited(ANF_EscapeZone* Zone, ANF_PlayerState
 	EscapeComponent->HandleRangeExited(Zone, PlayerState);
 }
 
-bool ANF_GameMode::ValidateEscapeRequest(ANF_EscapeZone* Zone, ANF_PlayerState* Requester, ANF_PlayerState*& OutHolder)
+FNF_EscapeValidationResult ANF_GameMode::EvaluateEscapeRequest(ANF_EscapeZone* Zone, ANF_PlayerState* Requester)
 {
-	OutHolder = nullptr;
+	FNF_EscapeValidationResult Result;
 
-	if (!HasAuthority() || bMatchFinalized || bMatchAborting || bMatchCleanupNotified) return false;
-	if (!IsValid(Zone) || Zone->GetWorld() != GetWorld() || !IsValid(Requester) || Requester->GetWorld() != GetWorld()) return false;
+	if (!HasAuthority() || bMatchFinalized || bMatchAborting || bMatchCleanupNotified) return Result;
+	if (!IsValid(Zone) || Zone->GetWorld() != GetWorld() || !IsValid(Requester) || Requester->GetWorld() != GetWorld()) return Result;
 
 	const ANF_GameState* NFGameState = GetNFGameState();
-	if (!IsValid(NFGameState) || NFGameState->GetMatchPhase() != ENF_MatchPhase::Escape) return false;
-	if (!IsValid(EscapeKeyComponent)) return false;
+	if (!IsValid(NFGameState) || NFGameState->GetMatchPhase() != ENF_MatchPhase::Escape) return Result;
+	if (!IsValid(EscapeKeyComponent)) return Result;
 
 	ANF_PlayerState* Holder = EscapeKeyComponent->GetKeyHolder();
-	if (!IsValid(Holder) || Holder->GetWorld() != GetWorld() || !NFGameState->PlayerArray.Contains(Holder)) return false;
-	if (!NFGameState->PlayerArray.Contains(Requester)) return false;
-	if (Holder->NF_TeamID <= 0 || Requester->NF_TeamID != Holder->NF_TeamID) return false;
+	if (!IsValid(Holder) || Holder->GetWorld() != GetWorld() || !NFGameState->PlayerArray.Contains(Holder)) return Result;
 
-	bool bFoundRequester = false;
-	bool bFoundHolder = false;
-	int32 TeamMemberCount = 0;
+	// 탈출 상호작용은 같은 팀원이 대신할 수 없으며 열쇠 보유자가 직접 요청해야 한다.
+	if (Requester != Holder || Holder->NF_TeamID <= 0) return Result;
 
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	TArray<ANF_PlayerState*> TeamMembers;
+	for (APlayerState* BasePlayerState : NFGameState->PlayerArray)
 	{
-		APlayerController* Controller = It->Get();
-		if (!IsValid(Controller)) continue;
-
-		ANF_PlayerState* Member = Controller->GetPlayerState<ANF_PlayerState>();
+		ANF_PlayerState* Member = Cast<ANF_PlayerState>(BasePlayerState);
 		if (!IsValid(Member) || Member->NF_TeamID != Holder->NF_TeamID) continue;
-		if (!NFGameState->PlayerArray.Contains(Member)) return false;
 
-		APawn* Pawn = Controller->GetPawn();
-		if (!IsValid(Pawn) || Pawn->GetController() != Controller || Member->GetPawn() != Pawn || !Zone->ContainsPawn(Pawn)) return false;
-
-		UAbilitySystemComponent* ASC = Member->GetAbilitySystemComponent();
-		if (!IsValid(ASC) || ASC->GetAvatarActor() != Pawn) return false;
-		if (ASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Dead)) return false;
-		if (ASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Downed)) return false;
-
-		bFoundRequester |= Member == Requester;
-		bFoundHolder |= Member == Holder;
-		++TeamMemberCount;
+		TeamMembers.Add(Member);
 	}
 
-	// 선택한 예시 정책: 2인 팀 모두 접속·생존·탈출 범위 유지.
-	if (TeamMemberCount != 2 || !bFoundRequester || !bFoundHolder) return false;
+	// 현재 매치 규칙은 2인 1팀이다.
+	if (TeamMembers.Num() != 2) return Result;
 
-	OutHolder = Holder;
-	return true;
+	ANF_PlayerState* Teammate = nullptr;
+	for (ANF_PlayerState* Member : TeamMembers)
+	{
+		if (Member != Holder)
+		{
+			Teammate = Member;
+			break;
+		}
+	}
+
+	if (!IsValid(Teammate)) return Result;
+
+	Result.Holder = Holder;
+	Result.Teammate = Teammate;
+
+	// 열쇠 보유자는 탈출 진행 내내 생존, 행동 가능, 범위 안 상태여야 한다.
+	UAbilitySystemComponent* HolderASC = Holder->GetAbilitySystemComponent();
+	if (!IsValid(HolderASC)) return FNF_EscapeValidationResult();
+	if (HolderASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Dead)) return FNF_EscapeValidationResult();
+	if (HolderASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Downed)) return FNF_EscapeValidationResult();
+
+	APawn* HolderPawn = Holder->GetPawn();
+	if (!IsValid(HolderPawn) || HolderASC->GetAvatarActor() != HolderPawn || !Zone->ContainsPawn(HolderPawn))
+	{
+		return FNF_EscapeValidationResult();
+	}
+
+	UAbilitySystemComponent* TeammateASC = Teammate->GetAbilitySystemComponent();
+	if (!IsValid(TeammateASC)) return FNF_EscapeValidationResult();
+
+	// 팀원이 사망했다면 Pawn과 범위 상태에 관계없이 20초 단독 탈출 규칙을 적용한다.
+	if (TeammateASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Dead))
+	{
+		Result.State = ENF_EscapeValidationState::SoloReady;
+		return Result;
+	}
+
+	// 다운은 사망으로 보지 않으며, 회복하거나 사망할 때까지 진행을 멈춘다.
+	if (TeammateASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Downed))
+	{
+		Result.State = ENF_EscapeValidationState::WaitingForTeammate;
+		return Result;
+	}
+
+	APawn* TeammatePawn = Teammate->GetPawn();
+	if (!IsValid(TeammatePawn) || TeammateASC->GetAvatarActor() != TeammatePawn)
+	{
+		return FNF_EscapeValidationResult();
+	}
+
+	if (!Zone->ContainsPawn(TeammatePawn))
+	{
+		Result.State = ENF_EscapeValidationState::WaitingForTeammate;
+		return Result;
+	}
+
+	Result.State = ENF_EscapeValidationState::TeamReady;
+	return Result;
 }
 
 bool ANF_GameMode::CanPlayerUseEscape(const ANF_PlayerState* PlayerState) const

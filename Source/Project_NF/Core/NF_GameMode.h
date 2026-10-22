@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
 #include "Core/NF_CoreIntegrationTypes.h"
+#include "Data/Struct/NF_EscapeState.h"
 #include "Data/Struct/NF_MatchResult.h"
 #include "NF_GameMode.generated.h"
 
@@ -152,7 +153,7 @@ public:
 	FNF_OnMatchCleanup OnMatchCleanup;
 
 private:
-	bool ValidateEscapeRequest(ANF_EscapeZone* Zone, ANF_PlayerState* Requester, ANF_PlayerState*& OutHolder);
+	FNF_EscapeValidationResult EvaluateEscapeRequest(ANF_EscapeZone* Zone, ANF_PlayerState* Requester);
 	bool CanPlayerUseEscape(const ANF_PlayerState* PlayerState) const;
 	void NotifyMatchCleanup();
 	void HandleInitialKeyAssignmentFailed(const FString& Reason);
