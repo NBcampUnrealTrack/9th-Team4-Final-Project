@@ -7,6 +7,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "NF_GASFunctionLibrary.generated.h"
 
+class UAbilityTask_PlayMontageAndWait;
+
 UCLASS()
 class PROJECT_NF_API UNF_GASFunctionLibrary : public UBlueprintFunctionLibrary
 {
@@ -14,6 +16,11 @@ class PROJECT_NF_API UNF_GASFunctionLibrary : public UBlueprintFunctionLibrary
 
 public:
 	static bool NF_InitAttributeSetDefaultsFromCurveTable(UAbilitySystemComponent* ASC, FName GroupName, int32 Level = 1, bool bFirstInit = true);
+	
+	static void NF_PlayMontageAndWaitWithEndAbility(UGameplayAbility* OwningAbility, UAnimMontage* MontageToPlay, FName StartSection = NAME_None);
+	
+	static UAbilityTask_PlayMontageAndWait* NF_PlayMontageAndWait(UGameplayAbility* OwningAbility, UAnimMontage* MontageToPlay,
+	bool bStopWhenAbilityEnds = true, FName StartSection = NAME_None);
 	
 	UFUNCTION(BlueprintCallable, Category = "NF_GASFunctionLibrary", meta = (DefaultToSelf = "TargetActor", AutoCreateRefTerm = "AbilityTagToUse"))
 	static void NF_TryAbility(AActor* TargetActor, const FGameplayTag& AbilityTagToUse);
@@ -36,7 +43,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF_GASFunctionLibrary", meta = (AutoCreateRefTerm = "GameplayTagContainer"))
 	static bool NF_RemoveLooseGameplayTagContainerFromActor(AActor* TargetActor, const FGameplayTagContainer& GameplayTagContainer, bool bShouldReplicate = false);
 	
-	
+
 private:
 	static AActor* CastFromContext(UObject* ContextObject);
 	

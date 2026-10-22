@@ -59,7 +59,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Player|Attribute")
 	FGameplayAttributeData Shield;
 	
-	
 	UFUNCTION()
 	void OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth);
 	
