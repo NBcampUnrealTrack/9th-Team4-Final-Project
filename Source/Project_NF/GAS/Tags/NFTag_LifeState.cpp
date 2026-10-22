@@ -13,4 +13,10 @@ namespace NFTag_LifeState
 		State_Life_Dead,
 		"State.Life.Dead",
 		"플레이어 사망 상태");
+	
+	// @Owner: 지우 | 2026-10-22
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(
+		Ability_Life_Downed,
+		"Ability.Life.Downed",
+		" 기절 상태 진입 시 실행하는 GA");
 }

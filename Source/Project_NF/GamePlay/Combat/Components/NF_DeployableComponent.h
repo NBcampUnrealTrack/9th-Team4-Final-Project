@@ -2,14 +2,17 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "GameplayTagContainer.h"
 #include "NF_DeployableComponent.generated.h"
+
+class UAbilitySystemComponent;
 
 // @Owner: 스킬 담당 (구현: Codex) | 2026-10-14
 // 목적: 설치물의 시작/유지/종료를 관리한다. 공격과 체력은 별도 컴포넌트로 조합한다.
 UENUM(BlueprintType)
 enum class ENF_DeploymentState : uint8 { NotStarted, Active, Ended };
 UENUM(BlueprintType)
-enum class ENF_DeploymentEndReason : uint8 { Manual, Expired, Destroyed, OwnerRemoved };
+enum class ENF_DeploymentEndReason : uint8 { Manual, Expired, Destroyed, OwnerRemoved, CasterTag };
 
 USTRUCT()
 struct FNF_DeploymentStatus
@@ -30,8 +33,16 @@ class PROJECT_NF_API UNF_DeployableComponent : public UActorComponent
 	GENERATED_BODY()
 public:
 	UNF_DeployableComponent();
+	// Pass the casting ability's ASC explicitly (including the separate skill test ASC).
+	void SetCasterAbilitySystem(UAbilitySystemComponent* ASC);
+	// @Owner: 이정준 (구현: Codex) | 2026-10-20
+	// Any matching tag on the caster ends this deployment. Empty preserves independent installations.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Deployable|Cancellation")
+	FGameplayTagContainer EndOnCasterTags;
 	// 공통 실행 액터가 Commit 이후 시작 순서를 소유한다.
 	void SetManagedStart(bool bManaged) { bManagedStart = bManaged; }
+	// Allow a cosmetic owner to finish its shutdown before destruction.
+	void SetMinimumDestroyDelay(float Seconds) { if (FMath::IsFinite(Seconds)) { DestroyDelay = FMath::Max(DestroyDelay, Seconds); } }
 	bool HasValidSettings() const { return FMath::IsFinite(Lifetime) && Lifetime >= 0.0f && FMath::IsFinite(DestroyDelay) && DestroyDelay > 0.0f; }
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Deployable")
@@ -64,6 +75,11 @@ protected:
 	bool bDisableOwnerCollisionOnEnd = true;
 
 private:
+	void BindCasterTags();
+	void UnbindCasterTags();
+	void HandleCasterTagChanged(FGameplayTag Tag, int32 Count);
+	TWeakObjectPtr<UAbilitySystemComponent> CasterAbilitySystem;
+	TMap<FGameplayTag, FDelegateHandle> CasterTagHandles;
 	bool bManagedStart = false;
 	UPROPERTY(ReplicatedUsing = OnRep_Status)
 	FNF_DeploymentStatus Status;

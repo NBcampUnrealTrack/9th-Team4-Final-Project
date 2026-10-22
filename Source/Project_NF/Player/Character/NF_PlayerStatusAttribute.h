@@ -20,7 +20,7 @@ public:
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxHealth);
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, Health);
 	
-	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxDefence);
+	//ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxDefence);
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, Defence);
 	
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxShield);
@@ -47,11 +47,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Player|Attribute")
 	FGameplayAttributeData Health;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_MaxDefence, Category = "Player|Attribute")
-	FGameplayAttributeData MaxDefence = 100.0f;	
+	/*UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_MaxDefence, Category = "Player|Attribute")
+	FGameplayAttributeData MaxDefence = 100.0f;	*/
 	
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Defence, Category = "Player|Attribute")
-	FGameplayAttributeData Defence;
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_Defence, Category = "Player|Attribute")
+	FGameplayAttributeData Defence = 0.0f;
 	
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxShield, Category = "Player|Attribute")
 	FGameplayAttributeData MaxShield = 100.0f;	
@@ -59,15 +59,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Player|Attribute")
 	FGameplayAttributeData Shield;
 	
-	
 	UFUNCTION()
 	void OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth);
 	
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldHealth);
 	
-	UFUNCTION()
-	void OnRep_MaxDefence(const FGameplayAttributeData& OldMaxDefence);
+	/*UFUNCTION()
+	void OnRep_MaxDefence(const FGameplayAttributeData& OldMaxDefence);*/
 	
 	UFUNCTION()
 	void OnRep_Defence(const FGameplayAttributeData& OldDefence);

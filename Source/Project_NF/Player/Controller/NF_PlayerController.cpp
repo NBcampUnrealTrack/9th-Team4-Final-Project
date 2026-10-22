@@ -1,5 +1,8 @@
 
 #include "NF_PlayerController.h"
+#include "Core/Match/NF_MatchmakingSubsystem.h"
+#include "Engine/GameInstance.h"
+
 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -123,6 +126,8 @@ void ANF_PlayerController::BindInputButton()
 	
 	
 	//Attack
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->MeleeAttack, ETriggerEvent::Started, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::MeleeAttack);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::Fire);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Completed, this, 
@@ -166,6 +171,8 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	
 	IsCombatAction(PlayerActionType);
 }
+
+
 	#pragma region Actions
 	void ANF_PlayerController::IsBuildShopAction(ENF_PlayerActionType PlayerActionType)
 	{
@@ -190,6 +197,12 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 
 	void ANF_PlayerController::IsCombatAction(ENF_PlayerActionType PlayerActionType)
 	{
+		if (PlayerActionType == ENF_PlayerActionType::MeleeAttack)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+	
 		if (PlayerActionType == ENF_PlayerActionType::Fire)
 		{
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
@@ -273,3 +286,14 @@ void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopTyp
 }
 
 #pragma endregion
+
+void ANF_PlayerController::ClientHandleMatchCompleted_Implementation(const FNF_MatchResult& Result)
+{
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UNF_MatchmakingSubsystem* Match = GI->GetSubsystem<UNF_MatchmakingSubsystem>())
+		{
+			Match->HandleDedicatedMatchCompleted(Result);
+		}
+	}
+}

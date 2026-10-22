@@ -7,6 +7,7 @@
 #include "Player/Data/NF_PlayerActionType.h"
 #include "NF_Player.generated.h"
 
+class UNF_PlayerDataAsset;
 class UNF_PlayerLifeComponent;
 enum class ENF_WeaponType : uint8;
 enum class ENF_BuildShopUIState : uint8;
@@ -36,12 +37,14 @@ public:
 	void OnTryAction(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	void OnSkillBind(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	
+	//TODO 데이터어셋화 하기
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
-	
 	UPROPERTY(EditAnywhere, Replicated)
 	ENF_WeaponType NF_WeaponType = ENF_WeaponType::Pistol;
 	
+	/*UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Equipment")
+	TObjectPtr<USkeletalMeshComponent> MeleeAttackMeshComponent;*/
 	
 protected:
 	virtual void PostInitializeComponents() override;
@@ -51,7 +54,8 @@ protected:
 	virtual void PossessedBy(AController* NewController) override;
 	
 	virtual void OnRep_PlayerState() override;
-
+	
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
 	TObjectPtr<USpringArmComponent> SpringArmComponent;
 	
@@ -73,9 +77,7 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
 	TObjectPtr<UNF_PlayerLifeComponent> NF_PlayerLifeComponent;
 	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|GameplayAbility")
-	TArray<TSubclassOf<class UGameplayAbility>> GameplayAbilityArray;
-	
+	//TODO 데이터어셋화 하기
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
 	float InteractionRange = 300.0f;
 	
@@ -83,9 +85,11 @@ private:
 	void BindDelegate();
 	
 #pragma region TryAction
-	void TryStartAttack();
+	void TryMeleeAttack();
 	
-	void TryStopAttack();
+	void TryStartFire();
+	
+	void TryStopFire();
 	
 	void TryZoom(ENF_PlayerActionType ActionType);
 	
@@ -119,9 +123,5 @@ private:
 	void OnOutOfShieldCpp();
 	
 	void InitAbilitySystem();
-	
-	void GiveDefaultAbility();
-	
-	void AddGameplayAbility();
 #pragma endregion
 };

@@ -12,6 +12,11 @@
 #include "BrainComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "CollisionQueryParams.h"
+#include "Engine/OverlapResult.h"
+#include "Engine/World.h"
+#include "GameFramework/Pawn.h"
+#include "Monster/NF_MonsterItemDrop.h"
 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
@@ -19,6 +24,10 @@ ANF_Monster::ANF_Monster()
 {
 	bReplicates = true;
 
+	// 2026-10-22 몬스터 Mesh 의 콜리전 설정 수정 요청
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	
 	MonsterASC =
 	CreateDefaultSubobject<UNF_AbilitySystemComponent>(
 		TEXT("MonsterASC"));
@@ -42,6 +51,13 @@ void ANF_Monster::BeginPlay()
 	Super::BeginPlay();
 
 	MonsterASC->InitAbilityActorInfo(this, this);
+	
+	//Attribute 변경 감지 연결
+	MonsterASC->GetGameplayAttributeValueChangeDelegate(
+	UNF_MonsterAttributeSet::GetMoveSpeedAttribute())
+	.AddUObject(
+		this,
+		&ANF_Monster::HandleMoveSpeedChanged);
 	
 	MonsterAttributeSet->OnMonsterDamaged.AddUniqueDynamic(
 		this,
@@ -71,6 +87,8 @@ void ANF_Monster::BeginPlay()
 		}
 	}
 	
+	SetMonsterMoveSpeed(MonsterAttributeSet->GetMoveSpeed());
+	
 	if (HasAuthority())
 	{
 		for (const TSubclassOf<UGameplayAbility>& AbilityClass
@@ -95,6 +113,8 @@ void ANF_Monster::BeginPlay()
 			}
 		}
 	}
+	
+	HomeLocation = GetActorLocation();
 }
 
 void ANF_Monster::ApplyBasicAttackHit()
@@ -235,12 +255,31 @@ void ANF_Monster::ApplyBasicAttackHit()
 		TargetHealthAfter);
 }
 
-void ANF_Monster::HandleMonsterDamaged(float Damage)
+void ANF_Monster::HandleMonsterDamaged(float Damage, AActor* DamageSource)
 {
-	if (!MonsterASC)
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster damage callback: Monster=%s / Source=%s / Controller=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(DamageSource),
+		*GetNameSafe(GetController()));
+
+	if (ANF_MonsterAIController* MonsterAIController =
+		Cast<ANF_MonsterAIController>(GetController()))
 	{
-		return;
+		MonsterAIController->ApplyDamageAggro(DamageSource);
 	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster damage aggro skipped: %s has no ANF_MonsterAIController."),
+			*GetNameSafe(this));
+	}
+	
+	if (!MonsterASC) { return; }
 
 	MonsterASC->AddLooseGameplayTag(
 		NFTag_Monster::State_Monster_HitReact);
@@ -264,10 +303,7 @@ void ANF_Monster::HandleMonsterDamaged(float Damage)
 
 void ANF_Monster::ClearHitReactState()
 {
-	if (!MonsterASC)
-	{
-		return;
-	}
+	if (!MonsterASC) { return; }
 
 	MonsterASC->RemoveLooseGameplayTag(
 		NFTag_Monster::State_Monster_HitReact);
@@ -281,12 +317,16 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 	TEXT("HandleMonsterOutOfHealth executed: %s"),
 	*GetName());
 	
-	if (bIsDead || !MonsterASC)
-	{
-		return;
-	}
+	if (bIsDead || !MonsterASC)	{ return; }
 
 	bIsDead = true;
+	
+	if (HasAuthority())
+	{
+		SpawnMonsterDrops();
+	}
+	
+	OnMonsterDied.Broadcast(this);
 
 	MonsterASC->RemoveLooseGameplayTag(
 		NFTag_Monster::State_Monster_HitReact);
@@ -295,6 +335,12 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 		NFTag_Monster::State_Monster_Dead);
 
 	MonsterASC->CancelAllAbilities();
+
+	if (ANF_MonsterAIController* MonsterAIController =
+		Cast<ANF_MonsterAIController>(GetController()))
+	{
+		MonsterAIController->ClearCurrentTargetActor();
+	}
 
 	if (AAIController* MonsterAIController =
 		Cast<AAIController>(GetController()))
@@ -317,3 +363,242 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 
 	SetLifeSpan(CorpseLifeSpan);
 }
+
+void ANF_Monster::HandleMoveSpeedChanged(
+	const FOnAttributeChangeData& Data)
+{
+	SetMonsterMoveSpeed(Data.NewValue);
+}
+
+void ANF_Monster::SetMonsterMoveSpeed(float NewMoveSpeed)
+{
+	UCharacterMovementComponent* MonsterMovementComponent =
+		GetCharacterMovement();
+
+	if (!MonsterMovementComponent)
+	{
+		return;
+	}
+
+	MonsterMovementComponent->MaxWalkSpeed = NewMoveSpeed;
+}
+
+FVector ANF_Monster::GetHomeLocation() const
+{
+	return HomeLocation;
+}
+
+void ANF_Monster::SpawnMonsterDrops()
+{
+	UWorld* World = GetWorld();
+	if (!World)	{ return; }
+
+	for (const FNF_MonsterDropEntry& DropEntry : DropEntries)
+	{
+		const float DropChance = FMath::Clamp(DropEntry.DropChance, 0.0f, 1.0f);
+		if (!DropEntry.DropActorClass || FMath::FRand() > DropChance)
+		{
+			continue;
+		}
+
+		FVector DropLocation;
+		if (!FindMonsterDropLocation(DropLocation))
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("Monster drop skipped because no ground was found. Monster=%s"),
+				*GetNameSafe(this));
+			continue;
+		}
+
+		const int32 MinimumQuantity = FMath::Max(DropEntry.MinQuantity, 1);
+		const int32 MaximumQuantity = FMath::Max(
+			DropEntry.MaxQuantity,
+			MinimumQuantity);
+		const int32 Quantity = FMath::RandRange(
+			MinimumQuantity,
+			MaximumQuantity);
+
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.Owner = this;
+		SpawnParameters.Instigator = this;
+		SpawnParameters.SpawnCollisionHandlingOverride =
+			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+
+		ANF_MonsterItemDrop* SpawnedDrop = World->SpawnActor<ANF_MonsterItemDrop>(
+			DropEntry.DropActorClass,
+			DropLocation,
+			FRotator::ZeroRotator,
+			SpawnParameters);
+
+		if (IsValid(SpawnedDrop))
+		{
+			SpawnedDrop->InitializeDrop(Quantity);
+		}
+	}
+}
+
+bool ANF_Monster::FindMonsterDropLocation(FVector& OutDropLocation) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	const float RandomAngle = FMath::FRandRange(0.0f, 2.0f * PI);
+	const float RandomDistance = FMath::Sqrt(FMath::FRand()) * DropScatterRadius;
+	const FVector CandidateLocation = GetActorLocation() + FVector(
+		FMath::Cos(RandomAngle) * RandomDistance,
+		FMath::Sin(RandomAngle) * RandomDistance,
+		0.0f);
+
+	FCollisionObjectQueryParams ObjectQueryParams;
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+
+	FCollisionQueryParams QueryParams(
+		SCENE_QUERY_STAT(MonsterItemDropGroundTrace),
+		false,
+		this);
+
+	FHitResult GroundHit;
+	const FVector TraceStart = CandidateLocation + FVector(0.0f, 0.0f, 500.0f);
+	const FVector TraceEnd = CandidateLocation - FVector(0.0f, 0.0f, 2000.0f);
+
+	if (!World->LineTraceSingleByObjectType(
+		GroundHit,
+		TraceStart,
+		TraceEnd,
+		ObjectQueryParams,
+		QueryParams))
+	{
+		return false;
+	}
+
+	OutDropLocation = GroundHit.ImpactPoint + GroundHit.ImpactNormal * 5.0f;
+	return true;
+}
+
+void ANF_Monster::ApplyLandingDamage(
+	const FVector& LandingLocation,
+	float DamageRadius,
+	float DamageMultiplier)
+{
+	if (!HasAuthority()) { return; }
+
+	if (!MonsterASC
+		|| !MonsterAttributeSet
+		|| !BasicAttackDamageEffect)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster leap damage failed: Damage setup is invalid."));
+
+		return;
+	}
+
+	UWorld* World = GetWorld();
+
+	if (!World)	{ return; }
+
+	const float SafeRadius = FMath::Max(DamageRadius, 0.0f);
+
+	if (SafeRadius <= 0.0f)	{ return; }
+
+	FCollisionObjectQueryParams ObjectQueryParams;
+
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
+
+	FCollisionQueryParams QueryParams(
+		SCENE_QUERY_STAT(MonsterLeapDamage),
+		false,
+		this);
+
+	TArray<FOverlapResult> OverlapResults;
+
+	const bool bFoundOverlap = World->OverlapMultiByObjectType(
+		OverlapResults,
+		LandingLocation,
+		FQuat::Identity,
+		ObjectQueryParams,
+		FCollisionShape::MakeSphere(SafeRadius),
+		QueryParams);
+
+	if (!bFoundOverlap)
+	{
+		UE_LOG(
+			LogTemp,
+			Log,
+			TEXT("Monster leap damage: No targets in range."));
+
+		return;
+	}
+
+	const float DamageAmount =
+		-MonsterAttributeSet->GetAttackPower()
+		* FMath::Max(DamageMultiplier, 0.0f);
+
+	TSet<UAbilitySystemComponent*> DamagedTargetASCs;
+
+	for (const FOverlapResult& OverlapResult : OverlapResults)
+	{
+		APawn* TargetPawn =
+			Cast<APawn>(OverlapResult.GetActor());
+
+		// 다른 몬스터·일반 Pawn은 제외하고 실제 플레이어만 피해 처리
+		if (!IsValid(TargetPawn)
+			|| !TargetPawn->IsPlayerControlled()) {	continue; }
+
+		IAbilitySystemInterface* TargetAbilitySystemInterface =
+			Cast<IAbilitySystemInterface>(TargetPawn);
+
+		if (!TargetAbilitySystemInterface)	{ continue;	}
+
+		UAbilitySystemComponent* TargetASC =
+			TargetAbilitySystemInterface->GetAbilitySystemComponent();
+
+		// 하나의 Player ASC에는 도약 1회당 피해를 한 번만 줌
+		if (!TargetASC
+			|| DamagedTargetASCs.Contains(TargetASC)) {	continue; }
+
+		FGameplayEffectContextHandle EffectContext =
+			MonsterASC->MakeEffectContext();
+
+		EffectContext.AddSourceObject(this);
+
+		FGameplayEffectSpecHandle EffectSpecHandle =
+			MonsterASC->MakeOutgoingSpec(
+				BasicAttackDamageEffect,
+				1.0f,
+				EffectContext);
+
+		if (!EffectSpecHandle.IsValid())
+		{
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("Monster leap damage failed: EffectSpec is invalid."));
+
+			continue;
+		}
+
+		EffectSpecHandle.Data->SetSetByCallerMagnitude(
+			NFTag_Monster::Data_Monster_Damage,
+			DamageAmount);
+
+		MonsterASC->ApplyGameplayEffectSpecToTarget(
+			*EffectSpecHandle.Data.Get(),
+			TargetASC);
+
+		DamagedTargetASCs.Add(TargetASC);
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster leap hit: %s / Damage: %.1f"),
+			*GetNameSafe(TargetPawn),
+			-DamageAmount);
+	}
+}
+

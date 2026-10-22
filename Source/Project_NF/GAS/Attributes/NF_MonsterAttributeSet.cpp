@@ -1,5 +1,6 @@
 #include "GAS/Attributes/NF_MonsterAttributeSet.h"
 #include "GameplayEffectExtension.h"
+#include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 
 void UNF_MonsterAttributeSet::GetLifetimeReplicatedProps(
@@ -139,5 +140,21 @@ void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
 		return;
 	}
 
-	OnMonsterDamaged.Broadcast(Damage);
+	AActor* DamageSource =
+	Data.EffectSpec.GetContext().GetOriginalInstigator();
+
+	if (!DamageSource)
+	{
+		DamageSource =
+			Data.EffectSpec.GetContext().GetEffectCauser();
+	}
+
+	// Player ASCs are owned by PlayerState in this project. AI target selection
+	// needs the possessed pawn, not the PlayerState actor from the effect context.
+	if (const APlayerState* PlayerState = Cast<APlayerState>(DamageSource))
+	{
+		DamageSource = PlayerState->GetPawn();
+	}
+
+	OnMonsterDamaged.Broadcast(Damage, DamageSource);
 }
