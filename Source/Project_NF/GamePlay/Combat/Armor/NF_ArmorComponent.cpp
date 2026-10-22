@@ -5,6 +5,11 @@
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
+#include "GAS/Effects/NFGE_ArmorDefence.h"
+#include "GAS/Tags/NFTag_Armor.h"
+#include "Player/Character/NF_PlayerStatusAttribute.h"
 
 UNF_ArmorComponent::UNF_ArmorComponent()
 {
@@ -107,6 +112,7 @@ bool UNF_ArmorComponent::EquipArmor(ANF_ArmorBase* NewArmor)
 	NewArmor->SetInstigator(Character);
 	NewArmor->ForceNetUpdate();
 	Character->ForceNetUpdate();
+	RefreshArmorDefence();
 	
 	return true;
 }
@@ -126,7 +132,67 @@ ENF_ArmorSlot UNF_ArmorComponent::ResolveHitRegion(FName BoneName) const
 float UNF_ArmorComponent::GetAdditionalDefenseForSlot(ENF_ArmorSlot Slot) const
 {
 	const ANF_ArmorBase* Armor = GetEquippedArmor(Slot);
-	return Armor ? Armor->GetAdditionalDefense() : 0.f;
+	return Armor ? Armor->GetAdditionalDefence() : 0.f;
+}
+
+float UNF_ArmorComponent::GetTotalBaseDefence() const
+{
+	float TotalBaseDefence = 0.f;
+	for (const ANF_ArmorBase* Armor : EquippedArmors)
+	{
+		if (IsValid(Armor) == false)
+			continue;
+
+		TotalBaseDefence += Armor->GetBaseDefence();
+	}
+
+	return TotalBaseDefence;
+}
+
+void UNF_ArmorComponent::ClearArmorDefence()
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority()) return;
+	if (DefenceASC.IsValid() && DefenceEffectHandle.IsValid())
+	{
+		DefenceASC->RemoveActiveGameplayEffect(DefenceEffectHandle);
+	}
+	DefenceEffectHandle.Invalidate();
+	DefenceASC.Reset();
+}
+
+void UNF_ArmorComponent::RefreshArmorDefence()
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority()) return;
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner(), true);
+	if (DefenceASC.Get() != ASC) ClearArmorDefence();
+	if (!IsValid(ASC) || ASC->GetAvatarActor() != GetOwner() || !ASC->GetSet<UNF_PlayerStatusAttribute>())
+	{
+		ClearArmorDefence();
+		return;
+	}
+
+	const float TotalDefence = GetTotalBaseDefence();
+	if (!FMath::IsFinite(TotalDefence) || TotalDefence <= 0.f)
+	{
+		ClearArmorDefence();
+		return;
+	}
+	if (DefenceEffectHandle.IsValid() && ASC->GetActiveGameplayEffect(DefenceEffectHandle))
+	{
+		ASC->UpdateActiveGameplayEffectSetByCallerMagnitude(
+			DefenceEffectHandle, NFTag_Armor::Data_Armor_BaseDefence, TotalDefence);
+		return;
+	}
+
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	Context.AddSourceObject(this);
+	FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(UNFGE_ArmorDefence::StaticClass(), 1.f, Context);
+	if (Spec.IsValid())
+	{
+		Spec.Data->SetSetByCallerMagnitude(NFTag_Armor::Data_Armor_BaseDefence, TotalDefence);
+		DefenceASC = ASC;
+		DefenceEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	}
 }
 
 USkeletalMeshComponent* UNF_ArmorComponent::GetHitMesh() const
@@ -166,7 +232,9 @@ ANF_ArmorBase* UNF_ArmorComponent::UnequipArmor(ENF_ArmorSlot Slot)
 	
 	TGuardValue<bool> ChangeGuard(bChangingArmor, true);
 	
-	return UnequipArmorInternal(Slot);
+	ANF_ArmorBase* Armor = UnequipArmorInternal(Slot);
+	RefreshArmorDefence();
+	return Armor;
 }
 
 ANF_ArmorBase* UNF_ArmorComponent::UnequipArmorInternal(ENF_ArmorSlot Slot)
@@ -191,6 +259,7 @@ void UNF_ArmorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
 		TGuardValue<bool> ChangeGuard(bChangingArmor, true);
+		ClearArmorDefence();
 		const TArray<TObjectPtr<ANF_ArmorBase>> Armors = MoveTemp(EquippedArmors);
 		for (ANF_ArmorBase* Armor : Armors)
 		{
