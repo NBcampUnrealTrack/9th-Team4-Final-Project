@@ -1,6 +1,5 @@
 #include "NF_Player.h"
 
-#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "NFGA_Death.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -8,6 +7,7 @@
 #include "Component/MotionMatchingComponent.h"
 #include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
+#include "NFGA_MeleeAttack.h"
 #include "NF_PlayerStatusAttribute.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "Data/Interface/NF_InteractionInterface.h"
@@ -67,6 +67,9 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//Equipment
 	NF_WeaponComponent = CreateDefaultSubobject<UNF_WeaponComponent>(TEXT("NF_WeaponComponent"));
 	NF_ArmorComponent = CreateDefaultSubobject<UNF_ArmorComponent>(TEXT("NF_ArmorComponent"));
+	/*MeleeAttackMeshComponent =CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeleeAttackMeshComponent"));
+	MeleeAttackMeshComponent->SetupAttachment(VisualMesh);
+	MeleeAttackMeshComponent->SetHiddenInGame(true);*/
 	
 	
 	//Life
@@ -89,20 +92,28 @@ void ANF_Player::BindDelegate()
 }
 
 
+
+
 #pragma region OnTryAction
 void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerActionType ActionType)
 {
 	if (UNF_PlayerActionDelegateSubsystem::IsControllerMatchedToThisPawn(SendController, this) == false) return;
 		
+	if (ActionType == ENF_PlayerActionType::MeleeAttack)
+	{
+		TryMeleeAttack();
+		return;
+	}
+	
 	if (ActionType == ENF_PlayerActionType::Fire)
 	{
-		TryStartAttack();
+		TryStartFire();
 		return;
 	}
 		
 	if (ActionType == ENF_PlayerActionType::StopFire)
 	{
-		TryStopAttack();
+		TryStopFire();
 		return;
 	}
 		
@@ -144,12 +155,16 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 }	
 
 	#pragma region TryAction Function
-	void ANF_Player::TryStartAttack()
+	void ANF_Player::TryMeleeAttack()
+	{
+		GetAbilitySystemComponent()->TryActivateAbilityByClass(UNFGA_MeleeAttack::StaticClass());	
+	}
+	void ANF_Player::TryStartFire()
 	{
 		UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, true);
 		NF_WeaponComponent->StartFire();
 	}
-	void ANF_Player::TryStopAttack()
+	void ANF_Player::TryStopFire()
 	{
 		NF_WeaponComponent->StopFire();
 		UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, false);
@@ -320,8 +335,8 @@ void ANF_Player::InitAbilitySystem()
 
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (IsValid(ASC) == false) return;
-
-	ASC->InitAbilityActorInfo(NF_PlayerState, this);
+	
+	NF_PlayerState->InitAbilitySystem(this);
 	
 	const UNF_PlayerStatusAttribute* PlayerStatusAttribute = ASC->GetSet<UNF_PlayerStatusAttribute>(); 
 	if (IsValid(PlayerStatusAttribute) == true)
@@ -329,36 +344,6 @@ void ANF_Player::InitAbilitySystem()
 		PlayerStatusAttribute->OnOutOfHealth.AddUniqueDynamic(this, &ThisClass::OnOutOfHealthCpp);  
 		PlayerStatusAttribute->OnOutOfShield.AddUniqueDynamic(this, &ThisClass::OnOutOfShieldCpp); 
 	}
-	
-	GiveDefaultAbility();
-}
-
-
-void ANF_Player::GiveDefaultAbility()
-{
-	if (HasAuthority() == true)
-	{
-		UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-		if (IsValid(ASC) == false) return;
-		
-		AddGameplayAbility();
-		
-		for (const auto& EachAbility : GameplayAbilityArray)
-		{
-			if (IsValid(EachAbility) == false) continue;
-			
-			if (ASC->FindAbilitySpecFromClass(EachAbility) == nullptr)
-			{
-				ASC->GiveAbility(FGameplayAbilitySpec(EachAbility));
-			}
-		}
-	}
-}
-
-
-void ANF_Player::AddGameplayAbility()
-{
-	GameplayAbilityArray.Add(UNFGA_Death::StaticClass());
 }
 
 
@@ -388,7 +373,7 @@ void ANF_Player::OnOutOfHealthCpp()
 	}*/
 	
 	
-	UNF_GASFunctionLibrary::NF_TryAbility(this, NFTag_Player::Player_Ability_Death);
+	GetAbilitySystemComponent()->TryActivateAbilityByClass(UNFGA_Death::StaticClass());	
 	
 	if (HasAuthority() == true)
 	{
