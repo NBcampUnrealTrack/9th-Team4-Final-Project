@@ -11,6 +11,7 @@
 #include "OnlineSubsystemUtils.h"
 #include "Core/Match/Lobby/NF_MatchLobbyPlayerController.h"
 #include "Player/State/NF_PlayerState.h"
+#include "Player/Controller/NF_PlayerController.h"
 #include "TimerManager.h"
 
 namespace
@@ -27,6 +28,11 @@ void UNF_DedicatedMatchSubsystem::Deinitialize()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DedicatedServerExitTimerHandle);
+		World->GetTimerManager().ClearTimer(SessionCleanupTimerHandle);
+		if (ANF_GameMode* GameMode = World->GetAuthGameMode<ANF_GameMode>())
+		{
+			if (GameMode->RequestMatchCompleted.IsBoundToObject(this)) GameMode->RequestMatchCompleted.Unbind();
+		}
 		if (DestroySessionCompleteHandle.IsValid())
 		{
 			if (IOnlineSubsystem* OSS = Online::GetSubsystem(World))
@@ -281,9 +287,40 @@ void UNF_DedicatedMatchSubsystem::TryApplyTeamAssignments()
 	UE_LOG(LogProject_NF, Display, TEXT("Applied lobby teams to all %d players."), ExpectedPlayerCount);
 }
 
+void UNF_DedicatedMatchSubsystem::HandleMatchCompleted(const FNF_MatchResult& Result)
+{
+	UWorld* World = GetWorld();
+	if (!World || World->GetNetMode() == NM_Client || bMatchCompletedHandled || bMatchAbortHandled ||
+		Result.Outcome != ENF_MatchOutcome::Victory || Result.EndReason != ENF_MatchEndReason::EscapeSucceeded ||
+		Result.WinningTeamId <= 0) return;
+
+	bMatchCompletedHandled = true;
+	CompletedResult = Result;
+	SubmittedPlayerStates.Reset();
+	SubmittedPlayerIds.Reset();
+	CurrentTeams.Reset();
+	ExpectedAssignmentSignature.Reset();
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (ANF_PlayerController* PC = Cast<ANF_PlayerController>(It->Get()))
+		{
+			PC->ClientHandleMatchCompleted(CompletedResult);
+		}
+		else if (ANF_MatchLobbyPlayerController* LobbyPC = Cast<ANF_MatchLobbyPlayerController>(It->Get()))
+		{
+			LobbyPC->ClientHandleMatchCompleted(CompletedResult);
+		}
+		else
+		{
+			UE_LOG(LogProject_NF, Error, TEXT("Match completion requires an NF player controller: %s"), *GetNameSafe(It->Get()));
+		}
+	}
+	BeginSessionCleanup();
+}
+
 void UNF_DedicatedMatchSubsystem::HandleMatchAbort(const FString& Reason)
 {
-	if (bMatchAbortHandled)
+	if (bMatchAbortHandled || bMatchCompletedHandled)
 	{
 		return;
 	}
@@ -306,6 +343,16 @@ void UNF_DedicatedMatchSubsystem::HandleMatchAbort(const FString& Reason)
 		}
 	}
 
+	BeginSessionCleanup();
+}
+
+void UNF_DedicatedMatchSubsystem::BeginSessionCleanup()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+	// Bound the wait even if the OSS accepts the request but never calls back.
+	World->GetTimerManager().SetTimer(SessionCleanupTimerHandle, this,
+		&ThisClass::HandleSessionCleanupTimeout, 10.0f, false);
 	IOnlineSessionPtr SessionInterface;
 	if (IOnlineSubsystem* OSS = Online::GetSubsystem(World))
 	{
@@ -327,6 +374,8 @@ void UNF_DedicatedMatchSubsystem::HandleMatchAbort(const FString& Reason)
 
 void UNF_DedicatedMatchSubsystem::HandleSessionDestroyed(FName SessionName, bool bWasSuccessful)
 {
+	if (SessionName != DedicatedMatchSessionName) return;
+	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(SessionCleanupTimerHandle);
 	if (IOnlineSubsystem* OSS = Online::GetSubsystem(GetWorld()))
 	{
 		if (IOnlineSessionPtr SessionInterface = OSS->GetSessionInterface(); SessionInterface.IsValid()
@@ -345,9 +394,10 @@ void UNF_DedicatedMatchSubsystem::HandleSessionDestroyed(FName SessionName, bool
 
 void UNF_DedicatedMatchSubsystem::ScheduleDedicatedServerExit()
 {
+	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(SessionCleanupTimerHandle);
 	if (!IsRunningDedicatedServer())
 	{
-		UE_LOG(LogProject_NF, Display, TEXT("Match abort handled; editor/listen server remains running."));
+		UE_LOG(LogProject_NF, Display, TEXT("Match conclusion handled; editor/listen server remains running."));
 		return;
 	}
 	if (UWorld* World = GetWorld())
@@ -363,4 +413,10 @@ void UNF_DedicatedMatchSubsystem::ExitDedicatedServer()
 	{
 		FPlatformMisc::RequestExit(false);
 	}
+}
+
+void UNF_DedicatedMatchSubsystem::HandleSessionCleanupTimeout()
+{
+	UE_LOG(LogProject_NF, Warning, TEXT("Dedicated session cleanup timed out; applying one-match-per-process exit policy."));
+	HandleSessionDestroyed(DedicatedMatchSessionName, false);
 }

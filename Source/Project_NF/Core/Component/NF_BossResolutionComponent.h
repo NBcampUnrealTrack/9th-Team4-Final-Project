@@ -6,6 +6,7 @@
 #include "Core/NF_CoreIntegrationTypes.h"
 #include "NF_BossResolutionComponent.generated.h"
 
+class ANF_BossBase;
 
  //서버에서 보스 처치 결과를 검증하고 한 번만 확정 및 처치 시 기여도 계산
 UCLASS(ClassGroup = (NF))
@@ -17,8 +18,8 @@ public:
 	UNF_BossResolutionComponent();
 
 	//보스 시스템이 전달한 처치 결과를 검증하고 확정
-	bool ResolveBossDefeat(const FNF_BossDefeatResult& DefeatResult);
-
+	bool ResolveBossDefeat(const FNF_BossDefeatResult& DefeatResult,const ANF_BossBase* ActiveBoss);
+	
 	bool IsBossDefeatResolved() const
 	{
 		return bBossDefeatResolved;
@@ -32,8 +33,8 @@ public:
 	FNF_OnBossDefeatResolved OnBossDefeatResolved;
 
 private:
-	bool ValidateDefeatResult(const FNF_BossDefeatResult& DefeatResult) const;
-
+	bool ValidateDefeatResult(const FNF_BossDefeatResult& DefeatResult,const ANF_BossBase* ActiveBoss) const;
+	
 	FNF_BossDefeatResult MakeConfirmedResult(const FNF_BossDefeatResult& DefeatResult) const;
 
 	bool bBossDefeatResolved = false;

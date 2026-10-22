@@ -127,7 +127,7 @@ void UNFGA_Movement::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 	if (ACharacter* Character = MovingCharacter.Get())
 	{
 		Character->OnActorHit.RemoveDynamic(this, &ThisClass::HandleBlockingHit);
-		if (bDashStarted && bStopVelocityOnEnd)
+		if (bDashStarted && (bStopVelocityOnEnd || (bWasCancelled && IsBlockedByEMP())))
 		{
 			// Explicit hard-stop also clears an impulse queued before the first movement tick.
 			Character->GetCharacterMovement()->ClearAccumulatedForces();

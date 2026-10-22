@@ -7,6 +7,7 @@
 
 class APlayerController;
 class AActor;
+class APlayerState;
 
 // @owner: 이정준 (구현: Codex) | 2026-10-15
 // 목적: 천리안/열쇠가 공유하는 수신자별 공개 목록. UObject 자체는 복제하지 않는다.
@@ -23,6 +24,11 @@ struct PROJECT_NF_API FNF_MinimapRevealMarker
 	FVector_NetQuantize WorldLocation = FVector::ZeroVector;
 	UPROPERTY(BlueprintReadOnly, Category = "Minimap")
 	ENF_MinimapRevealKind Kind = ENF_MinimapRevealKind::Clairvoyance;
+	// Team metadata only accompanies an authorized reveal snapshot; no extra enemy positions are sent.
+	UPROPERTY(BlueprintReadOnly, Category = "Minimap")
+	int32 PlayerTeamID = INDEX_NONE;
+	UPROPERTY(BlueprintReadOnly, Category = "Minimap")
+	TObjectPtr<APlayerState> PlayerState = nullptr;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_MinimapRevealsChanged);

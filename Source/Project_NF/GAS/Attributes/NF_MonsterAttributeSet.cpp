@@ -139,5 +139,14 @@ void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
 		return;
 	}
 
-	OnMonsterDamaged.Broadcast(Damage);
+	AActor* DamageSource =
+	Data.EffectSpec.GetContext().GetOriginalInstigator();
+
+	if (!DamageSource)
+	{
+		DamageSource =
+			Data.EffectSpec.GetContext().GetEffectCauser();
+	}
+
+	OnMonsterDamaged.Broadcast(Damage, DamageSource);
 }

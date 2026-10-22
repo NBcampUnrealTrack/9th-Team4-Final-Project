@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NF_MatchmakingSubsystem.h"
+#include "Kismet/GameplayStatics.h"
+#include "Misc/ConfigCacheIni.h"
+#include "HAL/PlatformTime.h"
 
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -147,6 +150,7 @@ void UNF_MatchmakingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UNF_MatchmakingSubsystem::Deinitialize()
 {
+	FTSTicker::GetCoreTicker().RemoveTicker(CompletionCleanupTicker);
 	if (PostLoadMapHandle.IsValid())
 	{
 		FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadMapHandle);
@@ -181,12 +185,14 @@ void UNF_MatchmakingSubsystem::HandlePostLoadMap(UWorld* LoadedWorld)
 
 bool UNF_MatchmakingSubsystem::CreateParty(const FString& LeaderId, FString& OutPartyId)
 {
+	if (bCompletionCleanupPending || bCompletionCleanupFailed) return false;
 	const FString LocalPlayerId = MakeLocalPlayerId();
 	if (!SessionInterface.IsValid() || LocalPlayerId.IsEmpty() || (!LeaderId.IsEmpty() && LeaderId != LocalPlayerId) || PlayerToParty.Contains(LocalPlayerId) || (MatchState != ENFMatchState::Ended && MatchState != ENFMatchState::Canceled) || SessionInterface->GetNamedSession(PartySessionName))
 	{
 		return false;
 	}
 
+	bCompletionHandled = false;
 	FPartyRecord Party;
 	Party.PartyId = FGuid::NewGuid().ToString(EGuidFormats::Digits);
 	Party.LeaderId = LocalPlayerId;
@@ -224,11 +230,13 @@ bool UNF_MatchmakingSubsystem::CreateParty(const FString& LeaderId, FString& Out
 
 bool UNF_MatchmakingSubsystem::JoinParty(const FString& PartyId, const FString& PlayerId)
 {
+	if (bCompletionCleanupPending || bCompletionCleanupFailed) return false;
 	const FString LocalPlayerId = MakeLocalPlayerId();
 	if (!SessionInterface.IsValid() || PartyId.IsEmpty() || LocalPlayerId.IsEmpty() || (!PlayerId.IsEmpty() && PlayerId != LocalPlayerId) || PlayerToParty.Contains(LocalPlayerId) || (MatchState != ENFMatchState::Ended && MatchState != ENFMatchState::Canceled) || SessionInterface->GetNamedSession(PartySessionName))
 	{
 		return false;
 	}
+	bCompletionHandled = false;
 	PendingPartyId = PartyId;
 	SessionSearch = MakeShared<FOnlineSessionSearch>();
 	SessionSearch->bIsLanQuery = false;
@@ -316,6 +324,7 @@ bool UNF_MatchmakingSubsystem::StartMatchmaking(const FString& PlayerId)
 
 bool UNF_MatchmakingSubsystem::StartMatchmakingInQueue(const FString& PlayerId, FName QueueId)
 {
+	if (bCompletionCleanupPending || bCompletionCleanupFailed) return false;
 	const FNFMatchQueueDefinition* QueueDefinition = MatchQueueDefinitions.Find(QueueId);
 	if (!QueueDefinition)
 	{
@@ -327,6 +336,7 @@ bool UNF_MatchmakingSubsystem::StartMatchmakingInQueue(const FString& PlayerId, 
 		return false;
 	}
 	ActiveQueueDefinition = *QueueDefinition;
+	bCompletionHandled = false;
 	if (!LocalPartyId.IsEmpty()) RefreshPartyRoster();
 
 	FNFMatchQueueEntry Entry;
@@ -507,11 +517,117 @@ FString UNF_MatchmakingSubsystem::GetLocalMatchPlayerId() const
 
 void UNF_MatchmakingSubsystem::HandleDedicatedMatchAborted(const FString& Reason)
 {
+	if (bCompletionHandled) return;
 	PendingMatchTeams.Reset();
 	PendingDedicatedServerAddress.Reset();
 	bTeamsAssigned = false;
 	CancelMatchmaking(MakeLocalPlayerId());
 	OnMatchmakingFailed.Broadcast(Reason);
+}
+
+void UNF_MatchmakingSubsystem::HandleDedicatedMatchCompleted(const FNF_MatchResult& Result)
+{
+	if (bCompletionHandled || Result.Outcome != ENF_MatchOutcome::Victory ||
+		Result.EndReason != ENF_MatchEndReason::EscapeSucceeded || Result.WinningTeamId <= 0) return;
+	bCompletionHandled = true;
+	bCompletionCleanupPending = true;
+	LastMatchResult = Result;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(QueueTimeoutTimerHandle);
+		World->GetTimerManager().ClearTimer(LobbyRefreshTimerHandle);
+		World->GetTimerManager().ClearTimer(PartyRefreshTimerHandle);
+		World->GetTimerManager().ClearTimer(LobbySearchRetryTimerHandle);
+	}
+	PendingMatchTeams.Reset();
+	PendingDedicatedServerAddress.Reset();
+	QueueEntries.Reset();
+	Parties.Reset();
+	PlayerToParty.Reset();
+	PlayerPartyId.Reset();
+	PlayerPartyLeaderId.Reset();
+	PlayerQueueJoinTime.Reset();
+	MatchMemberPartyIds.Reset();
+	PreviousMatchMembers.Reset();
+	LocalPartyId.Reset();
+	PendingPartyId.Reset();
+	PendingPartyLeaderId.Reset();
+	LobbyOwnerId.Reset();
+	MatchQueueStartUtc.Reset();
+	QueueDeadline = FDateTime();
+	SessionSearch.Reset();
+	bTeamsAssigned = false;
+	bIsLobbyLeader = false;
+	bMatchLobbyAdmissionClosed = false;
+	bJoiningPartyMatchInvite = false;
+	bCreateSessionInFlight = false;
+	QueuedPlayerCount = 0;
+	SetMatchState(ENFMatchState::Ended);
+	OnQueueCountChanged.Broadcast(0, ActiveQueueDefinition.PlayerCount);
+	OnMatchCompleted.Broadcast(LastMatchResult);
+	// The Core ticker survives the world change; session cleanup must not use a world timer.
+	RetryCompletedMatchCleanup();
+	FString MenuMap;
+	GConfig->GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GameDefaultMap"), MenuMap, GEngineIni);
+	const FString MenuPackage = FSoftObjectPath(MenuMap).GetLongPackageName();
+	if (!MenuPackage.IsEmpty())
+	{
+		UGameplayStatics::OpenLevel(this, FName(*MenuPackage), true);
+	}
+	else
+	{
+		UE_LOG(LogProject_NF, Error, TEXT("Normal match return requires a configured GameDefaultMap."));
+	}
+}
+
+void UNF_MatchmakingSubsystem::RetryCompletedMatchCleanup()
+{
+	if (!bCompletionHandled || CompletionCleanupTicker.IsValid()) return;
+	bCompletionCleanupPending = true;
+	bCompletionCleanupFailed = false;
+	CompletionCleanupAttempts = 0;
+	NextCompletionCleanupAttempt = 0.0;
+	CompletionCleanupTicker = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &ThisClass::TickCompletedMatchCleanup), 1.0f);
+}
+
+bool UNF_MatchmakingSubsystem::TickCompletedMatchCleanup(float DeltaTime)
+{
+	const bool bHasMatch = SessionInterface.IsValid() && SessionInterface->GetNamedSession(MatchSessionName);
+	const bool bHasParty = SessionInterface.IsValid() && SessionInterface->GetNamedSession(PartySessionName);
+	if (!bHasMatch && !bHasParty)
+	{
+		bCompletionCleanupPending = false;
+		CompletionCleanupTicker.Reset();
+		OnMatchCleanupFinished.Broadcast(true);
+		return false;
+	}
+	const double Now = FPlatformTime::Seconds();
+	if (Now < NextCompletionCleanupAttempt) return true;
+	if (CompletionCleanupAttempts >= 3)
+	{
+		bCompletionCleanupPending = false;
+		bCompletionCleanupFailed = true;
+		CompletionCleanupTicker.Reset();
+		UE_LOG(LogProject_NF, Warning, TEXT("Normal match session cleanup failed/timed out. RetryCompletedMatchCleanup is required before requeueing."));
+		OnMatchCleanupFinished.Broadcast(false);
+		return false;
+	}
+	++CompletionCleanupAttempts;
+	NextCompletionCleanupAttempt = Now + 10.0;
+	// Observe actual named-session removal, including when completion callbacks are lost.
+	// Never overlap a destroy already in progress; a stuck operation times out above.
+	for (FName Name : { MatchSessionName, PartySessionName })
+	{
+		if (SessionInterface->GetNamedSession(Name) && SessionInterface->GetSessionState(Name) != EOnlineSessionState::Destroying)
+		{
+			if (!SessionInterface->DestroySession(Name))
+			{
+				UE_LOG(LogProject_NF, Warning, TEXT("Normal match cleanup request rejected: %s"), *Name.ToString());
+			}
+		}
+	}
+	return true;
 }
 
 void UNF_MatchmakingSubsystem::PublishMatchTeamsAssigned(const TArray<FNFMatchTeamAssignment>& Teams)
@@ -563,6 +679,7 @@ void UNF_MatchmakingSubsystem::RecalculateQueue()
 
 void UNF_MatchmakingSubsystem::HandleQueueTimeout()
 {
+	if (bCompletionHandled) return;
 	if (MatchState == ENFMatchState::Queueing || MatchState == ENFMatchState::LobbyWaiting)
 	{
 		OnMatchmakingFailed.Broadcast(TEXT("이 플레이어(또는 파티)가 대기열 참가 후 3분 내에 8명이 모이지 않아 매칭이 취소되었습니다."));
@@ -572,6 +689,7 @@ void UNF_MatchmakingSubsystem::HandleQueueTimeout()
 
 void UNF_MatchmakingSubsystem::HandleCreateSessionComplete(FName SessionName, bool bWasSuccessful)
 {
+	if (bCompletionHandled) return;
 	if (SessionName != MatchSessionName && SessionName != PartySessionName)
 	{
 		return;
@@ -622,6 +740,7 @@ void UNF_MatchmakingSubsystem::HandleCreateSessionComplete(FName SessionName, bo
 
 void UNF_MatchmakingSubsystem::HandleJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
+	if (bCompletionHandled) return;
 	if ((SessionName == MatchSessionName || SessionName == PartySessionName) && SessionInterface.IsValid())
 	{
 		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteHandle);
@@ -714,6 +833,7 @@ void UNF_MatchmakingSubsystem::HandleDestroySessionComplete(FName SessionName, b
 
 void UNF_MatchmakingSubsystem::HandleLobbyMemberJoined(FName SessionName, const FUniqueNetId& MemberId)
 {
+	if (bCompletionHandled) return;
 	if (SessionName == PartySessionName)
 	{
 		RefreshPartyRoster();
@@ -728,6 +848,7 @@ void UNF_MatchmakingSubsystem::HandleLobbyMemberJoined(FName SessionName, const 
 
 void UNF_MatchmakingSubsystem::HandleLobbyMemberLeft(FName SessionName, const FUniqueNetId& MemberId, EOnSessionParticipantLeftReason Reason)
 {
+	if (bCompletionHandled) return;
 	if (SessionName == PartySessionName)
 	{
 		if (MatchState == ENFMatchState::Queueing || MatchState == ENFMatchState::LobbyWaiting)
@@ -810,6 +931,7 @@ void UNF_MatchmakingSubsystem::BeginLobbySearchOrCreate()
 
 void UNF_MatchmakingSubsystem::HandleFindSessionsComplete(bool bWasSuccessful)
 {
+	if (bCompletionHandled) return;
 	if (!SessionInterface.IsValid())
 	{
 		return;
@@ -921,12 +1043,14 @@ void UNF_MatchmakingSubsystem::HandleFindSessionsComplete(bool bWasSuccessful)
 
 void UNF_MatchmakingSubsystem::HandleSessionInviteAccepted(const bool bWasSuccessful, const int32 LocalUserNum, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult& InviteResult)
 {
+	if (bCompletionCleanupPending || bCompletionCleanupFailed) return;
 	if (!bWasSuccessful || !SessionInterface.IsValid())
 	{
 		OnMatchmakingFailed.Broadcast(TEXT("Steam 초대를 확인하지 못했습니다."));
 		return;
 	}
 	FString LobbyKind;
+	bCompletionHandled = false;
 	FString PartyId;
 	FString PartyLeaderId;
 	InviteResult.Session.SessionSettings.Get(LobbyKindKey, LobbyKind);
@@ -1108,6 +1232,7 @@ void UNF_MatchmakingSubsystem::InvitePartyMembersToMatchLobby()
 
 void UNF_MatchmakingSubsystem::RefreshPartyRoster()
 {
+	if (bCompletionHandled) return;
 	const uint64 PartyLobbyId = GetSteamLobbyId(SessionInterface, PartySessionName);
 	FPartyRecord* Party = Parties.Find(LocalPartyId);
 	if (!Party || PartyLobbyId == 0 || !SteamMatchmaking())
@@ -1157,6 +1282,7 @@ void UNF_MatchmakingSubsystem::RefreshPartyRoster()
 
 void UNF_MatchmakingSubsystem::RefreshLobbyPlayerCount()
 {
+	if (bCompletionHandled) return;
 	if (!SessionInterface.IsValid())
 	{
 		return;

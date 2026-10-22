@@ -9,6 +9,8 @@
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
 #include "Blueprint/UserWidget.h"
+#include "UI/SubSystem/NF_UIManagerSubsystem.h"
+#include "UI/Widget/NF_MatchmakingWidget.h"
 #include "Project_NF.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
@@ -30,21 +32,17 @@ void ANF_MatchLobbyPlayerController::BeginPlay()
 		}
 	}
 
-	// Temporarily disabled so dedicated-server gameplay testing uses the normal game input.
-	// if (IsLocalPlayerController())
-	// {
-	// 	MatchmakingWidget = CreateWidget<UNF_MatchmakingWidget>(this, UNF_MatchmakingWidget::StaticClass());
-	// 	if (MatchmakingWidget)
-	// 	{
-	// 		MatchmakingWidget->AddToPlayerScreen(10);
-	// 		bShowMouseCursor = true;
-	// 		FInputModeGameAndUI InputMode;
-	// 		InputMode.SetWidgetToFocus(MatchmakingWidget->TakeWidget());
-	// 		InputMode.SetHideCursorDuringCapture(false);
-	// 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	// 		SetInputMode(InputMode);
-	// 	}
-	// }
+	if (IsLocalPlayerController())
+	{
+		ULocalPlayer* LocalPlayer = GetLocalPlayer();
+		UNF_UIManagerSubsystem* UIManager = IsValid(LocalPlayer)
+			? LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>() : nullptr;
+		if (IsValid(UIManager))
+		{
+			MatchmakingWidget = Cast<UNF_MatchmakingWidget>(UIManager->PushWidget(
+				UNF_MatchmakingWidget::StaticClass(), ENF_UIInputMode::GameAndUI, true, 10));
+		}
+	}
 }
 
 void ANF_MatchLobbyPlayerController::PostNetInit()
@@ -94,6 +92,17 @@ void ANF_MatchLobbyPlayerController::ClientHandleMatchAborted_Implementation(con
 		if (UNF_MatchmakingSubsystem* MatchmakingSubsystem = GameInstance->GetSubsystem<UNF_MatchmakingSubsystem>())
 		{
 			MatchmakingSubsystem->HandleDedicatedMatchAborted(Reason);
+		}
+	}
+}
+
+void ANF_MatchLobbyPlayerController::ClientHandleMatchCompleted_Implementation(const FNF_MatchResult& Result)
+{
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UNF_MatchmakingSubsystem* Match = GI->GetSubsystem<UNF_MatchmakingSubsystem>())
+		{
+			Match->HandleDedicatedMatchCompleted(Result);
 		}
 	}
 }

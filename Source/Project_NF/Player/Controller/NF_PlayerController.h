@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Data/Struct/NF_MatchResult.h"
 #include "GameFramework/PlayerController.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "Player/Data/NF_PlayerActionType.h"
@@ -23,6 +24,9 @@ class PROJECT_NF_API ANF_PlayerController : public APlayerController
 	GENERATED_BODY()
 	
 public:
+	UFUNCTION(Client, Reliable)
+	void ClientHandleMatchCompleted(const FNF_MatchResult& Result);
+
 	UFUNCTION(BlueprintCallable, Category = "NF|Minimap|Reveal")
 	UNF_MinimapRevealRegistry* GetMinimapRevealRegistry();
 
