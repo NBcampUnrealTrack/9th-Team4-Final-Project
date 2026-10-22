@@ -12,6 +12,8 @@
 #include "Player/State/NF_PlayerState.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
+#include "GAS/Tags/NFTag_Player.h"
+#include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 
 
 UNF_PlayerLifeComponent::UNF_PlayerLifeComponent()
@@ -199,6 +201,32 @@ bool UNF_PlayerLifeComponent::ChangeLifeState(ENFPlayerLifeState NewState)
 	// 변경된 생존 상태에 맞춰 태그 갱신
 	SyncLifeStateTags();
 	
+	// 기절 GA
+	UAbilitySystemComponent* ASC =
+		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+	
+	if (IsValid(ASC))
+	{
+		if (LifeState == ENFPlayerLifeState::Downed)
+		{
+			ASC->TryActivateAbilitiesByTag(FGameplayTagContainer(NFTag_LifeState::Ability_Life_Downed));
+		}
+		else
+		{
+			FGameplayTagContainer DownedABilityTag;
+			DownedABilityTag.AddTag(NFTag_LifeState::Ability_Life_Downed);
+			
+			ASC->CancelAbilities(&DownedABilityTag);
+		}
+	}
+	// 사망 상태가 확정되면 Death GA 실행 요청
+	if (LifeState == ENFPlayerLifeState::Dead)
+	{
+		UNF_GASFunctionLibrary::NF_TryAbility(
+			GetOwner(),
+			NFTag_Player::Player_Ability_Death);
+	}
+	
 	// 서버에서 생존 상태 변경 알림
 	OnLifeStateChanged.Broadcast(LifeState);
 	
@@ -351,6 +379,40 @@ bool UNF_PlayerLifeComponent::RetryPendingHealthZeroCheck()
 	
 	// 살아 있는 팀원이 없다면 Dead로 전환
 	return EnterDead();
+}
+
+bool UNF_PlayerLifeComponent::HandleHealthReachedZero()
+{
+	// 생존 상태는 서버에서만 결정
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return false;
+	}
+	
+	// 이미 기절 또는 사망 상태면 다시 판정x
+	if (LifeState != ENFPlayerLifeState::Alive)
+	{
+		return false;
+	}
+	
+	// 살아 있는 팀원이 있는지 확인
+	switch (CheckAliveTeammate())
+	{
+	case ENFTeammateCheckResult::AliveTeammate:
+		// 살아있는 팀원이 있으면 기절로
+		return EnterDowned();
+	
+	case ENFTeammateCheckResult::NoAliveTeammate:
+		// 없으면 사망
+		return EnterDead();
+		
+	case ENFTeammateCheckResult::Unknown:
+		// 팀원 정보를 아직 확인할 수 없으면 판정 보류
+		return MarkHealthZeroCheckPending();
+		
+	default:
+		return false;
+	}
 }
 
 // 팀원의 생존 상태를 확인
