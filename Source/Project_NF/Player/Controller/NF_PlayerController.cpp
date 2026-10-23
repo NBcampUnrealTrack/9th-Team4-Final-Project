@@ -143,6 +143,8 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomIn);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Canceled, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
 	
 	
 	
