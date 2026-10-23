@@ -29,6 +29,9 @@ void UNF_WeaponComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (IsValid(Config) == false)
+		return;
+	
 	if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
 	{
 		OwnerPawn->ReceiveControllerChangedDelegate.AddDynamic(this, &ThisClass::OnPawnControllerChanged);
