@@ -6,6 +6,7 @@
 #include "NF_WeaponComponent.generated.h"
 
 class ANF_WeaponBase;
+class UNF_WeaponComponentConfigDataAsset;
 class UAbilitySystemComponent;
 class UNFGA_WeaponFire;
 class UNFGA_WeaponZoom;
@@ -63,12 +64,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
 	void CancelReload();
-
-	/** Server only. Replaces the current weapon without destroying it; save it before calling if needed. */
+	
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
 	bool EquipWeapon(ANF_WeaponBase* NewWeapon);
-
-	/** Server only. Stops combat and returns the detached weapon. Caller owns disposal/rollback. */
+	
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
 	ANF_WeaponBase* UnequipWeapon();
 
@@ -76,24 +75,11 @@ public:
 	ANF_WeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
 
 protected:
-	// 기본값으로 BP_Weapon_Pistol을 지정
-	UPROPERTY(EditDefaultsOnly, Category="Weapon")
-	TSubclassOf<ANF_WeaponBase> DefaultWeaponClass;
-
-	UPROPERTY(EditDefaultsOnly, Category="Weapon")
-	FName WeaponSocketName = TEXT("WeaponSocket_R");
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	TObjectPtr<UNF_WeaponComponentConfigDataAsset> Config;
 
 	UPROPERTY(ReplicatedUsing=OnRep_EquippedWeapon, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<ANF_WeaponBase> EquippedWeapon;
-
-	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
-	TSubclassOf<UNFGA_WeaponFire> FireAbilityClass;
-
-	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
-	TSubclassOf<UNFGA_WeaponZoom> ZoomAbilityClass;
-
-	UPROPERTY(EditDefaultsOnly, Category="Weapon|Abilities")
-	TSubclassOf<UNFGA_WeaponReload> ReloadAbilityClass;
 
 private:
 	friend class UNFGA_WeaponZoom;

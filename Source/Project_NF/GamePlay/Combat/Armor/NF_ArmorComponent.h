@@ -6,6 +6,8 @@
 #include "GamePlay/Combat/Armor/NF_ArmorTypes.h"
 #include "NF_ArmorComponent.generated.h"
 
+class UNF_ArmorComponentConfigDataAsset;
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PROJECT_NF_API UNF_ArmorComponent : public UActorComponent
 {
@@ -41,33 +43,38 @@ public:
 	
 	class USkeletalMeshComponent* GetHitMesh() const;
 
+	// Legacy migration values only; gameplay reads Config.
 	// physics asset 의 본 컨테이너
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Armor|Hit Regions")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
 	TMap<FName, ENF_ArmorSlot> BoneToSlot;
 
 	// 피격 판정을 담당하는 메시 이름 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Armor|Hit Regions")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
 	FName HitMeshComponentName;
 
 protected:
+	/** Assign before play; shared settings are read-only at runtime. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
+	TObjectPtr<UNF_ArmorComponentConfigDataAsset> Config;
+
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	UPROPERTY(EditDefaultsOnly, Category="Armor")
+	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
 	TArray<TSubclassOf<class ANF_ArmorBase>> DefaultArmorClasses;
 
 	/** False allows logical equipment without a mesh, bone or socket. */
-	UPROPERTY(EditDefaultsOnly, Category="Armor|Sockets")
+	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
 	bool bAttachArmorToSockets = false;
 
 	// 메시를 붙일 소켓 이름 (피격 부위 판정x)
-	UPROPERTY(EditDefaultsOnly, Category="Armor|Sockets")
+	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
 	FName HeadSocketName = TEXT("head");
 
-	UPROPERTY(EditDefaultsOnly, Category="Armor|Sockets")
+	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
 	FName UpperSocketName = TEXT("spine_03");
 
-	UPROPERTY(EditDefaultsOnly, Category="Armor|Sockets")
+	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
 	FName BottomSocketName = TEXT("pelvis");
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Armor")
