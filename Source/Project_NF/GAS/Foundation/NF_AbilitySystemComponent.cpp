@@ -25,11 +25,6 @@ void UNF_AbilitySystemComponent::BeginPlay()
 	OnActiveGameplayEffectAddedDelegateToSelf.AddUObject(this, &UNF_AbilitySystemComponent::OnGameplayEffectAdded);
 	
 	GetGameplayAttributeValueChangeDelegate(UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute()).AddUObject(this, &UNF_AbilitySystemComponent::OnCooldownReductionRateChanged);
-	
-	// test
-	const UNF_KeyHolderAttributeSet* KeyHolderSet = GetSet<UNF_KeyHolderAttributeSet>();
-	UE_LOG(LogTemp, Warning, TEXT("[KeyCooldown] KeyHolder AttributeSet: %s"),
-		KeyHolderSet ? TEXT("Registered") : TEXT("Missing"));
 }
 
 void UNF_AbilitySystemComponent::OnGameplayEffectAdded(UAbilitySystemComponent* TargetASC, const FGameplayEffectSpec& EffectSpec, FActiveGameplayEffectHandle ActiveHandle)
@@ -75,8 +70,6 @@ void UNF_AbilitySystemComponent::OnGameplayEffectAdded(UAbilitySystemComponent* 
 	const FString EffectName = GetNameSafe(EffectSpec.Def);
 	
 	ModifyActiveEffectStartTime(ActiveHandle, -ReductionSeconds);
-	UE_LOG(LogTemp, Warning, TEXT("[KeyCooldown] GE: %s, Base: %.2f, Rate: %.2f, Reduced: %.2f"),
-		*EffectName, BaseCooldown, ReductionRate, ReductionSeconds);
 }
 
 void UNF_AbilitySystemComponent::OnCooldownReductionRateChanged(const FOnAttributeChangeData& Data)
@@ -140,8 +133,6 @@ void UNF_AbilitySystemComponent::OnCooldownReductionRateChanged(const FOnAttribu
 		const FString EffectName = GetNameSafe(ActiveEffect->Spec.Def);
 		
 		ModifyActiveEffectStartTime(Handle, -ReductionSeconds);
-		UE_LOG(LogTemp, Warning, TEXT("[KeyCooldown] Existing GE: %s, Remaining: %.2f, Reduced: %.2f"),
-			*EffectName, RemainingCooldown, ReductionSeconds);
 	}
 }
 
