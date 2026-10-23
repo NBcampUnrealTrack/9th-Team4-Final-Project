@@ -1,4 +1,5 @@
 #include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
+#include "GamePlay/Combat/Armor/NF_ArmorComponentConfigDataAsset.h"
 #include "GamePlay/Combat/Armor/NF_ArmorBase.h"
 #include "GamePlay/Combat/Armor/NF_ArmorDataAsset.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -21,6 +22,9 @@ void UNF_ArmorComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (IsValid(Config) == false)
+		return;
+
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
 	
 	if (IsValid(Character) == false || Character->HasAuthority() == false)
@@ -28,7 +32,7 @@ void UNF_ArmorComponent::BeginPlay()
 
 	ConfigureProjectileCollision();
 
-	for (const TSubclassOf<ANF_ArmorBase>& ArmorClass : DefaultArmorClasses)
+	for (const TSubclassOf<ANF_ArmorBase>& ArmorClass : Config->DefaultArmorClasses)
 	{
 		if (ArmorClass == nullptr)
 			continue;
@@ -49,11 +53,14 @@ void UNF_ArmorComponent::BeginPlay()
 
 FName UNF_ArmorComponent::GetSocketName(ENF_ArmorSlot Slot) const
 {
+	if (IsValid(Config) == false)
+		return NAME_None;
+
 	switch (Slot)
 	{
-	case ENF_ArmorSlot::HeadArmor: return HeadSocketName;
-	case ENF_ArmorSlot::BodyArmor: return UpperSocketName;
-	case ENF_ArmorSlot::LegArmor: return BottomSocketName;
+	case ENF_ArmorSlot::HeadArmor: return Config->HeadSocketName;
+	case ENF_ArmorSlot::BodyArmor: return Config->UpperSocketName;
+	case ENF_ArmorSlot::LegArmor: return Config->BottomSocketName;
 	default: return NAME_None;
 	}
 }
@@ -70,6 +77,9 @@ ANF_ArmorBase* UNF_ArmorComponent::GetEquippedArmor(ENF_ArmorSlot Slot) const
 
 bool UNF_ArmorComponent::EquipArmor(ANF_ArmorBase* NewArmor)
 {
+	if (IsValid(Config) == false)
+		return false;
+
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
 	
 	if (IsValid(Character) == false || Character->HasAuthority() == false || bChangingArmor || 
@@ -92,7 +102,7 @@ bool UNF_ArmorComponent::EquipArmor(ANF_ArmorBase* NewArmor)
 	const ENF_ArmorSlot Slot = NewArmor->GetArmorSlot();
 	if (Slot != ENF_ArmorSlot::HeadArmor && Slot != ENF_ArmorSlot::BodyArmor && Slot != ENF_ArmorSlot::LegArmor) return false;
 	const FName SocketName = GetSocketName(Slot);
-	if (bAttachArmorToSockets && (!IsValid(Character->GetMesh()) || SocketName.IsNone() ||
+	if (Config->bAttachArmorToSockets && (!IsValid(Character->GetMesh()) || SocketName.IsNone() ||
 		!Character->GetMesh()->DoesSocketExist(SocketName)))
 		return false;
 	
@@ -100,10 +110,12 @@ bool UNF_ArmorComponent::EquipArmor(ANF_ArmorBase* NewArmor)
 		return true;
 
 	TGuardValue<bool> ChangeGuard(bChangingArmor, true);
-	if (bAttachArmorToSockets && !NewArmor->AttachToComponent(Character->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName))
+	if (Config->bAttachArmorToSockets && !NewArmor->AttachToComponent(Character->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName))
 		return false;
-	if (!bAttachArmorToSockets) NewArmor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	
+	if (Config->bAttachArmorToSockets == false)
+	{
+		NewArmor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
 
 	UnequipArmorInternal(Slot);
 	EquippedArmors.RemoveAll([](const TObjectPtr<ANF_ArmorBase>& Armor) { return !IsValid(Armor.Get()); });
@@ -119,13 +131,14 @@ bool UNF_ArmorComponent::EquipArmor(ANF_ArmorBase* NewArmor)
 
 ENF_ArmorSlot UNF_ArmorComponent::ResolveHitRegion(FName BoneName) const
 {
-	if (BoneName.IsNone()) return ENF_ArmorSlot::Unknown;
+	if (IsValid(Config) == false || BoneName.IsNone())
+		return ENF_ArmorSlot::Unknown;
+	
 	const USkeletalMeshComponent* HitMesh = GetHitMesh();
-	if (!IsValid(HitMesh) || HitMesh->GetBoneIndex(BoneName) == INDEX_NONE)
+	if (IsValid(HitMesh) == false || HitMesh->GetBoneIndex(BoneName) == INDEX_NONE)
 		return ENF_ArmorSlot::Unknown;
 
-	// Only explicitly mapped hit bones receive a region; parents do not provide coverage.
-	const ENF_ArmorSlot* Slot = BoneToSlot.Find(BoneName);
+	const ENF_ArmorSlot* Slot = Config->BoneToSlot.Find(BoneName);
 	return Slot ? *Slot : ENF_ArmorSlot::Unknown;
 }
 
@@ -197,24 +210,32 @@ void UNF_ArmorComponent::RefreshArmorDefence()
 
 USkeletalMeshComponent* UNF_ArmorComponent::GetHitMesh() const
 {
+	if (IsValid(Config) == false)
+		return nullptr;
+
 	const ACharacter* Character = Cast<ACharacter>(GetOwner());
-	if (!Character) return nullptr;
-	if (HitMeshComponentName.IsNone()) return Character->GetMesh();
+	
+	if (Character == nullptr)
+		return nullptr;
+	
+	if (Config->HitMeshComponentName.IsNone()) 
+		return Character->GetMesh();
+	
 	TInlineComponentArray<USkeletalMeshComponent*> Meshes(Character);
+	
 	for (USkeletalMeshComponent* Mesh : Meshes)
-		if (Mesh->GetFName() == HitMeshComponentName) return Mesh;
+		if (Mesh->GetFName() == Config->HitMeshComponentName) return Mesh;
+	
 	return nullptr;
 }
 
 void UNF_ArmorComponent::ConfigureProjectileCollision()
 {
 	USkeletalMeshComponent* HitMesh = GetHitMesh();
-	if (!IsValid(HitMesh) || !HitMesh->GetPhysicsAsset())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponHit] %s: hit mesh/Physics Asset missing. Configure ArmorComponent HitMeshComponentName; bone hits unavailable."), *GetNameSafe(GetOwner()));
+	
+	if (IsValid(HitMesh) == false || HitMesh->GetPhysicsAsset() == nullptr)
 		return;
-	}
-	// Only the new projectile channel is changed. Capsule movement and other attacks are unaffected.
+	
 	TInlineComponentArray<UPrimitiveComponent*> Primitives(GetOwner());
 	for (UPrimitiveComponent* Primitive : Primitives)
 		Primitive->SetCollisionResponseToChannel(NF_WeaponProjectileChannel, Primitive == HitMesh ? ECR_Block : ECR_Ignore);

@@ -1,4 +1,5 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponComponentConfigDataAsset.h"
 
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
@@ -22,15 +23,15 @@ UNF_WeaponComponent::UNF_WeaponComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	SetIsReplicatedByDefault(true);
-	FireAbilityClass = UNFGA_WeaponFire::StaticClass();
-	ZoomAbilityClass = UNFGA_WeaponZoom::StaticClass();
-	ReloadAbilityClass = UNFGA_WeaponReload::StaticClass();
 }
 
 void UNF_WeaponComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (IsValid(Config) == false)
+		return;
+	
 	if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
 	{
 		OwnerPawn->ReceiveControllerChangedDelegate.AddDynamic(this, &ThisClass::OnPawnControllerChanged);
@@ -40,7 +41,7 @@ void UNF_WeaponComponent::BeginPlay()
 	if (GetOwner()->HasAuthority() == false)
 		return;
 	
-	if (IsValid(EquippedWeapon) == false && DefaultWeaponClass)
+	if (IsValid(Config) && IsValid(EquippedWeapon) == false && Config->DefaultWeaponClass)
 	{
 		FActorSpawnParameters Params;
 		Params.Owner = GetOwner();
@@ -48,7 +49,7 @@ void UNF_WeaponComponent::BeginPlay()
 
 		if (ANF_WeaponBase* Weapon =
 			GetWorld()->SpawnActor<ANF_WeaponBase>(
-				DefaultWeaponClass,
+				Config->DefaultWeaponClass,
 				FTransform::Identity,
 				Params))
 		{
@@ -64,7 +65,7 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 {
 	auto* OwnerCharacter = Cast<ANF_Player>(GetOwner());
 	
-	if (IsValid(NewWeapon) == false || IsValid(OwnerCharacter) == false)
+	if (IsValid(Config) == false || IsValid(NewWeapon) == false || IsValid(OwnerCharacter) == false)
 		return false;
 	
 	if (OwnerCharacter->HasAuthority() == false)
@@ -86,7 +87,7 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 	TGuardValue<bool> ChangeGuard(bChangingWeapon, true);
 	
 	if (NewWeapon->AttachToComponent(OwnerCharacter->VisualMesh,
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocketName) == false)
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale, Config->WeaponSocketName) == false)
 		return false;
 
 	UnequipWeaponInternal();
@@ -280,35 +281,41 @@ void UNF_WeaponComponent::CancelReload()
 
 bool UNF_WeaponComponent::EnsureReloadAbility()
 {
+	if (IsValid(Config) == false)
+		return false;
+
 	if (ReloadASC.IsValid() && ReloadASC->GetAvatarActor() == GetOwner() &&
 		ReloadASC->FindAbilitySpecFromHandle(ReloadAbilityHandle)) return true;
 
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
-	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || ReloadAbilityClass == nullptr)
+	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || Config->ReloadAbilityClass == nullptr)
 		return false;
 
 	if (ReloadASC.IsValid() && ReloadAbilityHandle.IsValid())
 		ReloadASC->ClearAbility(ReloadAbilityHandle);
 	
 	ReloadASC = ASC;
-	ReloadAbilityHandle = ASC->GiveAbility(FGameplayAbilitySpec(ReloadAbilityClass, 1, INDEX_NONE, this));
+	ReloadAbilityHandle = ASC->GiveAbility(FGameplayAbilitySpec(Config->ReloadAbilityClass, 1, INDEX_NONE, this));
 	return ReloadAbilityHandle.IsValid();
 }
 
 bool UNF_WeaponComponent::EnsureFireAbility()
 {
+	if (IsValid(Config) == false)
+		return false;
+
 	if (FireASC.IsValid() && FireASC->GetAvatarActor() == GetOwner() &&
 		FireASC->FindAbilitySpecFromHandle(FireAbilityHandle)) return true;
 	
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 	
-	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || FireAbilityClass == nullptr)
+	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || Config->FireAbilityClass == nullptr)
 	{
 		return false;
 	}
 	
 	FireASC = ASC;
-	FireAbilityHandle = ASC->GiveAbility(FGameplayAbilitySpec(FireAbilityClass, 1, INDEX_NONE, this));
+	FireAbilityHandle = ASC->GiveAbility(FGameplayAbilitySpec(Config->FireAbilityClass, 1, INDEX_NONE, this));
 	return FireAbilityHandle.IsValid();
 }
 
@@ -380,19 +387,22 @@ void UNF_WeaponComponent::StopZoom()
 
 bool UNF_WeaponComponent::EnsureZoomAbility()
 {
+	if (IsValid(Config) == false)
+		return false;
+
 	if (ZoomASC.IsValid() && ZoomASC->GetAvatarActor() == GetOwner() &&
 		ZoomASC->FindAbilitySpecFromHandle(ZoomAbilityHandle)) return true;
 
 	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 	
-	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || ZoomAbilityClass == nullptr)
+	if (ASC == nullptr || ASC->GetAvatarActor() != GetOwner() || Config->ZoomAbilityClass == nullptr)
 		return false;
 	
 	if (ZoomASC.IsValid() && ZoomAbilityHandle.IsValid())
 		ZoomASC->ClearAbility(ZoomAbilityHandle);
 	
 	ZoomASC = ASC;
-	ZoomAbilityHandle = ASC->GiveAbility(FGameplayAbilitySpec(ZoomAbilityClass, 1, INDEX_NONE, this));
+	ZoomAbilityHandle = ASC->GiveAbility(FGameplayAbilitySpec(Config->ZoomAbilityClass, 1, INDEX_NONE, this));
 	
 	return ZoomAbilityHandle.IsValid();
 }
