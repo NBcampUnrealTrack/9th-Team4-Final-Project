@@ -83,4 +83,7 @@ private:
 	bool bIsOutOfShield = false;
 	
 	TWeakObjectPtr<APlayerState> LethalDamageInstigatorPlayerState;
+	
+	void IsOutOfHealth(const FGameplayEffectModCallbackData& Data);
+	void IsOutOfShield(const FGameplayEffectModCallbackData& Data);
 };

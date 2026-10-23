@@ -4,6 +4,8 @@
 #include "NF_PlayerStatusAttribute.h"
 
 #include "GameplayEffectExtension.h"
+#include "Data/HelperFunction/NF_GASFunctionLibrary.h"
+#include "GAS/Tags/NFTag_Player.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -26,6 +28,16 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 	
 	else if (Attribute == GetHealthAttribute())
 	{
+		float ReceivedDamage = GetHealth() - NewValue;
+		
+		if (ReceivedDamage > 0.0f)
+		{
+			UNF_GASFunctionLibrary::NF_SendGameplayEventTagToActorWithPayloadData(
+			GetOwningAbilitySystemComponent()->GetAvatarActor(),
+			NFTag_Player::Player_Event_DamagedCheck,
+			ReceivedDamage);
+		}
+		
 		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxHealth());
 	}
 	
@@ -55,6 +67,13 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 {
 	Super::PostGameplayEffectExecute(Data);
 	
+	IsOutOfHealth(Data);
+	IsOutOfShield(Data);
+}
+
+
+void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackData& Data)
+{
 	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
 	{
 		SetHealth(FMath::Clamp<float>(GetHealth(), 0.0f, GetMaxHealth()));
@@ -69,9 +88,13 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 			bIsOutOfHealth = false;
 			//TODO 체력이 바뀜에 대한 브로드캐스트?
 		}
-		return;
 	}
 	
+}
+
+
+void UNF_PlayerStatusAttribute::IsOutOfShield(const FGameplayEffectModCallbackData& Data)
+{
 	if (Data.EvaluatedData.Attribute == GetShieldAttribute())
 	{
 		SetShield(FMath::Clamp<float>(GetShield(), 0.0f, GetMaxShield()));
@@ -86,10 +109,7 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 			bIsOutOfHealth = false;
 			//TODO 쉴드량이 바뀜에 대한 브로드캐스트?
 		}
-		return;
 	}
-	
-	
 }
 
 
@@ -146,4 +166,6 @@ void UNF_PlayerStatusAttribute::OnRep_Shield(const FGameplayAttributeData& OldSh
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, Shield, OldShield);
 }
+
+
 

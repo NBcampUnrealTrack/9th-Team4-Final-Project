@@ -26,8 +26,8 @@ public:
 	static void NF_TryAbility(AActor* TargetActor, const FGameplayTag& AbilityTagToUse);
 
 	UFUNCTION(BlueprintCallable, Category = "NF_GASFunctionLibrary", meta = (DefaultToSelf = "WorldContext", AutoCreateRefTerm = "GameplayEventTag"))
-	static void NF_SendGameplayEventTagToActorWithPayloadData(UObject* WorldContext, const FGameplayTag& GameplayEventTag,
-		float PayloadMagnitudeValue = 0.0f, FGameplayEventData PayloadData = FGameplayEventData(), AActor* DearActor = nullptr);
+	static bool NF_SendGameplayEventTagToActorWithPayloadData(UObject* WorldContext, const FGameplayTag& GameplayEventTag,
+		float PayloadMagnitudeValue = 0.0f, FGameplayEventData PayloadData = FGameplayEventData(), AActor* TargetActor = nullptr);
 	
 	
 	UFUNCTION(BlueprintCallable, Category = "NF_GASFunctionLibrary", meta = (AutoCreateRefTerm = "GameplayTag"))
