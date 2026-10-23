@@ -37,43 +37,6 @@ void ANF_PlayerController::BeginPlay()
 	BindDelegate();
 }
 
-UNF_MinimapRevealRegistry* ANF_PlayerController::GetMinimapRevealRegistry()
-{
-	if (!MinimapRevealRegistry)
-	{
-		MinimapRevealRegistry = NewObject<UNF_MinimapRevealRegistry>(this);
-		MinimapRevealRegistry->Initialize(this);
-	}
-	return MinimapRevealRegistry;
-}
-
-void ANF_PlayerController::UpdateMinimapReveals()
-{
-	if (HasAuthority())
-	{
-		TArray<FNF_MinimapRevealMarker> Markers;
-		GetMinimapRevealRegistry()->BuildServerSnapshot(Markers);
-		if (!Markers.IsEmpty() || bSentMinimapReveals)
-		{
-			ClientReceiveMinimapReveals(Markers);
-		}
-		bSentMinimapReveals = !Markers.IsEmpty();
-	}
-	if (IsLocalController()) { GetMinimapRevealRegistry()->ExpireClientSnapshot(); }
-}
-
-void ANF_PlayerController::ClientReceiveMinimapReveals_Implementation(const TArray<FNF_MinimapRevealMarker>& Markers)
-{
-	GetMinimapRevealRegistry()->ReceiveSnapshot(Markers, 1.0f);
-}
-
-void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	GetWorldTimerManager().ClearTimer(MinimapRevealTimer);
-	if (MinimapRevealRegistry) { MinimapRevealRegistry->Clear(); }
-	Super::EndPlay(EndPlayReason);
-}
-
 
 void ANF_PlayerController::InputConfig()
 {
@@ -147,7 +110,6 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
 	
 	
-	
 	//Skill
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillA);
@@ -159,6 +121,7 @@ void ANF_PlayerController::BindInputButton()
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->InteractButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::Interaction);
 }
+
 
 #pragma region TryAction
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
@@ -282,14 +245,16 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 
 
 #pragma region BuildShop
-
 void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopType)
 {
 	CurrentBuildShopType = BuildShopType;
 }
-
 #pragma endregion
 
+
+
+
+#pragma region NotDevelopedByMe
 void ANF_PlayerController::ClientHandleMatchCompleted_Implementation(const FNF_MatchResult& Result)
 {
 	if (UGameInstance* GI = GetGameInstance())
@@ -300,3 +265,45 @@ void ANF_PlayerController::ClientHandleMatchCompleted_Implementation(const FNF_M
 		}
 	}
 }
+
+
+UNF_MinimapRevealRegistry* ANF_PlayerController::GetMinimapRevealRegistry()
+{
+	if (!MinimapRevealRegistry)
+	{
+		MinimapRevealRegistry = NewObject<UNF_MinimapRevealRegistry>(this);
+		MinimapRevealRegistry->Initialize(this);
+	}
+	return MinimapRevealRegistry;
+}
+
+
+void ANF_PlayerController::UpdateMinimapReveals()
+{
+	if (HasAuthority())
+	{
+		TArray<FNF_MinimapRevealMarker> Markers;
+		GetMinimapRevealRegistry()->BuildServerSnapshot(Markers);
+		if (!Markers.IsEmpty() || bSentMinimapReveals)
+		{
+			ClientReceiveMinimapReveals(Markers);
+		}
+		bSentMinimapReveals = !Markers.IsEmpty();
+	}
+	if (IsLocalController()) { GetMinimapRevealRegistry()->ExpireClientSnapshot(); }
+}
+
+
+void ANF_PlayerController::ClientReceiveMinimapReveals_Implementation(const TArray<FNF_MinimapRevealMarker>& Markers)
+{
+	GetMinimapRevealRegistry()->ReceiveSnapshot(Markers, 1.0f);
+}
+
+
+void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorldTimerManager().ClearTimer(MinimapRevealTimer);
+	if (MinimapRevealRegistry) { MinimapRevealRegistry->Clear(); }
+	Super::EndPlay(EndPlayReason);
+}
+#pragma endregion

@@ -23,12 +23,7 @@ class PROJECT_NF_API ANF_PlayerController : public APlayerController
 {
 	GENERATED_BODY()
 	
-public:
-	UFUNCTION(Client, Reliable)
-	void ClientHandleMatchCompleted(const FNF_MatchResult& Result);
 
-	UFUNCTION(BlueprintCallable, Category = "NF|Minimap|Reveal")
-	UNF_MinimapRevealRegistry* GetMinimapRevealRegistry();
 
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -40,7 +35,6 @@ protected:
 	
 
 #pragma region Input
-	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|MotionMatching")
 	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputDataAsset;
 	
@@ -61,13 +55,32 @@ protected:
 	void TryAction(ENF_PlayerActionType PlayerActionType);
 	
 	void IsBuildShopAction(ENF_PlayerActionType PlayerActionType);
+	
 	void IsCombatAction(ENF_PlayerActionType PlayerActionType);
 	
 	void ZoomSelector(ENF_PlayerActionType PlayerActionType);
-	
 #pragma endregion 
+
+	
+#pragma region BuildShop
+	
+	UPROPERTY(Replicated)
+	ENF_BuildShopUIState CurrentBuildShopType = ENF_BuildShopUIState::None;
+	
+	void OnInteractBuildShop(ENF_BuildShopUIState BuildShopType);
+#pragma endregion
+	
+	
 	
 
+#pragma region NotDevelopedByMe
+public:
+	UFUNCTION(Client, Reliable)
+	void ClientHandleMatchCompleted(const FNF_MatchResult& Result);
+
+	UFUNCTION(BlueprintCallable, Category = "NF|Minimap|Reveal")
+	UNF_MinimapRevealRegistry* GetMinimapRevealRegistry();
+	
 private:
 	// Server keeps disclosure reasons; only the owning client receives the snapshot.
 	UPROPERTY(Transient)
@@ -77,13 +90,5 @@ private:
 	void UpdateMinimapReveals();
 	UFUNCTION(Client, Reliable)
 	void ClientReceiveMinimapReveals(const TArray<FNF_MinimapRevealMarker>& Markers);
-	
-#pragma region BuildShop
-	
-	UPROPERTY(Replicated)
-	ENF_BuildShopUIState CurrentBuildShopType = ENF_BuildShopUIState::None;
-	
-	void OnInteractBuildShop(ENF_BuildShopUIState BuildShopType);
-	
-#pragma endregion
+#pragma endregion 
 };
