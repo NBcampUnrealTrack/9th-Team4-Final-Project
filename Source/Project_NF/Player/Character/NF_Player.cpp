@@ -342,8 +342,8 @@ void ANF_Player::InitAbilitySystem()
 	
 	NF_PlayerState->InitAbilitySystem(this);
 	
-	NF_ArmorComponent->RefreshArmorDefence();
 	NF_ArmorComponent->ClearArmorDefence();
+	NF_ArmorComponent->RefreshArmorDefence();
 	
 	const UNF_PlayerStatusAttribute* PlayerStatusAttribute = ASC->GetSet<UNF_PlayerStatusAttribute>(); 
 	if (IsValid(PlayerStatusAttribute) == true)
