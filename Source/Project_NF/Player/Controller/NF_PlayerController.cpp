@@ -250,19 +250,22 @@ void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopTyp
 {
 	CurrentBuildShopType = BuildShopType;
 	
-	
+	if (BuildShopType == ENF_BuildShopUIState::BuildOpened)
+	{
+		ReleaseGameplayInputForUI();
+	}
 }
-#pragma endregion
 
 
-#pragma region UI
 void ANF_PlayerController::ReleaseGameplayInputForUI()
 {
 	bIsZoomIn = false;
 	NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction,this,ENF_PlayerActionType::ZoomOut);
 	NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction,this,ENF_PlayerActionType::StopFire);
 }
-#pragma endregion 
+#pragma endregion
+
+
 
 
 #pragma region NotDevelopedByMe
