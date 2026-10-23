@@ -1,25 +1,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
+#include "Blueprint/UserWidget.h"
 #include "TimerManager.h"
 #include "NF_UIManagerSubsystem.generated.h"
 
 class APlayerController;
-class UOverlay;
-class UWorld;
-class UNF_UIRootWidget;
+class UNF_AnnouncementWidget;
 
 UENUM(BlueprintType)
-enum class ENF_ScreenInputMode : uint8
+enum class ENF_UIInputMode : uint8
 {
+	GameOnly,
 	GameAndUI,
 	UIOnly
 };
 
 USTRUCT()
-struct FNF_ScreenEntry
+struct FNFManagedWidgetEntry
 {
 	GENERATED_BODY()
 
@@ -27,21 +26,24 @@ struct FNF_ScreenEntry
 	TObjectPtr<UUserWidget> Widget;
 
 	UPROPERTY(Transient)
-	ENF_ScreenInputMode InputMode = ENF_ScreenInputMode::GameAndUI;
+	ENF_UIInputMode InputMode = ENF_UIInputMode::GameAndUI;
+
+	UPROPERTY(Transient)
+	bool bShowMouseCursor = true;
 };
 
 USTRUCT()
-struct FNF_OverlayEntry
+struct FNFManagedAnnouncementEntry
 {
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> Widget;
+	TObjectPtr<UNF_AnnouncementWidget> Widget;
 
-	FTimerHandle LifetimeTimer;
+	FTimerHandle LifetimeTimerHandle;
 };
 
-/** 로컬 플레이어의 HUD, 화면/모달 스택, 비상호작용 Overlay와 입력 정책을 관리한다. */
+/** Owns viewport/modal UI and input mode for one local player. */
 UCLASS()
 class PROJECT_NF_API UNF_UIManagerSubsystem : public ULocalPlayerSubsystem
 {
@@ -52,69 +54,41 @@ public:
 	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
 
 	UFUNCTION(BlueprintCallable, Category = "NF|UI")
-	UUserWidget* SetHUD(TSubclassOf<UUserWidget> WidgetClass);
+	UUserWidget* PushWidget(TSubclassOf<UUserWidget> WidgetClass,
+		ENF_UIInputMode InputMode = ENF_UIInputMode::GameAndUI,
+		bool bShowMouseCursor = true, int32 ZOrder = 0);
 
-	UFUNCTION(BlueprintCallable, Category = "NF|UI")
-	UUserWidget* PushScreen(
-		TSubclassOf<UUserWidget> WidgetClass,ENF_ScreenInputMode InputMode = ENF_ScreenInputMode::GameAndUI);
-
-	// Modal은 UIOnly 입력 사용
-	UFUNCTION(BlueprintCallable, Category = "NF|UI")
-	UUserWidget* PushModal(TSubclassOf<UUserWidget> WidgetClass);
-
-	// Lifetime > 0이면 자동 제거
-	UFUNCTION(BlueprintCallable, Category = "NF|UI")
-	UUserWidget* AddOverlay(TSubclassOf<UUserWidget> WidgetClass, float Lifetime = 0.0f);
-
-	// 관리 위젯은 직접 RemoveFromParent 하지 않고 이 함수로 제거
 	UFUNCTION(BlueprintCallable, Category = "NF|UI")
 	bool RemoveWidget(UUserWidget* Widget);
 
-	// Modal -> Screen 순서로 하나를 닫는다. HUD/Overlay는 제외
 	UFUNCTION(BlueprintCallable, Category = "NF|UI")
-	bool CloseTop();
+	bool PopTopWidget();
 
-	// HUD는 유지하고 Screen, Modal, Overlay를 제거
 	UFUNCTION(BlueprintCallable, Category = "NF|UI")
-	void ClearTransientUI();
+	void PopAllWidgets();
 
 	UFUNCTION(BlueprintPure, Category = "NF|UI")
-	UUserWidget* GetHUD() const { return HUDWidget.Get(); }
+	UUserWidget* GetTopWidget() const;
 
-	UFUNCTION(BlueprintPure, Category = "NF|UI")
-	UUserWidget* GetTopInteractiveWidget() const;
+	/** Shows a brief non-modal message for this local player. */
+	void ShowAnnouncement(const FText& Message, float Duration = 3.0f);
 
-	UFUNCTION(BlueprintPure, Category = "NF|UI")
-	bool IsGameplayInputBlocked() const;
+	void RefreshInputMode();
 
 private:
-	bool EnsureRoot();
-	UUserWidget* CreateManagedWidget(TSubclassOf<UUserWidget> WidgetClass);
-	void AddToLayer(UOverlay* Layer, UUserWidget* Widget);
-	bool RemoveWidgetInternal(UUserWidget* Widget);
-	void RefreshPresentation();
-	void ApplyInputMode();
-	void ClearOverlayTimer(FNF_OverlayEntry& Entry);
-	void ClearTransientUIInternal();
-	void ResetUI();
+	APlayerController* GetOwningPlayerController() const;
+	void ApplyInputModeForTopWidget();
+	void ClearAnnouncements();
+
+	UFUNCTION()
+	void HandleAnnouncementExpired(UNF_AnnouncementWidget* Widget);
 
 	UPROPERTY(Transient)
-	TObjectPtr<UNF_UIRootWidget> RootWidget;
+	TArray<FNFManagedWidgetEntry> WidgetStack;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> HUDWidget;
+	TArray<FNFManagedAnnouncementEntry> ActiveAnnouncements;
 
-	UPROPERTY(Transient)
-	TArray<FNF_ScreenEntry> ScreenStack;
-
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UUserWidget>> ModalStack;
-
-	UPROPERTY(Transient)
-	TArray<FNF_OverlayEntry> OverlayEntries;
-
-	TWeakObjectPtr<APlayerController> OwningController;
-	TWeakObjectPtr<UWorld> TimerWorld;
-
-	bool bChangingUI = false;
+	bool bHasSavedMouseCursor = false;
+	bool bSavedMouseCursor = false;
 };
