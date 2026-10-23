@@ -11,28 +11,53 @@ LIB = unreal.MaterialEditingLibrary
 
 def verify_material(material):
     output = LIB.get_material_property_input_node(material, unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    if not isinstance(output, unreal.MaterialExpressionCustom):
-        raise RuntimeError("Sonar output is not connected to the silhouette shader")
-    connected = LIB.get_inputs_for_material_expression(material, output)
+    if not isinstance(output, unreal.MaterialExpressionLinearInterpolate):
+        raise RuntimeError("Sonar output must preserve the original scene through a Lerp")
+    front = LIB.get_material_property_input_node(material, unreal.MaterialProperty.MP_FRONT_MATERIAL)
+    if material.get_editor_property("material_domain") != unreal.MaterialDomain.MD_POST_PROCESS:
+        raise RuntimeError("Sonar domain changed away from Post Process")
+    if not isinstance(front, unreal.MaterialExpressionSubstratePostProcess):
+        raise RuntimeError("Sonar is missing its Substrate Front Material output")
+    if output not in LIB.get_inputs_for_material_expression(material, front):
+        raise RuntimeError("Sonar screen composite is not connected to Substrate Post Process color")
+    final_inputs = LIB.get_inputs_for_material_expression(material, output)
+    if len(final_inputs) != 3 or any(item is None for item in final_inputs):
+        raise RuntimeError("Sonar Lerp is missing the original screen")
+    background = final_inputs[0]
+    if isinstance(background, unreal.MaterialExpressionComponentMask):
+        background = LIB.get_inputs_for_material_expression(material, background)[0]
+    if not isinstance(background, unreal.MaterialExpressionSceneTexture) or background.get_editor_property("scene_texture_id") != unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0:
+        raise RuntimeError("Sonar background is not PostProcessInput0")
+    mask = final_inputs[2]
+    if not isinstance(mask, unreal.MaterialExpressionCustom):
+        raise RuntimeError("Sonar alpha is not connected to the silhouette mask")
+    connected = LIB.get_inputs_for_material_expression(material, mask)
     if len(connected) != 10 or any(value is None for value in connected):
         raise RuntimeError("Sonar shader has missing material inputs")
     if material.get_editor_property("blendable_location") != unreal.BlendableLocation.BL_SCENE_COLOR_AFTER_TONEMAPPING:
         raise RuntimeError("Sonar uses the wrong post-process location")
-    unreal.log("SONAR_MATERIAL_VERIFIED: 10 connected inputs, post-process domain, after tonemapping")
+    unreal.log("SONAR_MATERIAL_VERIFIED: PostProcessInput0 -> Lerp -> Substrate Post Process -> Front Material")
 
 
-def create_material():
-    if unreal.EditorAssetLibrary.does_asset_exist(ASSET):
-        existing = unreal.load_asset(ASSET)
-        if existing.get_editor_property("material_domain") != unreal.MaterialDomain.MD_POST_PROCESS:
+def create_material(asset_path=ASSET, rebuild=False):
+    material = None
+    asset = asset_path
+    if unreal.EditorAssetLibrary.does_asset_exist(asset):
+        existing = unreal.load_asset(asset)
+        if not rebuild and existing.get_editor_property("material_domain") != unreal.MaterialDomain.MD_POST_PROCESS:
             raise RuntimeError("Existing sonar asset is not a post-process material; refusing to overwrite")
-        verify_material(existing)
-        unreal.log("SONAR_MATERIAL_EXISTS: " + existing.get_path_name())
-        return
+        if not rebuild:
+            verify_material(existing)
+            unreal.log("SONAR_MATERIAL_EXISTS: " + existing.get_path_name())
+            return
+        material = existing
+        LIB.delete_all_material_expressions(material)
 
-    material = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
-        "M_PP_Sonar", "/Game/ProjectNF/Skills/Sonar", unreal.Material, unreal.MaterialFactoryNew()
-    )
+    if material is None:
+        folder, name = asset.rsplit("/", 1)
+        material = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+            name, folder, unreal.Material, unreal.MaterialFactoryNew()
+        )
     material.set_editor_property("material_domain", unreal.MaterialDomain.MD_POST_PROCESS)
     material.set_editor_property("blendable_location", unreal.BlendableLocation.BL_SCENE_COLOR_AFTER_TONEMAPPING)
     material.set_editor_property("blendable_priority", 100)
@@ -41,8 +66,8 @@ def create_material():
         return LIB.create_material_expression(material, cls, x, y)
 
     custom = node(unreal.MaterialExpressionCustom, 0, 0)
-    custom.set_editor_property("description", "Occluded sonar silhouette + outline, isolated by local-player stencil")
-    custom.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+    custom.set_editor_property("description", "Sonar occlusion + outline mask (screen color bypasses Custom node)")
+    custom.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT1)
     inputs = []
 
     def connect(expression, output, name):
@@ -55,6 +80,7 @@ def create_material():
         # Re-read the connected structs before adding another input, preserving ExpressionInputs.
         inputs[:] = list(custom.get_editor_property("inputs"))
 
+    scene_color = None
     for index, (name, texture_id) in enumerate([
         ("SceneColor", unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0),
         ("SceneDepth", unreal.SceneTextureId.PPI_SCENE_DEPTH),
@@ -63,6 +89,8 @@ def create_material():
     ]):
         expression = node(unreal.MaterialExpressionSceneTexture, -700, index * 160)
         expression.set_editor_property("scene_texture_id", texture_id)
+        if name == "SceneColor":
+            scene_color = expression
         connect(expression, "Color", name)
 
     color = node(unreal.MaterialExpressionVectorParameter, -700, 650)
@@ -97,10 +125,29 @@ const float2 directions[4] = {float2(1,0), float2(-1,0), float2(0,1), float2(0,-
     edge = max(edge, mask * (1.0 - center));
 }
 float alpha = max(center * saturate(FillOpacity), edge * saturate(OutlineOpacity));
-return lerp(SceneColor.rgb, RevealColor.rgb, saturate(alpha));
+return saturate(alpha);
 """)
-    if not LIB.connect_material_property(custom, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR):
+    final = node(unreal.MaterialExpressionLinearInterpolate, 400, 0)
+    # Explicitly select RGB, so alpha never becomes part of the screen color.
+    rgb = node(unreal.MaterialExpressionComponentMask, 150, -200)
+    for channel in ["r", "g", "b"]:
+        rgb.set_editor_property(channel, True)
+    rgb.set_editor_property("a", False)
+    for source, output_name, target, input_name in [
+        (scene_color, "Color", rgb, ""), (rgb, "", final, "A"),
+        (color, "RGB", final, "B"), (custom, "", final, "Alpha")]:
+        if not LIB.connect_material_expressions(source, output_name, target, input_name):
+            raise RuntimeError("Could not connect sonar composite " + input_name)
+    if not LIB.connect_material_property(final, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR):
         raise RuntimeError("Could not connect sonar material output")
+    # This project enables Substrate. An existing converted material with no Front
+    # Material evaluates black even when the legacy Emissive input is connected.
+    front = node(unreal.MaterialExpressionSubstratePostProcess, 650, 0)
+    input_names = LIB.get_material_expression_input_names(front)
+    if not input_names or not LIB.connect_material_expressions(final, "", front, input_names[0]):
+        raise RuntimeError("Could not connect sonar to Substrate Post Process color")
+    if not LIB.connect_material_property(front, "", unreal.MaterialProperty.MP_FRONT_MATERIAL):
+        raise RuntimeError("Could not connect sonar Substrate Front Material")
     LIB.recompile_material(material)
     if not unreal.EditorAssetLibrary.save_loaded_asset(material):
         raise RuntimeError("Could not save sonar material")
@@ -108,4 +155,5 @@ return lerp(SceneColor.rgb, RevealColor.rgb, saturate(alpha));
     unreal.log("SONAR_MATERIAL_CREATED: " + material.get_path_name())
 
 
-create_material()
+if __name__ == "__main__":
+    create_material()

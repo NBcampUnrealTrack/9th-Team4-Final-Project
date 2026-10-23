@@ -141,4 +141,6 @@ private:
 	
 	// 이전 Health 감지 연결 해제
 	void StopHealthZeroDetection();
+	
+	bool bLifeBuildLockApplied = false;
 };

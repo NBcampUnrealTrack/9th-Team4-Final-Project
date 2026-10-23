@@ -27,7 +27,10 @@ public:
 	ENF_ArmorSlot GetArmorSlot() const;
 
 	UFUNCTION(BlueprintPure, Category="Armor")
-	float GetAdditionalDefense() const;
+	float GetBaseDefence() const;
+	
+	UFUNCTION(BlueprintPure, Category="Armor")
+	float GetAdditionalDefence() const;
 
 	UFUNCTION(BlueprintPure, Category="Armor")
 	class UStaticMeshComponent* GetArmorMesh() const { return ArmorMesh; }
