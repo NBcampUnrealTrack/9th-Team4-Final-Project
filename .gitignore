@@ -674,3 +674,5 @@ Content/ProjectNF/Dev/Player/MotionMatching/
 Content/ProjectNF/Dev/Resource/
 _개인 백업/
 
+# Ignore Myungwoo's personal content assets
+/Content/ProjectNF/Persnal/Myungwoo/
