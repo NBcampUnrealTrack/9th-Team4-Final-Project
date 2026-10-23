@@ -126,16 +126,8 @@ void ANF_PlayerController::BindInputButton()
 #pragma region TryAction
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
-	//Toggle 옵션 키 (test용도)
-	if (PlayerActionType == ENF_PlayerActionType::ToggleSettingButton)
-	{
-		bIsToggleZoom = !bIsToggleZoom;
-		UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("토글 실행 %d"), bIsToggleZoom));
-	}
-	
-	IsBuildShopAction(PlayerActionType);
-	
 	IsCombatAction(PlayerActionType);
+	IsBuildShopAction(PlayerActionType);
 }
 
 
@@ -163,6 +155,15 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 
 	void ANF_PlayerController::IsCombatAction(ENF_PlayerActionType PlayerActionType)
 	{
+		if (CurrentBuildShopType == ENF_BuildShopUIState::BuildOpened) return;
+	
+		//Toggle 옵션 키 (test용도)
+		if (PlayerActionType == ENF_PlayerActionType::ToggleSettingButton)
+		{
+			bIsToggleZoom = !bIsToggleZoom;
+			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("토글 실행 %d"), bIsToggleZoom));
+		}
+	
 		if (PlayerActionType == ENF_PlayerActionType::MeleeAttack)
 		{
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
@@ -248,10 +249,20 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopType)
 {
 	CurrentBuildShopType = BuildShopType;
+	
+	
 }
 #pragma endregion
 
 
+#pragma region UI
+void ANF_PlayerController::ReleaseGameplayInputForUI()
+{
+	bIsZoomIn = false;
+	NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction,this,ENF_PlayerActionType::ZoomOut);
+	NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction,this,ENF_PlayerActionType::StopFire);
+}
+#pragma endregion 
 
 
 #pragma region NotDevelopedByMe

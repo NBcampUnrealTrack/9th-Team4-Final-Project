@@ -33,7 +33,13 @@ protected:
 	
 	virtual void SetupInputComponent() override;
 	
-
+public:
+#pragma region UI
+	UFUNCTION(BlueprintCallable, Category = "NF|UI")
+	void ReleaseGameplayInputForUI();
+#pragma endregion
+	
+	
 #pragma region Input
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|MotionMatching")
 	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputDataAsset;
@@ -63,7 +69,6 @@ protected:
 
 	
 #pragma region BuildShop
-	
 	UPROPERTY(Replicated)
 	ENF_BuildShopUIState CurrentBuildShopType = ENF_BuildShopUIState::None;
 	
@@ -71,7 +76,7 @@ protected:
 #pragma endregion
 	
 	
-	
+
 
 #pragma region NotDevelopedByMe
 public:

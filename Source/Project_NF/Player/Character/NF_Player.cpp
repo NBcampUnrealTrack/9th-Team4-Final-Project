@@ -19,6 +19,8 @@
 #include "Player/Controller/NF_PlayerController.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/State/NF_PlayerState.h"
+#include "Engine/LocalPlayer.h"
+#include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UpperBodyBlend/UpperBodyLayer.h"
 
 
@@ -351,6 +353,14 @@ void ANF_Player::InitAbilitySystem()
 		PlayerStatusAttribute->OnOutOfHealth.AddUniqueDynamic(this, &ThisClass::OnOutOfHealthCpp);  
 		PlayerStatusAttribute->OnOutOfShield.AddUniqueDynamic(this, &ThisClass::OnOutOfShieldCpp); 
 	}
+	
+	auto* PlayerController = GetController<APlayerController>();
+	if (IsValid(PlayerController) == false) return;
+	
+	auto* ViewModelSubsystem = ULocalPlayer::GetSubsystem<UNF_ViewModelSubsystem>(PlayerController->GetLocalPlayer());
+	if (IsValid(ViewModelSubsystem) == false) return;
+
+	ViewModelSubsystem->RefreshViewModelContext();
 }
 
 
