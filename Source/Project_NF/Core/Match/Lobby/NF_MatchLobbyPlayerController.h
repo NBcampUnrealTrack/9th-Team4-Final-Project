@@ -38,6 +38,7 @@ protected:
 	bool bForceTouchControls = false;
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostNetInit() override;
 	virtual void SetupInputComponent() override;
 	bool ShouldUseTouchControls() const;
