@@ -35,17 +35,32 @@ void UNF_GASFunctionLibrary::NF_TryAbility(AActor* TargetActor, const FGameplayT
 }
 
 
-void UNF_GASFunctionLibrary::NF_SendGameplayEventTagToActorWithPayloadData(UObject* WorldContext,
-	const FGameplayTag& GameplayEventTag, float PayloadMagnitudeValue, FGameplayEventData PayloadData, AActor* DearActor)
+bool UNF_GASFunctionLibrary::NF_SendGameplayEventTagToActorWithPayloadData(UObject* WorldContext,
+	const FGameplayTag& GameplayEventTag, float PayloadMagnitudeValue, FGameplayEventData PayloadData, AActor* TargetActor)
 {
-	if (GameplayEventTag.IsValid() == false) return;
+	if (GameplayEventTag.IsValid() == false) return false;
 	
 	AActor* ContextActor = CastFromContext(WorldContext);
-	if (IsValid(ContextActor) == false) return;
-	
-	if (IsValid(DearActor) == false)
+	if (IsValid(ContextActor) == false)
 	{
-		DearActor = ContextActor;
+		UKismetSystemLibrary::PrintString(WorldContext, 
+			TEXT("헬퍼함수의 SendEventTag 도중 WorldContext 찾지 못해 실패했습니다."), true, true,
+			FColor::Red);
+		return false;
+	}
+	
+	if (IsValid(TargetActor) == false)
+	{
+		TargetActor = ContextActor;
+	}
+	
+	auto* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+	if (IsValid(ASC) == false)
+	{
+		UKismetSystemLibrary::PrintString(WorldContext, 
+			TEXT("헬퍼함수의 SendEventTag 도중 대상 액터의 ASC를 찾지 못해 실패했습니다."), true, true,
+			FColor::Red);
+		return false;
 	}
 	
 	FGameplayEventData CurrentEventData = PayloadData;
@@ -57,12 +72,16 @@ void UNF_GASFunctionLibrary::NF_SendGameplayEventTagToActorWithPayloadData(UObje
 		CurrentEventData.Instigator = ContextActor;
 	}
 	
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(DearActor, GameplayEventTag, CurrentEventData);
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor, GameplayEventTag, CurrentEventData);
+	
+	return true;
 }
 
 
 AActor* UNF_GASFunctionLibrary::CastFromContext(UObject* ContextObject)
 {
+	if (IsValid(ContextObject) == false) return nullptr;
+	
 	AActor* Actor = Cast<AActor>(ContextObject);
 	if (IsValid(Actor) == true) return Actor;
 	
@@ -75,7 +94,15 @@ AActor* UNF_GASFunctionLibrary::CastFromContext(UObject* ContextObject)
 	UAnimInstance* AnimInstance = Cast<UAnimInstance>(ContextObject);
 	if (IsValid(AnimInstance) == true) return AnimInstance->GetOwningActor();
 	
-	return nullptr;
+	UAttributeSet* AttributeSet = Cast<UAttributeSet>(ContextObject);
+	if (IsValid(AttributeSet) == true)
+	{
+		UAbilitySystemComponent* AbilitySystemComponent = AttributeSet->GetOwningAbilitySystemComponent();
+		if (IsValid(AbilitySystemComponent) == true) return AbilitySystemComponent->GetAvatarActor();
+		return AttributeSet->GetOwningActor();
+	}
+	
+	return ContextObject->GetTypedOuter<AActor>();
 }
 
 

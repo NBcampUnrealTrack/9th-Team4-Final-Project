@@ -19,6 +19,8 @@
 #include "Player/Controller/NF_PlayerController.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/State/NF_PlayerState.h"
+#include "Engine/LocalPlayer.h"
+#include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UpperBodyBlend/UpperBodyLayer.h"
 
 
@@ -351,6 +353,14 @@ void ANF_Player::InitAbilitySystem()
 		PlayerStatusAttribute->OnOutOfHealth.AddUniqueDynamic(this, &ThisClass::OnOutOfHealthCpp);  
 		PlayerStatusAttribute->OnOutOfShield.AddUniqueDynamic(this, &ThisClass::OnOutOfShieldCpp); 
 	}
+	
+	auto* PlayerController = GetController<APlayerController>();
+	if (IsValid(PlayerController) == false) return;
+	
+	auto* ViewModelSubsystem = ULocalPlayer::GetSubsystem<UNF_ViewModelSubsystem>(PlayerController->GetLocalPlayer());
+	if (IsValid(ViewModelSubsystem) == false) return;
+
+	ViewModelSubsystem->RefreshViewModelContext();
 }
 
 
@@ -359,6 +369,7 @@ void ANF_Player::OnOutOfHealthCpp()
 {
 	if (HasAuthority() == true)
 	{
+		//TODO이건 일단 코어가 완료되기전까지 임시용도이다.
 		GetAbilitySystemComponent()->TryActivateAbilityByClass(UNFGA_PlayerDeath::StaticClass());
 		
 		NF_PlayerLifeComponent->HandleHealthReachedZero();
