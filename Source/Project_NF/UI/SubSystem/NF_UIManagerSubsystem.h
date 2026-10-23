@@ -3,9 +3,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "Blueprint/UserWidget.h"
+#include "TimerManager.h"
 #include "NF_UIManagerSubsystem.generated.h"
 
 class APlayerController;
+class UNF_AnnouncementWidget;
 
 UENUM(BlueprintType)
 enum class ENF_UIInputMode : uint8
@@ -28,6 +30,17 @@ struct FNFManagedWidgetEntry
 
 	UPROPERTY(Transient)
 	bool bShowMouseCursor = true;
+};
+
+USTRUCT()
+struct FNFManagedAnnouncementEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNF_AnnouncementWidget> Widget;
+
+	FTimerHandle LifetimeTimerHandle;
 };
 
 /** Owns viewport/modal UI and input mode for one local player. */
@@ -65,9 +78,16 @@ public:
 private:
 	APlayerController* GetOwningPlayerController() const;
 	void ApplyInputModeForTopWidget();
+	void ClearAnnouncements();
+
+	UFUNCTION()
+	void HandleAnnouncementExpired(UNF_AnnouncementWidget* Widget);
 
 	UPROPERTY(Transient)
 	TArray<FNFManagedWidgetEntry> WidgetStack;
+
+	UPROPERTY(Transient)
+	TArray<FNFManagedAnnouncementEntry> ActiveAnnouncements;
 
 	bool bHasSavedMouseCursor = false;
 	bool bSavedMouseCursor = false;
