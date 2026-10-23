@@ -39,8 +39,10 @@ void ANF_MatchLobbyPlayerController::BeginPlay()
 			? LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>() : nullptr;
 		if (IsValid(UIManager))
 		{
-			MatchmakingWidget = Cast<UNF_MatchmakingWidget>(UIManager->PushWidget(
-				UNF_MatchmakingWidget::StaticClass(), ENF_UIInputMode::GameAndUI, true, 10));
+			MatchmakingWidget = Cast<UNF_MatchmakingWidget>(
+				UIManager->PushScreen(
+					UNF_MatchmakingWidget::StaticClass(),
+					ENF_ScreenInputMode::GameAndUI));
 		}
 	}
 }

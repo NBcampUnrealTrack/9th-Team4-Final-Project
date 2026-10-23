@@ -6,7 +6,6 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
-#include "TimerManager.h"
 
 void UNF_AnnouncementWidget::NativeOnInitialized()
 {
@@ -14,31 +13,11 @@ void UNF_AnnouncementWidget::NativeOnInitialized()
 	BuildWidgetTree();
 }
 
-void UNF_AnnouncementWidget::NativeDestruct()
+void UNF_AnnouncementWidget::SetMessage(const FText& Message)
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(LifetimeTimerHandle);
-	}
-	Super::NativeDestruct();
-}
-
-void UNF_AnnouncementWidget::ShowAnnouncement(const FText& Message, const float Duration)
-{
-	if (MessageText)
+	if (IsValid(MessageText))
 	{
 		MessageText->SetText(Message);
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(LifetimeTimerHandle);
-		World->GetTimerManager().SetTimer(
-			LifetimeTimerHandle,
-			this,
-			&ThisClass::HandleLifetimeExpired,
-			FMath::Max(0.1f, Duration),
-			false);
 	}
 }
 
@@ -71,9 +50,4 @@ void UNF_AnnouncementWidget::BuildWidgetTree()
 	Font.Size = 32;
 	MessageText->SetFont(Font);
 	Background->SetContent(MessageText);
-}
-
-void UNF_AnnouncementWidget::HandleLifetimeExpired()
-{
-	RemoveFromParent();
 }

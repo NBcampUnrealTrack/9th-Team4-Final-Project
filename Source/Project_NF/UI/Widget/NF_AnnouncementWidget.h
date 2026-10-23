@@ -13,20 +13,14 @@ class PROJECT_NF_API UNF_AnnouncementWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	void ShowAnnouncement(const FText& Message, float Duration);
+	void SetMessage(const FText& Message);
 
 protected:
 	virtual void NativeOnInitialized() override;
-	virtual void NativeDestruct() override;
 
 private:
 	void BuildWidgetTree();
 
-	UFUNCTION()
-	void HandleLifetimeExpired();
-
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> MessageText;
-
-	FTimerHandle LifetimeTimerHandle;
 };
