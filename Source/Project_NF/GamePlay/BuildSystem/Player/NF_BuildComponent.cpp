@@ -397,11 +397,13 @@ void UNF_BuildComponent::UpdateLocalShopUI()
 	}
 
 	if (IsValid(CurrentShop) && bAutomaticallyShowWidget && BuildWidgetClass)
+	{
 		if (!IsValid(BuildWidget) || BuildWidget->GetParent() == nullptr)
 		{
 			BuildWidget = UIManager->PushScreen(
 				BuildWidgetClass, ENF_ScreenInputMode::GameAndUI);
 		}
+	}
 	else if (IsValid(BuildWidget))
 	{
 		UIManager->RemoveWidget(BuildWidget);
