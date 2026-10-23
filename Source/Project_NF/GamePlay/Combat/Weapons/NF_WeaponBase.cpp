@@ -245,9 +245,11 @@ bool ANF_WeaponBase::FireProjectile()
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	const int32 PelletCount = WeaponData->ProjectilesPerShot;
+	AActor* Shooter = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
+	const bool bLastRound = CurrentAmmo == 1;
 	// Snapshot before consuming ammo; all pellets from this shot use the same bonuses.
 	const float ShotDamage = UNF_WeaponDamageLibrary::CalculateShotDamage(
-		IsValid(GetInstigator()) ? GetInstigator() : GetOwner(), WeaponData->Damage, CurrentAmmo == 1);
+		Shooter, WeaponData->Damage, bLastRound);
 	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
 	TArray<ANF_WeaponProjectile*, TInlineAllocator<64>> SpawnedProjectiles;
 
@@ -285,6 +287,13 @@ bool ANF_WeaponBase::FireProjectile()
 
 	--CurrentAmmo;
 	LastFireTime = GetWorld()->GetTimeSeconds();
+	if (IsValid(Shooter))
+	{
+		if (auto* Weapons = Shooter->FindComponentByClass<UNF_WeaponComponent>())
+		{
+			Weapons->OnShotFired.Broadcast(Shooter, this, bLastRound);
+		}
+	}
 	return true;
 }
 

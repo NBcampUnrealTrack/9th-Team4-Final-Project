@@ -20,6 +20,9 @@ class USceneComponent;
 class USkeletalMeshComponent;
 enum class EVisibilityBasedAnimTickOption : uint8;
 
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FNF_OnShotFired, AActor* /* Shooter */,
+	ANF_WeaponBase* /* Weapon */, bool /* bLastRound */);
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
 {
@@ -27,6 +30,11 @@ class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
 
 public:	
 	UNF_WeaponComponent();
+
+	/** Server only, once per successful shot (not per pellet), after ammo and fire time commit.
+	 * Bind on the shooter's component; passive abilities own their subscription lifetime.
+	 */
+	FNF_OnShotFired OnShotFired;
 	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
