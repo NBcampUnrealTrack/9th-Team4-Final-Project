@@ -6,6 +6,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Player/State/NF_PlayerState.h"
 #include "UI/SubSystem/NF_UIManagerSubsystem.h"
+#include "UI/Widget/NF_AnnouncementWidget.h"
 
 ANF_GameState::ANF_GameState()
 {
@@ -166,7 +167,15 @@ void ANF_GameState::MulticastShowAnnouncement_Implementation(const FText& Messag
 
 		if (UNF_UIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>())
 		{
-			UIManager->ShowAnnouncement(Message, Duration);
+			UNF_AnnouncementWidget* Announcement = Cast<UNF_AnnouncementWidget>(
+				UIManager->AddOverlay(
+					UNF_AnnouncementWidget::StaticClass(),
+					FMath::Max(0.1f, Duration)));
+
+			if (IsValid(Announcement))
+			{
+				Announcement->SetMessage(Message);
+			}
 		}
 	}
 }
