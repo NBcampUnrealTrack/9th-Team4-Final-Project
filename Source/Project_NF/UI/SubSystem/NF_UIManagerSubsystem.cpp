@@ -6,6 +6,7 @@
 
 void UNF_UIManagerSubsystem::Deinitialize()
 {
+	ClearAnnouncements();
 	PopAllWidgets();
 	Super::Deinitialize();
 }
@@ -13,6 +14,7 @@ void UNF_UIManagerSubsystem::Deinitialize()
 void UNF_UIManagerSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
 	Super::PlayerControllerChanged(NewPlayerController);
+	ClearAnnouncements();
 	PopAllWidgets();
 }
 
@@ -128,6 +130,11 @@ void UNF_UIManagerSubsystem::ShowAnnouncement(const FText& Message, const float 
 	{
 		return;
 	}
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
 
 	UNF_AnnouncementWidget* Widget = CreateWidget<UNF_AnnouncementWidget>(PlayerController);
 	if (!IsValid(Widget))
@@ -135,8 +142,54 @@ void UNF_UIManagerSubsystem::ShowAnnouncement(const FText& Message, const float 
 		return;
 	}
 
+	Widget->SetMessage(Message);
 	Widget->AddToPlayerScreen(1000);
-	Widget->ShowAnnouncement(Message, Duration);
+
+	FNFManagedAnnouncementEntry& Entry = ActiveAnnouncements.AddDefaulted_GetRef();
+	Entry.Widget = Widget;
+	FTimerDelegate ExpirationDelegate = FTimerDelegate::CreateUObject(
+		this, &ThisClass::HandleAnnouncementExpired, Widget);
+	World->GetTimerManager().SetTimer(
+		Entry.LifetimeTimerHandle,
+		ExpirationDelegate,
+		FMath::Max(0.1f, Duration),
+		false);
+}
+
+void UNF_UIManagerSubsystem::ClearAnnouncements()
+{
+	UWorld* World = GetWorld();
+	for (FNFManagedAnnouncementEntry& Entry : ActiveAnnouncements)
+	{
+		if (World)
+		{
+			World->GetTimerManager().ClearTimer(Entry.LifetimeTimerHandle);
+		}
+		if (IsValid(Entry.Widget))
+		{
+			Entry.Widget->RemoveFromParent();
+		}
+	}
+	ActiveAnnouncements.Reset();
+}
+
+void UNF_UIManagerSubsystem::HandleAnnouncementExpired(UNF_AnnouncementWidget* Widget)
+{
+	const int32 Index = ActiveAnnouncements.IndexOfByPredicate(
+		[Widget](const FNFManagedAnnouncementEntry& Entry)
+		{
+			return Entry.Widget.Get() == Widget;
+		});
+	if (Index == INDEX_NONE)
+	{
+		return;
+	}
+
+	if (IsValid(ActiveAnnouncements[Index].Widget))
+	{
+		ActiveAnnouncements[Index].Widget->RemoveFromParent();
+	}
+	ActiveAnnouncements.RemoveAt(Index);
 }
 
 void UNF_UIManagerSubsystem::RefreshInputMode()
