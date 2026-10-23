@@ -37,43 +37,6 @@ void ANF_PlayerController::BeginPlay()
 	BindDelegate();
 }
 
-UNF_MinimapRevealRegistry* ANF_PlayerController::GetMinimapRevealRegistry()
-{
-	if (!MinimapRevealRegistry)
-	{
-		MinimapRevealRegistry = NewObject<UNF_MinimapRevealRegistry>(this);
-		MinimapRevealRegistry->Initialize(this);
-	}
-	return MinimapRevealRegistry;
-}
-
-void ANF_PlayerController::UpdateMinimapReveals()
-{
-	if (HasAuthority())
-	{
-		TArray<FNF_MinimapRevealMarker> Markers;
-		GetMinimapRevealRegistry()->BuildServerSnapshot(Markers);
-		if (!Markers.IsEmpty() || bSentMinimapReveals)
-		{
-			ClientReceiveMinimapReveals(Markers);
-		}
-		bSentMinimapReveals = !Markers.IsEmpty();
-	}
-	if (IsLocalController()) { GetMinimapRevealRegistry()->ExpireClientSnapshot(); }
-}
-
-void ANF_PlayerController::ClientReceiveMinimapReveals_Implementation(const TArray<FNF_MinimapRevealMarker>& Markers)
-{
-	GetMinimapRevealRegistry()->ReceiveSnapshot(Markers, 1.0f);
-}
-
-void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	GetWorldTimerManager().ClearTimer(MinimapRevealTimer);
-	if (MinimapRevealRegistry) { MinimapRevealRegistry->Clear(); }
-	Super::EndPlay(EndPlayReason);
-}
-
 
 void ANF_PlayerController::InputConfig()
 {
@@ -143,6 +106,8 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomIn);
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Canceled, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
 	
 	
 	//Skill
@@ -157,19 +122,12 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::Interaction);
 }
 
+
 #pragma region TryAction
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
-	//Toggle 옵션 키 (test용도)
-	if (PlayerActionType == ENF_PlayerActionType::ToggleSettingButton)
-	{
-		bIsToggleZoom = !bIsToggleZoom;
-		UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("토글 실행 %d"), bIsToggleZoom));
-	}
-	
-	IsBuildShopAction(PlayerActionType);
-	
 	IsCombatAction(PlayerActionType);
+	IsBuildShopAction(PlayerActionType);
 }
 
 
@@ -197,6 +155,15 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 
 	void ANF_PlayerController::IsCombatAction(ENF_PlayerActionType PlayerActionType)
 	{
+		if (CurrentBuildShopType == ENF_BuildShopUIState::BuildOpened) return;
+	
+		//Toggle 옵션 키 (test용도)
+		if (PlayerActionType == ENF_PlayerActionType::ToggleSettingButton)
+		{
+			bIsToggleZoom = !bIsToggleZoom;
+			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("토글 실행 %d"), bIsToggleZoom));
+		}
+	
 		if (PlayerActionType == ENF_PlayerActionType::MeleeAttack)
 		{
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
@@ -279,14 +246,25 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 
 
 #pragma region BuildShop
-
 void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopType)
 {
 	CurrentBuildShopType = BuildShopType;
+	
+	
 }
-
 #pragma endregion
 
+
+#pragma region UI
+void ANF_PlayerController::ReleaseGameplayInputForUI()
+{
+	NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction,this,ENF_PlayerActionType::ZoomOut);
+	NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction,this,ENF_PlayerActionType::StopFire);
+}
+#pragma endregion 
+
+
+#pragma region NotDevelopedByMe
 void ANF_PlayerController::ClientHandleMatchCompleted_Implementation(const FNF_MatchResult& Result)
 {
 	if (UGameInstance* GI = GetGameInstance())
@@ -297,3 +275,45 @@ void ANF_PlayerController::ClientHandleMatchCompleted_Implementation(const FNF_M
 		}
 	}
 }
+
+
+UNF_MinimapRevealRegistry* ANF_PlayerController::GetMinimapRevealRegistry()
+{
+	if (!MinimapRevealRegistry)
+	{
+		MinimapRevealRegistry = NewObject<UNF_MinimapRevealRegistry>(this);
+		MinimapRevealRegistry->Initialize(this);
+	}
+	return MinimapRevealRegistry;
+}
+
+
+void ANF_PlayerController::UpdateMinimapReveals()
+{
+	if (HasAuthority())
+	{
+		TArray<FNF_MinimapRevealMarker> Markers;
+		GetMinimapRevealRegistry()->BuildServerSnapshot(Markers);
+		if (!Markers.IsEmpty() || bSentMinimapReveals)
+		{
+			ClientReceiveMinimapReveals(Markers);
+		}
+		bSentMinimapReveals = !Markers.IsEmpty();
+	}
+	if (IsLocalController()) { GetMinimapRevealRegistry()->ExpireClientSnapshot(); }
+}
+
+
+void ANF_PlayerController::ClientReceiveMinimapReveals_Implementation(const TArray<FNF_MinimapRevealMarker>& Markers)
+{
+	GetMinimapRevealRegistry()->ReceiveSnapshot(Markers, 1.0f);
+}
+
+
+void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorldTimerManager().ClearTimer(MinimapRevealTimer);
+	if (MinimapRevealRegistry) { MinimapRevealRegistry->Clear(); }
+	Super::EndPlay(EndPlayReason);
+}
+#pragma endregion
