@@ -351,6 +351,7 @@ void ANF_Player::InitAbilitySystem()
 }
 
 
+
 void ANF_Player::OnOutOfHealthCpp()
 {
 	if (HasAuthority() == true)
