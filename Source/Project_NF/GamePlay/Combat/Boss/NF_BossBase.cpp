@@ -234,7 +234,7 @@ void ANF_BossBase::BeginPlay()
 	if (!BossCombatDataTable)
 	{
 		BossCombatDataTable = LoadObject<UDataTable>(nullptr,
-			TEXT("/Game/ProjectNF/Dev/Data/Boss/DT_BossCombat.DT_BossCombat"));
+			TEXT("/Game/ProjectNF/Persnal/Myungwoo/Data/Boss/DT_BossCombat.DT_BossCombat"));
 	}
 	if (BossCombatDataTable)
 	{
@@ -294,7 +294,7 @@ void ANF_BossBase::BeginPlay()
 	if (!BossStateTree)
 	{
 		BossStateTree = LoadObject<UStateTree>(nullptr,
-			TEXT("/Game/ProjectNF/Dev/GamePlay/Boss/ST_BossPatternCycle.ST_BossPatternCycle"));
+			TEXT("/Game/ProjectNF/Persnal/Myungwoo/Gameplay/Boss/ST_BossPatternCycle.ST_BossPatternCycle"));
 	}
 
 	UE_LOG(LogTemp, Display,

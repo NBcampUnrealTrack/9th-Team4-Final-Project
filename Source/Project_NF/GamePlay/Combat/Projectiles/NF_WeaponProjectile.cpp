@@ -188,7 +188,7 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 		const APawn* SourcePawn = Cast<APawn>(DamageSource);
 		const ANF_PlayerState* SourceState = SourcePawn ? SourcePawn->GetPlayerState<ANF_PlayerState>() : nullptr;
 		const ANF_PlayerState* TargetState = TargetPlayer->GetPlayerState<ANF_PlayerState>();
-		
+		// Unassigned teams are allowed for local testing; only known allies are protected.
 		const bool bSameTeam = IsValid(SourceState) && IsValid(TargetState)
 			&& SourceState->NF_TeamID > 0 && TargetState->NF_TeamID > 0
 			&& SourceState->NF_TeamID == TargetState->NF_TeamID;
@@ -205,22 +205,7 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 					UNFGE_CommonDamage::StaticClass(), 1.f, EffectContext);
 				if (DamageSpec.IsValid())
 				{
-					float AdditionalDefence = 0.f;
-					const UNF_ArmorComponent* ArmorComponent = TargetPlayer->FindComponentByClass<UNF_ArmorComponent>();
-					const USkeletalMeshComponent* HitMesh = Cast<USkeletalMeshComponent>(OtherComponent);
-					if (ArmorComponent && IsValid(HitMesh)
-						&& HitMesh == ArmorComponent->GetHitMesh() && HitMesh->GetPhysicsAsset())
-					{
-						const ENF_ArmorSlot Slot = ArmorComponent->ResolveHitRegion(Hit.BoneName);
-						const float SlotDefence = ArmorComponent->GetAdditionalDefenseForSlot(Slot);
-						if (FMath::IsFinite(SlotDefence))
-						{
-							AdditionalDefence = FMath::Max(0.f, SlotDefence);
-						}
-					}
-
-					const float AdjustedDamage = FMath::Max(ImpactDamage - AdditionalDefence, 0.f);
-					DamageSpec.Data->SetSetByCallerMagnitude(NFTag_BossCombat::Data_Damage, AdjustedDamage);
+					DamageSpec.Data->SetSetByCallerMagnitude(NFTag_BossCombat::Data_Damage, ImpactDamage);
 					UNF_DamageLibrary::SubmitDamageSpec(this, TargetPlayer, DamageSpec, GetActorLocation(), Hit);
 				}
 			}

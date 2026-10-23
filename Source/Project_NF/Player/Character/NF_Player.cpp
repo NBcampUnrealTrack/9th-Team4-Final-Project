@@ -342,9 +342,6 @@ void ANF_Player::InitAbilitySystem()
 	
 	NF_PlayerState->InitAbilitySystem(this);
 	
-	NF_ArmorComponent->RefreshArmorDefence();
-	NF_ArmorComponent->ClearArmorDefence();
-	
 	const UNF_PlayerStatusAttribute* PlayerStatusAttribute = ASC->GetSet<UNF_PlayerStatusAttribute>(); 
 	if (IsValid(PlayerStatusAttribute) == true)
 	{
@@ -352,7 +349,6 @@ void ANF_Player::InitAbilitySystem()
 		PlayerStatusAttribute->OnOutOfShield.AddUniqueDynamic(this, &ThisClass::OnOutOfShieldCpp); 
 	}
 }
-
 
 
 void ANF_Player::OnOutOfHealthCpp()
