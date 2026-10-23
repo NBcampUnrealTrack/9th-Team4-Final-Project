@@ -19,53 +19,30 @@ void ANF_MatchLobbyPlayerController::BeginPlay()
 	Super::BeginPlay();
 	SubmitPendingMatchTeamsToServer();
 
-	ULocalPlayer* LocalPlayer = IsLocalPlayerController() ? GetLocalPlayer() : nullptr;
-	UNF_UIManagerSubsystem* UIManager = IsValid(LocalPlayer)
-		? LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>() : nullptr;
-
 	if (ShouldUseTouchControls() && IsLocalPlayerController())
 	{
-		if (IsValid(UIManager) && MobileControlsWidgetClass)
+		MobileControlsWidget = CreateWidget<UUserWidget>(this, MobileControlsWidgetClass);
+		if (MobileControlsWidget)
 		{
-			MobileControlsWidget = UIManager->PushWidget(
-				MobileControlsWidgetClass, ENF_UIInputMode::GameAndUI, false, 0);
+			MobileControlsWidget->AddToPlayerScreen(0);
 		}
 		else
 		{
-			UE_LOG(LogProject_NF, Error, TEXT("Could not show mobile controls: UI manager or widget class is unavailable."));
+			UE_LOG(LogProject_NF, Error, TEXT("Could not spawn mobile controls widget."));
 		}
 	}
 
 	if (IsLocalPlayerController())
 	{
+		ULocalPlayer* LocalPlayer = GetLocalPlayer();
+		UNF_UIManagerSubsystem* UIManager = IsValid(LocalPlayer)
+			? LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>() : nullptr;
 		if (IsValid(UIManager))
 		{
 			MatchmakingWidget = Cast<UNF_MatchmakingWidget>(UIManager->PushWidget(
 				UNF_MatchmakingWidget::StaticClass(), ENF_UIInputMode::GameAndUI, true, 10));
 		}
 	}
-}
-
-void ANF_MatchLobbyPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
-	{
-		if (UNF_UIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>())
-		{
-			if (IsValid(MatchmakingWidget))
-			{
-				UIManager->RemoveWidget(MatchmakingWidget);
-			}
-			if (IsValid(MobileControlsWidget))
-			{
-				UIManager->RemoveWidget(MobileControlsWidget);
-			}
-		}
-	}
-
-	MatchmakingWidget = nullptr;
-	MobileControlsWidget = nullptr;
-	Super::EndPlay(EndPlayReason);
 }
 
 void ANF_MatchLobbyPlayerController::PostNetInit()
