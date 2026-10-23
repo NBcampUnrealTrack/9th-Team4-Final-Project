@@ -16,6 +16,7 @@ public:
 	ANF_MonsterSpawner();
 	
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION()
 	void HandleMonsterDied(ANF_Monster* DeadMonster);
@@ -73,10 +74,12 @@ public:
 
 private:
 	bool IsSpawnLocationSeparated(const FVector& CandidateLocation) const;
-	bool FindSafeSpawnLocation(FVector& OutSpawnLocation) const;
+	bool FindSafeSpawnLocation(TSubclassOf<ANF_Monster> MonsterClass, FVector& OutSpawnLocation) const;
 	TSubclassOf<ANF_Monster> GetRandomMonsterClass() const;
 
 	int32 PendingRespawnCount = 0;
+	int32 PendingInitialSpawnCount = 0;
+	FTimerHandle InitialSpawnRetryTimerHandle;
 
 	FTimerHandle RespawnTimerHandle;
 };

@@ -1,6 +1,8 @@
 #include "Monster/NF_MonsterSpawner.h"
 
 #include "Components/SceneComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Monster/NF_Monster.h"
 #include "NavigationSystem.h"
 
@@ -21,24 +23,48 @@ void ANF_MonsterSpawner::BeginPlay()
 
     if (!HasAuthority()) { return; }
 
+    PendingInitialSpawnCount = FMath::Clamp(InitialSpawnCount, 0, FMath::Max(MaxAliveCount, 0));
     SpawnInitialMonsters();
+    if (PendingInitialSpawnCount > 0)
+    {
+        UE_LOG(LogTemp, Display, TEXT("MonsterSpawner %s waiting for navigation / ground collision (%d remaining)."),
+            *GetName(), PendingInitialSpawnCount);
+    }
+}
+
+void ANF_MonsterSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    GetWorldTimerManager().ClearTimer(InitialSpawnRetryTimerHandle);
+    GetWorldTimerManager().ClearTimer(RespawnTimerHandle);
+    Super::EndPlay(EndPlayReason);
 }
 
 void ANF_MonsterSpawner::SpawnInitialMonsters()
 {
-    const int32 SpawnCount = FMath::Min(
-        InitialSpawnCount,
-        MaxAliveCount);
+    if (!HasAuthority()) { return; }
+    const int32 SpawnCount = PendingInitialSpawnCount;
 
     for (int32 Index = 0; Index < SpawnCount; ++Index)
     {
-        SpawnMonster();
+        if (SpawnMonster())
+        {
+            --PendingInitialSpawnCount;
+        }
+    }
+
+    // Level instances can register their floor collision after the persistent
+    // level's BeginPlay, particularly on dedicated servers. Retry only missing
+    // initial monsters; do not turn this into an unconditional population refill.
+    if (PendingInitialSpawnCount > 0)
+    {
+        GetWorldTimerManager().SetTimer(InitialSpawnRetryTimerHandle, this,
+            &ThisClass::SpawnInitialMonsters, 0.5f, false);
     }
 }
 
 bool ANF_MonsterSpawner::SpawnMonster()
 {
-    if (MonsterClasses.IsEmpty()
+    if (!HasAuthority() || MonsterClasses.IsEmpty()
         || AliveMonsters.Num() >= MaxAliveCount)
     {
         return false;
@@ -63,7 +89,7 @@ bool ANF_MonsterSpawner::SpawnMonster()
         ++AttemptIndex)
     {
         FVector SpawnLocation;
-        if (!FindSafeSpawnLocation(SpawnLocation))
+        if (!FindSafeSpawnLocation(MonsterClass, SpawnLocation))
         {
             continue;
         }
@@ -81,22 +107,25 @@ bool ANF_MonsterSpawner::SpawnMonster()
                 SpawnParameters);
 
         if (!SpawnedMonster)
-        {
-            // The point is on NavMesh but the monster capsule still overlaps
-            // geometry or another actor. Try another candidate instead.
+        {            
             continue;
         }
+        
+        SpawnedMonster->SetReplicates(true);
+        SpawnedMonster->SetReplicateMovement(true);
+        SpawnedMonster->SetNetDormancy(DORM_Awake);
+        SpawnedMonster->ForceNetUpdate();
 
         SpawnedMonster->OnMonsterDied.AddUniqueDynamic(
             this,
             &ThisClass::HandleMonsterDied);
 
         AliveMonsters.Add(SpawnedMonster);
-
+        
         return true;
     }
 
-    UE_LOG(LogTemp, Warning,
+    UE_LOG(LogTemp, Verbose,
         TEXT("MonsterSpawner %s could not find a safe spawn location after %d attempts."),
         *GetName(), MaxSpawnLocationAttempts);
     return false;
@@ -122,7 +151,8 @@ bool ANF_MonsterSpawner::IsSpawnLocationSeparated(
     return true;
 }
 
-bool ANF_MonsterSpawner::FindSafeSpawnLocation(FVector& OutSpawnLocation) const
+bool ANF_MonsterSpawner::FindSafeSpawnLocation(
+    TSubclassOf<ANF_Monster> MonsterClass, FVector& OutSpawnLocation) const
 {
 	UNavigationSystemV1* NavigationSystem =
         UNavigationSystemV1::GetCurrent(GetWorld());
@@ -146,7 +176,7 @@ bool ANF_MonsterSpawner::FindSafeSpawnLocation(FVector& OutSpawnLocation) const
         ProjectedSpawnerLocation,
         ProjectionExtent))
     {
-        UE_LOG(LogTemp, Warning,
+        UE_LOG(LogTemp, Verbose,
             TEXT("MonsterSpawner %s has no NavMesh near its placed location."),
             *GetName());
         return false;
@@ -162,7 +192,32 @@ bool ANF_MonsterSpawner::FindSafeSpawnLocation(FVector& OutSpawnLocation) const
         return false;
     }
 
-    OutSpawnLocation = NavigationLocation.Location;
+    const ANF_Monster* MonsterDefaults = MonsterClass.GetDefaultObject();
+    const UCapsuleComponent* Capsule = MonsterDefaults ? MonsterDefaults->GetCapsuleComponent() : nullptr;
+    const UCharacterMovementComponent* Movement = MonsterDefaults ? MonsterDefaults->GetCharacterMovement() : nullptr;
+    if (!Capsule || !Movement)
+    {
+        return false;
+    }
+
+    // A baked NavMesh may already exist while the streamed floor does not.
+    // Require a real, walkable blocking surface using the capsule's collision
+    // responses. NavMesh locations are foot positions, not capsule centers.
+    const float HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+    const float GroundTolerance = FMath::Max(Movement->MaxStepHeight, 50.0f);
+    const FVector TraceStart = NavigationLocation.Location + FVector(0, 0, GroundTolerance);
+    const FVector TraceEnd = NavigationLocation.Location - FVector(0, 0, GroundTolerance);
+    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MonsterSpawnGround), false, this);
+    FHitResult GroundHit;
+    if (!GetWorld()->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd,
+        Capsule->GetCollisionObjectType(), QueryParams,
+        FCollisionResponseParams(Capsule->GetCollisionResponseToChannels()))
+        || !Movement->IsWalkable(GroundHit))
+    {
+        return false;
+    }
+
+    OutSpawnLocation = GroundHit.ImpactPoint + FVector(0, 0, HalfHeight + 2.0f);
     return true;
 }
 

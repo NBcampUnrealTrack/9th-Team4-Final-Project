@@ -23,6 +23,13 @@
 ANF_Monster::ANF_Monster()
 {
 	bReplicates = true;
+	SetReplicateMovement(true);
+	
+	//2026-10-23 데디환경 스폰
+	bAlwaysRelevant = true;
+
+	NetUpdateFrequency = 30.0f;
+	MinNetUpdateFrequency = 10.0f;
 
 	// 2026-10-22 몬스터 Mesh 의 콜리전 설정 수정 요청
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -49,7 +56,15 @@ UAbilitySystemComponent* ANF_Monster::GetAbilitySystemComponent() const
 void ANF_Monster::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[WorldCheck] Map=%s | NetMode=%d | Monster=%s"),
+		*GetWorld()->GetMapName(),
+		static_cast<int32>(GetNetMode()),
+		*GetName());
+	
 	MonsterASC->InitAbilityActorInfo(this, this);
 	
 	//Attribute 변경 감지 연결
@@ -84,6 +99,22 @@ void ANF_Monster::BeginPlay()
 		{
 			MonsterASC->ApplyGameplayEffectSpecToSelf(
 				*EffectSpecHandle.Data.Get());
+			
+			const float MaxHealth = MonsterAttributeSet->GetMaxHealth();
+			if (MaxHealth > 0.0f && MonsterAttributeSet->GetHealth() <= 0.0f)
+			{
+				MonsterAttributeSet->SetHealth(MaxHealth);
+			}
+			
+			UE_LOG(
+	LogTemp,
+	Warning,
+	TEXT("Monster Initial Stats | Monster=%s | DefaultGE=%s | Health=%.1f | MaxHealth=%.1f"),
+	*GetName(),
+	*GetNameSafe(DefaultAttributesEffect),
+	MonsterAttributeSet->GetHealth(),
+	MonsterAttributeSet->GetMaxHealth());
+			
 		}
 	}
 	
@@ -111,6 +142,32 @@ void ANF_Monster::BeginPlay()
 				*GetNameSafe(AbilityClass));
 				*/
 			}
+		}
+	}
+	
+	if (GetNetMode() == NM_Client)
+	{
+		USkeletalMeshComponent* MonsterMesh = GetMesh();
+		if (IsValid(MonsterMesh))
+		{
+			MonsterMesh->SetVisibility(true, true);
+			MonsterMesh->SetHiddenInGame(false, true);
+			MonsterMesh->SetOwnerNoSee(false);
+			MonsterMesh->SetOnlyOwnerSee(false);
+
+			// Bounds/LOD 또는 Main Pass 설정 문제인지 분리하기 위한 임시 강제값
+			MonsterMesh->SetRenderInMainPass(true);
+			MonsterMesh->SetBoundsScale(10.0f);
+			MonsterMesh->SetForcedLOD(1);
+			MonsterMesh->MarkRenderStateDirty();
+
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("[MonsterVisual] Registered=%d RenderMainPass=%d Bounds=%s"),
+				MonsterMesh->IsRegistered(),
+				MonsterMesh->bRenderInMainPass,
+				*MonsterMesh->Bounds.GetBox().ToString());
 		}
 	}
 	
