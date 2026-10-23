@@ -258,6 +258,7 @@ void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopTyp
 #pragma region UI
 void ANF_PlayerController::ReleaseGameplayInputForUI()
 {
+	bIsZoomIn = false;
 	NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction,this,ENF_PlayerActionType::ZoomOut);
 	NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction,this,ENF_PlayerActionType::StopFire);
 }
