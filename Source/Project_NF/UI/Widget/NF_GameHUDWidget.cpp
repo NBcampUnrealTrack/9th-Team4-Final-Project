@@ -8,6 +8,7 @@
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "UI/ViewModel/GamePlay/NF_GameFlowViewModel.h"
+#include "UI/ViewModel/GamePlay/NF_MinimapViewModel.h"
 #include "UI/ViewModel/Slots/NF_SkillSlotViewModel.h"
 #include "UI/ViewModel/Status/NF_PlayerStatusViewModel.h"
 
@@ -59,6 +60,9 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 	UNF_GameFlowViewModel* GameFlowVM = NewObject<UNF_GameFlowViewModel>(this);
 	RegisterOwnedViewModel(GameFlowVM);
 
+	UNF_MinimapViewModel* MinimapVM =NewObject<UNF_MinimapViewModel>(this);
+	RegisterOwnedViewModel(MinimapVM);
+	
 	// 각 자식 WBP에 이름이 ViewModel인 Manual MVVM 슬롯 필요
 	bool bAllAssigned = true;
 	bAllAssigned &= AssignViewModel(PlayerStatusWidget.Get(), PlayerStatusVM);
@@ -66,7 +70,8 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 	bAllAssigned &= AssignViewModel(ActiveSkillSlotTwo.Get(), ActiveSkillTwoVM);
 	bAllAssigned &= AssignViewModel(PassiveSkillSlot.Get(), PassiveSkillVM);
 	bAllAssigned &= AssignViewModel(MatchStatusWidget.Get(), GameFlowVM);
-
+	bAllAssigned &= AssignViewModel(MinimapWidget.Get(), MinimapVM);
+	
 	if (!bAllAssigned)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[NF HUD] ViewModel 연결 실패. 자식 WBP의 슬롯 이름, 타입, Manual 설정을 확인하세요."));
@@ -132,6 +137,7 @@ void UNF_GameHUDWidget::ClearChildViewModels()
 	AssignViewModel(ActiveSkillSlotTwo.Get(), nullptr);
 	AssignViewModel(PassiveSkillSlot.Get(), nullptr);
 	AssignViewModel(MatchStatusWidget.Get(), nullptr);
+	AssignViewModel(MinimapWidget.Get(), nullptr);
 }
 
 void UNF_GameHUDWidget::ReleaseHUDViewModels()
