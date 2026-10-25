@@ -10,6 +10,7 @@
 #include "UI/Minimap/NF_MinimapRevealRegistry.h"
 #include "NF_PlayerController.generated.h"
 
+class UNF_GameHUDWidget;
 enum class ENF_PlayerActionType : uint8;
 enum class ENF_PlayerInteractTypeEnum : uint8;
 enum class ENF_BuildShopUIState : uint8;
@@ -28,13 +29,15 @@ class PROJECT_NF_API ANF_PlayerController : public APlayerController
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void OnRep_PlayerState() override;
 	
 	virtual void BeginPlay() override;
 	
 	virtual void SetupInputComponent() override;
 	
-public:
+
 #pragma region Input
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|MotionMatching")
 	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputDataAsset;
 	
@@ -62,8 +65,9 @@ public:
 #pragma endregion 
 
 	
-protected:
+
 #pragma region BuildShop
+protected:
 	UPROPERTY(Replicated)
 	ENF_BuildShopUIState CurrentBuildShopType = ENF_BuildShopUIState::None;
 	
@@ -73,6 +77,15 @@ protected:
 	void OnInteractBuildShop(ENF_BuildShopUIState BuildShopType);
 #pragma endregion
 	
+#pragma region UI
+protected:
+	UPROPERTY(EditDefaultsOnly, Category = "NF|UI")
+	TSubclassOf<UNF_GameHUDWidget> GameHUDClass;
+private:
+	void CreateGameHUD();
+	void RefreshViewModel();
+	
+#pragma endregion 
 	
 
 
