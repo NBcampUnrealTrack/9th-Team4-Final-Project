@@ -5,6 +5,7 @@
 #include "GameFramework/PlayerState.h"
 #include "NF_PlayerState.generated.h"
 
+class UNF_KeyHolderAttributeSet;
 class UGameplayAbility;
 class UNF_PlayerDataAsset;
 class UNF_PlayerStatusAttribute;
@@ -45,6 +46,9 @@ public:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Attribute")
 	TObjectPtr<UNF_PlayerStatusAttribute> PlayerStatusAttribute; 
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Attribute")
+	TObjectPtr<UNF_KeyHolderAttributeSet> KeyHolderAttributeSet; 
 
 	
 protected:

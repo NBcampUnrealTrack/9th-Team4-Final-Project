@@ -2,6 +2,7 @@
 #include "NF_PlayerState.h"
 
 #include "AbilitySystemComponent.h"
+#include "GAS/Attributes/NF_KeyHolderAttributeSet.h"
 #include "GAS/Foundation/NF_AbilitySystemComponent.h"
 #include "Player/Data/NF_PlayerDataAsset.h" 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
@@ -18,6 +19,7 @@ ANF_PlayerState::ANF_PlayerState()
 	PlayerASC->SetIsReplicated(true);
 	PlayerASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	PlayerStatusAttribute = CreateDefaultSubobject<UNF_PlayerStatusAttribute>(TEXT("PlayerStatusAttribute"));
+	KeyHolderAttributeSet = CreateDefaultSubobject<UNF_KeyHolderAttributeSet>(TEXT("KeyHolderAttributeSet"));
 }
 
 void ANF_PlayerState::InitAbilitySystem(APawn* AvatarPawn)
