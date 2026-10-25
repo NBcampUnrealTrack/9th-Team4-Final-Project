@@ -45,21 +45,3 @@ struct FNF_MinimapEntry
 	// 이 위젯이 속한 로컬 월드의 시간. 0은 만료 없음.
 	double ExpiresAt = 0.0;
 };
-
-USTRUCT(BlueprintType)
-struct PROJECT_NF_API FNF_MinimapSnapshot
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadOnly, Category = "Minimap")
-	bool bHasView = false;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Minimap")
-	FVector ViewLocation = FVector::ZeroVector;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Minimap")
-	float ViewYaw = 0.0f;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Minimap")
-	TArray<FNF_MinimapMarker> Markers;
-};

@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "TimerManager.h"
-#include "UI/Minimap/NF_MinimapTypes.h"
+#include "UI/Data/NF_MinimapSnapshot.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_MinimapViewModel.generated.h"
 
@@ -23,11 +23,7 @@ private:
 	void StopRefresh();
 	void RefreshSnapshot();
 
-	UPROPERTY(
-		BlueprintReadOnly,
-		FieldNotify,
-		Category = "Minimap",
-		meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "Minimap",meta = (AllowPrivateAccess = "true"))
 	FNF_MinimapSnapshot Snapshot;
 
 	TWeakObjectPtr<UWorld> RefreshWorld;
