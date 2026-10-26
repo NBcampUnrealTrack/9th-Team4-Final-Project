@@ -54,8 +54,8 @@ void UNF_BuildComponent::InitializeDefaultBuildEntitlements()
 	if (!UpdateBuildEntitlements(InitialCostLimit, InitialUnlockedItemIds))
 	{
 		UE_LOG(LogTemp, Warning,
-			TEXT("빌드 초기 조건 적용 실패: %s. 초기 코스트와 Rules Catalog의 ItemId를 확인하세요."),
-			*GetNameSafe(GetOwner()));
+		       TEXT("빌드 초기 조건 적용 실패: %s. 초기 코스트와 Rules Catalog의 ItemId를 확인하세요."),
+		       *GetNameSafe(GetOwner()));
 	}
 }
 
@@ -214,9 +214,15 @@ UNF_BuildItemDefinitionDataAsset* UNF_BuildComponent::FindItemDefinition(FName I
 	return nullptr;
 }
 
+bool UNF_BuildComponent::ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) const
+{
+	OutData = FNF_BuildItemData();
+	return IsValid(Rules) && FindItemDefinition(ItemId) && Rules->ResolveItemData(ItemId, OutData);
+}
+
 TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
-	ENF_BuildItemType ItemType,
-	ENF_BuildArmorPart ArmorPart) const
+	ENF_ItemType ItemType,
+	ENF_ArmorSlot ArmorPart) const
 {
 	TArray<UNF_BuildItemDefinitionDataAsset*> Result;
 
@@ -227,14 +233,15 @@ TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
 
 	for (UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
 	{
-		if (!IsValid(Definition)){continue;}
+		if (!IsValid(Definition)) { continue; }
 		// 획득하지 않은 아이템은 목록에서 제외한다.
-		if (!UnlockedItemIds.Contains(Definition->ItemId)){continue;}
-		if (Definition->ItemType != ItemType){continue;}
+		if (!UnlockedItemIds.Contains(Definition->ItemId)) { continue; }
+		FNF_BuildItemData Data;
+		if (!ResolveItemData(Definition->ItemId, Data) || Data.ItemType != ItemType) { continue; }
 		// 방어구는 지정한 부위만 표시한다. None이면 전체 부위.
-		if (ItemType == ENF_BuildItemType::Armor &&
-			ArmorPart != ENF_BuildArmorPart::None &&
-			Definition->ArmorPart != ArmorPart){continue;}
+		if (ItemType == ENF_ItemType::Armor &&
+			ArmorPart != ENF_ArmorSlot::None &&
+			Data.ArmorSlot != ArmorPart) { continue; }
 		Result.Add(Definition);
 	}
 
@@ -242,14 +249,15 @@ TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
 }
 
 UNF_BuildItemDefinitionDataAsset* UNF_BuildComponent::GetSlotItem(
-	ENF_BuildItemType ItemType, int32 SlotIndex, bool bUseDraft) const
+	ENF_ItemType ItemType, int32 SlotIndex, bool bUseDraft) const
 {
 	const TArray<FNF_BuildSelection>& Selections = bUseDraft ? DraftBuild : CurrentBuild;
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
 		UNF_BuildItemDefinitionDataAsset* Definition = FindItemDefinition(Selection.ItemId);
-		if (Definition && Definition->ItemType == ItemType && Selection.SlotIndex == SlotIndex &&
-			Definition->CanUseSlot(SlotIndex))
+		FNF_BuildItemData Data;
+		if (Definition && ResolveItemData(Selection.ItemId, Data) && Data.ItemType == ItemType &&
+			Selection.SlotIndex == SlotIndex && FNF_BuildItemSlots::CanUseSlot(Data, SlotIndex))
 		{
 			return Definition;
 		}
@@ -265,23 +273,25 @@ bool UNF_BuildComponent::CanEditDraft() const
 
 bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 {
-	const UNF_BuildItemDefinitionDataAsset* Definition = FindItemDefinition(ItemId);
-	if (!CanEditDraft() || !Definition || Rules->GetSlotCount(Definition->ItemType) < 1)
+	FNF_BuildItemData Data;
+	if (!CanEditDraft() || !ResolveItemData(ItemId, Data) || Rules->GetSlotCount(Data.ItemType) < 1)
 	{
 		return false;
 	}
-	PendingActiveSkill = Definition->ItemType == ENF_BuildItemType::ActiveSkill ? ItemId : NAME_None;
+	PendingActiveSkill = Data.ItemType == ENF_ItemType::ActiveSkill ? ItemId : NAME_None;
 	if (PendingActiveSkill.IsNone())
 	{
-		const int32 TargetSlotIndex = Definition->GetDefaultSlotIndex();
-		if (!Definition->CanUseSlot(TargetSlotIndex) || TargetSlotIndex >= Rules->GetSlotCount(Definition->ItemType))
+		const int32 TargetSlotIndex = FNF_BuildItemSlots::GetDefaultSlotIndex(Data);
+		if (!FNF_BuildItemSlots::CanUseSlot(Data, TargetSlotIndex) || TargetSlotIndex >= Rules->GetSlotCount(
+			Data.ItemType))
 		{
 			return false;
 		}
-		DraftBuild.RemoveAll([this, Definition, TargetSlotIndex](const FNF_BuildSelection& Selection)
+		DraftBuild.RemoveAll([this, Data, TargetSlotIndex](const FNF_BuildSelection& Selection)
 		{
-			const UNF_BuildItemDefinitionDataAsset* Existing = FindItemDefinition(Selection.ItemId);
-			return Existing && Existing->ItemType == Definition->ItemType && Selection.SlotIndex == TargetSlotIndex;
+			FNF_BuildItemData Existing;
+			return ResolveItemData(Selection.ItemId, Existing) && Existing.ItemType == Data.ItemType && Selection.
+				SlotIndex == TargetSlotIndex;
 		});
 		FNF_BuildSelection Selection;
 		Selection.ItemId = ItemId;
@@ -295,17 +305,18 @@ bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 
 bool UNF_BuildComponent::AssignSelectedActiveSkill(int32 SlotIndex)
 {
-	const UNF_BuildItemDefinitionDataAsset* Definition = FindItemDefinition(PendingActiveSkill);
-	if (!CanEditDraft() || !Definition || Definition->ItemType != ENF_BuildItemType::ActiveSkill ||
+	FNF_BuildItemData Data;
+	if (!CanEditDraft() || !ResolveItemData(PendingActiveSkill, Data) || Data.ItemType != ENF_ItemType::ActiveSkill ||
 		SlotIndex < 0 || SlotIndex > 1 || SlotIndex >= Rules->ActiveSkillSlots)
 	{
 		return false;
 	}
 	DraftBuild.RemoveAll([this, SlotIndex](const FNF_BuildSelection& Selection)
 	{
-		const UNF_BuildItemDefinitionDataAsset* Existing = FindItemDefinition(Selection.ItemId);
+		FNF_BuildItemData Existing;
+		const bool bResolved = ResolveItemData(Selection.ItemId, Existing);
 		return Selection.ItemId == PendingActiveSkill ||
-			(Existing && Existing->ItemType == ENF_BuildItemType::ActiveSkill && Selection.SlotIndex == SlotIndex);
+			(bResolved && Existing.ItemType == ENF_ItemType::ActiveSkill && Selection.SlotIndex == SlotIndex);
 	});
 	FNF_BuildSelection Selection;
 	Selection.ItemId = PendingActiveSkill;
@@ -360,15 +371,13 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 	}
 
 	const ENF_BuildShopUIState SessionState =
-	IsValid(CurrentShop)
-		? ENF_BuildShopUIState::BuildOpened
-		: ENF_BuildShopUIState::BuildClosed;
+		IsValid(CurrentShop)
+			? ENF_BuildShopUIState::BuildOpened
+			: ENF_BuildShopUIState::BuildClosed;
 
 	OnBuildShopStateChanged.Broadcast(SessionState);
 
 	NF_BROADCAST_TO_PLAYER_DELEGATE_OneParam(OnInteractBuildShop, SessionState);
-	
-	
 }
 
 void UNF_BuildComponent::OnRep_BuildConfiguration()
@@ -467,6 +476,7 @@ FNF_BuildValidation UNF_BuildComponent::PreviewBuild(
 		UnlockedItemIds,
 		Selections);
 }
+
 void UNF_BuildComponent::RequestApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone)
 {
 	if (GetOwner()->HasAuthority())
@@ -616,7 +626,7 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 	}
 
 	if (AbilitySystem->HasMatchingGameplayTag(
-			NFTag_Build::State_Build_Locked))
+		NFTag_Build::State_Build_Locked))
 	{
 		return Fail(
 			ENF_BuildResult::BuildBlocked,
@@ -624,7 +634,12 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 	}
 
 	// 상점 검사는 이 함수에 넣지 않는다.
-	Validation = PreviewBuild(Selections);
+	TMap<FName, FNF_BuildItemData> SelectedData;
+	if (!bEntitlementsInitialized)
+	{
+		return PreviewBuild(Selections);
+	}
+	Validation = FNF_BuildValidator::Validate(Rules, CostLimit, UnlockedItemIds, Selections, &SelectedData);
 	if (Validation.Result != ENF_BuildResult::Success)
 	{
 		return Validation;
@@ -650,7 +665,7 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 			}
 		}
 		FNF_BuildGrantHandles Handles;
-		if (!GrantItem(Definition, Selection.SlotIndex, Handles))
+		if (!GrantItem(Definition, SelectedData.FindChecked(Selection.ItemId), Selection.SlotIndex, Handles))
 		{
 			RevokeItem(Handles);
 			for (const TPair<FName, FNF_BuildGrantHandles>& Staged : StagedItems)
@@ -663,7 +678,7 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 	}
 
 	// 기존 GAS 부여를 회수하기 전에, 실패할 수 있는 마지막 단계인 무기 장착을 수행한다.
-	if (!ApplyWeaponSelection(Selections))
+	if (!ApplyWeaponSelection(Selections, SelectedData))
 	{
 		for (const TPair<FName, FNF_BuildGrantHandles>& Staged : StagedItems)
 		{
@@ -687,7 +702,7 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
 		const FNF_BuildGrantHandles& Handles = AppliedItems.FindChecked(Selection.ItemId);
-		if (Handles.Definition->ItemType == ENF_BuildItemType::ActiveSkill)
+		if (Handles.ItemData.ItemType == ENF_ItemType::ActiveSkill)
 		{
 			if (FGameplayAbilitySpec* Spec = AbilitySystem->FindAbilitySpecFromHandle(Handles.AbilityHandle))
 			{
@@ -707,13 +722,15 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 }
 
 // @Owner: 황준현 | 2026-10-15. 빌드는 무기 선택과 생성을, 무기 컴포넌트는 장착과 전투를 담당한다.
-bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections)
+bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections,
+                                              const TMap<FName, FNF_BuildItemData>& SelectedData)
 {
-	UNF_BuildItemDefinitionDataAsset* SelectedWeapon = nullptr;
+	const FNF_BuildItemData* SelectedWeapon = nullptr;
+	FName SelectedWeaponId;
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
-		UNF_BuildItemDefinitionDataAsset* Definition = FindItemDefinition(Selection.ItemId);
-		if (Definition && Definition->ItemType == ENF_BuildItemType::Weapon && Definition->WeaponClass)
+		const FNF_BuildItemData* Definition = SelectedData.Find(Selection.ItemId);
+		if (Definition && Definition->ItemType == ENF_ItemType::Weapon && Definition->WeaponClass)
 		{
 			// 팀 공용 무기 컴포넌트는 무기 한 개의 장착만 지원한다.
 			if (SelectedWeapon || Selection.SlotIndex != 0)
@@ -721,6 +738,7 @@ bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& 
 				return false;
 			}
 			SelectedWeapon = Definition;
+			SelectedWeaponId = Selection.ItemId;
 		}
 	}
 	if (!SelectedWeapon)
@@ -733,7 +751,7 @@ bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& 
 	{
 		return false;
 	}
-	if (BuildWeapon.IsValid() && BuildWeaponItemId == SelectedWeapon->ItemId &&
+	if (BuildWeapon.IsValid() && BuildWeaponItemId == SelectedWeaponId &&
 		Weapons->GetEquippedWeapon() == BuildWeapon.Get() &&
 		BuildWeapon->GetClass() == SelectedWeapon->WeaponClass.Get())
 	{
@@ -756,7 +774,7 @@ bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& 
 	}
 	ANF_WeaponBase* PreviousBuildWeapon = BuildWeapon.Get();
 	BuildWeapon = NewWeapon;
-	BuildWeaponItemId = SelectedWeapon->ItemId;
+	BuildWeaponItemId = SelectedWeaponId;
 	// 상점 교체가 성공하면 분리된 이전 무기를 제거한다. 기본 무기도 제거 대상에 포함한다.
 	if (IsValid(PreviousWeapon))
 	{
@@ -787,25 +805,27 @@ void UNF_BuildComponent::ReleaseBuildWeapon()
 }
 
 bool UNF_BuildComponent::GrantItem(
-	UNF_BuildItemDefinitionDataAsset* Definition, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles)
+	UNF_BuildItemDefinitionDataAsset* Definition, const FNF_BuildItemData& Data, int32 SlotIndex,
+	FNF_BuildGrantHandles& OutHandles)
 {
 	if (!Definition)
 	{
 		return false;
 	}
 	OutHandles.Definition = Definition;
-	if (Definition->AbilityClass)
+	OutHandles.ItemData = Data;
+	if (Data.AbilityClass)
 	{
-		const int32 InputId = Definition->ItemType == ENF_BuildItemType::ActiveSkill ? SlotIndex : INDEX_NONE;
+		const int32 InputId = Data.ItemType == ENF_ItemType::ActiveSkill ? SlotIndex : INDEX_NONE;
 		OutHandles.AbilityHandle = AbilitySystem->GiveAbility(
-			FGameplayAbilitySpec(Definition->AbilityClass, Definition->AbilityLevel, InputId, Definition));
+			FGameplayAbilitySpec(Data.AbilityClass, Data.AbilityLevel, InputId, Definition));
 		if (!OutHandles.AbilityHandle.IsValid())
 		{
 			return false;
 		}
 	}
 
-	for (const TSubclassOf<UGameplayEffect>& EffectClass : Definition->EquippedEffects)
+	for (const TSubclassOf<UGameplayEffect>& EffectClass : Data.EquippedEffects)
 	{
 		for (const FGameplayModifierInfo& Modifier : EffectClass->GetDefaultObject<UGameplayEffect>()->Modifiers)
 		{
@@ -817,7 +837,7 @@ bool UNF_BuildComponent::GrantItem(
 		FGameplayEffectContextHandle Context = AbilitySystem->MakeEffectContext();
 		Context.AddSourceObject(Definition);
 		const FGameplayEffectSpecHandle Spec =
-			AbilitySystem->MakeOutgoingSpec(EffectClass, Definition->AbilityLevel, Context);
+			AbilitySystem->MakeOutgoingSpec(EffectClass, Data.AbilityLevel, Context);
 		if (!Spec.IsValid())
 		{
 			return false;

@@ -1,6 +1,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "AbilitySystemComponent.h"
+#include "GamePlay/BuildSystem/Tests/NF_BuildTestItemSource.h"
 #include "Abilities/GameplayAbility.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildInputComponent.h"
@@ -40,14 +41,21 @@ namespace
 		return Result;
 	}
 
-	UNF_BuildItemDefinitionDataAsset* MakeItem(UNF_BuildRules* Rules, FName Id, ENF_BuildItemType Type, int32 Cost)
+	UNF_BuildItemDefinitionDataAsset* MakeItem(UNF_BuildRules* Rules, FName Id, ENF_ItemType Type, int32 Cost)
 	{
 		UNF_BuildItemDefinitionDataAsset* Item = NewObject<UNF_BuildItemDefinitionDataAsset>(Rules);
 		Item->ItemId = Id;
-		Item->ItemType = Type;
-		Item->Cost = Cost;
+		UNF_BuildTestItemSource* Source = NewObject<UNF_BuildTestItemSource>(Rules);
+		Source->Data.ItemType = Type;
+		Source->Data.Cost = Cost;
 		Rules->Catalog.Add(Item);
+		Rules->ItemSources.Add(Id, Source);
 		return Item;
+	}
+
+	FNF_BuildItemData& SourceData(UNF_BuildRules* Rules, const UNF_BuildItemDefinitionDataAsset* Item)
+	{
+		return CastChecked<UNF_BuildTestItemSource>(Rules->ItemSources.FindChecked(Item->ItemId).Get())->Data;
 	}
 
 	FNF_BuildSelection Select(FName Id, int32 SlotIndex = 0)
@@ -62,10 +70,10 @@ namespace
 	{
 		UNF_BuildRules* Rules = NewObject<UNF_BuildRules>();
 		Rules->CostLimitsByLevel = {8, 12};
-		MakeItem(Rules, TEXT("Rifle"), ENF_BuildItemType::Weapon, 2);
-		MakeItem(Rules, TEXT("Grenade"), ENF_BuildItemType::ActiveSkill, 2);
-		MakeItem(Rules, TEXT("Dash"), ENF_BuildItemType::ActiveSkill, 4);
-		MakeItem(Rules, TEXT("HealthUp"), ENF_BuildItemType::PassiveSkill, 1);
+		MakeItem(Rules, TEXT("Rifle"), ENF_ItemType::Weapon, 2);
+		MakeItem(Rules, TEXT("Grenade"), ENF_ItemType::ActiveSkill, 2);
+		MakeItem(Rules, TEXT("Dash"), ENF_ItemType::ActiveSkill, 4);
+		MakeItem(Rules, TEXT("HealthUp"), ENF_ItemType::PassiveSkill, 1);
 		return Rules;
 	}
 } // namespace
@@ -76,17 +84,18 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildWeaponDefinitionTest, "NF.Build.Weapon
 bool FNF_BuildWeaponDefinitionTest::RunTest(const FString& Parameters)
 {
 	UNF_BuildRules* Rules = MakeRules();
-	Rules->Catalog[0]->WeaponClass = ANF_WeaponBase::StaticClass();
+	SourceData(Rules, Rules->Catalog[0]).WeaponClass = ANF_WeaponBase::StaticClass();
 	TestEqual(TEXT("Linked weapon in first slot accepted"),
-		FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle"))}).Result,
-		ENF_BuildResult::Success);
+	          FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle"))}).Result,
+	          ENF_BuildResult::Success);
 	TestEqual(TEXT("Shared weapon component has no second equipment slot"),
-		FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle"), 1)}).Result,
-		ENF_BuildResult::InvalidSlot);
-	Rules->Catalog[1]->WeaponClass = ANF_WeaponBase::StaticClass();
+	          FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle"), 1)}).Result,
+	          ENF_BuildResult::InvalidSlot);
+	SourceData(Rules, Rules->Catalog[1]).WeaponClass = ANF_WeaponBase::StaticClass();
 	TestEqual(TEXT("Skill cannot spawn a weapon"),
-		FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle")), Select(TEXT("Grenade"))}).Result,
-		ENF_BuildResult::InvalidGrant);
+	          FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules),
+	                                       {Select(TEXT("Rifle")), Select(TEXT("Grenade"))}).Result,
+	          ENF_BuildResult::InvalidGrant);
 	return true;
 }
 
@@ -96,34 +105,40 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildArmorSlotsTest, "NF.Build.ArmorSlots",
 bool FNF_BuildArmorSlotsTest::RunTest(const FString& Parameters)
 {
 	UNF_BuildRules* Rules = MakeRules();
-	UNF_BuildItemDefinitionDataAsset* Head = MakeItem(Rules, TEXT("Helmet"), ENF_BuildItemType::Armor, 1);
-	Head->ArmorPart = ENF_BuildArmorPart::Head;
-	UNF_BuildItemDefinitionDataAsset* Upper = MakeItem(Rules, TEXT("Vest"), ENF_BuildItemType::Armor, 1);
-	Upper->ArmorPart = ENF_BuildArmorPart::UpperBody;
-	UNF_BuildItemDefinitionDataAsset* Lower = MakeItem(Rules, TEXT("Legs"), ENF_BuildItemType::Armor, 1);
-	Lower->ArmorPart = ENF_BuildArmorPart::LowerBody;
+	UNF_BuildItemDefinitionDataAsset* Head = MakeItem(Rules, TEXT("Helmet"), ENF_ItemType::Armor, 1);
+	SourceData(Rules, Head).ArmorSlot = ENF_ArmorSlot::HeadArmor;
+	UNF_BuildItemDefinitionDataAsset* Upper = MakeItem(Rules, TEXT("Vest"), ENF_ItemType::Armor, 1);
+	SourceData(Rules, Upper).ArmorSlot = ENF_ArmorSlot::BodyArmor;
+	UNF_BuildItemDefinitionDataAsset* Lower = MakeItem(Rules, TEXT("Legs"), ENF_ItemType::Armor, 1);
+	SourceData(Rules, Lower).ArmorSlot = ENF_ArmorSlot::LegArmor;
 	const TArray<FNF_BuildSelection> FullBuild = {
 		Select(TEXT("Rifle")), Select(TEXT("Helmet"), 0), Select(TEXT("Vest"), 1), Select(TEXT("Legs"), 2),
 		Select(TEXT("Grenade"), 0), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))
 	};
 	TestEqual(TEXT("일곱 슬롯을 올바른 분류로 채울 수 있다"),
-		FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), FullBuild).Result, ENF_BuildResult::Success);
+	          FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), FullBuild).Result,
+	          ENF_BuildResult::Success);
 	TestEqual(TEXT("상의는 머리 슬롯에 넣을 수 없다"),
-		FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle")), Select(TEXT("Vest"), 0)}).Result,
-		ENF_BuildResult::InvalidSlot);
+	          FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules),
+	                                       {Select(TEXT("Rifle")), Select(TEXT("Vest"), 0)}).Result,
+	          ENF_BuildResult::InvalidSlot);
 	TestEqual(TEXT("패시브는 두 번째 슬롯을 사용할 수 없다"),
-		FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle")), Select(TEXT("HealthUp"), 1)}).Result,
-		ENF_BuildResult::InvalidSlot);
-	UNF_BuildItemDefinitionDataAsset* OtherHead = MakeItem(Rules, TEXT("OtherHelmet"), ENF_BuildItemType::Armor, 1);
-	OtherHead->ArmorPart = ENF_BuildArmorPart::Head;
+	          FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules),
+	                                       {Select(TEXT("Rifle")), Select(TEXT("HealthUp"), 1)}).Result,
+	          ENF_BuildResult::InvalidSlot);
+	UNF_BuildItemDefinitionDataAsset* OtherHead = MakeItem(Rules, TEXT("OtherHelmet"), ENF_ItemType::Armor, 1);
+	SourceData(Rules, OtherHead).ArmorSlot = ENF_ArmorSlot::HeadArmor;
 	TestEqual(TEXT("같은 부위 두 개의 동시 장착을 거부한다"),
-		FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules),
-			{Select(TEXT("Rifle")), Select(TEXT("Helmet")), Select(TEXT("OtherHelmet"))}).Result,
-		ENF_BuildResult::InvalidSlot);
-	Head->ArmorPart = ENF_BuildArmorPart::None;
+	          FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules),
+	                                       {
+		                                       Select(TEXT("Rifle")), Select(TEXT("Helmet")),
+		                                       Select(TEXT("OtherHelmet"))
+	                                       }).Result,
+	          ENF_BuildResult::InvalidSlot);
+	SourceData(Rules, Head).ArmorSlot = ENF_ArmorSlot::None;
 	TestEqual(TEXT("방어구 부위 미지정 데이터를 거부한다"),
-		FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle"))}).Result,
-		ENF_BuildResult::InvalidRules);
+	          FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle"))}).Result,
+	          ENF_BuildResult::InvalidRules);
 	return true;
 }
 
@@ -141,22 +156,28 @@ bool FNF_BuildCostTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Unified cost includes weapon and skills"), Result.TotalCost, 8);
 	TArray<FNF_BuildSelection> OverLimit = ExactLimit;
 	OverLimit.Add(Select(TEXT("HealthUp")));
-	TestEqual(TEXT("Over limit rejected"), FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), OverLimit).Result,
-	          ENF_BuildResult::CostLimitExceeded);
-	TestEqual(TEXT("서버 상한이 증가하면 더 큰 빌드 허용"), FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), OverLimit).Result,
-	          ENF_BuildResult::Success);
+	TestEqual(
+		TEXT("Over limit rejected"),
+		FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), OverLimit).Result,
+		ENF_BuildResult::CostLimitExceeded);
+	TestEqual(
+		TEXT("서버 상한이 증가하면 더 큰 빌드 허용"),
+		FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), OverLimit).Result,
+		ENF_BuildResult::Success);
 	TestEqual(TEXT("음수 상한 거절"), FNF_BuildValidator::Validate(Rules, -1, MakeAllowedItemIds(Rules), ExactLimit).Result,
 	          ENF_BuildResult::InvalidRules);
-	TestEqual(TEXT("상한 0에서는 유료 빌드 거절"), FNF_BuildValidator::Validate(Rules, 0, MakeAllowedItemIds(Rules), ExactLimit).Result,
-	          ENF_BuildResult::CostLimitExceeded);
+	TestEqual(
+		TEXT("상한 0에서는 유료 빌드 거절"), FNF_BuildValidator::Validate(Rules, 0, MakeAllowedItemIds(Rules), ExactLimit).Result,
+		ENF_BuildResult::CostLimitExceeded);
 	TestEqual(TEXT("카탈로그에 있어도 미획득 항목 거절"),
-		FNF_BuildValidator::Validate(Rules, 8, {FName(TEXT("Rifle"))}, ExactLimit).Result,
-		ENF_BuildResult::ItemNotUnlocked);
+	          FNF_BuildValidator::Validate(Rules, 8, {FName(TEXT("Rifle"))}, ExactLimit).Result,
+	          ENF_BuildResult::ItemNotUnlocked);
 
-	Rules->Catalog[0]->Cost = MAX_int32;
-	Rules->Catalog[1]->Cost = MAX_int32;
+	SourceData(Rules, Rules->Catalog[0]).Cost = MAX_int32;
+	SourceData(Rules, Rules->Catalog[1]).Cost = MAX_int32;
 	TestEqual(TEXT("Cost sum cannot wrap to a cheap build"),
-	          FNF_BuildValidator::Validate(Rules, MAX_int32, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle")), Select(TEXT("Grenade"))}).Result,
+	          FNF_BuildValidator::Validate(Rules, MAX_int32, MakeAllowedItemIds(Rules),
+	                                       {Select(TEXT("Rifle")), Select(TEXT("Grenade"))}).Result,
 	          ENF_BuildResult::CostLimitExceeded);
 	return true;
 }
@@ -181,13 +202,13 @@ bool FNF_BuildSlotTest::RunTest(const FString& Parameters)
 	      ENF_BuildResult::InvalidSlot);
 	Check(TEXT("Negative slot rejected"), {Select(TEXT("Rifle"), -1)}, ENF_BuildResult::InvalidSlot);
 	Check(TEXT("Hostile slot value cannot overflow"), {Select(TEXT("Rifle"), MAX_int32)}, ENF_BuildResult::InvalidSlot);
-	MakeItem(Rules, TEXT("Rifle"), ENF_BuildItemType::Weapon, 1);
+	MakeItem(Rules, TEXT("Rifle"), ENF_ItemType::Weapon, 1);
 	Check(TEXT("Duplicate catalog ID rejected"), {Select(TEXT("Rifle"))}, ENF_BuildResult::InvalidRules);
 	Rules->Catalog.Pop();
-	Rules->Catalog[0]->Cost = -1;
+	SourceData(Rules, Rules->Catalog[0]).Cost = -1;
 	Check(TEXT("Negative cost data rejected"), {Select(TEXT("Rifle"))}, ENF_BuildResult::InvalidRules);
-	Rules->Catalog[0]->Cost = 2;
-	Rules->Catalog[1]->EquippedEffects.Add(UGameplayEffect::StaticClass());
+	SourceData(Rules, Rules->Catalog[0]).Cost = 2;
+	SourceData(Rules, Rules->Catalog[1]).EquippedEffects.Add(UGameplayEffect::StaticClass());
 	Check(TEXT("Instant equipped GE rejected"), {Select(TEXT("Rifle")), Select(TEXT("Grenade"))},
 	      ENF_BuildResult::InvalidGrant);
 	return true;
@@ -231,12 +252,12 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	Player->AddInstanceComponent(Build);
 	Build->RegisterComponent();
 	UNF_BuildRules* Rules = MakeRules();
-	Rules->Catalog[1]->AbilityClass = UGameplayAbility::StaticClass();
-	Rules->Catalog[2]->AbilityClass = UGameplayAbility::StaticClass();
+	SourceData(Rules, Rules->Catalog[1]).AbilityClass = UGameplayAbility::StaticClass();
+	SourceData(Rules, Rules->Catalog[2]).AbilityClass = UGameplayAbility::StaticClass();
 	TestTrue(TEXT("Initialize authoritative ASC"), Build->InitializeAbilitySystem(ASC));
 	TestTrue(TEXT("Configure initial rules"), Build->ConfigureRules(Rules));
 	TestEqual(TEXT("개인별 조건 초기화 전에는 적용 불가"),
-		Build->PreviewBuild({Select(TEXT("Rifle"))}).Result, ENF_BuildResult::InvalidRules);
+	          Build->PreviewBuild({Select(TEXT("Rifle"))}).Result, ENF_BuildResult::InvalidRules);
 	TestTrue(TEXT("서버 테스트 권한 초기화"), Build->UpdateBuildEntitlements(8, MakeAllowedItemIds(Rules)));
 	// The interaction is server-side; no overlap event is required.
 	Player->DispatchBeginPlay();
@@ -250,22 +271,22 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	Build->RequestApplyBuild({Select(TEXT("Rifle")), Select(TEXT("Grenade"))}, Shop);
 	TestEqual(TEXT("Initial build committed"), Build->GetCurrentBuild().Num(), 2);
 	TestEqual(TEXT("일반 빌드 성공 후 Ready를 한 번 부여한다"),
-		ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
-	UNF_BuildItemDefinitionDataAsset* HeadItem = MakeItem(Rules, TEXT("TestHead"), ENF_BuildItemType::Armor, 0);
-	HeadItem->ArmorPart = ENF_BuildArmorPart::Head;
-	UNF_BuildItemDefinitionDataAsset* UpperItem = MakeItem(Rules, TEXT("TestUpper"), ENF_BuildItemType::Armor, 0);
-	UpperItem->ArmorPart = ENF_BuildArmorPart::UpperBody;
-	UNF_BuildItemDefinitionDataAsset* ReplacementHead = MakeItem(Rules, TEXT("TestHead2"), ENF_BuildItemType::Armor, 0);
-	ReplacementHead->ArmorPart = ENF_BuildArmorPart::Head;
+	          ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
+	UNF_BuildItemDefinitionDataAsset* HeadItem = MakeItem(Rules, TEXT("TestHead"), ENF_ItemType::Armor, 0);
+	SourceData(Rules, HeadItem).ArmorSlot = ENF_ArmorSlot::HeadArmor;
+	UNF_BuildItemDefinitionDataAsset* UpperItem = MakeItem(Rules, TEXT("TestUpper"), ENF_ItemType::Armor, 0);
+	SourceData(Rules, UpperItem).ArmorSlot = ENF_ArmorSlot::BodyArmor;
+	UNF_BuildItemDefinitionDataAsset* ReplacementHead = MakeItem(Rules, TEXT("TestHead2"), ENF_ItemType::Armor, 0);
+	SourceData(Rules, ReplacementHead).ArmorSlot = ENF_ArmorSlot::HeadArmor;
 	TestTrue(TEXT("추가 방어구의 획득 권한 갱신"), Build->UpdateBuildEntitlements(8, MakeAllowedItemIds(Rules)));
 	TestTrue(TEXT("머리 방어구 선택"), Build->SelectDraftItem(TEXT("TestHead")));
 	TestTrue(TEXT("상의 방어구 선택"), Build->SelectDraftItem(TEXT("TestUpper")));
 	TestTrue(TEXT("같은 부위 교체"), Build->SelectDraftItem(TEXT("TestHead2")));
-	TestTrue(TEXT("머리 칸만 교체된다"), Build->GetSlotItem(ENF_BuildItemType::Armor, 0, true) == ReplacementHead);
-	TestTrue(TEXT("상의 칸은 유지된다"), Build->GetSlotItem(ENF_BuildItemType::Armor, 1, true) == UpperItem);
-	TestNull(TEXT("빈 하의 칸은 nullptr"), Build->GetSlotItem(ENF_BuildItemType::Armor, 2, true));
-	TestNull(TEXT("임시 방어구는 확정 상태창에 반영되지 않는다"), Build->GetSlotItem(ENF_BuildItemType::Armor, 0, false));
-	TestEqual(TEXT("부위별 카탈로그 필터"), Build->GetCatalogItems(ENF_BuildItemType::Armor, ENF_BuildArmorPart::Head).Num(), 2);
+	TestTrue(TEXT("머리 칸만 교체된다"), Build->GetSlotItem(ENF_ItemType::Armor, 0, true) == ReplacementHead);
+	TestTrue(TEXT("상의 칸은 유지된다"), Build->GetSlotItem(ENF_ItemType::Armor, 1, true) == UpperItem);
+	TestNull(TEXT("빈 하의 칸은 nullptr"), Build->GetSlotItem(ENF_ItemType::Armor, 2, true));
+	TestNull(TEXT("임시 방어구는 확정 상태창에 반영되지 않는다"), Build->GetSlotItem(ENF_ItemType::Armor, 0, false));
+	TestEqual(TEXT("부위별 카탈로그 필터"), Build->GetCatalogItems(ENF_ItemType::Armor, ENF_ArmorSlot::HeadArmor).Num(), 2);
 	Build->RemoveDraftItem(TEXT("TestHead2"));
 	Build->RemoveDraftItem(TEXT("TestUpper"));
 	TestEqual(TEXT("One ability granted"), ASC->GetActivatableAbilities().Num(), 1);
@@ -306,7 +327,7 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 		{Select(TEXT("Rifle")), Select(TEXT("Grenade")), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))}, Shop);
 	TestEqual(TEXT("Over budget request preserves build"), Build->GetCurrentBuild().Num(), 2);
 	TestEqual(TEXT("반복 확정과 실패 요청은 Ready 카운트를 증가시키거나 제거하지 않는다"),
-		ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
+	          ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
 	ASC->AddLooseGameplayTag(NFTag_Build::State_Build_Locked);
 	Build->RequestApplyBuild({Select(TEXT("Rifle"))}, Shop);
 	TestEqual(TEXT("Locked state preserves build"), Build->GetCurrentBuild().Num(), 2);
@@ -327,11 +348,11 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	const TArray<FGameplayModifierInfo> SavedModifiers = Effect->Modifiers;
 	Effect->DurationPolicy = EGameplayEffectDurationType::Infinite;
 	Effect->Modifiers.AddDefaulted();
-	Rules->Catalog[2]->EquippedEffects.Add(UGameplayEffect::StaticClass());
+	SourceData(Rules, Rules->Catalog[2]).EquippedEffects.Add(UGameplayEffect::StaticClass());
 	Build->RequestApplyBuild({Select(TEXT("Rifle")), Select(TEXT("Dash"))}, Shop);
 	Effect->DurationPolicy = SavedDuration;
 	Effect->Modifiers = SavedModifiers;
-	Rules->Catalog[2]->EquippedEffects.Empty();
+	SourceData(Rules, Rules->Catalog[2]).EquippedEffects.Empty();
 	TestNotNull(TEXT("Failed replacement keeps original ability"), ASC->FindAbilitySpecFromHandle(OriginalHandle));
 	TestEqual(TEXT("Failed replacement cleans staged ability"), ASC->GetActivatableAbilities().Num(), 1);
 	TestEqual(TEXT("Failed replacement keeps original selection"), Build->GetCurrentBuild()[1].ItemId,
@@ -373,7 +394,7 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildFallbackTest, "NF.Build.FallbackApplication",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FNF_BuildFallbackTest::RunTest(const FString& Parameters)
 {
@@ -402,10 +423,12 @@ bool FNF_BuildFallbackTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("테스트 ASC 연결"), Build->InitializeAbilitySystem(ASC));
 	TestTrue(TEXT("기본 구성 설정"), Build->ConfigureRules(Rules));
 	TestTrue(TEXT("기본 빌드 아이템도 서버 권한 목록에 포함"),
-		Build->UpdateBuildEntitlements(8, MakeAllowedItemIds(Rules)));
+	         Build->UpdateBuildEntitlements(8, MakeAllowedItemIds(Rules)));
 	TestFalse(TEXT("Build 외 페이즈에서 기본 적용을 거부한다"), Build->ApplyFallbackBuildForMatchStart());
 	GameState->AuthoritySetTimedMatchPhase(ENF_MatchPhase::Build, 10.f);
-	Rules->FallbackBuild = {Select(TEXT("Rifle")), Select(TEXT("Grenade")), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))};
+	Rules->FallbackBuild = {
+		Select(TEXT("Rifle")), Select(TEXT("Grenade")), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))
+	};
 	TestFalse(TEXT("기본 빌드도 코스트 초과를 거부한다"), Build->ApplyFallbackBuildForMatchStart());
 	TestFalse(TEXT("실패 시 Ready를 부여하지 않는다"), ASC->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready));
 	Rules->FallbackBuild = {Select(TEXT("Rifle")), Select(TEXT("Grenade"))};
@@ -420,7 +443,7 @@ bool FNF_BuildFallbackTest::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildRegistrationTest, "NF.Build.CoreHandlerRegistration",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FNF_BuildRegistrationTest::RunTest(const FString& Parameters)
 {
@@ -463,4 +486,46 @@ bool FNF_BuildRegistrationTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildSourceContractTest, "NF.Build.SourceContract",
+                                 EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FNF_BuildSourceContractTest::RunTest(const FString& Parameters)
+{
+	UNF_BuildRules* Rules = MakeRules();
+	const TArray<FName> Allowed = MakeAllowedItemIds(Rules);
+	const TArray<FNF_BuildSelection> Build = {Select(TEXT("Rifle")), Select(TEXT("Grenade"))};
+	TMap<FName, FNF_BuildItemData> Snapshot;
+	TestEqual(TEXT("원본 비용으로 서버 검증"),
+	          FNF_BuildValidator::Validate(Rules, 8, Allowed, Build, &Snapshot).TotalCost, 4);
+	const FNF_BuildItemData* GrenadeData = Snapshot.Find(TEXT("Grenade"));
+	if (!TestNotNull(TEXT("검증한 선택 항목의 장착용 스냅샷"), GrenadeData)) return false;
+	TestEqual(TEXT("장착용 스냅샷도 같은 원본 비용"), GrenadeData->Cost, 2);
+	SourceData(Rules, Rules->Catalog[1]).Cost = 7;
+	TestEqual(TEXT("원본만 수정하면 기존 ID의 비용 검증에 반영"),
+	          FNF_BuildValidator::Validate(Rules, 8, Allowed, Build, &Snapshot).Result,
+	          ENF_BuildResult::CostLimitExceeded);
+	TestTrue(TEXT("실패 시 장착용 스냅샷을 남기지 않는다"), Snapshot.IsEmpty());
+
+	UDataAsset* Original = Rules->ItemSources.FindChecked(TEXT("Grenade"));
+	Rules->ItemSources.Remove(TEXT("Grenade"));
+	FNF_BuildItemData Readback;
+	Readback.Cost = 99;
+	TestFalse(TEXT("원본 누락을 거절"), Rules->ResolveItemData(TEXT("Grenade"), Readback));
+	TestEqual(TEXT("실패 시 이전 조회값을 재사용하지 않는다"), Readback.Cost, -1);
+	TestEqual(TEXT("미연결 항목을 무료로 통과시키지 않는다"),
+	          FNF_BuildValidator::Validate(Rules, 8, Allowed, Build).Result, ENF_BuildResult::InvalidRules);
+	Rules->ItemSources.Add(TEXT("Grenade"), NewObject<UDataAsset>(Rules));
+	TestFalse(TEXT("인터페이스 미구현 원본 거절"), Rules->ResolveItemData(TEXT("Grenade"), Readback));
+	Rules->ItemSources.Add(TEXT("Grenade"), Original);
+	CastChecked<UNF_BuildTestItemSource>(Original)->bAvailable = false;
+	TestFalse(TEXT("원본이 준비되지 않았으면 거절"), Rules->ResolveItemData(TEXT("Grenade"), Readback));
+	CastChecked<UNF_BuildTestItemSource>(Original)->bAvailable = true;
+	SourceData(Rules, Rules->Catalog[1]).Cost = 0;
+	TestEqual(TEXT("원본에서 명시한 무료 항목은 허용"),
+	          FNF_BuildValidator::Validate(Rules, 8, Allowed, Build).Result, ENF_BuildResult::Success);
+	SourceData(Rules, Rules->Catalog[1]).ItemType = static_cast<ENF_ItemType>(255);
+	TestEqual(TEXT("원본의 잘못된 분류 거절"),
+	          FNF_BuildValidator::Validate(Rules, 8, Allowed, Build).Result, ENF_BuildResult::InvalidRules);
+	return true;
+}
 #endif

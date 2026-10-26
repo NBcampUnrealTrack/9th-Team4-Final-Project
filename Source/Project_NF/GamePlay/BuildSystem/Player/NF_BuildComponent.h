@@ -4,6 +4,7 @@
 #include "ActiveGameplayEffectHandle.h"
 #include "Components/ActorComponent.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "NF_BuildComponent.generated.h"
 
@@ -23,9 +24,11 @@ struct FNF_BuildGrantHandles
 	UPROPERTY()
 	TObjectPtr<UNF_BuildItemDefinitionDataAsset> Definition;
 
+	UPROPERTY()
+	FNF_BuildItemData ItemData;
+
 	FGameplayAbilitySpecHandle AbilityHandle;
 	TArray<FActiveGameplayEffectHandle> EffectHandles;
-
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildChanged);
@@ -39,8 +42,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildShopStateChanged, ENF_Bui
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildRequestCompleted, const FNF_BuildValidation&, Validation);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopRangeChanged, ANF_BuildShopZone*, Shop, ENF_BuildShopRangeState, RangeState);
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopRangeChanged, ANF_BuildShopZone*, Shop,
+                                             ENF_BuildShopRangeState, RangeState);
 
 
 /** Attach to an owned replicated Pawn. The shop is never the client RPC owner. */
@@ -55,7 +58,7 @@ public:
 	// @Owner: 황준현 | 2026-10-20. 권한 있는 진행·획득 시스템에서 호출한다.
 	// 클라이언트 RPC로 제공하지 않는다.
 	bool UpdateBuildEntitlements(int32 NewCostLimit, const TArray<FName>& NewUnlockedItemIds);
-	
+
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
 	FNF_OnBuildShopStateChanged OnBuildShopStateChanged;
 
@@ -96,13 +99,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NF|Build")
 	UNF_BuildItemDefinitionDataAsset* FindItemDefinition(FName ItemId) const;
 
+	/** 각 파트의 원본을 조회한다. 미연결 상태를 무료 항목으로 처리하지 않는다. */
+	UFUNCTION(BlueprintPure, Category = "NF|Build")
+	bool ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) const;
+
 	/** @Owner: 황준현 | 2026-10-15. UI 분류 목록. 방어구의 None은 모든 부위를 조회한다. */
 	UFUNCTION(BlueprintPure, Category = "NF|Build|Slots")
-	TArray<UNF_BuildItemDefinitionDataAsset*> GetCatalogItems(ENF_BuildItemType ItemType, ENF_BuildArmorPart ArmorPart) const;
+	TArray<UNF_BuildItemDefinitionDataAsset*> GetCatalogItems(ENF_ItemType ItemType, ENF_ArmorSlot ArmorPart) const;
 
 	/** 빈 슬롯이면 nullptr. bUseDraft가 false이면 서버에서 확정된 빌드를 조회한다. */
 	UFUNCTION(BlueprintPure, Category = "NF|Build|Slots")
-	UNF_BuildItemDefinitionDataAsset* GetSlotItem(ENF_BuildItemType ItemType, int32 SlotIndex, bool bUseDraft) const;
+	UNF_BuildItemDefinitionDataAsset* GetSlotItem(ENF_ItemType ItemType, int32 SlotIndex, bool bUseDraft) const;
 
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
 	FNF_OnBuildShopRangeChanged OnBuildShopRangeChanged;
@@ -159,8 +166,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build")
 	FNF_OnBuildRequestCompleted OnBuildRequestCompleted;
-
-
 
 protected:
 	// @Owner: 황준현 | 2026-10-22. 외부 진행 시스템 연결 전 명시적으로 설정한 초기 조건을 사용한다.
@@ -244,10 +249,12 @@ private:
 
 	// @Owner: 황준현 | 2026-10-19
 	// 접근 승인을 마친 요청의 코스트·슬롯 검증과 실제 적용을 담당한다.
-	FNF_BuildValidation CommitBuildOnServer( const TArray<FNF_BuildSelection>& Selections);
+	FNF_BuildValidation CommitBuildOnServer(const TArray<FNF_BuildSelection>& Selections);
 
-	bool GrantItem(UNF_BuildItemDefinitionDataAsset* Definition, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
-	bool ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections);
+	bool GrantItem(UNF_BuildItemDefinitionDataAsset* Definition, const FNF_BuildItemData& Data,
+	               int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
+	bool ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections,
+	                          const TMap<FName, FNF_BuildItemData>& SelectedData);
 	void ReleaseBuildWeapon();
 	TWeakObjectPtr<ANF_WeaponBase> BuildWeapon;
 	FName BuildWeaponItemId;
