@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayAbilitySpecHandle.h"
-#include "GamePlay/Combat/Damage/NF_CombatEventTypes.h"
+#include "GameplayTagContainer.h"
 #include "NF_WeaponComponent.generated.h"
 
 class ANF_WeaponBase;
@@ -27,7 +27,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FNF_OnShotFired, AActor* /* Shooter */,
 	ANF_WeaponBase* /* Weapon */, bool /* bLastRound */);
 
 DECLARE_MULTICAST_DELEGATE_FourParams(FNF_OnAttackHit, AActor* /* Attacker */,
-	AActor* /* Target */, FVector /* HitLocation */, ENF_AttackType /* AttackType */);
+	AActor* /* Target */, FVector /* HitLocation */, FGameplayTag /* AttackType */);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent

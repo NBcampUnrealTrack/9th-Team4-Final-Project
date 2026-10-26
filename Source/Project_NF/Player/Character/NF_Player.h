@@ -82,7 +82,10 @@ protected:
 	float InteractionRange = 300.0f;
 	
 private:
-	void BindDelegate();
+	void ConfigBindDelegate();
+	void ConfigStatusAttribute();
+	void ConfigLevelAttribute();
+	void GainExpToKiller();
 	
 #pragma region TryAction
 	void TryMeleeAttack();
@@ -121,6 +124,9 @@ private:
 	
 	UFUNCTION()
 	void OnOutOfShieldCpp();
+	
+	UFUNCTION()
+	void OnLevelUpCpp(int32 NewLevel);
 	
 	void InitAbilitySystem();
 #pragma endregion

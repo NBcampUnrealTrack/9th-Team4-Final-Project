@@ -12,7 +12,7 @@
 서버 열쇠 소유권 로직 ┘                              ↓
                                           클라이언트 Registry
                                                ↓
-                                    미니맵 직접 조회 / 추후 ViewModel
+                                    ViewModel → Snapshot → MinimapWidget.SetSnapshot
 ```
 
 각 플레이어의 목록은 별개다. RegisterReveal은 서버에서만 동작하며 클라이언트의 공개 요청용 Server RPC는 없다. Registry UObject 자체와 대상 액터를 복제하지 않는다. 서버가 대상 좌표를 읽고 ID/양자화 좌표/표시 종류의 전체 스냅샷을 소유 클라이언트에 0.2초 간격으로 전송한다. 대상이 없어지면 빈 스냅샷을 한 번 전송하고 빈 목록은 계속 전송하지 않는다.
@@ -27,7 +27,7 @@
 4. Skill Execution Mode Timed, Execution Duration 기본 5초, Detection Radius 기본 2000cm, Detection Interval 기본 0.2초. Cast Time 기본 0초. 발동 비용과 쿨다운은 기존 GA의 Cost/Cooldown GE에 설정한다.
 5. Net Execution Policy Server Only, Instancing Policy Instanced Per Actor를 유지한다. 입력은 기본 누를 때 발동하고 키를 떼어도 지속된다.
 6. 팀 정보가 아직 없어 Target Filter의 Team은 All이다. 자신은 제외하고 플레이어 Pawn만 탐지한다. 몬스터·SpectatorPawn은 제외한다. 벽 너머도 탐지한다. Require Ability System을 켜면 ASC 없는 기본 TPS Pawn은 제외된다.
-7. 미니맵 BP(그리고 HUD에 배치한 인스턴스)의 **Temporary Show All Players를 끄고 Show Registered Reveals를 켠다.** C++ 임시 전체 표시 기본값도 false로 바꿨지만 이미 BP/인스턴스에 저장된 true는 직접 해제해야 한다.
+7. 미니맵 WBP에서 **ViewModel.Snapshot → MinimapWidget.SetSnapshot** 단방향 바인딩을 연결한다. 기존 자동 조회 옵션은 더 이상 사용하지 않는다.
 8. 미니맵 Owning Player는 실제 사용자 Controller다. 정식 Ability 부여/입력 경로 또는 기존 NF_SkillTest를 통해 GA를 부여한다. 기존 ASC가 있으면 테스트 ASC를 중복 추가하지 않는다.
 
 천리안은 서버 시전자 위치를 중심으로 구 범위를 재탐색한다. 대상은 Pawn Object Type의 충돌체가 필요하다. 범위에 들어오면 등록하고 나가면 다음 탐색 때 해제한다. UI 반영에는 탐색 및 전송 주기에 따른 지연이 있다. 공개 범위와 미니맵 표시 범위는 별개다. 예를 들어 탐지 반경 2000cm와 Visible World Size 4000cm는 각각 구 반경과 정사각형 한 변의 길이다.
@@ -50,9 +50,9 @@ SourceId는 `New Guid`로 한 번 만들고 공개가 유지되는 동안 저장
 
 같은 대상이 천리안과 열쇠로 공개되면 아이콘은 하나이며 EscapeKey가 우선한다. 열쇠 공개를 해제해도 천리안 출처가 남아 있으면 탐지 아이콘으로 돌아간다. 천리안이 끝나도 열쇠 출처가 남아 있으면 열쇠 표시는 유지한다. 열쇠 종류는 기존 미니맵 Objective 색, 천리안은 Enemy 색을 사용한다. 아이콘 텍스처 디자인은 별도다.
 
-## 추후 ViewModel 연결
+## ViewModel 연결 (2026-10-26)
 
-클라이언트 Registry의 `GetVisibleMarkers()`와 `OnRevealsChanged`를 사용한다. 위젯 재생성 시 현재 목록을 다시 읽을 수 있다. 현재 위젯은 Show Registered Reveals가 켜진 동안 직접 조회하므로 ViewModel에서 UpsertMarker로 전달할 때는 이 옵션을 끄고 변경/해제도 동기화해 중복 표시를 피한다. 임시 전체 플레이어 표시는 항상 별도 옵션이다.
+ViewModel이 클라이언트 Registry의 `GetVisibleMarkers()`를 읽고, 팀원 목록과 중복을 정리한 전체 Snapshot을 전달한다. 위젯은 Registry나 Pawn을 직접 조회하지 않는다. 효과 종료는 다음 Snapshot에서 해당 마커가 제외되는 방식으로 반영한다. 위젯 재생성 시 현재 Snapshot을 다시 전달한다. 기존 UpsertMarker 등의 외부 공급도 VM으로 통합해야 한다. 구체적인 수신·표시·호환 규칙은 [위젯 가이드](README.md)를 참조한다.
 
 ## 검증 상태
 

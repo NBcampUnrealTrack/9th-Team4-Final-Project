@@ -3,9 +3,9 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "UI/Minimap/NF_MinimapTypes.h"
+#include "UI/Data/NF_MinimapSnapshot.h"
 #include "NF_MinimapWidget.generated.h"
 
-class APawn;
 class APlayerState;
 
 // @owner: 이정준 (구현: Codex) | 2026-10-15
@@ -18,7 +18,12 @@ class PROJECT_NF_API UNF_MinimapWidget : public UUserWidget
 public:
 	UNF_MinimapWidget(const FObjectInitializer& ObjectInitializer);
 
-	// Lifetime은 수신 시점부터 남은 로컬 초. 0은 영구, 재호출 시 만료 시각 갱신.
+	// @Owner: 이정준 (구현: Codex) | 2026-10-26
+	// Full replacement from the VM. Once used, legacy marker/view writers are ignored.
+	UFUNCTION(BlueprintCallable, Category = "NF|Minimap")
+	void SetSnapshot(const FNF_MinimapSnapshot& InSnapshot);
+
+	// Legacy manual mode only, before the first SetSnapshot. Lifetime 0 means no expiry.
 	UFUNCTION(BlueprintCallable, Category = "NF|Minimap")
 	bool UpsertMarker(const FNF_MinimapMarker& Marker, float Lifetime = 0.0f);
 	UFUNCTION(BlueprintCallable, Category = "NF|Minimap")
@@ -27,7 +32,7 @@ public:
 	void ClearMarkers();
 	UFUNCTION(BlueprintCallable, Category = "NF|Minimap")
 	void ClearMarkersByType(ENF_MinimapMarkerType Type);
-	// Follow Owning Pawn이 꺼진 경우 수동으로 기준 위치/본인 화살표 방향을 제공한다.
+	// Legacy manual view input, ignored after the first SetSnapshot.
 	UFUNCTION(BlueprintCallable, Category = "NF|Minimap")
 	void SetViewLocation(FVector Location, float ViewYaw = 0.0f);
 	UFUNCTION(BlueprintCallable, Category = "NF|Minimap")
@@ -38,6 +43,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NF|Minimap")
 	static bool ProjectWorldToMinimap(FVector WorldLocation, FVector ViewLocation,
 		float WorldSize, FVector2D WidgetSize, FVector2D& OutLocalPosition);
+	// Compatibility utility for existing callers/tests; never used by the display path.
 	static bool ArePlayerStatesTeammates(const APlayerState* Viewer, const APlayerState* Other);
 
 protected:
@@ -58,28 +64,29 @@ protected:
 	// 지도 한 변의 전체 월드 길이. 4000이면 중심에서 좌우/상하 각각 2000cm.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Map", meta = (ClampMin = "1.0", Units = "cm"))
 	float VisibleWorldSize = 4000.0f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|View")
+	// Compatibility only: data collection is now owned by the VM.
+	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|View", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Bind ViewModel Snapshot to SetSnapshot."))
 	bool bFollowOwningPawn = true;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|View")
 	bool bShowLocalPlayer = true;
 	// @owner: 이정준 (구현: Codex) | 2026-10-15
 	// Serialized compatibility only. All-player debug display is no longer used.
-	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|Temporary", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Use Show Teammates; other players require registered reveals."))
+	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|Temporary", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Authorized markers are supplied by ViewModel Snapshot."))
 	bool bTemporaryShowAllPlayers = false;
 	// @Owner: 이정준 (구현: Codex) | 2026-10-21
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|View")
+	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|View", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Teammates are supplied by the ViewModel."))
 	bool bShowTeammates = true;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Style", meta = (ClampMin = "1.0"))
+	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|Style", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Marker.Size supplied by the ViewModel is used."))
 	float TeammateMarkerSize = 20.0f;
 	// @owner: 이정준 (구현: Codex) | 2026-10-15
-	// 목적: ViewModel 연결 전 수신한 공통 공개 목록을 직접 표시한다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|View")
+	// Serialized compatibility only; the widget no longer queries the registry.
+	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|View", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Authorized markers are supplied by the ViewModel."))
 	bool bShowRegisteredReveals = true;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Style", meta = (ClampMin = "1.0"))
+	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|Style", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Marker.Size supplied by the ViewModel is used."))
 	float RevealMarkerSize = 20.0f;
 	// @owner: 이정준 (구현: Codex) | 2026-10-15
-	// Serialized compatibility only. TeammateMarkerSize now controls automatic player markers.
-	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|Temporary", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Use Teammate Marker Size."))
+	// Serialized compatibility only. Snapshot Marker.Size controls marker size.
+	UPROPERTY(BlueprintReadWrite, Category = "NF|Minimap|Temporary", meta = (DeprecatedProperty, DeprecationMessage = "Ignored. Use Marker.Size in ViewModel Snapshot."))
 	float TemporaryPlayerMarkerSize = 20.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NF|Minimap|Style")
 	FLinearColor PlayerColor = FLinearColor(1.0f, 0.85f, 0.05f);
@@ -101,17 +108,11 @@ protected:
 	float LocalPlayerSize = 12.0f;
 
 private:
-	void UpdateTeammates(float DeltaTime);
-	int32 GetViewerTeamID() const;
+	friend class FNF_MinimapSnapshotTest;
 	FLinearColor GetMarkerColor(ENF_MinimapMarkerType Type) const;
 	UPROPERTY(Transient)
 	TArray<FNF_MinimapEntry> Entries;
-	// Automatic teammate markers are separate from externally supplied markers and authorized reveals.
-	UPROPERTY(Transient)
-	TArray<FNF_MinimapMarker> TeammateMarkers;
-	TArray<TWeakObjectPtr<APawn>> PlayerPawns;
-	TSet<TWeakObjectPtr<APlayerState>> DisplayedTeammates;
-	float PlayerRefreshCountdown = 0.0f;
+	bool bSnapshotDriven = false;
 	FVector Center = FVector::ZeroVector;
 	float CenterYaw = 0.0f;
 	bool bHasView = false;

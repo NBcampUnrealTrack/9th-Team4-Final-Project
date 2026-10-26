@@ -5,6 +5,7 @@
 
 #include "GameplayEffectExtension.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
+#include "GameFramework/PlayerState.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Net/UnrealNetwork.h"
 
@@ -81,6 +82,8 @@ void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackDa
 		if (GetHealth() <= 0.0f && bIsOutOfHealth == false)
 		{
 			bIsOutOfHealth = true;
+			
+			LethalDamageInstigatorPlayerState = Cast<APlayerState>(Data.EffectSpec.GetContext().GetOriginalInstigator());
 			OnOutOfHealth.Broadcast();
 		}
 		else if (GetHealth() > 0.0f)
@@ -89,7 +92,6 @@ void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackDa
 			//TODO 체력이 바뀜에 대한 브로드캐스트?
 		}
 	}
-	
 }
 
 

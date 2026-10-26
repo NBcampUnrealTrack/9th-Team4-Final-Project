@@ -8,8 +8,8 @@
 #include "GAS/Tags/NFTag_Player.h"
 #include "GAS/Tags/NFTag_Skill.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
-#include "GamePlay/Combat/Skill/Passive/NFGA_Berserker.h"
-#include "GamePlay/Combat/Skill/Passive/NFGA_WeaponPassive.h"
+#include "GamePlay/Combat/Skill/Passive/Attack/NFGA_Berserker.h"
+#include "GamePlay/Combat/Skill/Passive/Attack/NFGA_AttackPower.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BerserkerTest, "NF.Skills.Berserker.HealthOnlyStacksAndCleanup",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

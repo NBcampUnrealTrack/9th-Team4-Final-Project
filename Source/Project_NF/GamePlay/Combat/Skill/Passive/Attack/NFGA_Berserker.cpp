@@ -1,4 +1,4 @@
-#include "GamePlay/Combat/Skill/Passive/NFGA_Berserker.h"
+#include "GamePlay/Combat/Skill/Passive/Attack/NFGA_Berserker.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffectExtension.h"
