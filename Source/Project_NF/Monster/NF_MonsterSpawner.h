@@ -5,6 +5,7 @@
 #include "NF_MonsterSpawner.generated.h"
 
 class ANF_Monster;
+class AActor;
 class USceneComponent;
 
 UCLASS()
@@ -24,6 +25,8 @@ public:
 	void SpawnInitialMonsters();
 	bool SpawnMonster();
 	void SpawnPendingMonster();
+
+	bool TryAlertGuardGroup(AActor* DamageSource);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly,
 		Category = "NF|Monster|Spawner")
@@ -69,6 +72,14 @@ public:
 		meta = (ClampMin = "0.0"))
 	float RespawnDelay = 6.0f;
 
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Guard")
+	bool bIsGuardSpawner = false;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Guard")
+	TObjectPtr<AActor> GuardFocusActor;
+
 	UPROPERTY(Transient)
 	TSet<TObjectPtr<ANF_Monster>> AliveMonsters;
 
@@ -82,4 +93,6 @@ private:
 	FTimerHandle InitialSpawnRetryTimerHandle;
 
 	FTimerHandle RespawnTimerHandle;
+
+	TWeakObjectPtr<AActor> GroupAggroTarget;
 };

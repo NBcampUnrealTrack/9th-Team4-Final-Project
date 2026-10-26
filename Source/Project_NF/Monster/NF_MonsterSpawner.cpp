@@ -3,6 +3,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Pawn.h"
 #include "Monster/NF_Monster.h"
 #include "NavigationSystem.h"
 
@@ -121,6 +122,17 @@ bool ANF_MonsterSpawner::SpawnMonster()
             &ThisClass::HandleMonsterDied);
 
         AliveMonsters.Add(SpawnedMonster);
+
+		if (bIsGuardSpawner)
+		{
+			SpawnedMonster->SetGuardFocusActor(GuardFocusActor.Get());
+
+			if (GroupAggroTarget.IsValid())
+			{
+				SpawnedMonster->ApplyGroupDamageAggro(
+					GroupAggroTarget.Get());
+			}
+		}
         
         return true;
     }
@@ -240,6 +252,46 @@ TSubclassOf<ANF_Monster> ANF_MonsterSpawner::GetRandomMonsterClass() const
     return ValidMonsterClasses[FMath::RandRange(0, ValidMonsterClasses.Num() - 1)];
 }
 
+bool ANF_MonsterSpawner::TryAlertGuardGroup(AActor* DamageSource)
+{
+	if (!HasAuthority() || !bIsGuardSpawner) { return false; }
+
+	APawn* DamagePawn = Cast<APawn>(DamageSource);
+	if (!IsValid(DamagePawn) || !DamagePawn->IsPlayerControlled()) { return false; }
+
+	if (GroupAggroTarget.IsValid())
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster guard group aggro ignored: Spawner=%s / LockedTarget=%s / NewSource=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(GroupAggroTarget.Get()),
+			*GetNameSafe(DamageSource));
+
+		return true;
+	}
+
+	GroupAggroTarget = DamageSource;
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster guard group alerted: Spawner=%s / Target=%s / Members=%d"),
+		*GetNameSafe(this),
+		*GetNameSafe(GroupAggroTarget.Get()),
+		AliveMonsters.Num());
+
+	for (const TObjectPtr<ANF_Monster>& LivingMonster : AliveMonsters)
+	{
+		if (!IsValid(LivingMonster)) { continue; }
+
+		LivingMonster->ApplyGroupDamageAggro(GroupAggroTarget.Get());
+	}
+
+	return true;
+}
+
 void ANF_MonsterSpawner::HandleMonsterDied(
     ANF_Monster* DeadMonster)
 {
@@ -249,6 +301,11 @@ void ANF_MonsterSpawner::HandleMonsterDied(
     }
 
     AliveMonsters.Remove(DeadMonster);
+
+	if (bIsGuardSpawner && AliveMonsters.IsEmpty())
+	{
+		GroupAggroTarget.Reset();
+	}
 
     if (!bRespawnEnabled
         || AliveMonsters.Num() >= MaxAliveCount)

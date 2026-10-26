@@ -70,6 +70,14 @@ public:
 	FNFOnMonsterDied OnMonsterDied;
 	
 	FVector GetHomeLocation() const;
+
+	void ApplyGroupDamageAggro(AActor* TargetActor);
+
+	void SetGuardFocusActor(AActor* InGuardFocusActor);
+
+	AActor* GetGuardFocusActor() const { return GuardFocusActor.Get(); }
+
+	bool RequiresDamageToAggro() const { return bRequiresDamageToAggro; }
 	
 protected:
 	virtual void BeginPlay() override;
@@ -128,6 +136,13 @@ protected:
 		Category = "NF|Monster|AI",
 		meta = (ClampMin = "0.0"))
 	float PatrolRadius = 500.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Guard")
+	bool bRequiresDamageToAggro = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> GuardFocusActor;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 	Category = "NF|Monster|Drop")

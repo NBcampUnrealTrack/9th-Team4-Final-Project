@@ -17,6 +17,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Monster/NF_MonsterItemDrop.h"
+#include "Monster/NF_MonsterSpawner.h"
 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
@@ -322,18 +323,27 @@ void ANF_Monster::HandleMonsterDamaged(float Damage, AActor* DamageSource)
 		*GetNameSafe(DamageSource),
 		*GetNameSafe(GetController()));
 
-	if (ANF_MonsterAIController* MonsterAIController =
-		Cast<ANF_MonsterAIController>(GetController()))
+	ANF_MonsterSpawner* MonsterSpawner =
+		Cast<ANF_MonsterSpawner>(GetOwner());
+
+	const bool bGroupAggroHandled = MonsterSpawner
+		&& MonsterSpawner->TryAlertGuardGroup(DamageSource);
+
+	if (!bGroupAggroHandled)
 	{
-		MonsterAIController->ApplyDamageAggro(DamageSource);
-	}
-	else
-	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("Monster damage aggro skipped: %s has no ANF_MonsterAIController."),
-			*GetNameSafe(this));
+		if (ANF_MonsterAIController* MonsterAIController =
+			Cast<ANF_MonsterAIController>(GetController()))
+		{
+			MonsterAIController->ApplyDamageAggro(DamageSource);
+		}
+		else
+		{
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("Monster damage aggro skipped: %s has no ANF_MonsterAIController."),
+				*GetNameSafe(this));
+		}
 	}
 	
 	if (!MonsterASC) { return; }
@@ -396,7 +406,7 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 	if (ANF_MonsterAIController* MonsterAIController =
 		Cast<ANF_MonsterAIController>(GetController()))
 	{
-		MonsterAIController->ClearCurrentTargetActor();
+		MonsterAIController->ClearCurrentTargetActor(true);
 	}
 
 	if (AAIController* MonsterAIController =
@@ -443,6 +453,28 @@ void ANF_Monster::SetMonsterMoveSpeed(float NewMoveSpeed)
 FVector ANF_Monster::GetHomeLocation() const
 {
 	return HomeLocation;
+}
+
+void ANF_Monster::ApplyGroupDamageAggro(AActor* TargetActor)
+{
+	ANF_MonsterAIController* MonsterAIController =
+		Cast<ANF_MonsterAIController>(GetController());
+
+	if (!MonsterAIController) { return; }
+
+	MonsterAIController->ApplyDamageAggro(TargetActor);
+}
+
+void ANF_Monster::SetGuardFocusActor(AActor* InGuardFocusActor)
+{
+	GuardFocusActor = InGuardFocusActor;
+
+	ANF_MonsterAIController* MonsterAIController =
+		Cast<ANF_MonsterAIController>(GetController());
+
+	if (!MonsterAIController) { return; }
+
+	MonsterAIController->SetGuardFocusActor(GuardFocusActor.Get());
 }
 
 void ANF_Monster::SpawnMonsterDrops()
