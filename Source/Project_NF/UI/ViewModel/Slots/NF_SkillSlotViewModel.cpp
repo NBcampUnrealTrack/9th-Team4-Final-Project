@@ -1,4 +1,4 @@
-﻿// NF_SkillSlotViewModel.cpp
+// NF_SkillSlotViewModel.cpp
 
 #include "NF_SkillSlotViewModel.h"
 
@@ -8,19 +8,20 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayAbilitySpec.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildInputComponent.h"
 
-bool UNF_SkillSlotViewModel::ConfigureSlot(ENF_BuildItemType InSlotType,int32 InSlotIndex)
+bool UNF_SkillSlotViewModel::ConfigureSlot(ENF_ItemType InSlotType,int32 InSlotIndex)
 {
     switch (InSlotType)
     {
-    case ENF_BuildItemType::ActiveSkill:
+    case ENF_ItemType::ActiveSkill:
         if (InSlotIndex < 0 || InSlotIndex > 1) {return false;}
         break;
 
-    case ENF_BuildItemType::PassiveSkill:
+    case ENF_ItemType::PassiveSkill:
         if (InSlotIndex != 0) {return false;}
         break;
 
@@ -33,7 +34,7 @@ bool UNF_SkillSlotViewModel::ConfigureSlot(ENF_BuildItemType InSlotType,int32 In
     SlotType = InSlotType;
     SlotIndex = InSlotIndex;
 
-    UE_MVVM_SET_PROPERTY_VALUE(bIsPassive,InSlotType == ENF_BuildItemType::PassiveSkill);
+    UE_MVVM_SET_PROPERTY_VALUE(bIsPassive,InSlotType == ENF_ItemType::PassiveSkill);
 
     if (IsViewModelInitialized()) {StartRefreshTimer();}
 
@@ -156,7 +157,9 @@ void UNF_SkillSlotViewModel::RefreshSlot()
 
             const UNF_BuildItemDefinitionDataAsset* Item =Build->FindItemDefinition(Selection.ItemId);
 
-            if (!IsValid(Item) || Item->ItemType != SlotType)continue;
+            FNF_BuildItemData ItemData;
+            if (!IsValid(Item) || !Build->ResolveItemData(Selection.ItemId, ItemData) ||
+                ItemData.ItemType != SlotType)continue;
 
             NewSkillId = Item->ItemId;
             NewSkillName = Item->DisplayName;
@@ -170,7 +173,7 @@ void UNF_SkillSlotViewModel::RefreshSlot()
         }
     }
 
-    const bool bActiveSlot =SlotType == ENF_BuildItemType::ActiveSkill;
+    const bool bActiveSlot =SlotType == ENF_ItemType::ActiveSkill;
 
     // 패시브에는 단축키와 수동 사용 상태를 표시하지 않는다.
     if (bActiveSlot && SlotIndex >= 0 && IsValid(Input))
@@ -236,7 +239,7 @@ void UNF_SkillSlotViewModel::RefreshSlot()
 
 void UNF_SkillSlotViewModel::StartRefreshTimer()
 {
-    if (SlotType != ENF_BuildItemType::ActiveSkill)return;
+    if (SlotType != ENF_ItemType::ActiveSkill)return;
     if (SlotIndex == INDEX_NONE) return;
     
     APlayerController* Controller =GetViewModelContext().PlayerController.Get();
