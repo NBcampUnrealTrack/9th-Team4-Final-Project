@@ -7,6 +7,7 @@
 #include "GAS/Tags/NFTag_LifeState.h"
 #include "GameplayEffectTypes.h"
 #include "GameplayEffect.h"
+#include "Core/NF_GameMode.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 #include "GameFramework/Pawn.h"
 #include "Player/State/NF_PlayerState.h"
@@ -28,9 +29,29 @@ void UNF_PlayerLifeComponent::BeginPlay()
 	Super::BeginPlay();
 }
 
-// 컴포가 종료되면 실행 중인 타이머 정리
+// 컴포가 종료되면 실행 중인 타이머 및 생존 시스템 잠금 정리
 void UNF_PlayerLifeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		if (bLifeBuildLockApplied)
+		{
+			UAbilitySystemComponent* ASC =
+				UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+			
+			if (IsValid(ASC))
+			{
+				const FGameplayTag BuildLockedTag =
+					FGameplayTag::RequestGameplayTag(
+						FName(TEXT("State.Build.Locked")));
+				
+				ASC->RemoveLooseGameplayTag(BuildLockedTag);
+			}
+			
+			bLifeBuildLockApplied = false;
+		}
+	}
+	
 	// 캐릭이 사라지면 Health감지 해제
 	StopHealthZeroDetection();
 	
@@ -521,10 +542,15 @@ ENFTeammateCheckResult UNF_PlayerLifeComponent::CheckAliveTeammate() const
 		return ENFTeammateCheckResult::Unknown;
 	}
 	
-	// 팀원이 현재 사용할 Pawn을 가지고 있지 않으면 필드에서 살아 있는 팀원으로 인식x
+	// 팀원의 현재 폰 가져오기
 	APawn* TeammatePawn = TeammateState->GetPawn();
 	
-	if (!IsValid(TeammatePawn) || TeammatePawn->IsActorBeingDestroyed())
+	if (!IsValid(TeammatePawn))
+	{
+		return ENFTeammateCheckResult::Unknown;
+	}
+	
+	if (TeammatePawn->IsActorBeingDestroyed())
 	{
 		return ENFTeammateCheckResult::NoAliveTeammate;
 	}
