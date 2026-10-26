@@ -11,6 +11,7 @@
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnMatchStateChanged, FNF_MatchState&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnKeyPublicStateChanged, const FNF_KeyPublicState&);
+DECLARE_MULTICAST_DELEGATE(FNF_OnTeamRosterChanged);
 
 UCLASS()
 class PROJECT_NF_API ANF_GameState : public AGameState
@@ -19,6 +20,12 @@ class PROJECT_NF_API ANF_GameState : public AGameState
 
 public:
 	ANF_GameState();
+
+	virtual void AddPlayerState(APlayerState* PlayerState) override;
+	virtual void RemovePlayerState(APlayerState* PlayerState) override;
+
+	// 서버와 클라이언트에서 현재 명단 또는 팀 ID가 변경된 후 알린다.
+	FNF_OnTeamRosterChanged OnTeamRosterChanged;
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -51,7 +58,12 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastShowAnnouncement(const FText& Message, float Duration = 3.0f);
 
+protected:
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 private:
+	void HandlePlayerTeamChanged();
+
 	UPROPERTY(ReplicatedUsing = OnRep_NFMatchState)
 	FNF_MatchState NF_MatchState;
 
