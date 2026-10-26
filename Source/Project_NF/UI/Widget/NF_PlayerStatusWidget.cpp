@@ -1,92 +1,80 @@
 #include "UI/Widget/NF_PlayerStatusWidget.h"
 
 #include "Components/ProgressBar.h"
+#include "Components/TextBlock.h"
 
-void UNF_PlayerStatusWidget::SetHealthPercent(float NewPercent)
+namespace
 {
-	const float ClampedPercent = FMath::Clamp(NewPercent, 0.0f, 1.0f);
-
-	// 최초 값은 연출 없이 바로 표시
-	if (!bHasInitialHealth)
+	float CalculatePercent(float Current, float Maximum)
 	{
-		bHasInitialHealth = true;
-		TargetPercent = ClampedPercent;
-		TrailPercent = ClampedPercent;
-		TrailDelayRemaining = 0.0f;
-
-		if (PB_Health)
+		if (Maximum > 0.0f)
 		{
-			PB_Health->SetPercent(TargetPercent);
+			return FMath::Clamp(Current / Maximum, 0.0f, 1.0f);
 		}
-		if (PB_HealthTrail)
-		{
-			PB_HealthTrail->SetPercent(TrailPercent);
-		}
-		return;
+		return 0.0f;
 	}
 
-	const float PreviousPercent = TargetPercent;
-	TargetPercent = ClampedPercent;
+	FText MakeValueText(float Current, float Maximum)
+	{
+		return FText::Format(
+			NSLOCTEXT("NFHUD", "CurrentMaximum", "{0} / {1}"),
+			FText::AsNumber(FMath::RoundToInt(Current)),
+			FText::AsNumber(FMath::RoundToInt(Maximum)));
+	}
+}
+
+void UNF_PlayerStatusWidget::SetHealth(float Current, float Maximum)
+{
+	Maximum = FMath::Max(0.0f, Maximum);
+	Current = FMath::Clamp(Current, 0.0f, Maximum);
 
 	if (PB_Health)
 	{
-		PB_Health->SetPercent(TargetPercent);
+		PB_Health->SetPercent(CalculatePercent(Current, Maximum));
 	}
 
-	// Health와 MaxHealth 알림으로 같은 비율이 재전달될 수 있음
-	if (FMath::IsNearlyEqual(PreviousPercent, TargetPercent)) return;
-	
-
-	if (TargetPercent < PreviousPercent)
+	if (TXT_Health)
 	{
-		// 연속 피격 시에도 기존 잔상 유지
-		TrailPercent = FMath::Max(TrailPercent, PreviousPercent);
-		TrailDelayRemaining = TrailDelay;
-		BP_PlayDamageFeedback();
-	}
-	else
-	{
-		// 회복 시 잔상도 즉시 새 체력으로 맞춤
-		TrailPercent = TargetPercent;
-		TrailDelayRemaining = 0.0f;
-		BP_PlayHealFeedback();
-	}
-
-	if (PB_HealthTrail)
-	{
-		PB_HealthTrail->SetPercent(TrailPercent);
+		TXT_Health->SetText(MakeValueText(Current, Maximum));
 	}
 }
 
-void UNF_PlayerStatusWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+void UNF_PlayerStatusWidget::SetShield(float Current, float Maximum)
 {
-	Super::NativeTick(MyGeometry, InDeltaTime);
+	Maximum = FMath::Max(0.0f, Maximum);
+	Current = FMath::Clamp(Current, 0.0f, Maximum);
 
-	if (!bHasInitialHealth || !PB_HealthTrail) return;
-	
-	if (FMath::IsNearlyEqual(TrailPercent, TargetPercent)) return;
-
-	// Tick은 데이터 조회 없이 잔상 애니메이션에만 사용
-	float AnimationDelta = InDeltaTime;
-	if (TrailDelayRemaining > 0.0f)
+	if (PB_Shield)
 	{
-		const float ConsumedDelay = FMath::Min(TrailDelayRemaining, AnimationDelta);
-		TrailDelayRemaining -= ConsumedDelay;
-		AnimationDelta -= ConsumedDelay;
+		PB_Shield->SetPercent(CalculatePercent(Current, Maximum));
 	}
-	
-	if (AnimationDelta <= 0.0f) return;
 
-	TrailPercent = FMath::FInterpConstantTo(TrailPercent, TargetPercent, AnimationDelta, TrailSpeed);
-	PB_HealthTrail->SetPercent(TrailPercent);
+	if (TXT_Shield)
+	{
+		TXT_Shield->SetText(MakeValueText(Current, Maximum));
+	}
 }
 
-void UNF_PlayerStatusWidget::NativeDestruct()
+void UNF_PlayerStatusWidget::SetLevel(int32 NewLevel)
 {
-	bHasInitialHealth = false;
-	TargetPercent = 0.0f;
-	TrailPercent = 0.0f;
-	TrailDelayRemaining = 0.0f;
+	if (TXT_Level)
+	{
+		TXT_Level->SetText(FText::Format(NSLOCTEXT("NFHUD", "Level", "Lv. {0}"),FText::AsNumber(FMath::Max(1, NewLevel))));
+	}
+}
 
-	Super::NativeDestruct();
+void UNF_PlayerStatusWidget::SetExperience(float Current, float Required)
+{
+	Required = FMath::Max(0.0f, Required);
+	Current = FMath::Max(0.0f, Current);
+
+	if (PB_Experience)
+	{
+		PB_Experience->SetPercent(CalculatePercent(Current, Required));
+	}
+
+	if (TXT_Experience)
+	{
+		TXT_Experience->SetText(MakeValueText(Current, Required));
+	}
 }
