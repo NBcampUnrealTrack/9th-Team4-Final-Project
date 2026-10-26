@@ -64,7 +64,7 @@ void ANF_WeaponBase::BeginPlay()
 	
 	if (HasAuthority() && IsValid(WeaponData))
 	{
-		CurrentAmmo = WeaponData->MagazineSize;
+		SetCurrentAmmo(WeaponData->MagazineSize);
 	}
 }
 
@@ -285,8 +285,8 @@ bool ANF_WeaponBase::FireProjectile()
 	if (SpawnedProjectiles.IsEmpty())
 		return false;
 
-	--CurrentAmmo;
 	LastFireTime = GetWorld()->GetTimeSeconds();
+	SetCurrentAmmo(CurrentAmmo - 1);
 	if (IsValid(Shooter))
 	{
 		if (auto* Weapons = Shooter->FindComponentByClass<UNF_WeaponComponent>())
@@ -347,9 +347,21 @@ void ANF_WeaponBase::FinishReload()
 	
 	if (IsValid(WeaponData))
 	{
-		CurrentAmmo = FMath::Max(0, WeaponData->MagazineSize);
+		SetCurrentAmmo(FMath::Max(0, WeaponData->MagazineSize));
 	}
 	ForceNetUpdate();
+}
+
+void ANF_WeaponBase::SetCurrentAmmo(int32 NewAmmo)
+{
+	if (CurrentAmmo == NewAmmo) return;
+	CurrentAmmo = NewAmmo;
+	OnCurrentAmmoChanged.Broadcast(CurrentAmmo);
+}
+
+void ANF_WeaponBase::OnRep_CurrentAmmo()
+{
+	OnCurrentAmmoChanged.Broadcast(CurrentAmmo);
 }
 
 float ANF_WeaponBase::GetFireInterval() const

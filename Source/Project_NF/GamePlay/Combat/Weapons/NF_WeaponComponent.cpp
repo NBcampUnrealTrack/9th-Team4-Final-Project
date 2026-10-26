@@ -99,6 +99,7 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 	EquippedWeapon->ForceNetUpdate();
 	OwnerCharacter->ForceNetUpdate();
 	RefreshCrosshair();
+	OnEquippedWeaponChanged.Broadcast(EquippedWeapon.Get());
 
 	return true;
 }
@@ -109,7 +110,13 @@ ANF_WeaponBase* UNF_WeaponComponent::UnequipWeapon()
 		return nullptr;
 
 	TGuardValue<bool> ChangeGuard(bChangingWeapon, true);
-	return UnequipWeaponInternal();
+	const bool bHadWeapon = EquippedWeapon != nullptr;
+	ANF_WeaponBase* OldWeapon = UnequipWeaponInternal();
+	if (bHadWeapon)
+	{
+		OnEquippedWeaponChanged.Broadcast(nullptr);
+	}
+	return OldWeapon;
 }
 
 ANF_WeaponBase* UNF_WeaponComponent::UnequipWeaponInternal()
@@ -208,6 +215,7 @@ void UNF_WeaponComponent::OnRep_EquippedWeapon()
 	RestoreZoomCamera();
 	SetComponentTickEnabled(bZoomActive);
 	RefreshCrosshair();
+	OnEquippedWeaponChanged.Broadcast(EquippedWeapon.Get());
 }
 
 void UNF_WeaponComponent::OnPawnControllerChanged(APawn* Pawn, AController* OldController, AController* NewController)

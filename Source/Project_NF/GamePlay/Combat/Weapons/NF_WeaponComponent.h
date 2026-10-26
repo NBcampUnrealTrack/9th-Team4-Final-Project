@@ -21,6 +21,8 @@ class USceneComponent;
 class USkeletalMeshComponent;
 enum class EVisibilityBasedAnimTickOption : uint8;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnEquippedWeaponChanged, ANF_WeaponBase* /* NewWeapon, nullptr if unequipped */);
+
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FNF_OnShotFired, AActor* /* Shooter */,
 	ANF_WeaponBase* /* Weapon */, bool /* bLastRound */);
 
@@ -34,6 +36,9 @@ class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
 
 public:	
 	UNF_WeaponComponent();
+
+	/** Server equip/unequip and client replication. Subscribe, then read GetEquippedWeapon(). */
+	FNF_OnEquippedWeaponChanged OnEquippedWeaponChanged;
 	
 	FNF_OnShotFired OnShotFired;
 	
