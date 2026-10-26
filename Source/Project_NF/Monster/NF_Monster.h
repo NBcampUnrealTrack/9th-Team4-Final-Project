@@ -14,6 +14,7 @@ struct FOnAttributeChangeData;
 class ANF_Monster;
 class AActor;
 class ANF_MonsterItemDrop;
+class ANF_MonsterSpawner;
 
 //사망 알림 deligate
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
@@ -74,6 +75,8 @@ public:
 	void ApplyGroupDamageAggro(AActor* TargetActor);
 
 	void SetGuardFocusActor(AActor* InGuardFocusActor);
+
+	void SetGuardSpawner(ANF_MonsterSpawner* InGuardSpawner);
 
 	AActor* GetGuardFocusActor() const { return GuardFocusActor.Get(); }
 
@@ -143,6 +146,8 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> GuardFocusActor;
+
+	TWeakObjectPtr<ANF_MonsterSpawner> GuardSpawner;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 	Category = "NF|Monster|Drop")

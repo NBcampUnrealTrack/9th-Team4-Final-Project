@@ -323,8 +323,21 @@ void ANF_Monster::HandleMonsterDamaged(float Damage, AActor* DamageSource)
 		*GetNameSafe(DamageSource),
 		*GetNameSafe(GetController()));
 
-	ANF_MonsterSpawner* MonsterSpawner =
-		Cast<ANF_MonsterSpawner>(GetOwner());
+	ANF_MonsterSpawner* MonsterSpawner = GuardSpawner.Get();
+	if (!IsValid(MonsterSpawner))
+	{
+		MonsterSpawner = Cast<ANF_MonsterSpawner>(GetOwner());
+	}
+
+	if (!IsValid(MonsterSpawner))
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster guard group skipped: Monster=%s has no assigned guard spawner. Owner=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(GetOwner()));
+	}
 
 	const bool bGroupAggroHandled = MonsterSpawner
 		&& MonsterSpawner->TryAlertGuardGroup(DamageSource);
@@ -475,6 +488,11 @@ void ANF_Monster::SetGuardFocusActor(AActor* InGuardFocusActor)
 	if (!MonsterAIController) { return; }
 
 	MonsterAIController->SetGuardFocusActor(GuardFocusActor.Get());
+}
+
+void ANF_Monster::SetGuardSpawner(ANF_MonsterSpawner* InGuardSpawner)
+{
+	GuardSpawner = InGuardSpawner;
 }
 
 void ANF_Monster::SpawnMonsterDrops()

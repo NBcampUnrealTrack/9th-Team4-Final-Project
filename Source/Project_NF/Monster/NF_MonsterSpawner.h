@@ -80,12 +80,38 @@ public:
 		Category = "NF|Monster|Guard")
 	TObjectPtr<AActor> GuardFocusActor;
 
+	/** Places guard monsters in evenly spaced slots around GuardFocusActor. */
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Guard")
+	bool bUseGuardFormation = true;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Guard",
+		meta = (ClampMin = "50.0", Units = "cm"))
+	float GuardFormationRadius = 150.0f;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Guard",
+		meta = (Units = "deg"))
+	float GuardFormationStartAngleDegrees = 0.0f;
+
+	/** Accept a nearby projected NavMesh point only when it remains on the formation ring. */
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Guard",
+		meta = (ClampMin = "0.0", Units = "cm"))
+	float GuardFormationRadiusTolerance = 100.0f;
+
 	UPROPERTY(Transient)
 	TSet<TObjectPtr<ANF_Monster>> AliveMonsters;
 
 private:
 	bool IsSpawnLocationSeparated(const FVector& CandidateLocation) const;
 	bool FindSafeSpawnLocation(TSubclassOf<ANF_Monster> MonsterClass, FVector& OutSpawnLocation) const;
+	bool FindGuardFormationSpawnLocation(
+		TSubclassOf<ANF_Monster> MonsterClass,
+		int32 SlotSearchOffset,
+		FVector& OutSpawnLocation,
+		int32& OutSlotIndex) const;
 	TSubclassOf<ANF_Monster> GetRandomMonsterClass() const;
 
 	int32 PendingRespawnCount = 0;
@@ -95,4 +121,6 @@ private:
 	FTimerHandle RespawnTimerHandle;
 
 	TWeakObjectPtr<AActor> GroupAggroTarget;
+
+	TMap<TObjectPtr<ANF_Monster>, int32> GuardFormationSlots;
 };
