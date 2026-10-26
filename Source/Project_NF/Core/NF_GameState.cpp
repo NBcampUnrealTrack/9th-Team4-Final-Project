@@ -21,6 +21,52 @@ void ANF_GameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME(ANF_GameState, KeyPublicState);
 }
 
+void ANF_GameState::AddPlayerState(APlayerState* PlayerState)
+{
+	Super::AddPlayerState(PlayerState);
+
+	ANF_PlayerState* NFPlayerState = Cast<ANF_PlayerState>(PlayerState);
+	if (IsValid(NFPlayerState) && PlayerArray.Contains(PlayerState))
+	{
+		// PlayerState 담당이 제공하는 팀 변경 알림. 중복 구독을 방지한다.
+		NFPlayerState->OnTeamIDChanged.RemoveAll(this);
+		NFPlayerState->OnTeamIDChanged.AddUObject(this, &ThisClass::HandlePlayerTeamChanged);
+	}
+
+	OnTeamRosterChanged.Broadcast();
+}
+
+void ANF_GameState::RemovePlayerState(APlayerState* PlayerState)
+{
+	ANF_PlayerState* NFPlayerState = Cast<ANF_PlayerState>(PlayerState);
+	if (IsValid(NFPlayerState))
+	{
+		NFPlayerState->OnTeamIDChanged.RemoveAll(this);
+	}
+
+	Super::RemovePlayerState(PlayerState);
+	OnTeamRosterChanged.Broadcast();
+}
+
+void ANF_GameState::HandlePlayerTeamChanged()
+{
+	OnTeamRosterChanged.Broadcast();
+}
+
+void ANF_GameState::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	for (const TObjectPtr<APlayerState>& PlayerState : PlayerArray)
+	{
+		ANF_PlayerState* NFPlayerState = Cast<ANF_PlayerState>(PlayerState.Get());
+		if (IsValid(NFPlayerState))
+		{
+			NFPlayerState->OnTeamIDChanged.RemoveAll(this);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
 FNF_MatchState ANF_GameState::GetMatchState() const
 {
 	return NF_MatchState;
