@@ -16,13 +16,24 @@
 #include "Kismet/KismetStringLibrary.h"
 #include "Kismet/KismetStringTableLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "UI/SubSystem/NF_UIManagerSubsystem.h"
+#include "UI/SubSystem/NF_ViewModelSubsystem.h"
+#include "UI/Widget/NF_GameHUDWidget.h"
 
+
+class UNF_UIManagerSubsystem;
 
 void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
 	DOREPLIFETIME(ThisClass, CurrentBuildShopType);
+}
+
+void ANF_PlayerController::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	RefreshViewModel();
 }
 
 
@@ -33,8 +44,8 @@ void ANF_PlayerController::BeginPlay()
 	GetWorldTimerManager().SetTimer(MinimapRevealTimer, this, &ThisClass::UpdateMinimapReveals, 0.2f, true);
 	
 	InputConfig();
-	
 	BindDelegate();
+	CreateGameHUD();
 }
 
 
@@ -257,6 +268,7 @@ void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopTyp
 }
 
 
+
 void ANF_PlayerController::ReleaseGameplayInputForUI()
 {
 	bIsZoomIn = false;
@@ -265,6 +277,29 @@ void ANF_PlayerController::ReleaseGameplayInputForUI()
 }
 #pragma endregion
 
+#pragma region UI
+void ANF_PlayerController::CreateGameHUD()
+{
+	if (IsLocalController() == true)
+	{
+		if (GameHUDClass == nullptr) return;
+
+		auto* UIManager = ULocalPlayer::GetSubsystem<UNF_UIManagerSubsystem>(GetLocalPlayer());
+		if (IsValid(UIManager) == false) return;
+
+		UIManager->SetHUD(GameHUDClass);
+	}
+}
+
+
+void ANF_PlayerController::RefreshViewModel()
+{
+	auto* ViewModelSubsystem = ULocalPlayer::GetSubsystem<UNF_ViewModelSubsystem>(GetLocalPlayer());
+	if (IsValid(ViewModelSubsystem) == false) return;
+
+	ViewModelSubsystem->RefreshViewModelContext();
+}
+#pragma endregion 
 
 
 
