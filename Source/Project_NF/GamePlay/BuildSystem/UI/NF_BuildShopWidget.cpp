@@ -171,23 +171,28 @@ void UNF_BuildShopWidget::Refresh()
 	DraftList->ClearChildren();
 	if (Build->GetRules())
 	{
-		for (int32 TypeIndex = 0; TypeIndex <= static_cast<int32>(ENF_BuildItemType::PassiveSkill); ++TypeIndex)
+		for (int32 TypeIndex = 0; TypeIndex <= static_cast<int32>(ENF_ItemType::PassiveSkill); ++TypeIndex)
 		{
-			const ENF_BuildItemType Type = static_cast<ENF_BuildItemType>(TypeIndex);
+			const ENF_ItemType Type = static_cast<ENF_ItemType>(TypeIndex);
 			UTextBlock* Heading = WidgetTree->ConstructWidget<UTextBlock>();
-			Heading->SetText(StaticEnum<ENF_BuildItemType>()->GetDisplayNameTextByValue(TypeIndex));
+			Heading->SetText(StaticEnum<ENF_ItemType>()->GetDisplayNameTextByValue(TypeIndex));
 			CatalogList->AddChild(Heading);
-			for (const UNF_BuildItemDefinitionDataAsset* Item : Build->GetCatalogItems(Type, ENF_BuildArmorPart::None))
+			for (const UNF_BuildItemDefinitionDataAsset* Item : Build->GetCatalogItems(Type, ENF_ArmorSlot::None))
 			{
-				if (IsValid(Item))
+				FNF_BuildItemData ItemSource;
+				if (IsValid(Item) && Build->ResolveItemData(Item->ItemId, ItemSource))
 				{
-					const FText ItemName = Item->DisplayName.IsEmpty() ? FText::FromName(Item->ItemId) : Item->DisplayName;
-					const FText Label = Item->ItemType == ENF_BuildItemType::Armor
-						? FText::Format(FText::FromString(TEXT("[{0}] {1}")),
-							StaticEnum<ENF_BuildArmorPart>()->GetDisplayNameTextByValue(static_cast<int64>(Item->ArmorPart)), ItemName)
-						: ItemName;
+					const FText ItemName = Item->DisplayName.IsEmpty()
+						                       ? FText::FromName(Item->ItemId)
+						                       : Item->DisplayName;
+					const FText Label = ItemSource.ItemType == ENF_ItemType::Armor
+						                    ? FText::Format(FText::FromString(TEXT("[{0}] {1}")),
+						                                    StaticEnum<ENF_ArmorSlot>()->GetDisplayNameTextByValue(
+							                                    static_cast<int64>(ItemSource.ArmorSlot)), ItemName)
+						                    : ItemName;
 					AddItemButton(CatalogList, Item->ItemId,
-						FText::Format(FText::FromString(TEXT("{0} — 코스트 {1}")), Label, FText::AsNumber(Item->Cost)), false);
+					              FText::Format(FText::FromString(TEXT("{0} — 코스트 {1}")), Label,
+					                            FText::AsNumber(ItemSource.Cost)), false);
 				}
 			}
 		}
@@ -195,14 +200,16 @@ void UNF_BuildShopWidget::Refresh()
 	for (const FNF_BuildSelection& Selection : Build->GetDraftBuild())
 	{
 		const UNF_BuildItemDefinitionDataAsset* Item = Build->FindItemDefinition(Selection.ItemId);
+		FNF_BuildItemData ItemSource;
+		const bool bResolved = Item && Build->ResolveItemData(Selection.ItemId, ItemSource);
 		AddItemButton(DraftList, Selection.ItemId,
 		              FText::Format(FText::FromString(TEXT("{0} 슬롯 {1}: {2} (제거)")),
-		                            Item && Item->ItemType == ENF_BuildItemType::Armor
-			                            ? StaticEnum<ENF_BuildArmorPart>()->GetDisplayNameTextByValue(
-				                            static_cast<int64>(Item->ArmorPart))
-			                            : Item
-			                            ? StaticEnum<ENF_BuildItemType>()->GetDisplayNameTextByValue(
-				                            static_cast<int64>(Item->ItemType))
+		                            bResolved && ItemSource.ItemType == ENF_ItemType::Armor
+			                            ? StaticEnum<ENF_ArmorSlot>()->GetDisplayNameTextByValue(
+				                            static_cast<int64>(ItemSource.ArmorSlot))
+			                            : bResolved
+			                            ? StaticEnum<ENF_ItemType>()->GetDisplayNameTextByValue(
+				                            static_cast<int64>(ItemSource.ItemType))
 			                            : FText(),
 		                            FText::AsNumber(Selection.SlotIndex + 1),
 		                            Item && !Item->DisplayName.IsEmpty()

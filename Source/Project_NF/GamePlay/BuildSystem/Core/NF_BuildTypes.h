@@ -4,25 +4,6 @@
 #include "NF_BuildTypes.generated.h"
 
 UENUM(BlueprintType)
-enum class ENF_BuildItemType : uint8
-{
-	Weapon,
-	Armor,
-	ActiveSkill,
-	PassiveSkill
-};
-
-// @Owner: 황준현 | 2026-10-15. 방어구 부위를 고정 슬롯에 연결한다.
-UENUM(BlueprintType)
-enum class ENF_BuildArmorPart : uint8
-{
-	None UMETA(DisplayName = "미지정"),
-	Head UMETA(DisplayName = "머리"),
-	UpperBody UMETA(DisplayName = "상의"),
-	LowerBody UMETA(DisplayName = "하의")
-};
-
-UENUM(BlueprintType)
 enum class ENF_BuildResult : uint8
 {
 	Success,
@@ -37,7 +18,7 @@ enum class ENF_BuildResult : uint8
 	RequiredWeaponMissing,
 	CostLimitExceeded,
 	InvalidGrant,
-	GrantFailed, 
+	GrantFailed,
 	ItemNotUnlocked
 };
 
@@ -47,7 +28,7 @@ UENUM(BlueprintType)
 enum class ENF_BuildShopRangeState : uint8
 {
 	Outside UMETA(DisplayName = "상점 범위 밖"),
-	Inside  UMETA(DisplayName = "상점 범위 안")
+	Inside UMETA(DisplayName = "상점 범위 안")
 };
 
 // @Owner: 황준현 | 2026-10-15
@@ -91,4 +72,3 @@ struct PROJECT_NF_API FNF_BuildValidation
 	UPROPERTY(BlueprintReadOnly, Category = "NF|Build")
 	FText Message;
 };
-
