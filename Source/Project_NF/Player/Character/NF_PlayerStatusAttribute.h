@@ -82,6 +82,7 @@ private:
 	bool bIsOutOfHealth = false;
 	bool bIsOutOfShield = false;
 	
+	//킬러를 의미
 	TWeakObjectPtr<APlayerState> LethalDamageInstigatorPlayerState;
 	
 	void IsOutOfHealth(const FGameplayEffectModCallbackData& Data);

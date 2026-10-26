@@ -51,8 +51,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Attribute")
 	TObjectPtr<UNF_PlayerStatusAttribute> PlayerStatusAttribute; 
 	
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Attribute")
-	// TObjectPtr<UNF_PlayerLevelAttribute> PlayerLevelAttribute; 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Attribute")
+	TObjectPtr<UNF_PlayerLevelAttribute> PlayerLevelAttribute; 
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Attribute")
 	TObjectPtr<UNF_KeyHolderAttributeSet> KeyHolderAttributeSet; 
