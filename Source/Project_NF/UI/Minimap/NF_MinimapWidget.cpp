@@ -2,15 +2,9 @@
 
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
-#include "GameFramework/Pawn.h"
-#include "GameFramework/PlayerController.h"
-#include "GameFramework/SpectatorPawn.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
-#include "Player/Controller/NF_PlayerController.h"
 #include "Player/State/NF_PlayerState.h"
-#include "UI/Minimap/NF_MinimapRevealRegistry.h"
 
 // @owner: 이정준 (구현: Codex) | 2026-10-15
 // 목적: 북쪽 고정 미니맵의 로컬 표시. 외부 시스템이 허용한 좌표만 소비한다.
@@ -20,9 +14,33 @@ UNF_MinimapWidget::UNF_MinimapWidget(const FObjectInitializer& ObjectInitializer
 	SetClipping(EWidgetClipping::ClipToBounds);
 }
 
+// @Owner: 이정준 (구현: Codex) | 2026-10-26
+void UNF_MinimapWidget::SetSnapshot(const FNF_MinimapSnapshot& InSnapshot)
+{
+	bSnapshotDriven = true;
+	bHasView = InSnapshot.bHasView && !InSnapshot.ViewLocation.ContainsNaN()
+		&& FMath::IsFinite(InSnapshot.ViewYaw);
+	Center = bHasView ? InSnapshot.ViewLocation : FVector::ZeroVector;
+	CenterYaw = bHasView ? InSnapshot.ViewYaw : 0.0f;
+	Entries.Reset();
+	if (bHasView)
+	{
+		Entries.Reserve(InSnapshot.Markers.Num());
+		for (const FNF_MinimapMarker& Marker : InSnapshot.Markers)
+		{
+			if (Marker.Id.IsNone() || Marker.WorldLocation.ContainsNaN()
+				|| !FMath::IsFinite(Marker.Size) || Marker.Size <= 0.0f) { continue; }
+			FNF_MinimapEntry& Entry = Entries.AddDefaulted_GetRef();
+			Entry.Marker = Marker;
+			Entry.ExpiresAt = 0.0; // The VM owns snapshot marker lifetime.
+		}
+	}
+	InvalidateLayoutAndVolatility();
+}
+
 bool UNF_MinimapWidget::UpsertMarker(const FNF_MinimapMarker& Marker, float Lifetime)
 {
-	if (Marker.Id.IsNone() || Marker.WorldLocation.ContainsNaN() || !FMath::IsFinite(Marker.Size)
+	if (bSnapshotDriven || Marker.Id.IsNone() || Marker.WorldLocation.ContainsNaN() || !FMath::IsFinite(Marker.Size)
 		|| Marker.Size <= 0.0f || !FMath::IsFinite(Lifetime) || Lifetime < 0.0f
 		|| (Lifetime > 0.0f && !GetWorld())) { return false; }
 	FNF_MinimapEntry* Entry = Entries.FindByPredicate([&](const FNF_MinimapEntry& Existing) { return Existing.Marker.Id == Marker.Id; });
@@ -35,20 +53,26 @@ bool UNF_MinimapWidget::UpsertMarker(const FNF_MinimapMarker& Marker, float Life
 
 bool UNF_MinimapWidget::RemoveMarker(FName Id)
 {
+	if (bSnapshotDriven) { return false; }
 	const bool bRemoved = Entries.RemoveAll([&](const FNF_MinimapEntry& Entry) { return Entry.Marker.Id == Id; }) > 0;
 	if (bRemoved) { InvalidateLayoutAndVolatility(); }
 	return bRemoved;
 }
 
-void UNF_MinimapWidget::ClearMarkers() { Entries.Reset(); InvalidateLayoutAndVolatility(); }
+void UNF_MinimapWidget::ClearMarkers()
+{
+	if (bSnapshotDriven) { return; }
+	Entries.Reset(); InvalidateLayoutAndVolatility();
+}
 void UNF_MinimapWidget::ClearMarkersByType(ENF_MinimapMarkerType Type)
 {
+	if (bSnapshotDriven) { return; }
 	Entries.RemoveAll([&](const FNF_MinimapEntry& Entry) { return Entry.Marker.Type == Type; });
 	InvalidateLayoutAndVolatility();
 }
 void UNF_MinimapWidget::SetViewLocation(FVector Location, float ViewYaw)
 {
-	if (Location.ContainsNaN() || !FMath::IsFinite(ViewYaw)) { return; }
+	if (bSnapshotDriven || Location.ContainsNaN() || !FMath::IsFinite(ViewYaw)) { return; }
 	Center = Location; CenterYaw = ViewYaw; bHasView = true;
 	InvalidateLayoutAndVolatility();
 }
@@ -75,17 +99,8 @@ bool UNF_MinimapWidget::ProjectWorldToMinimap(FVector Location, FVector ViewLoca
 void UNF_MinimapWidget::NativeTick(const FGeometry& Geometry, float DeltaTime)
 {
 	Super::NativeTick(Geometry, DeltaTime);
-	UpdateTeammates(DeltaTime);
-	if (bShowRegisteredReveals && Cast<ANF_PlayerController>(GetOwningPlayer())) { InvalidateLayoutAndVolatility(); }
-	if (bFollowOwningPawn)
-	{
-		if (const APawn* Pawn = GetOwningPlayerPawn())
-		{
-			const APlayerController* Controller = GetOwningPlayer();
-			SetViewLocation(Pawn->GetActorLocation(), Controller ? Controller->GetControlRotation().Yaw : Pawn->GetActorRotation().Yaw);
-		}
-		else if (bHasView) { bHasView = false; InvalidateLayoutAndVolatility(); }
-	}
+	// Only legacy manual markers use widget-owned expiry. No game-state collection.
+	if (bSnapshotDriven) { return; }
 	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	if (Entries.RemoveAll([Now](const FNF_MinimapEntry& Entry) { return Entry.ExpiresAt > 0.0 && Entry.ExpiresAt <= Now; }) > 0)
 	{
@@ -98,60 +113,6 @@ bool UNF_MinimapWidget::ArePlayerStatesTeammates(const APlayerState* Viewer, con
 	const auto* Local = Cast<ANF_PlayerState>(Viewer);
 	const auto* Target = Cast<ANF_PlayerState>(Other);
 	return IsValid(Local) && IsValid(Target) && Local->NF_TeamID >= 1 && Local->NF_TeamID == Target->NF_TeamID;
-}
-
-int32 UNF_MinimapWidget::GetViewerTeamID() const
-{
-	const APlayerState* State = GetOwningPlayer() ? GetOwningPlayer()->PlayerState.Get() : nullptr;
-	if (!State && GetOwningPlayerPawn()) { State = GetOwningPlayerPawn()->GetPlayerState(); }
-	const auto* NFState = Cast<ANF_PlayerState>(State);
-	return NFState ? NFState->NF_TeamID : INDEX_NONE;
-}
-
-void UNF_MinimapWidget::UpdateTeammates(float DeltaTime)
-{
-	DisplayedTeammates.Reset();
-	if (!bShowTeammates || !GetWorld() || GetWorld()->GetNetMode() == NM_DedicatedServer)
-	{
-		if (!TeammateMarkers.IsEmpty()) { TeammateMarkers.Reset(); InvalidateLayoutAndVolatility(); }
-		PlayerPawns.Reset(); PlayerRefreshCountdown = 0.0f;
-		return;
-	}
-	// 캐릭터 종류에 의존하지 않아 기본 TPS Pawn도 지원한다. 원격 Pawn에는 Controller가
-	// 없을 수 있으므로 복제된 PlayerState도 사용한다. 몬스터/관전자 Pawn은 제외한다.
-	const auto IsPlayerPawn = [](const APawn* Pawn)
-	{
-		return IsValid(Pawn) && !Pawn->IsActorBeingDestroyed() && !Pawn->IsA<ASpectatorPawn>()
-			&& (Pawn->IsPlayerControlled() || Pawn->GetPlayerState() != nullptr);
-	};
-	PlayerRefreshCountdown -= DeltaTime;
-	if (PlayerRefreshCountdown <= 0.0f)
-	{
-		PlayerPawns.Reset();
-		for (TActorIterator<APawn> It(GetWorld()); It; ++It)
-		{
-			if (IsPlayerPawn(*It)) { PlayerPawns.Add(*It); }
-		}
-		PlayerRefreshCountdown = 0.5f;
-	}
-	const bool bHadMarkers = !TeammateMarkers.IsEmpty();
-	TeammateMarkers.Reset();
-	const APawn* LocalPawn = GetOwningPlayerPawn();
-	const APlayerState* LocalState = GetOwningPlayer() ? GetOwningPlayer()->PlayerState.Get() : nullptr;
-	if (!LocalState && LocalPawn) { LocalState = LocalPawn->GetPlayerState(); }
-	for (const TWeakObjectPtr<APawn>& WeakPawn : PlayerPawns)
-	{
-		const APawn* Pawn = WeakPawn.Get();
-		if (!IsPlayerPawn(Pawn) || Pawn == LocalPawn || Pawn->GetWorld() != GetWorld()) { continue; }
-		// Recheck each tick: team IDs may arrive after the Pawn or change without a respawn.
-		if (!ArePlayerStatesTeammates(LocalState, Pawn->GetPlayerState())) { continue; }
-		DisplayedTeammates.Add(TWeakObjectPtr<APlayerState>(Pawn->GetPlayerState()));
-		FNF_MinimapMarker& Marker = TeammateMarkers.AddDefaulted_GetRef();
-		Marker.Id = Pawn->GetFName(); Marker.WorldLocation = Pawn->GetActorLocation();
-		Marker.Type = ENF_MinimapMarkerType::Teammate;
-		Marker.Size = FMath::IsFinite(TeammateMarkerSize) ? FMath::Max(1.0f, TeammateMarkerSize) : 20.0f;
-	}
-	if (bHadMarkers || !TeammateMarkers.IsEmpty()) { InvalidateLayoutAndVolatility(); }
 }
 
 FLinearColor UNF_MinimapWidget::GetMarkerColor(ENF_MinimapMarkerType Type) const
@@ -190,7 +151,7 @@ int32 UNF_MinimapWidget::NativePaint(const FPaintArgs& Args, const FGeometry& Ge
 	};
 	Box(Offset, FVector2D(Side), White, BackgroundColor, LayerId);
 	const FVector2D MapSize = MapWorldMax - MapWorldMin;
-	if (MapTexture && !MapWorldMin.ContainsNaN() && !MapWorldMax.ContainsNaN() && MapSize.GetMin() > 0.0)
+	if (bHasView && MapTexture && !MapWorldMin.ContainsNaN() && !MapWorldMax.ContainsNaN() && MapSize.GetMin() > 0.0)
 	{
 		// 전체 지도 UV: U=+Y, V=-X. 이미지 밖 영역은 배경색으로 남긴다.
 		const FVector2D UVCenter((Center.Y - MapWorldMin.Y) / MapSize.Y, (MapWorldMax.X - Center.X) / MapSize.X);
@@ -222,28 +183,8 @@ int32 UNF_MinimapWidget::NativePaint(const FPaintArgs& Args, const FGeometry& Ge
 		};
 		for (const FNF_MinimapEntry& Entry : Entries)
 		{
-			if (Entry.ExpiresAt > 0.0 && Entry.ExpiresAt <= Now) { continue; }
+			if (!bSnapshotDriven && Entry.ExpiresAt > 0.0 && Entry.ExpiresAt <= Now) { continue; }
 			DrawMarker(Entry.Marker);
-		}
-		if (bShowTeammates) { for (const FNF_MinimapMarker& Marker : TeammateMarkers) { DrawMarker(Marker); } }
-		if (bShowRegisteredReveals)
-		{
-			if (ANF_PlayerController* Controller = Cast<ANF_PlayerController>(GetOwningPlayer()))
-			{
-				for (const FNF_MinimapRevealMarker& Reveal : Controller->GetMinimapRevealRegistry()->GetVisibleMarkers())
-				{
-					const int32 ViewerTeam = GetViewerTeamID();
-					const bool bTeammate = ViewerTeam >= 1 && ViewerTeam == Reveal.PlayerTeamID;
-					// Teammates already have a blue marker; do not paint a second red clairvoyance marker over it.
-					if (bShowTeammates && bTeammate && Reveal.Kind == ENF_MinimapRevealKind::Clairvoyance
-						&& DisplayedTeammates.Contains(TWeakObjectPtr<APlayerState>(Reveal.PlayerState.Get()))) { continue; }
-					FNF_MinimapMarker Marker; Marker.Id = Reveal.TargetId; Marker.WorldLocation = Reveal.WorldLocation;
-					Marker.Type = Reveal.Kind == ENF_MinimapRevealKind::EscapeKey ? ENF_MinimapMarkerType::Objective
-						: (bTeammate ? ENF_MinimapMarkerType::Teammate : ENF_MinimapMarkerType::RevealedEnemy);
-					Marker.Size = FMath::IsFinite(RevealMarkerSize) ? FMath::Max(1.0f, RevealMarkerSize) : 20.0f;
-					DrawMarker(Marker);
-				}
-			}
 		}
 		if (bShowLocalPlayer && FMath::IsFinite(LocalPlayerSize) && LocalPlayerSize > 0.0f)
 		{
