@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
 #include "Core/NF_CoreIntegrationTypes.h"
+#include "Data/Enum/NF_PlayerPawnState.h"
 #include "Data/Struct/NF_EscapeState.h"
 #include "Data/Struct/NF_MatchResult.h"
 #include "NF_GameMode.generated.h"
@@ -37,6 +38,10 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void RestartPlayer(AController* NewPlayer) override;
+
+	// LifeComponent가 Pawn 부재 이유를 서버에서 조회할 때 사용한다.
+	ENF_PlayerPawnState GetPlayerPawnState(const ANF_PlayerState* PlayerState) const;
 
 	// 서버에서 팀 배정과 PlayerState 반영을 완료한 뒤 호출
 	void NotifyTeamsReady();
@@ -73,6 +78,14 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Match")
 	float FarmingDuration = 900.0f;
+
+	bool AuthoritySetPlayerPawnState(
+		ANF_PlayerState* PlayerState,
+		ENF_PlayerPawnState NewState);
+
+	void RemovePlayerPawnState(const ANF_PlayerState* PlayerState);
+
+	TMap<TWeakObjectPtr<ANF_PlayerState>, ENF_PlayerPawnState> PlayerPawnStates;
 
 	ANF_GameState* GetNFGameState() const;
 
