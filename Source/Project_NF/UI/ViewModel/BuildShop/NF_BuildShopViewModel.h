@@ -1,10 +1,11 @@
-﻿// NF_BuildShopViewModel.h
+// NF_BuildShopViewModel.h
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
+#include "Data/Enum/NF_ItemTypes.h"
 #include "NF_BuildShopViewModel.generated.h"
 
 USTRUCT(BlueprintType)
@@ -14,7 +15,7 @@ struct FNF_BuildShopSlotViewData
 
     // 스킬: ActiveSkill/PassiveSkill 무기: Weapon 장비: Armor
     UPROPERTY(BlueprintReadOnly)
-    ENF_BuildItemType ItemType = ENF_BuildItemType::Weapon;
+    ENF_ItemType ItemType = ENF_ItemType::Weapon;
     
     // Armor 0=머리, 1=몸, 2=발.
     UPROPERTY(BlueprintReadOnly)
@@ -48,7 +49,7 @@ struct FNF_BuildShopItemViewData
     FText DisplayName;
 
     UPROPERTY(BlueprintReadOnly)
-    ENF_BuildItemType ItemType = ENF_BuildItemType::Weapon;
+    ENF_ItemType ItemType = ENF_ItemType::Weapon;
 
     UPROPERTY(BlueprintReadOnly)
     int32 ItemCost = 0;
