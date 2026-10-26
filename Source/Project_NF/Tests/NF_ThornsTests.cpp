@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
-#include "GamePlay/Combat/Skill/Passive/NFGA_Thorns.h"
+#include "GamePlay/Combat/Skill/Passive/Utility/NFGA_Thorns.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_ThornsTest, "NF.Skills.Thorns.ActualHealthLossCooldownAndNoRecursion",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

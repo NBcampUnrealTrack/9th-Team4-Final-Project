@@ -4,7 +4,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GamePlay/Combat/Skill/Passive/NFGA_DoubleJump.h"
+#include "GamePlay/Combat/Skill/Passive/Utility/NFGA_DoubleJump.h"
 #include "GamePlay/Combat/Skill/Execution/NF_JumpCountEffect.h"
 #include "GAS/Effects/NFGE_EMP.h"
 #include "GAS/Tags/NFTag_Skill.h"

@@ -4,6 +4,7 @@
 #include "NFGA_WeaponPassive.generated.h"
 
 // @Owner: 이정준 (구현: Codex) | 2026-10-21
+// Shared equip/unequip handling only. Concrete skills have their own files.
 UCLASS(Abstract)
 class PROJECT_NF_API UNFGA_WeaponPassive : public UNFGA_SkillBase
 {
@@ -27,28 +28,4 @@ private:
 	void RemoveStatEffect();
 	TWeakObjectPtr<UAbilitySystemComponent> StatASC;
 	FActiveGameplayEffectHandle StatEffect;
-};
-
-UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_AttackPower : public UNFGA_WeaponPassive
-{
-	GENERATED_BODY()
-public:
-	UNFGA_AttackPower();
-protected:
-	virtual float GetStatMagnitude() const override { return AttackDamageBonus; }
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Attack Power", meta = (ClampMin = "0.0"))
-	float AttackDamageBonus = 10.0f;
-};
-
-UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_MagicBullet : public UNFGA_WeaponPassive
-{
-	GENERATED_BODY()
-public:
-	UNFGA_MagicBullet();
-protected:
-	virtual float GetStatMagnitude() const override { return LastRoundDamageMultiplier; }
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Magic Bullet", meta = (ClampMin = "1.0"))
-	float LastRoundDamageMultiplier = 2.0f;
 };

@@ -1,8 +1,7 @@
-#include "GamePlay/Combat/Skill/Passive/NFGA_WeaponPassive.h"
+#include "GamePlay/Combat/Skill/Passive/Attack/NFGA_WeaponPassive.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GamePlay/Combat/Damage/NF_WeaponDamageLibrary.h"
-#include "GAS/Effects/NFGE_WeaponPassives.h"
 #include "GAS/Tags/NFTag_Skill.h"
 #include "Project_NF.h"
 
@@ -12,18 +11,6 @@ UNFGA_WeaponPassive::UNFGA_WeaponPassive()
 	SkillCategory = ENF_SkillCategory::Attack;
 	SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
 	bActivatePassiveOnGrant = false;
-}
-UNFGA_AttackPower::UNFGA_AttackPower()
-{
-	BuildCost = 1;
-	StatEffectClass = UNFGE_AttackDamageBonus::StaticClass();
-	MagnitudeTag = NFTag_Skill::Data_Weapon_AttackDamageBonus;
-}
-UNFGA_MagicBullet::UNFGA_MagicBullet()
-{
-	BuildCost = 3;
-	StatEffectClass = UNFGE_MagicBullet::StaticClass();
-	MagnitudeTag = NFTag_Skill::Data_Weapon_LastRoundMultiplier;
 }
 void UNFGA_WeaponPassive::PrepareOffenseAttributes(const FGameplayAbilityActorInfo* ActorInfo)
 {

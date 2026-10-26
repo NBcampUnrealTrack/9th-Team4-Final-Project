@@ -1,4 +1,4 @@
-#include "GamePlay/Combat/Skill/Passive/NFGA_Thorns.h"
+#include "GamePlay/Combat/Skill/Passive/Utility/NFGA_Thorns.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "GameplayEffectExtension.h"

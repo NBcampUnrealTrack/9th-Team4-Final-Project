@@ -5,45 +5,47 @@
 #include "NF_PlayerStatusWidget.generated.h"
 
 class UProgressBar;
+class UTextBlock;
 
-// 플레이어 상태 WBP의 부모. 표시값은 MVVM 바인딩으로 연결
 UCLASS(Abstract, Blueprintable)
 class PROJECT_NF_API UNF_PlayerStatusWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	// WBP의 View Binding에서 호출할 목적지 함수
 	UFUNCTION(BlueprintCallable, Category = "NF|UI|PlayerStatus")
-	void SetHealthPercent(float NewPercent);
+	void SetHealth(float Current, float Maximum);
+
+	UFUNCTION(BlueprintCallable, Category = "NF|UI|PlayerStatus")
+	void SetShield(float Current, float Maximum);
+
+	UFUNCTION(BlueprintCallable, Category = "NF|UI|PlayerStatus")
+	void SetLevel(int32 NewLevel);
+
+	// Current: 현재 레벨에서 획득한 경험치
+	// Required: 다음 레벨까지 필요한 경험치
+	UFUNCTION(BlueprintCallable, Category = "NF|UI|PlayerStatus")
+	void SetExperience(float Current, float Required);
 
 protected:
-	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-	virtual void NativeDestruct() override;
-
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UProgressBar> PB_Health;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UProgressBar> PB_HealthTrail;
+	TObjectPtr<UProgressBar> PB_Shield;
 
-	// 실제 애니메이션은 WBP에서 구현
-	UFUNCTION(BlueprintImplementableEvent, Category = "NF|UI|PlayerStatus")
-	void BP_PlayDamageFeedback();
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UProgressBar> PB_Experience;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "NF|UI|PlayerStatus")
-	void BP_PlayHealFeedback();
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> TXT_Health;
 
-	UPROPERTY(EditDefaultsOnly, Category = "NF|UI|PlayerStatus", meta = (ClampMin = "0.0"))
-	float TrailDelay = 0.25f;
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> TXT_Shield;
 
-	// 초당 감소할 체력 비율
-	UPROPERTY(EditDefaultsOnly, Category = "NF|UI|PlayerStatus", meta = (ClampMin = "0.01"))
-	float TrailSpeed = 0.6f;
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> TXT_Level;
 
-private:
-	bool bHasInitialHealth = false;
-	float TargetPercent = 0.0f;
-	float TrailPercent = 0.0f;
-	float TrailDelayRemaining = 0.0f;
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> TXT_Experience;
 };
