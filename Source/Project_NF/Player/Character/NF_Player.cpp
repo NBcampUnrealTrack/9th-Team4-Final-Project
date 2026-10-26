@@ -6,6 +6,7 @@
 #include "Component/MotionMatchingComponent.h"
 #include "MotionWarpingComponent.h"
 #include "NFGA_MeleeAttack.h"
+#include "NF_PlayerLevelAttribute.h"
 #include "NF_PlayerStatusAttribute.h"
 #include "Data/Interface/NF_InteractionInterface.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
@@ -20,6 +21,8 @@
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/State/NF_PlayerState.h"
 #include "Engine/LocalPlayer.h"
+#include "Player/Data/NF_PlayerDataAsset.h"
+#include "Player/Data/NF_PlayerLevelDataTable.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UpperBodyBlend/UpperBodyLayer.h"
 
@@ -81,16 +84,18 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
-	BindDelegate();
+	ConfigBindDelegate();
 }
 
 
-void ANF_Player::BindDelegate()
+void ANF_Player::ConfigBindDelegate()
 {
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, OnTryAction);
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerBindingSkill, OnSkillBind);
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnInteractBuildShop, OnEnablePlayerMovementFromType);
 }
+
+
 
 
 #pragma region OnTryAction
@@ -339,30 +344,39 @@ void ANF_Player::InitAbilitySystem()
 	auto* NF_PlayerState = GetPlayerState<ANF_PlayerState>();
 	if (IsValid(NF_PlayerState) == false) return;
 
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (IsValid(ASC) == false) return;
-	
 	NF_PlayerState->InitAbilitySystem(this);
 	
-	NF_ArmorComponent->ClearArmorDefence();
-	NF_ArmorComponent->RefreshArmorDefence();
+	if (HasAuthority() == true)
+	{
+		NF_ArmorComponent->ClearArmorDefence();
+		NF_ArmorComponent->RefreshArmorDefence();
 	
-	const UNF_PlayerStatusAttribute* PlayerStatusAttribute = ASC->GetSet<UNF_PlayerStatusAttribute>(); 
+		ConfigStatusAttribute();
+		ConfigLevelAttribute();
+	}
+	
+	if (IsLocallyControlled() == true)
+	{
+		auto* PlayerController = GetController<APlayerController>();
+		if (IsValid(PlayerController) == false) return;
+	
+		auto* ViewModelSubsystem = ULocalPlayer::GetSubsystem<UNF_ViewModelSubsystem>(PlayerController->GetLocalPlayer());
+		if (IsValid(ViewModelSubsystem) == false) return;
+
+		ViewModelSubsystem->RefreshViewModelContext();
+	}
+}
+
+
+void ANF_Player::ConfigStatusAttribute()
+{
+	auto* PlayerStatusAttribute = GetAbilitySystemComponent()->GetSet<UNF_PlayerStatusAttribute>(); 
 	if (IsValid(PlayerStatusAttribute) == true)
 	{
 		PlayerStatusAttribute->OnOutOfHealth.AddUniqueDynamic(this, &ThisClass::OnOutOfHealthCpp);  
 		PlayerStatusAttribute->OnOutOfShield.AddUniqueDynamic(this, &ThisClass::OnOutOfShieldCpp); 
 	}
-	
-	auto* PlayerController = GetController<APlayerController>();
-	if (IsValid(PlayerController) == false) return;
-	
-	auto* ViewModelSubsystem = ULocalPlayer::GetSubsystem<UNF_ViewModelSubsystem>(PlayerController->GetLocalPlayer());
-	if (IsValid(ViewModelSubsystem) == false) return;
-
-	ViewModelSubsystem->RefreshViewModelContext();
 }
-
 
 
 void ANF_Player::OnOutOfHealthCpp()
@@ -373,20 +387,30 @@ void ANF_Player::OnOutOfHealthCpp()
 		GetAbilitySystemComponent()->TryActivateAbilityByClass(UNFGA_PlayerDeath::StaticClass());
 		
 		NF_PlayerLifeComponent->HandleHealthReachedZero();
-		
-		APlayerState* KillerPlayerState = nullptr;
-		if (const ANF_PlayerState* VictimPlayerState = GetPlayerState<ANF_PlayerState>())
-		{
-			if (const UAbilitySystemComponent* ASC = VictimPlayerState->GetAbilitySystemComponent())
-			{
-				if (const UNF_PlayerStatusAttribute* PlayerStatusAttribute =
-					ASC->GetSet<UNF_PlayerStatusAttribute>())
-				{
-					KillerPlayerState = PlayerStatusAttribute->GetLethalDamageInstigatorPlayerState();
-				}
-			}
-		}
+		GainExpToKiller();
+	}
+}
 
+
+void ANF_Player::GainExpToKiller()
+{
+	auto* VictimPlayerState = GetPlayerState<ANF_PlayerState>();
+	if (IsValid(VictimPlayerState) == false) return;
+		
+	UAbilitySystemComponent* VictimASC = VictimPlayerState->GetAbilitySystemComponent();
+	if (IsValid(VictimASC) == false) return;
+		
+	auto* PlayerStatusAttribute = VictimASC->GetSet<UNF_PlayerStatusAttribute>();
+	if (IsValid(PlayerStatusAttribute) == false) return;
+		
+	auto* NF_KillerPlayerState = Cast<ANF_PlayerState>(PlayerStatusAttribute->GetLethalDamageInstigatorPlayerState());
+	if (IsValid(NF_KillerPlayerState) == true)
+	{
+		UAbilitySystemComponent* KillerASC = NF_KillerPlayerState->GetAbilitySystemComponent();
+		KillerASC->BP_ApplyGameplayEffectToSelf(NF_KillerPlayerState->NF_PlayerDataAsset->GainExp_GEClass, 
+			1.0f, KillerASC->MakeEffectContext());
+		
+		
 		//TODO 명우님 요청 사항으로 주석 된 내용
 		/*if (UWorld* World = GetWorld())
 		{
@@ -402,8 +426,28 @@ void ANF_Player::OnOutOfHealthCpp()
 
 void ANF_Player::OnOutOfShieldCpp()
 {
-		UKismetSystemLibrary::PrintString(this,
-    										  (TEXT("쉴드가 깨짐에 대한 로직 실행 예정")),
-    										  true, true, FColor::Magenta, 10.0f);
+	UKismetSystemLibrary::PrintString(this,
+										  (TEXT("쉴드가 깨짐에 대한 로직 실행 예정")),
+										  true, true, FColor::Magenta, 10.0f);
 }
+
+
+void ANF_Player::ConfigLevelAttribute()
+{
+	auto* PlayerLevelAttribute = GetAbilitySystemComponent()->GetSet<UNF_PlayerLevelAttribute>(); 
+	if (IsValid(PlayerLevelAttribute) == true)
+	{
+		PlayerLevelAttribute->OnLevelUp.AddUniqueDynamic(this, &ThisClass::OnLevelUpCpp);
+	}
+}
+
+
+void ANF_Player::OnLevelUpCpp(int32 NewLevel)
+{
+	UKismetSystemLibrary::PrintString(this,
+		FString::Printf(TEXT("레벨업! 현재 레벨 : %d"), NewLevel),
+		true, true, FColor::Cyan, 5.0f);
+}
+
+
 
