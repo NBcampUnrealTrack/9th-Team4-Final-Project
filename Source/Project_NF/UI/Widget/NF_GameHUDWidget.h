@@ -33,6 +33,9 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UUserWidget> MatchStatusWidget;
+	
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UUserWidget> MinimapWidget;
 
 private:
 	void InitializeHUDViewModels();
