@@ -4,14 +4,36 @@
 
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayAbilitySpec.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildInputComponent.h"
+#include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
+
+namespace
+{
+    UTexture2D* ResolveSkillIcon(const UNF_BuildComponent* Build, FName ItemId)
+    {
+        if (!IsValid(Build) || ItemId.IsNone()){return nullptr;}
+
+        const UNF_BuildRules* Rules = Build->GetRules();
+        if (!IsValid(Rules)){return nullptr;}
+
+        const TObjectPtr<UDataAsset>* Source = Rules->ItemSources.Find(ItemId);
+        if (Source == nullptr){return nullptr;}
+
+        const UNF_SkillDataAsset* SkillData = Cast<UNF_SkillDataAsset>(Source->Get());
+        if (!IsValid(SkillData)){return nullptr;}
+
+        return SkillData->GetSkillIcon();
+    }
+}
 
 bool UNF_SkillSlotViewModel::ConfigureSlot(ENF_ItemType InSlotType,int32 InSlotIndex)
 {
@@ -138,6 +160,7 @@ void UNF_SkillSlotViewModel::RefreshSlot()
     FName NewSkillId = NAME_None;
     FText NewSkillName;
     FText NewShortcutText;
+    UTexture2D* NewSkillIcon = nullptr;
 
     float NewRemainingSeconds = 0.0f;
     float NewDurationSeconds = 0.0f;
@@ -163,6 +186,7 @@ void UNF_SkillSlotViewModel::RefreshSlot()
 
             NewSkillId = Item->ItemId;
             NewSkillName = Item->DisplayName;
+            NewSkillIcon = ResolveSkillIcon(Build, Selection.ItemId);
 
             if (NewSkillName.IsEmpty())
             {
@@ -214,14 +238,10 @@ void UNF_SkillSlotViewModel::RefreshSlot()
         }
     }
 
-    // 스킬 교체 시 이전 스킬 아이콘이 잠깐 남지 않도록 지운다.
-    if (SkillId != NewSkillId)
-    {
-        UE_MVVM_SET_PROPERTY_VALUE(SkillIcon,static_cast<UTexture2D*>(nullptr));
-    }
-
     UE_MVVM_SET_PROPERTY_VALUE(SkillId, NewSkillId);
     UE_MVVM_SET_PROPERTY_VALUE(SkillName, NewSkillName);
+    // 빈 슬롯, 원본 누락, 아이콘 미지정 시에도 이전 이미지를 정리한다.
+    UE_MVVM_SET_PROPERTY_VALUE(SkillIcon, NewSkillIcon);
     UE_MVVM_SET_PROPERTY_VALUE(bIsEquipped, !NewSkillId.IsNone());
     UE_MVVM_SET_PROPERTY_VALUE(ShortcutText, NewShortcutText);
     UE_MVVM_SET_PROPERTY_VALUE(bCanUse, bNewCanUse);
