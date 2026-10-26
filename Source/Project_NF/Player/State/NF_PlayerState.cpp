@@ -8,7 +8,7 @@
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Character/NFGA_MeleeAttack.h"
-#include "Player/Character/NF_PlayerLevelAttribute.h"
+//#include "Player/Character/NF_PlayerLevelAttribute.h"
 
 ANF_PlayerState::ANF_PlayerState()
 {
@@ -20,7 +20,7 @@ ANF_PlayerState::ANF_PlayerState()
 	PlayerASC->SetIsReplicated(true);
 	PlayerASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	PlayerStatusAttribute = CreateDefaultSubobject<UNF_PlayerStatusAttribute>(TEXT("PlayerStatusAttribute"));
-	PlayerLevelAttribute = CreateDefaultSubobject<UNF_PlayerLevelAttribute>(TEXT("PlayerLevelAttribute"));
+	//PlayerLevelAttribute = CreateDefaultSubobject<UNF_PlayerLevelAttribute>(TEXT("PlayerLevelAttribute"));
 	KeyHolderAttributeSet = CreateDefaultSubobject<UNF_KeyHolderAttributeSet>(TEXT("KeyHolderAttributeSet"));
 }
 
