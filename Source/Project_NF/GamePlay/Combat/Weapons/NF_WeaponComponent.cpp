@@ -99,6 +99,7 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 	EquippedWeapon->ForceNetUpdate();
 	OwnerCharacter->ForceNetUpdate();
 	RefreshCrosshair();
+	OnEquippedWeaponChanged.Broadcast(EquippedWeapon.Get());
 
 	return true;
 }
@@ -109,7 +110,13 @@ ANF_WeaponBase* UNF_WeaponComponent::UnequipWeapon()
 		return nullptr;
 
 	TGuardValue<bool> ChangeGuard(bChangingWeapon, true);
-	return UnequipWeaponInternal();
+	const bool bHadWeapon = EquippedWeapon != nullptr;
+	ANF_WeaponBase* OldWeapon = UnequipWeaponInternal();
+	if (bHadWeapon)
+	{
+		OnEquippedWeaponChanged.Broadcast(nullptr);
+	}
+	return OldWeapon;
 }
 
 ANF_WeaponBase* UNF_WeaponComponent::UnequipWeaponInternal()
@@ -208,6 +215,7 @@ void UNF_WeaponComponent::OnRep_EquippedWeapon()
 	RestoreZoomCamera();
 	SetComponentTickEnabled(bZoomActive);
 	RefreshCrosshair();
+	OnEquippedWeaponChanged.Broadcast(EquippedWeapon.Get());
 }
 
 void UNF_WeaponComponent::OnPawnControllerChanged(APawn* Pawn, AController* OldController, AController* NewController)
@@ -493,15 +501,13 @@ void UNF_WeaponComponent::UpdateScopeCameraAttachment(bool bAttach)
 	bOriginalAbsoluteScale = ZoomCamera->IsUsingAbsoluteScale();
 	bOriginalUsePawnControlRotation = ZoomCamera->bUsePawnControlRotation;
 	if (!ZoomCamera->AttachToComponent(Mesh, FAttachmentTransformRules::KeepWorldTransform, Socket)) return;
-
-	// Follow the Scope socket position, but keep aiming independent of weapon animation.
+	
 	ZoomCamera->SetAbsolute(false, true, true);
 	ZoomCamera->SetRelativeLocation(FVector::ZeroVector);
 	ZoomCamera->bUsePawnControlRotation = true;
 	if (const APawn* Pawn = Cast<APawn>(GetOwner())) ZoomCamera->SetWorldRotation(Pawn->GetViewRotation());
 	bScopeCameraAttached = true;
-
-	// Hidden meshes must still refresh bones for the hand and Scope sockets to move.
+	
 	for (AActor* Actor : {GetOwner(), static_cast<AActor*>(EquippedWeapon.Get())})
 	{
 		TInlineComponentArray<USkeletalMeshComponent*> Meshes(Actor);
@@ -529,8 +535,7 @@ void UNF_WeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	
 	if (GetOwner()->HasAuthority() && bZoomActive && !CanZoom())
 		StopZoom();
-
-	// Retry if the local player or replicated weapon was not ready on notification.
+	
 	RefreshCrosshair();
 	
 	const APawn* Pawn = Cast<APawn>(GetOwner());
@@ -609,7 +614,6 @@ void UNF_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		if (FireAbilityHandle.IsValid()) FireASC->ClearAbility(FireAbilityHandle);
 	}
 	
-	// StopZoom may have restored the normal crosshair during teardown.
 	RemoveCrosshair();
 	Super::EndPlay(EndPlayReason);
 }

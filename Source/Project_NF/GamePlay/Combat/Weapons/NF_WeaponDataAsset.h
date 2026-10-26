@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "NF_WeaponTypes.h"
+#include "Data/Enum/NF_ItemTypes.h"
 #include "NF_WeaponDataAsset.generated.h"
 
 UENUM(BlueprintType)
@@ -27,6 +28,12 @@ class PROJECT_NF_API UNF_WeaponDataAsset : public UDataAsset
 	GENERATED_BODY()
 	
 public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	int32 Cost = 0;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	ENF_ItemType ItemType = ENF_ItemType::Weapon;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	ENF_WeaponType WeaponType = ENF_WeaponType::None;
 

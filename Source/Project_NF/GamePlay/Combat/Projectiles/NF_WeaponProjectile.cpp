@@ -14,6 +14,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "GamePlay/Combat/Damage/NF_DamageLibrary.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Player/Character/NF_Player.h"
 #include "Player/State/NF_PlayerState.h"
 #include "GameplayEffect.h"
@@ -59,17 +60,15 @@ ANF_WeaponProjectile::ANF_WeaponProjectile()
 void ANF_WeaponProjectile::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// Only the server simulates hits; clients display replicated movement.
-	if (!HasAuthority())
+	
+	if (HasAuthority() == false)
 	{
 		CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		ProjectileMovementComponent->Deactivate();
 		SetLifeSpan(0.f);
 		return;
 	}
-
-	// Enforce the dedicated channel even on existing projectile Blueprint defaults.
+	
 	CapsuleComponent->SetCollisionObjectType(NF_WeaponProjectileChannel);
 	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CapsuleComponent->SetCollisionResponseToAllChannels(ECR_Block);
@@ -119,8 +118,33 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 	if (IsValid(OtherActor) == false || OtherActor == this || OtherActor == GetOwner() || OtherActor == GetInstigator())
 		return;
 
-	// Claim the impact before applying effects, which can invoke gameplay callbacks.
 	bHitProcessed = true;
+
+	AActor* Attacker = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
+	const ANF_Player* HitPlayer = Cast<ANF_Player>(OtherActor);
+	const APawn* AttackerPawn = Cast<APawn>(Attacker);
+	const ANF_PlayerState* AttackerState = AttackerPawn ? AttackerPawn->GetPlayerState<ANF_PlayerState>() : nullptr;
+	const ANF_PlayerState* HitPlayerState = HitPlayer ? HitPlayer->GetPlayerState<ANF_PlayerState>() : nullptr;
+	const bool bSameTeam = IsValid(AttackerState) && IsValid(HitPlayerState)
+		&& AttackerState->NF_TeamID > 0 && HitPlayerState->NF_TeamID > 0
+		&& AttackerState->NF_TeamID == HitPlayerState->NF_TeamID;
+
+	const bool bCombatTarget = HitPlayer || OtherActor->IsA<ANF_BossBase>() || OtherActor->IsA<ANF_Monster>();
+	if (bCombatTarget && !bSameTeam && !OtherActor->IsActorBeingDestroyed() && IsValid(Attacker)
+		&& IsValid(UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Attacker))
+		&& IsValid(UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor)))
+	{
+		if (auto* Weapons = Attacker->FindComponentByClass<UNF_WeaponComponent>())
+		{
+			Weapons->OnAttackHit.Broadcast(Attacker, OtherActor, Hit.ImpactPoint, ENF_AttackType::Weapon);
+		}
+	}
+
+	if (IsActorBeingDestroyed() || !IsValid(OtherActor) || OtherActor->IsActorBeingDestroyed())
+	{
+		Destroy();
+		return;
+	}
 
 	if (ANF_BossBase* Boss = Cast<ANF_BossBase>(OtherActor))
 	{
@@ -185,13 +209,6 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 	else if (ANF_Player* TargetPlayer = Cast<ANF_Player>(OtherActor))
 	{
 		AActor* DamageSource = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
-		const APawn* SourcePawn = Cast<APawn>(DamageSource);
-		const ANF_PlayerState* SourceState = SourcePawn ? SourcePawn->GetPlayerState<ANF_PlayerState>() : nullptr;
-		const ANF_PlayerState* TargetState = TargetPlayer->GetPlayerState<ANF_PlayerState>();
-		
-		const bool bSameTeam = IsValid(SourceState) && IsValid(TargetState)
-			&& SourceState->NF_TeamID > 0 && TargetState->NF_TeamID > 0
-			&& SourceState->NF_TeamID == TargetState->NF_TeamID;
 
 		if (!bSameTeam && FMath::IsFinite(ImpactDamage) && ImpactDamage > 0.f)
 		{
@@ -232,9 +249,9 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 		}
 	}
 
+	// 부위 피격 디버그 로그
 	const UNF_ArmorComponent* ArmorComponent = OtherActor->FindComponentByClass<UNF_ArmorComponent>();
 	const USkeletalMeshComponent* HitMesh = Cast<USkeletalMeshComponent>(OtherComponent);
-	// A capsule hit or a different visual/auxiliary mesh must never become a body-part hit.
 	const bool bValidBodyHit = ArmorComponent && HitMesh && HitMesh == ArmorComponent->GetHitMesh() && HitMesh->GetPhysicsAsset();
 	const FName BoneName = bValidBodyHit ? Hit.BoneName : NAME_None;
 	const ENF_ArmorSlot Slot = ArmorComponent ? ArmorComponent->ResolveHitRegion(BoneName) : ENF_ArmorSlot::Unknown;

@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "NF_WeaponBase.generated.h"
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnCurrentAmmoChanged, int32 /* CurrentAmmo */);
+
 UCLASS()
 class PROJECT_NF_API ANF_WeaponBase : public AActor
 {
@@ -11,6 +13,9 @@ class PROJECT_NF_API ANF_WeaponBase : public AActor
 	
 public:	
 	ANF_WeaponBase();
+
+	/** Server mutations and client replication. Subscribe, then read GetCurrentAmmo(). */
+	FNF_OnCurrentAmmoChanged OnCurrentAmmoChanged;
 	
 	virtual void OnConstruction(const FTransform& Transform) override;	// 에디터에서 적용
 	virtual void PostInitializeComponents() override;					// 게임 실행 시 적용
@@ -61,7 +66,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<class UNF_WeaponDataAsset> WeaponData;
 	
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
+	UPROPERTY(ReplicatedUsing=OnRep_CurrentAmmo, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
 	int32 CurrentAmmo = 0;
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
@@ -71,6 +76,10 @@ private:
 	friend class FNF_WeaponPassivesTest;
 	friend class UNFGA_WeaponReload;
 	void ApplyWeaponAppearance();
+	void SetCurrentAmmo(int32 NewAmmo);
+
+	UFUNCTION()
+	void OnRep_CurrentAmmo();
 
 	double LastFireTime = -1.e30;
 };
