@@ -10,15 +10,15 @@ void UNF_WeaponStatusWidget::SetWeaponName(FText NewName)
 	}
 }
 
-void UNF_WeaponStatusWidget::SetAmmo(int32 MagazineAmmo, int32 ReserveAmmo)
+void UNF_WeaponStatusWidget::SetAmmo(int32 MagazineAmmo, int32 MagazineSize)
 {
 	if (TXT_MagazineAmmo)
 	{
 		TXT_MagazineAmmo->SetText(FText::AsNumber(FMath::Max(0, MagazineAmmo)));
 	}
-	if (TXT_ReserveAmmo)
+	if (TXT_MagazineSize)
 	{
-		TXT_ReserveAmmo->SetText(FText::AsNumber(FMath::Max(0, ReserveAmmo)));
+		TXT_MagazineSize->SetText(FText::AsNumber(FMath::Max(0, MagazineSize)));
 	}
 }
 

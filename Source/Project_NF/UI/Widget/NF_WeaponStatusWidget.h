@@ -16,7 +16,7 @@ public:
 	void SetWeaponName(FText NewName);
 
 	UFUNCTION(BlueprintCallable, Category = "NF|UI|Weapon")
-	void SetAmmo(int32 MagazineAmmo, int32 ReserveAmmo);
+	void SetAmmo(int32 MagazineAmmo, int32 MagazineSize);
 
 	UFUNCTION(BlueprintCallable, Category = "NF|UI|Weapon")
 	void ClearWeapon();
@@ -28,7 +28,7 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> TXT_MagazineAmmo;
 
-	// 예비 탄약을 표시하지 않는 WBP에서는 생략 가능.
+	// 탄창 크기를 별도 텍스트로 표시할 경우 사용한다.
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> TXT_ReserveAmmo;
+	TObjectPtr<UTextBlock> TXT_MagazineSize;
 };
