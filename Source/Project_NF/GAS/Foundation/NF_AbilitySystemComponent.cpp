@@ -1,8 +1,11 @@
 ﻿#include "NF_AbilitySystemComponent.h"
-
-
+#include "GameplayEffect.h"
+#include "GAS/Tags/NFTag_Cooldown.h"
 #include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
 #include "Project_NF.h"
+#include "GAS/Attributes/NF_KeyHolderAttributeSet.h"
+#include "GameplayEffectTypes.h"
+#include "Engine/World.h"
 
 UNF_AbilitySystemComponent::UNF_AbilitySystemComponent()
 {
@@ -13,11 +16,128 @@ UNF_AbilitySystemComponent::UNF_AbilitySystemComponent()
 void UNF_AbilitySystemComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	if (!IsOwnerActorAuthoritative())
+	{
+		return;
+	}
+	
+	OnActiveGameplayEffectAddedDelegateToSelf.AddUObject(this, &UNF_AbilitySystemComponent::OnGameplayEffectAdded);
+	
+	GetGameplayAttributeValueChangeDelegate(UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute()).AddUObject(this, &UNF_AbilitySystemComponent::OnCooldownReductionRateChanged);
+}
 
+void UNF_AbilitySystemComponent::OnGameplayEffectAdded(UAbilitySystemComponent* TargetASC, const FGameplayEffectSpec& EffectSpec, FActiveGameplayEffectHandle ActiveHandle)
+{
+	if (!IsOwnerActorAuthoritative() || TargetASC != this || !ActiveHandle.IsValid())
+	{
+		return;
+	}
+	
+	if (!EffectSpec.Def || EffectSpec.Def->DurationPolicy != EGameplayEffectDurationType::HasDuration || EffectSpec.GetDuration() <= 0.0f)
+	{
+		return;
+	}
+	
+	FGameplayTagContainer GrantedTags;
+	EffectSpec.GetAllGrantedTags(GrantedTags);
+	
+	if (!GrantedTags.HasTag(NFTag_Cooldown::Cooldown_Skill))
+	{
+		return;
+	}
+	
+	bool bFoundAttribute = false;
+	const float CooldownReductionRate = GetGameplayAttributeValue(
+		UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute(),
+		bFoundAttribute);
+	
+	if (!bFoundAttribute || CooldownReductionRate <= 0.0f)
+	{
+		return;
+	}
+	
+	const float ReductionRate = FMath::Clamp(CooldownReductionRate, 0.0f, 1.0f);
+	const float BaseCooldown = EffectSpec.GetDuration();
+	const float ReductionSeconds = BaseCooldown * ReductionRate;
+	
+	if (ReductionSeconds >= BaseCooldown)
+	{
+		RemoveActiveGameplayEffect(ActiveHandle);
+		return;
+	}
+	
+	const FString EffectName = GetNameSafe(EffectSpec.Def);
+	
+	ModifyActiveEffectStartTime(ActiveHandle, -ReductionSeconds);
+}
+
+void UNF_AbilitySystemComponent::OnCooldownReductionRateChanged(const FOnAttributeChangeData& Data)
+{
+	if (!IsOwnerActorAuthoritative())
+	{
+		return;
+	}
+	
+	if (Data.OldValue > 0.0f || Data.NewValue <= 0.0f)
+	{
+		return;
+	}
+	
+	const float ReductionRate = FMath::Clamp(Data.NewValue, 0.0f, 1.0f);
+	
+	FGameplayTagContainer CooldownTags;
+	CooldownTags.AddTag(NFTag_Cooldown::Cooldown_Skill);
+	
+	const FGameplayEffectQuery Query = FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags(CooldownTags);
+	
+	const TArray<FActiveGameplayEffectHandle> CooldownHandles = GetActiveEffects(Query);
+	
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	
+	for (const FActiveGameplayEffectHandle& Handle : CooldownHandles)
+	{
+		const FActiveGameplayEffect* ActiveEffect = GetActiveGameplayEffect(Handle);
+		
+		if (!ActiveEffect)
+		{
+			continue;
+		}
+		
+		if (!ActiveEffect->Spec.Def || ActiveEffect->Spec.Def->DurationPolicy != EGameplayEffectDurationType::HasDuration)
+		{
+			continue;
+		}
+		
+		const float BaseCooldown = ActiveEffect->Spec.GetDuration();
+		
+		if (BaseCooldown <= 0.0f)
+		{
+			continue;
+		}
+		
+		const float RemainingCooldown = ActiveEffect->GetTimeRemaining(World->GetTimeSeconds());
+		
+		const float ReductionSeconds = BaseCooldown * ReductionRate;
+		
+		if (RemainingCooldown <= ReductionSeconds)
+		{
+			RemoveActiveGameplayEffect(Handle);
+			continue;
+		}
+		
+		const FString EffectName = GetNameSafe(ActiveEffect->Spec.Def);
+		
+		ModifyActiveEffectStartTime(Handle, -ReductionSeconds);
+	}
 }
 
 bool UNF_AbilitySystemComponent::RequestSkillActivationWithTarget(FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityTargetDataHandle& TargetData)
+                                                                  const FGameplayAbilityTargetDataHandle& TargetData)
 {
 	if (!FindAbilitySpecFromHandle(Handle))
 	{

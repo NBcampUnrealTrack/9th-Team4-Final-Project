@@ -67,7 +67,6 @@ UIManager->ShowAnnouncement(
 ```
 
 이 알림은 모달 UI 스택이나 입력 모드를 바꾸지 않습니다. 현재 구현은 C++ API입니다.
-알림 위젯에는 `SetMessage()`로 문구만 전달하며, 표시 시간·화면 제거·참조 정리는 `UNF_UIManagerSubsystem`이 관리합니다.
 
 ## 오디오 매니저
 
