@@ -1,7 +1,8 @@
-﻿
+
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Data/Enum/NF_ItemTypes.h"
 #include "TimerManager.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "UI/ViewModel/Base/NF_GASViewModelBase.h"
@@ -19,7 +20,7 @@ class PROJECT_NF_API UNF_SkillSlotViewModel : public UNF_GASViewModelBase
 
 public:
     // ActiveSkill: 슬롯 0 또는 1 PassiveSkill: 슬롯 0
-    bool ConfigureSlot(ENF_BuildItemType InSlotType,int32 InSlotIndex);
+    bool ConfigureSlot(ENF_ItemType InSlotType,int32 InSlotIndex);
     
     // 아이콘 데이터 소스가 정해지면 장착된 SkillId에 맞춰 호출.
     void SetSkillIcon(FName InSkillId, UTexture2D* InIcon);
@@ -44,7 +45,7 @@ private:
     void StopRefreshTimer();
 
     UPROPERTY(BlueprintReadOnly, Category = "SkillSlot",meta = (AllowPrivateAccess = "true"))
-    ENF_BuildItemType SlotType = ENF_BuildItemType::ActiveSkill;
+    ENF_ItemType SlotType = ENF_ItemType::ActiveSkill;
 
     UPROPERTY(BlueprintReadOnly, Category = "SkillSlot",meta = (AllowPrivateAccess = "true"))
     int32 SlotIndex = INDEX_NONE;

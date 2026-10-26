@@ -4,6 +4,7 @@
 #include "MVVMSubsystem.h"
 #include "MVVMViewModelBase.h"
 #include "View/MVVMView.h"
+#include "Data/Enum/NF_ItemTypes.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UI/Minimap/NF_MinimapWidget.h"
@@ -54,15 +55,15 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 	RegisterOwnedViewModel(PlayerStatusVM);
 
 	UNF_SkillSlotViewModel* ActiveSkillOneVM = NewObject<UNF_SkillSlotViewModel>(this);
-	ActiveSkillOneVM->ConfigureSlot(ENF_BuildItemType::ActiveSkill, 0);
+	ActiveSkillOneVM->ConfigureSlot(ENF_ItemType::ActiveSkill, 0);
 	RegisterOwnedViewModel(ActiveSkillOneVM);
 
 	UNF_SkillSlotViewModel* ActiveSkillTwoVM = NewObject<UNF_SkillSlotViewModel>(this);
-	ActiveSkillTwoVM->ConfigureSlot(ENF_BuildItemType::ActiveSkill, 1);
+	ActiveSkillTwoVM->ConfigureSlot(ENF_ItemType::ActiveSkill, 1);
 	RegisterOwnedViewModel(ActiveSkillTwoVM);
 
 	UNF_SkillSlotViewModel* PassiveSkillVM = NewObject<UNF_SkillSlotViewModel>(this);
-	PassiveSkillVM->ConfigureSlot(ENF_BuildItemType::PassiveSkill, 0);
+	PassiveSkillVM->ConfigureSlot(ENF_ItemType::PassiveSkill, 0);
 	RegisterOwnedViewModel(PassiveSkillVM);
 
 	UNF_GameFlowViewModel* GameFlowVM = NewObject<UNF_GameFlowViewModel>(this);

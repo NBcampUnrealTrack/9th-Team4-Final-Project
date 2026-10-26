@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -7,6 +7,7 @@
 #include "NF_ArmorsViewModel.generated.h"
 
 
+struct FNF_BuildItemData;
 class UNF_BuildItemDefinitionDataAsset;
 class UTexture2D;
 
@@ -17,7 +18,7 @@ class PROJECT_NF_API UNF_ArmorsViewModel : public UNF_ViewModelBase
 	
 public:
 	void Configure(
-		const UNF_BuildItemDefinitionDataAsset* Item,
+		const UNF_BuildItemDefinitionDataAsset* Item, const FNF_BuildItemData& ItemData,
 		UTexture2D* InIcon,
 		const FText& InDescription,
 		const FText& InEquipSlotText,

@@ -7,6 +7,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
+#include "GAS/Tags/NFTag_AttackType.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
 #include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
@@ -136,7 +137,7 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 	{
 		if (auto* Weapons = Attacker->FindComponentByClass<UNF_WeaponComponent>())
 		{
-			Weapons->OnAttackHit.Broadcast(Attacker, OtherActor, Hit.ImpactPoint, ENF_AttackType::Weapon);
+			Weapons->OnAttackHit.Broadcast(Attacker, OtherActor, Hit.ImpactPoint, NFTag_AttackType::Attack_Type_Weapon);
 		}
 	}
 
