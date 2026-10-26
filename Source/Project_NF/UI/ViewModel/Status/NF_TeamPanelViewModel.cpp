@@ -1,71 +1,26 @@
 #include "UI/ViewModel/Status/NF_TeamPanelViewModel.h"
 
 #include "Engine/World.h"
-#include "Core/NF_GameState.h"
 #include "GameFramework/GameStateBase.h"
-#include "GameFramework/PlayerController.h"
 #include "Player/State/NF_PlayerState.h"
 #include "UI/ViewModel/Status/NF_TeamMemberViewModel.h"
 
 void UNF_TeamPanelViewModel::OnInitializeViewModel()
 {
 	Super::OnInitializeViewModel();
-	BindTeamRoster();
 	RefreshMembers();
 }
 
 void UNF_TeamPanelViewModel::OnViewModelContextChanged()
 {
 	Super::OnViewModelContextChanged();
-	BindTeamRoster();
 	RefreshMembers();
 }
 
 void UNF_TeamPanelViewModel::OnDeinitializeViewModel()
 {
-	UnbindTeamRoster();
 	ClearMembers();
 	Super::OnDeinitializeViewModel();
-}
-
-void UNF_TeamPanelViewModel::BindTeamRoster()
-{
-	APlayerController* PlayerController = GetViewModelContext().PlayerController.Get();
-	UWorld* World = nullptr;
-	if (IsValid(PlayerController))
-	{
-		World = PlayerController->GetWorld();
-	}
-
-	ANF_GameState* NewGameState = nullptr;
-	if (IsValid(World))
-	{
-		NewGameState = World->GetGameState<ANF_GameState>();
-	}
-
-	if (BoundGameState.Get() == NewGameState) return;
-
-	UnbindTeamRoster();
-	if (!IsValid(NewGameState)) return;
-
-	BoundGameState = NewGameState;
-	NewGameState->OnTeamRosterChanged.AddUObject(this, &ThisClass::HandleTeamRosterChanged);
-}
-
-void UNF_TeamPanelViewModel::UnbindTeamRoster()
-{
-	ANF_GameState* GameState = BoundGameState.Get();
-	if (IsValid(GameState))
-	{
-		GameState->OnTeamRosterChanged.RemoveAll(this);
-	}
-
-	BoundGameState.Reset();
-}
-
-void UNF_TeamPanelViewModel::HandleTeamRosterChanged()
-{
-	RefreshMembers();
 }
 
 void UNF_TeamPanelViewModel::RefreshMembers()
