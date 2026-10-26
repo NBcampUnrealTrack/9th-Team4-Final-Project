@@ -96,6 +96,7 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 		return;
 	}
 
+	TeamPanelWidget->SetTeamPanelViewModel(TeamPanelVM.Get());
 	bViewModelsInitialized = true;
 }
 
@@ -152,6 +153,11 @@ bool UNF_GameHUDWidget::AssignViewModel(UUserWidget* TargetWidget, UMVVMViewMode
 
 void UNF_GameHUDWidget::ClearChildViewModels()
 {
+	if (IsValid(TeamPanelWidget.Get()))
+	{
+		TeamPanelWidget->SetTeamPanelViewModel(nullptr);
+	}
+
 	AssignViewModel(PlayerStatusWidget.Get(), nullptr);
 	AssignViewModel(ActiveSkillSlotOne.Get(), nullptr);
 	AssignViewModel(ActiveSkillSlotTwo.Get(), nullptr);

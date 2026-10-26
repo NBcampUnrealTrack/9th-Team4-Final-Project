@@ -2,11 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "FieldNotificationId.h"
 #include "NF_TeamPanelWidget.generated.h"
 
-class APlayerState;
 class UVerticalBox;
 class UNF_TeamMemberWidget;
+class UNF_TeamMemberViewModel;
+class UNF_TeamPanelViewModel;
 
 UCLASS(Abstract, Blueprintable)
 class PROJECT_NF_API UNF_TeamPanelWidget : public UUserWidget
@@ -14,18 +16,9 @@ class PROJECT_NF_API UNF_TeamPanelWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	// 호출자가 본인 제외 및 같은 팀 여부를 확인한 뒤 전달한다.
+	// HUD에서 지정한다. nullptr를 전달하면 구독과 행을 모두 해제한다.
 	UFUNCTION(BlueprintCallable, Category = "NF|UI|Team")
-	UNF_TeamMemberWidget* AddMember(APlayerState* PlayerState);
-
-	UFUNCTION(BlueprintCallable, Category = "NF|UI|Team")
-	UNF_TeamMemberWidget* FindMember(APlayerState* PlayerState) const;
-
-	UFUNCTION(BlueprintCallable, Category = "NF|UI|Team")
-	void RemoveMember(APlayerState* PlayerState);
-
-	UFUNCTION(BlueprintCallable, Category = "NF|UI|Team")
-	void ClearMembers();
+	void SetTeamPanelViewModel(UNF_TeamPanelViewModel* NewViewModel);
 
 protected:
 	virtual void NativeDestruct() override;
@@ -38,6 +31,19 @@ protected:
 	TSubclassOf<UNF_TeamMemberWidget> MemberWidgetClass;
 
 private:
+	void UnbindViewModel();
+	void HandleMembersChanged(UObject* Object, UE::FieldNotification::FFieldId FieldId);
+	void SynchronizeMembers();
+	void CreateMemberWidget(UNF_TeamMemberViewModel* MemberVM);
+	bool AssignMemberViewModel(UNF_TeamMemberWidget* Widget, UNF_TeamMemberViewModel* MemberVM);
+	void ClearMemberWidgets();
+
 	UPROPERTY(Transient)
-	TMap<TObjectPtr<APlayerState>, TObjectPtr<UNF_TeamMemberWidget>> MemberWidgets;
+	TObjectPtr<UNF_TeamPanelViewModel> TeamPanelViewModel;
+
+	UPROPERTY(Transient)
+	TMap<TObjectPtr<UNF_TeamMemberViewModel>, TObjectPtr<UNF_TeamMemberWidget>> MemberWidgets;
+
+	FDelegateHandle MembersChangedHandle;
+	UE::FieldNotification::FFieldId MembersFieldId;
 };
