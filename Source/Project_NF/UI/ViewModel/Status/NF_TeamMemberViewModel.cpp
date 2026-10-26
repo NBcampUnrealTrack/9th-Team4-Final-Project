@@ -7,7 +7,6 @@
 
 void UNF_TeamMemberViewModel::SetMember(APlayerState* NewPlayerState)
 {
-	const bool bMemberChanged = MemberPlayerState.Get() != NewPlayerState;
 	MemberPlayerState = NewPlayerState;
 
 	FNF_ViewModelContext MemberContext;
@@ -18,14 +17,8 @@ void UNF_TeamMemberViewModel::SetMember(APlayerState* NewPlayerState)
 		MemberContext.AbilitySystemComponent =UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(NewPlayerState);
 	}
 
+	// 부모가 해당 팀원의 ASC를 구독하고 현재 레벨과 경험치도 조회한다.
 	UpdateViewModelContext(MemberContext);
-
-	RefreshFromAbilitySystem();
-
-	if (bMemberChanged)
-	{
-		SetMemberLevel(1);
-	}
 }
 
 APlayerState* UNF_TeamMemberViewModel::GetMemberPlayerState() const

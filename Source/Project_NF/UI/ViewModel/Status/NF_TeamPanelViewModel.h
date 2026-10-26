@@ -1,12 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "TimerManager.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_TeamPanelViewModel.generated.h"
 
 class APlayerState;
 class ANF_GameState;
 class UNF_TeamMemberViewModel;
+class UWorld;
 
 UCLASS(BlueprintType)
 class PROJECT_NF_API UNF_TeamPanelViewModel : public UNF_ViewModelBase
@@ -38,8 +40,13 @@ private:
 	void BindTeamRoster();
 	void UnbindTeamRoster();
 	void HandleTeamRosterChanged();
+	void StartTeamRosterRetry();
+	void StopTeamRosterRetry();
+	void RetryBindTeamRoster();
 
 	TWeakObjectPtr<ANF_GameState> BoundGameState;
+	FTimerHandle TeamRosterRetryHandle;
+	TWeakObjectPtr<UWorld> TeamRosterRetryWorld;
 
 	UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "NF|UI|Team", meta = (AllowPrivateAccess = "true"))
 	TArray<TObjectPtr<UNF_TeamMemberViewModel>> Members;

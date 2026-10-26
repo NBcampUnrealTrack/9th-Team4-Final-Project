@@ -37,6 +37,9 @@ protected:
 private:
     void HandleVitalAttributeChanged(const FOnAttributeChangeData& Data);
 
+    void HandleProgressionAttributeChanged(const FOnAttributeChangeData& Data);
+    void RefreshProgressionFromAbilitySystem();
+
     void RefreshPlayerName();
 
     void UpdateVitals(float NewHealth,float NewMaxHealth,float NewShield,float NewMaxShield);
