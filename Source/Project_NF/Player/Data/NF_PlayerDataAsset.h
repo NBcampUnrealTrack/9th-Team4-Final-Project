@@ -7,6 +7,7 @@
 class UGameplayAbility;
 class UGameplayEffect;
 class UAnimMontage; 
+class UDataTable;
 /**
  * 
  */
@@ -38,4 +39,10 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "GE_Class", DisplayName = "MeleeAttack_GEClass (Shield 영향)")
 	TSubclassOf<UGameplayEffect> MeleeAttack_Shield_GEClass;
+	
+	UPROPERTY(EditAnywhere, Category = "GE_Class", DisplayName = "GainExp_GEClass (IncomingExp 영향)")
+	TSubclassOf<UGameplayEffect> GainExp_GEClass;
+	
+	UPROPERTY(EditAnywhere, Category = "Level", DisplayName = "PlayerLevelDataTable (1번째 행 = 1레벨)")
+	TObjectPtr<UDataTable> PlayerLevelDataTable;
 };
