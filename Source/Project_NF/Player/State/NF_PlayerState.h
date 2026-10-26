@@ -5,10 +5,15 @@
 #include "GameFramework/PlayerState.h"
 #include "NF_PlayerState.generated.h"
 
+class UNF_PlayerLevelAttribute;
+class UNF_KeyHolderAttributeSet;
 class UGameplayAbility;
 class UNF_PlayerDataAsset;
 class UNF_PlayerStatusAttribute;
 class UNF_AbilitySystemComponent;
+
+// generated.h include 아래, 클래스 선언 위
+DECLARE_MULTICAST_DELEGATE(FNF_OnTeamIDChanged);
 
 UCLASS()
 class PROJECT_NF_API ANF_PlayerState : public APlayerState, public IAbilitySystemInterface
@@ -28,7 +33,7 @@ public:
 	
 	
 	//Core
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Core|ID")
+	UPROPERTY(ReplicatedUsing = OnRep_NFTeamID, BlueprintReadOnly, Category = "Core|ID")
 	int32 NF_TeamID = INDEX_NONE;
 	
 	UPROPERTY(EditAnywhere, Category = "Core|ID")
@@ -45,7 +50,14 @@ public:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Attribute")
 	TObjectPtr<UNF_PlayerStatusAttribute> PlayerStatusAttribute; 
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Attribute")
+	TObjectPtr<UNF_PlayerLevelAttribute> PlayerLevelAttribute; 
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Attribute")
+	TObjectPtr<UNF_KeyHolderAttributeSet> KeyHolderAttributeSet; 
 
+	FNF_OnTeamIDChanged OnTeamIDChanged;
 	
 protected:
 	virtual void BeginPlay() override;
@@ -55,5 +67,7 @@ protected:
 private:
 	void ConfigDataAsset();
 	
+	UFUNCTION()
+	void OnRep_NFTeamID();
 	
 };

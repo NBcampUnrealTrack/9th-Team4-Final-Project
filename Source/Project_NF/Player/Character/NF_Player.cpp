@@ -369,6 +369,7 @@ void ANF_Player::OnOutOfHealthCpp()
 {
 	if (HasAuthority() == true)
 	{
+		//TODO이건 일단 코어가 완료되기전까지 임시용도이다.
 		GetAbilitySystemComponent()->TryActivateAbilityByClass(UNFGA_PlayerDeath::StaticClass());
 		
 		NF_PlayerLifeComponent->HandleHealthReachedZero();

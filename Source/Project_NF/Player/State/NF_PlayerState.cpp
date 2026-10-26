@@ -2,11 +2,13 @@
 #include "NF_PlayerState.h"
 
 #include "AbilitySystemComponent.h"
+#include "GAS/Attributes/NF_KeyHolderAttributeSet.h"
 #include "GAS/Foundation/NF_AbilitySystemComponent.h"
 #include "Player/Data/NF_PlayerDataAsset.h" 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Character/NFGA_MeleeAttack.h"
+#include "Player/Character/NF_PlayerLevelAttribute.h"
 
 ANF_PlayerState::ANF_PlayerState()
 {
@@ -18,6 +20,8 @@ ANF_PlayerState::ANF_PlayerState()
 	PlayerASC->SetIsReplicated(true);
 	PlayerASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 	PlayerStatusAttribute = CreateDefaultSubobject<UNF_PlayerStatusAttribute>(TEXT("PlayerStatusAttribute"));
+	PlayerLevelAttribute = CreateDefaultSubobject<UNF_PlayerLevelAttribute>(TEXT("PlayerLevelAttribute"));
+	KeyHolderAttributeSet = CreateDefaultSubobject<UNF_KeyHolderAttributeSet>(TEXT("KeyHolderAttributeSet"));
 }
 
 void ANF_PlayerState::InitAbilitySystem(APawn* AvatarPawn)
@@ -55,12 +59,14 @@ class UAbilitySystemComponent* ANF_PlayerState::GetAbilitySystemComponent() cons
 
 bool ANF_PlayerState::SetNFTeamID(int32 NewTeamID)
 {
-	if (!HasAuthority() || NewTeamID < 1)
+	if (HasAuthority() == false || NewTeamID < 1)
 	{
 		return false;
 	}
 
 	NF_TeamID = NewTeamID;
+	OnTeamIDChanged.Broadcast();
+	
 	ForceNetUpdate();
 	return true;
 }
@@ -90,4 +96,9 @@ void ANF_PlayerState::ConfigDataAsset()
 	checkf(IsValid(NF_PlayerDataAsset->MeleeAttack_Health_GEClass) == true, TEXT("[NF_PlayerDataAsset]의 [MeleeAttack_GEClass]가  삽입되어있지않습니다."));
 	checkf(IsValid(NF_PlayerDataAsset->MeleeAttack_Shield_GEClass) == true, TEXT("[NF_PlayerDataAsset]의 [MeleeAttack_GEClass]가  삽입되어있지않습니다."));
 	
+}
+
+void ANF_PlayerState::OnRep_NFTeamID()
+{
+	OnTeamIDChanged.Broadcast();
 }
