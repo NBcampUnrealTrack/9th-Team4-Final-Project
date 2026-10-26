@@ -12,17 +12,23 @@ void UNF_TeamPanelViewModel::OnInitializeViewModel()
 	Super::OnInitializeViewModel();
 	BindTeamRoster();
 	RefreshMembers();
+	StartTeamRosterRetry();
 }
 
 void UNF_TeamPanelViewModel::OnViewModelContextChanged()
 {
 	Super::OnViewModelContextChanged();
+	StopTeamRosterRetry();
+	UnbindTeamRoster();
+
 	BindTeamRoster();
 	RefreshMembers();
+	StartTeamRosterRetry();
 }
 
 void UNF_TeamPanelViewModel::OnDeinitializeViewModel()
 {
+	StopTeamRosterRetry();
 	UnbindTeamRoster();
 	ClearMembers();
 	Super::OnDeinitializeViewModel();
@@ -65,6 +71,48 @@ void UNF_TeamPanelViewModel::UnbindTeamRoster()
 
 void UNF_TeamPanelViewModel::HandleTeamRosterChanged()
 {
+	RefreshMembers();
+}
+
+void UNF_TeamPanelViewModel::StartTeamRosterRetry()
+{
+	if (BoundGameState.IsValid()) return;
+
+	APlayerController* PlayerController = GetViewModelContext().PlayerController.Get();
+	if (!IsValid(PlayerController)) return;
+
+	UWorld* World = PlayerController->GetWorld();
+	if (!IsValid(World)) return;
+
+	StopTeamRosterRetry();
+	TeamRosterRetryWorld = World;
+	World->GetTimerManager().SetTimer(
+		TeamRosterRetryHandle,
+		this,
+		&ThisClass::RetryBindTeamRoster,
+		0.2f,
+		true);
+}
+
+void UNF_TeamPanelViewModel::StopTeamRosterRetry()
+{
+	UWorld* World = TeamRosterRetryWorld.Get();
+	if (IsValid(World))
+	{
+		World->GetTimerManager().ClearTimer(TeamRosterRetryHandle);
+	}
+
+	TeamRosterRetryHandle.Invalidate();
+	TeamRosterRetryWorld.Reset();
+}
+
+void UNF_TeamPanelViewModel::RetryBindTeamRoster()
+{
+	BindTeamRoster();
+	if (!BoundGameState.IsValid()) return;
+
+	StopTeamRosterRetry();
+	// 구독 전에 도착했던 명단도 현재 상태로 복원한다.
 	RefreshMembers();
 }
 
