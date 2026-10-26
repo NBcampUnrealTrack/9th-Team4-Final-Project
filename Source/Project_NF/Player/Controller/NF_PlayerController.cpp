@@ -13,8 +13,6 @@
 #include "Player/Data/NF_PlayerInputDataAsset.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
-#include "Kismet/KismetStringLibrary.h"
-#include "Kismet/KismetStringTableLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "UI/SubSystem/NF_UIManagerSubsystem.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
@@ -40,8 +38,9 @@ void ANF_PlayerController::OnRep_PlayerState()
 void ANF_PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	GetMinimapRevealRegistry();
-	GetWorldTimerManager().SetTimer(MinimapRevealTimer, this, &ThisClass::UpdateMinimapReveals, 0.2f, true);
+	
+	//TODO 정준님 협의 필요 (남이 내 코드를 건드린거라 왜 붙힌건지 알 수 가 없음, 아마도 리프레쉬 용도인듯)
+	RefreshMiniMap();
 	
 	InputConfig();
 	BindDelegate();
@@ -268,7 +267,6 @@ void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopTyp
 }
 
 
-
 void ANF_PlayerController::ReleaseGameplayInputForUI()
 {
 	bIsZoomIn = false;
@@ -276,6 +274,7 @@ void ANF_PlayerController::ReleaseGameplayInputForUI()
 	NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction,this,ENF_PlayerActionType::StopFire);
 }
 #pragma endregion
+
 
 #pragma region UI
 void ANF_PlayerController::CreateGameHUD()
@@ -304,15 +303,10 @@ void ANF_PlayerController::RefreshViewModel()
 
 
 #pragma region NotDevelopedByMe
-void ANF_PlayerController::ClientHandleMatchCompleted_Implementation(const FNF_MatchResult& Result)
+void ANF_PlayerController::RefreshMiniMap()
 {
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UNF_MatchmakingSubsystem* Match = GI->GetSubsystem<UNF_MatchmakingSubsystem>())
-		{
-			Match->HandleDedicatedMatchCompleted(Result);
-		}
-	}
+	GetMinimapRevealRegistry();
+	GetWorldTimerManager().SetTimer(MinimapRevealTimer, this, &ThisClass::UpdateMinimapReveals, 0.2f, true);
 }
 
 
@@ -354,5 +348,17 @@ void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	GetWorldTimerManager().ClearTimer(MinimapRevealTimer);
 	if (MinimapRevealRegistry) { MinimapRevealRegistry->Clear(); }
 	Super::EndPlay(EndPlayReason);
+}
+
+
+void ANF_PlayerController::ClientHandleMatchCompleted_Implementation(const FNF_MatchResult& Result)
+{
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UNF_MatchmakingSubsystem* Match = GI->GetSubsystem<UNF_MatchmakingSubsystem>())
+		{
+			Match->HandleDedicatedMatchCompleted(Result);
+		}
+	}
 }
 #pragma endregion

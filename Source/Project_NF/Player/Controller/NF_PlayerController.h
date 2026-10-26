@@ -84,7 +84,6 @@ protected:
 private:
 	void CreateGameHUD();
 	void RefreshViewModel();
-	
 #pragma endregion 
 	
 
@@ -106,5 +105,7 @@ private:
 	void UpdateMinimapReveals();
 	UFUNCTION(Client, Reliable)
 	void ClientReceiveMinimapReveals(const TArray<FNF_MinimapRevealMarker>& Markers);
+	
+	void RefreshMiniMap();
 #pragma endregion 
 };
