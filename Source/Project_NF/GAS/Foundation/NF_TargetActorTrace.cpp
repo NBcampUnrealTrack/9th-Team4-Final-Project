@@ -1,8 +1,6 @@
 ﻿#include "NF_TargetActorTrace.h"
 
 #include "Abilities/GameplayAbility.h"
-#include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
-#include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Player/Character/NF_Player.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
@@ -21,13 +19,29 @@ void ANF_TargetActorTrace::StartTargeting(UGameplayAbility* Ability)
 	Super::StartTargeting(Ability);
 	
 	SourceActor = Ability->GetAvatarActorFromActorInfo();
-	WeaponMesh = GetWeaponMeshFromSourceActor(SourceActor);
+	MeleeAttackMeshComp = GetMeleeAttackMeshFromSourceActor(SourceActor);
 	ResetMeleeTrace();
 	
 	auto* NF_PlayerDataAsset = Cast<UNF_PlayerDataAsset>(Ability->GetCurrentSourceObject()); // [추가] GA의 SourceObject = 데이터 에셋
 	if (IsValid(NF_PlayerDataAsset) == false) return;
 	
 	MeleeTraceRadius = NF_PlayerDataAsset->MeleeTraceRadius;
+	MeleeSocket_Start = NF_PlayerDataAsset->MeleeSocket_Start;
+	MeleeSocket_End = NF_PlayerDataAsset->MeleeSocket_End;
+}
+
+
+UMeshComponent* ANF_TargetActorTrace::GetMeleeAttackMeshFromSourceActor(AActor* InSourceActor) const
+{
+	if (IsValid(InSourceActor) == false) return nullptr;
+	
+	auto* NF_MeleeAttackInterface = Cast<INF_MeleeAttackInterface>(InSourceActor);
+	if (NF_MeleeAttackInterface == nullptr)
+	{
+		
+		return nullptr;
+	}
+	return NF_MeleeAttackInterface->NF_GetMeleeAttackMesh();
 }
 
 
@@ -116,38 +130,15 @@ void ANF_TargetActorTrace::ResetMeleeTrace()
 }
 
 
-UMeshComponent* ANF_TargetActorTrace::GetWeaponMeshFromSourceActor(AActor* InSourceActor) const
-{
-	if (IsValid(InSourceActor) == false) return nullptr;
-	
-	//TODO 항상 들고 있을 (짤주먹) 근접무기가 필요하고, 궁극기를 위한 검 타입도 필요함(이건 장착만하면 됨)
-	auto* WeaponComponent = InSourceActor->FindComponentByClass<UNF_WeaponComponent>();
-	if (IsValid(WeaponComponent) == false) return nullptr;
-
-	ANF_WeaponBase* EquippedWeapon = WeaponComponent->GetEquippedWeapon();
-	if (IsValid(EquippedWeapon) == false) return nullptr;
-
-	return EquippedWeapon->GetWeaponMesh();
-	
-	//Test용
-	/*auto* NF_Player = Cast<ANF_Player>(InSourceActor);
-	if (IsValid(NF_Player) == false) return nullptr;
-	
-	NF_Player->MeleeAttackMeshComponent;
-
-	return NF_Player->MeleeAttackMeshComponent;*/
-}
-
-
 TArray<FHitResult> ANF_TargetActorTrace::GetMeleeTraceResults(AActor* InSourceActor)
 {
 	TArray<FHitResult> NewHitResults;
 
-	if (IsValid(WeaponMesh) == false) return NewHitResults;
+	if (IsValid(MeleeAttackMeshComp) == false) return NewHitResults;
 	if (IsValid(InSourceActor) == false) return NewHitResults;
 	
-	const FVector CurrentStartLocation = WeaponMesh->GetSocketLocation(MeleeSocket_Start);
-	const FVector CurrentEndLocation = WeaponMesh->GetSocketLocation(MeleeSocket_End);
+	const FVector CurrentStartLocation = MeleeAttackMeshComp->GetSocketLocation(MeleeSocket_Start);
+	const FVector CurrentEndLocation = MeleeAttackMeshComp->GetSocketLocation(MeleeSocket_End);
 
 	int32 StepCount = SubStepCount;
 	if (StepCount < 1)

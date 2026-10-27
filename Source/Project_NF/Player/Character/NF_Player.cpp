@@ -13,7 +13,6 @@
 #include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
 #include "GamePlay/Combat/Components/NF_PlayerLifeComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
-#include "GAS/Abilities/NFGA_PlayerDeath.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Component/NF_CharacterMovementComponent.h"
@@ -69,9 +68,11 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//Equipment
 	NF_WeaponComponent = CreateDefaultSubobject<UNF_WeaponComponent>(TEXT("NF_WeaponComponent"));
 	NF_ArmorComponent = CreateDefaultSubobject<UNF_ArmorComponent>(TEXT("NF_ArmorComponent"));
-	MeleeAttackMeshComponent =CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeleeAttackMeshComponent"));
-	MeleeAttackMeshComponent->SetupAttachment(VisualMesh, TEXT("MeleeAttackSocket"));
+	
+	MeleeAttackMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeleeAttackMeshComponent"));
+	MeleeAttackMeshComponent->SetupAttachment(VisualMesh, MeleeAttackSocket);
 	MeleeAttackMeshComponent->SetHiddenInGame(true);
+	MeleeAttackMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	
 	//Life
 	NF_PlayerLifeComponent = CreateDefaultSubobject<UNF_PlayerLifeComponent>(TEXT("NF_PlayerLifeComponent"));
@@ -119,12 +120,16 @@ void ANF_Player::ConfigBindDelegate()
 
 void ANF_Player::ConfigData()
 {
-	/*auto* NF_PlayerState = GetPlayerState<ANF_PlayerState>();
+	auto* NF_PlayerState = Cast<ANF_PlayerState>(GetPlayerState());
 	if (IsValid(NF_PlayerState) == false) return;
 	
-	if (IsValid(NF_PlayerState->NF_PlayerDataAsset) == false) return;
-
-	VisualMesh->SetSkeletalMeshAsset(NF_PlayerState->NF_PlayerDataAsset->VisualMesh);*/
+	const auto& NF_PlayerDataAsset = NF_PlayerState->NF_PlayerDataAsset;
+	if (IsValid(NF_PlayerDataAsset) == false) return;
+	
+	InteractionRange = NF_PlayerDataAsset->InteractionRange;
+	MeleeAttackSocket = NF_PlayerDataAsset->MeleeAttackSocket;
+	
+	MeleeAttackMeshComponent->AttachToComponent(VisualMesh, FAttachmentTransformRules::KeepRelativeTransform, MeleeAttackSocket);
 }
 
 
