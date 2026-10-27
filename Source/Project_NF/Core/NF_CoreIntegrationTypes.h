@@ -8,6 +8,10 @@ class ANF_BossBase;
 struct FNF_BossDefeatResult;
 struct FNF_MatchResult;
 
+// @owner : 조민웅 | 2026-10-27
+// 목적: Core 리스폰 시스템이 플레이어의 현재 리스폰 허용 여부를 GameMode에 요청한다.
+DECLARE_DELEGATE_RetVal_OneParam(bool,FNF_EvaluateRespawnPermission,const ANF_PlayerState*);
+
 // @Owner: 조민웅 | 2026-10-19
 // 매치메이킹 연동 코드가 서버에서 바인딩. 남은 클라이언트의 복귀 및 세션 정리를 요청
 DECLARE_DELEGATE_OneParam(FNF_RequestMatchAbort, const FString&);
