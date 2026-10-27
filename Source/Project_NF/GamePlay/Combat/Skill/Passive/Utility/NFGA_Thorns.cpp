@@ -8,6 +8,7 @@
 #include "GAS/Tags/NFTag_Skill.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 #include "Project_NF.h"
+#include "GAS/Attributes/NF_KeyHolderAttributeSet.h"
 
 UNFGA_Thorns::UNFGA_Thorns()
 {
@@ -41,7 +42,11 @@ void UNFGA_Thorns::UnbindHealth()
 	{
 		HealthASC->GetGameplayAttributeValueChangeDelegate(UNF_PlayerStatusAttribute::GetHealthAttribute()).Remove(HealthDelegate);
 	}
-	HealthDelegate.Reset(); HealthASC.Reset();
+	if (HealthASC.IsValid() && CooldownReductionHandle.IsValid())
+	{
+		HealthASC->GetGameplayAttributeValueChangeDelegate(UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute()).Remove(CooldownReductionHandle);
+	}
+	HealthDelegate.Reset(); CooldownReductionHandle.Reset(); HealthASC.Reset();
 }
 void UNFGA_Thorns::BindHealth()
 {
@@ -52,8 +57,14 @@ void UNFGA_Thorns::BindHealth()
 	const auto* Spec = OwnASC ? OwnASC->FindAbilitySpecFromHandle(CurrentSpecHandle) : nullptr;
 	if (!Spec || Spec->GetPrimaryInstance() != this) { return; }
 	auto* ASC = OwnASC;
-	if (!ASC->GetSet<UNF_PlayerStatusAttribute>()) { ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Avatar); }
-	if (HealthASC.Get() == ASC && HealthDelegate.IsValid()) { return; }
+	if (!ASC || !ASC->GetSet<UNF_PlayerStatusAttribute>())
+	{
+		ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Avatar);
+	}
+	if (HealthASC.Get() == ASC && HealthDelegate.IsValid() && CooldownReductionHandle.IsValid())
+	{
+		return;
+	}
 	UnbindHealth();
 	if (SkillType != ENF_SkillType::Passive || !IsValid(Avatar) || !ASC || ASC->GetAvatarActor_Direct() != Avatar
 		|| !ASC->GetSet<UNF_PlayerStatusAttribute>())
@@ -63,7 +74,37 @@ void UNFGA_Thorns::BindHealth()
 	HealthASC = ASC;
 	HealthDelegate = ASC->GetGameplayAttributeValueChangeDelegate(UNF_PlayerStatusAttribute::GetHealthAttribute())
 		.AddUObject(this, &ThisClass::HandleHealthChanged);
+	CooldownReductionHandle = ASC->GetGameplayAttributeValueChangeDelegate(UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute()).AddUObject(this, &ThisClass::OnCooldownReductionRateChanged);
 }
+
+float UNFGA_Thorns::GetCooldownReductionRate() const
+{
+	const auto* ASC = HealthASC.Get();
+	if (!ASC || !ASC->GetSet<UNF_KeyHolderAttributeSet>())
+	{
+		return 0.0f;
+	}
+	const float Rate = ASC->GetNumericAttribute(UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute());
+	return FMath::IsFinite(Rate) ? FMath::Clamp(Rate, 0.f, 1.f) : 0.f;
+}
+
+void UNFGA_Thorns::OnCooldownReductionRateChanged(const FOnAttributeChangeData& Data)
+{
+	const auto* Info = GetCurrentActorInfo();
+	if (!Info || !Info->IsNetAuthority() || !GetWorld() || !bHasTriggeredCooldown || !FMath::IsFinite(Data.OldValue) || !FMath::IsFinite(Data.NewValue) || Data.OldValue > 0.f || Data.NewValue <= 0.f)
+	{
+		return;
+	}
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Now >= NextReflectionTime)
+	{
+		return;
+	}
+	const float Rate = FMath::Clamp(Data.NewValue, 0.f, 1.f);
+	const double ReducedEndTime = CooldownStartTime + BaseCooldownAtTrigger * (1.0 - Rate);
+	NextReflectionTime = FMath::Min(NextReflectionTime, ReducedEndTime);
+}
+
 void UNFGA_Thorns::HandleHealthChanged(const FOnAttributeChangeData& Data)
 {
 	// Mod callback data is only consumed synchronously, on the server. Replication/SetHealth alone is not a hit.
@@ -83,8 +124,12 @@ void UNFGA_Thorns::HandleHealthChanged(const FOnAttributeChangeData& Data)
 	if (!Spec.IsValid()) { return; }
 	Spec.Data->AddDynamicAssetTag(NFTag_Skill::Damage_Reflected);
 	Spec.Data->SetSetByCallerMagnitude(NFTag_Skill::Data_Damage_Reflected, Damage);
+	const double Now = GetWorld()->GetTimeSeconds();
+	CooldownStartTime = Now;
+	BaseCooldownAtTrigger = InternalCooldown;
+	bHasTriggeredCooldown = true;
 	// Reserve cooldown before applying: synchronous GE callbacks must never recursively reflect.
-	NextReflectionTime = GetWorld()->GetTimeSeconds() + InternalCooldown;
+	NextReflectionTime = CooldownStartTime + BaseCooldownAtTrigger * (1.0 - GetCooldownReductionRate());
 	TGuardValue<bool> ReflectGuard(bReflecting, true);
 	const auto Applied = HealthASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), AttackerASC);
 	if (Applied.WasSuccessfullyApplied())
