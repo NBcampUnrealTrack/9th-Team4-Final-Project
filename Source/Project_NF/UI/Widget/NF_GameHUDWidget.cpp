@@ -87,7 +87,7 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 	if (!AssignViewModel(PassiveSkillSlot.Get(), PassiveSkillVM)){bAllAssigned = false;}
 	if (!AssignViewModel(MatchStatusWidget.Get(), GameFlowVM)){bAllAssigned = false;}
 	if (!AssignViewModel(MinimapWidget.Get(), MinimapVM)){bAllAssigned = false;}
-	if (!AssignViewModel(TeamPanelWidget.Get(), TeamPanelVM.Get())){bAllAssigned = false;}
+	//if (!AssignViewModel(TeamPanelWidget.Get(), TeamPanelVM.Get())){bAllAssigned = false;}
 	if (!AssignViewModel(WeaponStatusWidget.Get(), WeaponStatusVM.Get())){bAllAssigned = false;}
 	
 	if (!bAllAssigned)
@@ -165,7 +165,7 @@ void UNF_GameHUDWidget::ClearChildViewModels()
 	AssignViewModel(PassiveSkillSlot.Get(), nullptr);
 	AssignViewModel(MatchStatusWidget.Get(), nullptr);
 	AssignViewModel(MinimapWidget.Get(), nullptr);
-	AssignViewModel(TeamPanelWidget.Get(), nullptr);
+	//AssignViewModel(TeamPanelWidget.Get(), nullptr);
 	AssignViewModel(WeaponStatusWidget.Get(), nullptr);
 }
 
