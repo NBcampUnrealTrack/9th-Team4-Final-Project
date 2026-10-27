@@ -18,11 +18,17 @@
 #include "GameFramework/Pawn.h"
 #include "Monster/NF_MonsterItemDrop.h"
 #include "Monster/NF_MonsterSpawner.h"
+#include "Components/WidgetComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "Net/UnrealNetwork.h"
+#include "UI/Widget/NF_MonsterStatusWidget.h"
 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
 ANF_Monster::ANF_Monster()
 {
+	MonsterDisplayName = NSLOCTEXT("NF_Monster", "DefaultMonsterDisplayName", "Monster");
 	bReplicates = true;
 	SetReplicateMovement(true);
 	
@@ -47,6 +53,14 @@ ANF_Monster::ANF_Monster()
 	MonsterAttributeSet =
 		CreateDefaultSubobject<UNF_MonsterAttributeSet>(
 			TEXT("MonsterAttributeSet"));
+
+	MonsterStatusWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("MonsterStatusWidget"));
+	MonsterStatusWidgetComponent->SetupAttachment(GetRootComponent());
+	MonsterStatusWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 130.0f));
+	MonsterStatusWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	MonsterStatusWidgetComponent->SetDrawSize(FVector2D(220.0f, 55.0f));
+	MonsterStatusWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MonsterStatusWidgetComponent->SetIsReplicated(false);
 }
 
 UAbilitySystemComponent* ANF_Monster::GetAbilitySystemComponent() const
@@ -57,6 +71,25 @@ UAbilitySystemComponent* ANF_Monster::GetAbilitySystemComponent() const
 void ANF_Monster::BeginPlay()
 {
 	Super::BeginPlay();
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		if (MonsterStatusWidgetClass)
+		{
+			MonsterStatusWidgetComponent->SetWidgetClass(MonsterStatusWidgetClass);
+		}
+		else if (!MonsterStatusWidgetComponent->GetWidgetClass())
+		{
+			MonsterStatusWidgetComponent->SetWidgetClass(UNF_MonsterStatusWidget::StaticClass());
+		}
+		MonsterStatusWidgetComponent->InitWidget();
+		if (UNF_MonsterStatusWidget* StatusWidget = Cast<UNF_MonsterStatusWidget>(MonsterStatusWidgetComponent->GetUserWidgetObject()))
+		{
+			StatusWidget->ObserveMonster(this);
+		}
+		MonsterStatusWidgetComponent->SetVisibility(false);
+		GetWorldTimerManager().SetTimer(StatusVisibilityTimerHandle, this,
+			&ThisClass::UpdateLocalStatusVisibility, 0.2f, true);
+	}
 	
 	UE_LOG(
 		LogTemp,
@@ -173,6 +206,58 @@ void ANF_Monster::BeginPlay()
 	}
 	
 	HomeLocation = GetActorLocation();
+}
+
+void ANF_Monster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ANF_Monster, MonsterDisplayName);
+}
+
+void ANF_Monster::OnRep_MonsterDisplayName()
+{
+	if (IsValid(MonsterStatusWidgetComponent))
+	{
+		if (UNF_MonsterStatusWidget* StatusWidget = Cast<UNF_MonsterStatusWidget>(MonsterStatusWidgetComponent->GetUserWidgetObject()))
+		{
+			StatusWidget->RefreshMonsterName();
+		}
+	}
+}
+
+void ANF_Monster::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorldTimerManager().ClearTimer(StatusVisibilityTimerHandle);
+	if (IsValid(MonsterStatusWidgetComponent))
+	{
+		if (UNF_MonsterStatusWidget* StatusWidget = Cast<UNF_MonsterStatusWidget>(MonsterStatusWidgetComponent->GetUserWidgetObject()))
+		{
+			StatusWidget->ObserveMonster(nullptr);
+		}
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void ANF_Monster::UpdateLocalStatusVisibility()
+{
+	if (!IsValid(MonsterStatusWidgetComponent)) return;
+	APlayerController* LocalController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	const APawn* LocalPawn = IsValid(LocalController) && LocalController->IsLocalController()
+		? LocalController->GetPawn() : nullptr;
+	const bool bNearPlayer = IsValid(LocalPawn) &&
+		FVector::DistSquared(LocalPawn->GetActorLocation(), GetActorLocation()) <= FMath::Square(StatusVisibleDistance);
+	const bool bRecentlyAttacked = GetWorld()->GetTimeSeconds() < StatusRevealedUntil;
+	const bool bAlive = IsValid(MonsterAttributeSet) && MonsterAttributeSet->GetHealth() > 0.0f;
+	MonsterStatusWidgetComponent->SetVisibility(bAlive && (bNearPlayer || bRecentlyAttacked));
+}
+
+void ANF_Monster::MulticastRevealStatusToAttacker_Implementation(APlayerState* Attacker)
+{
+	if (GetNetMode() == NM_DedicatedServer || !IsValid(Attacker)) return;
+	APlayerController* LocalController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+	if (!IsValid(LocalController) || !LocalController->IsLocalController() || LocalController->PlayerState != Attacker) return;
+	StatusRevealedUntil = GetWorld()->GetTimeSeconds() + StatusDamageVisibleDuration;
+	UpdateLocalStatusVisibility();
 }
 
 void ANF_Monster::ApplyBasicAttackHit()
@@ -315,6 +400,14 @@ void ANF_Monster::ApplyBasicAttackHit()
 
 void ANF_Monster::HandleMonsterDamaged(float Damage, AActor* DamageSource)
 {
+	if (HasAuthority())
+	{
+		const APawn* SourcePawn = Cast<APawn>(DamageSource);
+		if (IsValid(SourcePawn) && SourcePawn->IsPlayerControlled())
+		{
+			MulticastRevealStatusToAttacker(SourcePawn->GetPlayerState());
+		}
+	}
 	UE_LOG(
 		LogTemp,
 		Warning,
@@ -400,6 +493,7 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 	if (bIsDead || !MonsterASC)	{ return; }
 
 	bIsDead = true;
+	if (IsValid(MonsterStatusWidgetComponent)) MonsterStatusWidgetComponent->SetVisibility(false);
 	
 	if (HasAuthority())
 	{
