@@ -7,8 +7,7 @@
 class ANF_WeaponBase;
 class UNF_WeaponComponent;
 
-/** Shared semi-auto / automatic fire. Activated by WeaponComponent on the server. */
-UCLASS()
+UCLASS(Blueprintable)
 class PROJECT_NF_API UNFGA_WeaponFire : public UGameplayAbility
 {
 	GENERATED_BODY()
@@ -24,7 +23,14 @@ protected:
 		const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 		bool bReplicateEndAbility, bool bWasCancelled) override;
 
+	// C++에서 호출하고, 자식 BP에서 구현, Stop When Ability Ends 체크 해제.	
+	UFUNCTION(BlueprintImplementableEvent, Category = "Fire")
+	void PlayFireAnimation();
+
 private:
+	UFUNCTION(Client, Reliable)
+	void ClientPlayFireAnimation();
+
 	UFUNCTION()
 	void TryFire();
 	void WaitForNextShot(float Delay);

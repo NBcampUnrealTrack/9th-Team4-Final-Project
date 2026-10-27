@@ -1,12 +1,10 @@
 #include "GAS/Abilities/NFGA_WeaponFire.h"
 
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
-#include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GAS/Tags/NFTag_Player.h"
-#include "UpperBodyBlend/UpperBodyLayer.h"
 
 UNFGA_WeaponFire::UNFGA_WeaponFire()
 {
@@ -19,7 +17,8 @@ UNFGA_WeaponFire::UNFGA_WeaponFire()
 	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Reload);
 	
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
+	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 }
 
 void UNFGA_WeaponFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -27,6 +26,12 @@ void UNFGA_WeaponFire::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	
+	if (ActorInfo->IsNetAuthority() == false)
+	{
+		return;
+	}
+
 	WeaponComponent = Cast<UNF_WeaponComponent>(GetCurrentSourceObject());
 	Weapon = WeaponComponent.IsValid() ? WeaponComponent->GetEquippedWeapon() : nullptr;
 	if (!Weapon.IsValid() || !Weapon->CanFire() || !CommitAbility(Handle, ActorInfo, ActivationInfo))
@@ -58,19 +63,36 @@ void UNFGA_WeaponFire::TryFire()
 		return;
 	}
 	
-	if (UUpperBodyLayerLibrary::NotifyUpperBodyFire(Cast<ACharacter>(GetAvatarActorFromActorInfo())) == false) 
+	if (Weapon->FireProjectile() == false)
 	{
-		WaitForNextShot(0.0f);
+		FinishFire();
 		return;
 	}
-	
-	if (Weapon->FireProjectile() == false || bAutomatic == false || Weapon->CanFire() == false)
+
+	if (!IsActive() || !Weapon.IsValid()) return;
+
+	PlayFireAnimation();
+	if (!IsActive() || !Weapon.IsValid()) return;
+	if (!CurrentActorInfo->IsLocallyControlled())
+	{
+		ClientPlayFireAnimation();
+	}
+
+	if (bAutomatic == false || Weapon->CanFire() == false)
 	{
 		FinishFire();
 		return;
 	}
 	
 	WaitForNextShot(Weapon->GetFireInterval());
+}
+
+void UNFGA_WeaponFire::ClientPlayFireAnimation_Implementation()
+{
+	if (IsActive())
+	{
+		PlayFireAnimation();
+	}
 }
 
 void UNFGA_WeaponFire::WaitForNextShot(float Delay)
@@ -91,6 +113,6 @@ void UNFGA_WeaponFire::EndAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	Weapon.Reset();
 	WeaponComponent.Reset();
-	// Super ends owned WaitDelay tasks on release, reload, swap, or cancellation.
+	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
