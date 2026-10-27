@@ -15,7 +15,7 @@ enum class ENF_PlayerActionType : uint8;
 enum class ENF_PlayerInteractTypeEnum : uint8;
 enum class ENF_BuildShopUIState : uint8;
 struct FInputActionValue;
-class UNF_PlayerInputDataAsset;
+class UNF_PlayerControllerDataAsset;
 class UMotionMatchingInputDataAsset;
 
 
@@ -42,7 +42,7 @@ public:
 	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputDataAsset;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
-	TObjectPtr<UNF_PlayerInputDataAsset> NF_PlayerInputDataAsset;
+	TObjectPtr<UNF_PlayerControllerDataAsset> NF_PlayerControllerDataAsset;
 	
 	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
 	
@@ -76,6 +76,7 @@ protected:
 	
 	void OnInteractBuildShop(ENF_BuildShopUIState BuildShopType);
 #pragma endregion
+	
 	
 #pragma region UI
 protected:
