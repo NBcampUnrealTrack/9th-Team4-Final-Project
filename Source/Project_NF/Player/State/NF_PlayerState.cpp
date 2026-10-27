@@ -39,7 +39,7 @@ void ANF_PlayerState::GiveDefaultAbility()
 	if (HasAuthority() == false) return;
 	if (bIsGiveAbility == true) return;
 
-	for (const auto& EachAbility : NF_PlayerDataAsset->GameplayAbilityArray)
+	for (const auto& EachAbility : NF_PlayerDataAsset->InitGA_Array)
 	{
 		if (IsValid(EachAbility) == false) continue;
 
@@ -93,6 +93,7 @@ void ANF_PlayerState::BeginPlay()
 void ANF_PlayerState::ConfigDataAsset()
 {
 	checkf(IsValid(NF_PlayerDataAsset) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]가  삽입되어있지않습니다."));
+	//checkf(IsValid(NF_PlayerDataAsset->VisualMesh) == true, TEXT("[NF_PlayerDataAsset]의 [VisualMesh]가  삽입되어있지않습니다."));
 	checkf(IsValid(NF_PlayerDataAsset->MeleeAttack_Health_GEClass) == true, TEXT("[NF_PlayerDataAsset]의 [MeleeAttack_GEClass]가  삽입되어있지않습니다."));
 	checkf(IsValid(NF_PlayerDataAsset->MeleeAttack_Shield_GEClass) == true, TEXT("[NF_PlayerDataAsset]의 [MeleeAttack_GEClass]가  삽입되어있지않습니다."));
 	

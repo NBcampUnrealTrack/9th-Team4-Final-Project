@@ -19,6 +19,7 @@
 #include "Component/NF_EscapeKeyComponent.h"
 #include "AbilitySystemComponent.h"
 #include "Component/NF_EscapeComponent.h"
+#include "Component/NF_PlayerRespawnComponent.h"
 #include "GamePlay/Combat/Components/NF_PlayerLifeComponent.h"
 #include "GamePlay/EscapeZone/NF_EscapeZone.h"
 #include "GAS/Tags/NFTag_LifeState.h"
@@ -34,11 +35,23 @@ ANF_GameMode::ANF_GameMode()
 	BossContributionRewardComponent =CreateDefaultSubobject<UNF_BossContributionRewardComponent>(TEXT("BossContributionRewardComponent"));
 	EscapeKeyComponent =CreateDefaultSubobject<UNF_EscapeKeyComponent>(TEXT("EscapeKeyComponent"));
 	EscapeComponent = CreateDefaultSubobject<UNF_EscapeComponent>(TEXT("EscapeComponent"));
+	PlayerRespawnComponent = CreateDefaultSubobject<UNF_PlayerRespawnComponent>(TEXT("PlayerRespawnComponent"));
 }
 
 void ANF_GameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (IsValid(PlayerRespawnComponent))
+	{
+		PlayerRespawnComponent->EvaluateRespawnPermission.BindUObject(
+			this,
+			&ThisClass::CanRespawnPlayer);
+		OnMatchCleanup.AddUObject(
+			PlayerRespawnComponent.Get(),
+			&UNF_PlayerRespawnComponent::Shutdown);
+	}
+
 	if (HasAuthority())
 	{
 		if (UGameInstance* GameInstance = GetGameInstance())
@@ -112,16 +125,9 @@ void ANF_GameMode::PostLogin(APlayerController* NewPlayer)
 
 		BuildReadyComponent->RegisterPlayer(PlayerState);
 
-		if (HasAuthority() && IsValid(PlayerState))
+		if (IsValid(PlayerRespawnComponent))
 		{
-			ENF_PlayerPawnState InitialPawnState = ENF_PlayerPawnState::InitialSpawnPending;
-
-			if (IsValid(NewPlayer->GetPawn()))
-			{
-				InitialPawnState = ENF_PlayerPawnState::Active;
-			}
-
-			AuthoritySetPlayerPawnState(PlayerState, InitialPawnState);
+			PlayerRespawnComponent->RegisterPlayer(PlayerState);
 		}
 	}
 
@@ -146,8 +152,12 @@ void ANF_GameMode::Logout(AController* Exiting)
 	{
 		if (HasAuthority())
 		{
+			if (IsValid(PlayerRespawnComponent))
+			{
+				PlayerRespawnComponent->HandlePlayerLeaving(LeavingPlayerState);
+			}
+
 			OnMatchPlayerLeaving.Broadcast(LeavingPlayerState,Exiting->GetPawn());
-			RemovePlayerPawnState(LeavingPlayerState);
 		}
 		if (IsValid(BuildReadyComponent))
 		{
@@ -167,20 +177,22 @@ void ANF_GameMode::RestartPlayer(AController* NewPlayer)
 {
 	Super::RestartPlayer(NewPlayer);
 
-	if (!HasAuthority() || !IsValid(NewPlayer))return;
-
-	ANF_PlayerState* PlayerState = NewPlayer->GetPlayerState<ANF_PlayerState>();
-
-	if (!IsValid(PlayerState) || !IsValid(NewPlayer->GetPawn()))return;
-
-	AuthoritySetPlayerPawnState(PlayerState, ENF_PlayerPawnState::Active);
+	if (IsValid(PlayerRespawnComponent))
+	{
+		PlayerRespawnComponent->HandlePlayerRestarted(NewPlayer);
+	}
 }
 
 void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (IsValid(PlayerRespawnComponent))
+	{
+		PlayerRespawnComponent->Shutdown();
+		OnMatchCleanup.RemoveAll(PlayerRespawnComponent.Get());
+	}
+
 	GetWorldTimerManager().ClearTimer(PhaseTimerHandle);
 	GetWorldTimerManager().ClearTimer(ResultDisplayTimerHandle);
-	PlayerPawnStates.Empty();
 	NotifyMatchCleanup();
 
 	if (IsValid(BossContributionRewardComponent))
@@ -246,53 +258,51 @@ ANF_GameState* ANF_GameMode::GetNFGameState() const
 	return GetGameState<ANF_GameState>();
 }
 
-bool ANF_GameMode::AuthoritySetPlayerPawnState(
-	ANF_PlayerState* PlayerState,
-	const ENF_PlayerPawnState NewState)
+ENF_PlayerPawnState ANF_GameMode::GetPlayerPawnState(
+	const ANF_PlayerState* PlayerState) const
 {
-	if (!HasAuthority() || !IsValid(PlayerState)){return false;}
-
-	if (PlayerState->GetWorld() != GetWorld()){return false;}
-
-	const TWeakObjectPtr<ANF_PlayerState> PlayerStateKey(PlayerState);
-	PlayerPawnStates.FindOrAdd(PlayerStateKey) = NewState;
-
-	return true;
-}
-
-ENF_PlayerPawnState ANF_GameMode::GetPlayerPawnState(const ANF_PlayerState* PlayerState) const
-{
-	if (!HasAuthority() || !IsValid(PlayerState))
+	if (!IsValid(PlayerRespawnComponent))
 	{
 		return ENF_PlayerPawnState::Unknown;
 	}
 
-	const TWeakObjectPtr<ANF_PlayerState> PlayerStateKey(const_cast<ANF_PlayerState*>(PlayerState));
-
-	const ENF_PlayerPawnState* FoundState = PlayerPawnStates.Find(PlayerStateKey);
-
-	if (FoundState == nullptr)
-	{
-		return ENF_PlayerPawnState::Unknown;
-	}
-
-	// 한 번이라도 Pawn이 활성화됐던 플레이어가 현재 Pawn을 잃었다면
-	// 최초 생성 전이 아니라 리스폰 대기 상태로 조회한다.
-	if (*FoundState == ENF_PlayerPawnState::Active && !IsValid(PlayerState->GetPawn()))
-	{
-		return ENF_PlayerPawnState::RespawnPending;
-	}
-
-	return *FoundState;
+	return PlayerRespawnComponent->GetPlayerPawnState(PlayerState);
 }
 
-void ANF_GameMode::RemovePlayerPawnState(const ANF_PlayerState* PlayerState)
+bool ANF_GameMode::CanRespawnPlayer(
+	const ANF_PlayerState* PlayerState) const
 {
-	if (!HasAuthority() || !IsValid(PlayerState))return;
+	if (!HasAuthority() ||
+		bMatchAborting ||
+		bMatchFinalized ||
+		bMatchCleanupNotified ||
+		!IsValid(PlayerState))
+	{
+		return false;
+	}
 
-	const TWeakObjectPtr<ANF_PlayerState> PlayerStateKey(const_cast<ANF_PlayerState*>(PlayerState));
+	if (PlayerState->NF_TeamID < 1 || PlayerState->NF_TeamID > 4)
+	{
+		return false;
+	}
 
-	PlayerPawnStates.Remove(PlayerStateKey);
+	const ANF_GameState* NFGameState = GetNFGameState();
+
+	if (!IsValid(NFGameState))return false;
+
+	switch (NFGameState->GetMatchPhase())
+	{
+	case ENF_MatchPhase::Build:
+	case ENF_MatchPhase::Farming:
+	case ENF_MatchPhase::Boss:
+		return true;
+
+	case ENF_MatchPhase::Waiting:
+	case ENF_MatchPhase::Escape:
+	case ENF_MatchPhase::Finished:
+	default:
+		return false;
+	}
 }
 
 bool ANF_GameMode::CollectMatchParticipants(TArray<ANF_PlayerState*>& OutParticipants) const
@@ -375,6 +385,12 @@ void ANF_GameMode::NotifyTeamsReady()
 	if (!HasAuthority() || bMatchFinalized)return;
 
 	bTeamsReady = true;
+
+	if (IsValid(PlayerRespawnComponent))
+	{
+		PlayerRespawnComponent->NotifyTeamsReady();
+	}
+
 	TryStartBuild();
 }
 
@@ -742,6 +758,12 @@ void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssig
 		LifeComponents.Add(LifeComponent);
 	}
 
+	// 팀 배정이 완료된 현재 Pawn의 서버 생존 상태 변경을 구독한다.
+	if (IsValid(PlayerRespawnComponent))
+	{
+		PlayerRespawnComponent->BindAssignedLifeComponents(LifeComponents);
+	}
+
 	// 1단계: 모든 LifeComponent의 팀 배정 확인 상태를 먼저 완료한다.
 	for (UNF_PlayerLifeComponent* LifeComponent : LifeComponents)
 	{
@@ -861,6 +883,12 @@ void ANF_GameMode::HandleBossDefeatResolved(const FNF_BossDefeatResult& DefeatRe
 	
 	if (!IsValid(NFGameState))return;
 	if (NFGameState->GetMatchPhase()!= ENF_MatchPhase::Boss)return;
+
+	// 보스 처치가 확정된 시점부터 예약과 실제 리스폰을 모두 금지한다.
+	if (IsValid(PlayerRespawnComponent))
+	{
+		PlayerRespawnComponent->LockRespawnsAfterBossDefeat();
+	}
 	
 	// 페이즈 변경 콜백이 실행되기 전에 처치 순간의 참가 팀과 피해량을 확정한다.
 	if (IsValid(BossContributionRewardComponent))

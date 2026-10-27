@@ -21,8 +21,8 @@
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/State/NF_PlayerState.h"
 #include "Engine/LocalPlayer.h"
+#include "GamePlay/ConsumableItems/NF_ConsumableComponent.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
-#include "Player/Data/NF_PlayerLevelDataTable.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UpperBodyBlend/UpperBodyLayer.h"
 
@@ -63,21 +63,21 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
 	MotionMatchingComponent->AddTraversalOwnedTag(NFTag_Player::Player_State_Traversal);
 	
-	
 	//Build
 	NF_BuildComponent = CreateDefaultSubobject<UNF_BuildComponent>(TEXT("NF_BuildComponent"));
-	
 	
 	//Equipment
 	NF_WeaponComponent = CreateDefaultSubobject<UNF_WeaponComponent>(TEXT("NF_WeaponComponent"));
 	NF_ArmorComponent = CreateDefaultSubobject<UNF_ArmorComponent>(TEXT("NF_ArmorComponent"));
-	/*MeleeAttackMeshComponent =CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeleeAttackMeshComponent"));
-	MeleeAttackMeshComponent->SetupAttachment(VisualMesh);
-	MeleeAttackMeshComponent->SetHiddenInGame(true);*/
-	
+	MeleeAttackMeshComponent =CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeleeAttackMeshComponent"));
+	MeleeAttackMeshComponent->SetupAttachment(VisualMesh, TEXT("MeleeAttackSocket"));
+	MeleeAttackMeshComponent->SetHiddenInGame(true);
 	
 	//Life
 	NF_PlayerLifeComponent = CreateDefaultSubobject<UNF_PlayerLifeComponent>(TEXT("NF_PlayerLifeComponent"));
+	
+	//Consumable
+	NF_ConsumableComponent = CreateDefaultSubobject<UNF_ConsumableComponent>(TEXT("NF_ConsumableComponent"));
 }
 
 
@@ -85,6 +85,27 @@ void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
 	ConfigBindDelegate();
+}
+
+
+void ANF_Player::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	
+	InitAbilitySystem();
+	
+	ConfigData();
+}
+
+
+void ANF_Player::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	
+	//클라이언트를 위한 ASC 초기화
+	InitAbilitySystem();
+	
+	ConfigData();
 }
 
 
@@ -96,6 +117,15 @@ void ANF_Player::ConfigBindDelegate()
 }
 
 
+void ANF_Player::ConfigData()
+{
+	/*auto* NF_PlayerState = GetPlayerState<ANF_PlayerState>();
+	if (IsValid(NF_PlayerState) == false) return;
+	
+	if (IsValid(NF_PlayerState->NF_PlayerDataAsset) == false) return;
+
+	VisualMesh->SetSkeletalMeshAsset(NF_PlayerState->NF_PlayerDataAsset->VisualMesh);*/
+}
 
 
 #pragma region OnTryAction
@@ -155,6 +185,12 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 	{
 		TryInteraction(SendController);
 		return;
+	}	
+	
+	if (ActionType == ENF_PlayerActionType::UseItem)
+	{
+		TryUseItem();
+		return;
 	}
 }	
 
@@ -197,8 +233,7 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 	void ANF_Player::TrySkillActionWithInputID(int32 InputID)
 	{
 		UKismetSystemLibrary::PrintString(this,
-			FString::Printf(TEXT("%d 번 스킬을 사용 합니다."), InputID + 1),
-				true, true, FColor::Magenta, 5.0f);
+			FString::Printf(TEXT("%d 번 스킬을 사용 합니다."), InputID + 1));
 			
 		GetAbilitySystemComponent()->AbilityLocalInputPressed(InputID);
 	}
@@ -211,6 +246,13 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 		
 		ServerRPC_TryInteraction(SendController, TraceResult.GetActor());
 	
+	}
+
+	void ANF_Player::TryUseItem()
+	{
+		UKismetSystemLibrary::PrintString(this,TEXT("아이템 사용, 정준님 협의 예정"));
+		
+		NF_ConsumableComponent->NF_UseItem();
 	}
 
 	void ANF_Player::ServerRPC_TryInteraction_Implementation(APlayerController* SendController, AActor* TargetActor)
@@ -302,23 +344,6 @@ void ANF_Player::OnEnablePlayerMovementFromType(ENF_BuildShopUIState BuildShopTy
 void ANF_Player::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-}
-
-
-void ANF_Player::PossessedBy(AController* NewController)
-{
-	Super::PossessedBy(NewController);
-	
-	InitAbilitySystem();
-}
-
-
-void ANF_Player::OnRep_PlayerState()
-{
-	Super::OnRep_PlayerState();
-	
-	//클라이언트를 위한 ASC 초기화
-	InitAbilitySystem();
 }
 
 

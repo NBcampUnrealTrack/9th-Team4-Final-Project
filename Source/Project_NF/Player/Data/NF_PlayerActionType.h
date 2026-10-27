@@ -13,7 +13,8 @@ enum class ENF_PlayerActionType : uint8
 	ZoomIn UMETA(DisplayName = "ZoomIn"),
 	ZoomOut UMETA(DisplayName = "ZoomOut"),
 	Reload UMETA(DisplayName = "Reload"),
-	Interaction UMETA(DisplayName = "Interaction"),
+	Interaction UMETA(DisplayName = "Interaction"),	
+	UseItem UMETA(DisplayName = "UseItem"),
 	SkillA UMETA(DisplayName = "SkillA"),
 	SkillB UMETA(DisplayName = "SkillB"),
 	ToggleSettingButton UMETA(DisplayName = "ToggleSettingButton")

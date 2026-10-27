@@ -21,6 +21,7 @@ class UNF_MatchDepartureComponent;
 class UNF_BossEncounterComponent;
 class UNF_BossResolutionComponent;
 class UNF_BossContributionRewardComponent;
+class UNF_PlayerRespawnComponent;
 
 struct FNFServerTeamIdAssignment;
 struct FNF_BossDefeatResult;
@@ -79,15 +80,8 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Match")
 	float FarmingDuration = 900.0f;
 
-	bool AuthoritySetPlayerPawnState(
-		ANF_PlayerState* PlayerState,
-		ENF_PlayerPawnState NewState);
-
-	void RemovePlayerPawnState(const ANF_PlayerState* PlayerState);
-
-	TMap<TWeakObjectPtr<ANF_PlayerState>, ENF_PlayerPawnState> PlayerPawnStates;
-
 	ANF_GameState* GetNFGameState() const;
+	bool CanRespawnPlayer(const ANF_PlayerState* PlayerState) const;
 
 	bool CollectMatchParticipants(TArray<ANF_PlayerState*>& OutParticipants) const;
 
@@ -131,6 +125,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "NF|Match|Escape")
 	TObjectPtr<UNF_EscapeComponent> EscapeComponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "NF|Match|Respawn")
+	TObjectPtr<UNF_PlayerRespawnComponent> PlayerRespawnComponent;
 
 	bool bTeamsReady = false;
 

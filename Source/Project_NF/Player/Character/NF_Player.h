@@ -7,6 +7,7 @@
 #include "Player/Data/NF_PlayerActionType.h"
 #include "NF_Player.generated.h"
 
+class UNF_ConsumableComponent;
 class UNF_PlayerDataAsset;
 class UNF_PlayerLifeComponent;
 enum class ENF_WeaponType : uint8;
@@ -40,11 +41,12 @@ public:
 	//TODO 데이터어셋화 하기
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
+	
 	UPROPERTY(EditAnywhere, Replicated)
 	ENF_WeaponType NF_WeaponType = ENF_WeaponType::Pistol;
 	
-	/*UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Equipment")
-	TObjectPtr<USkeletalMeshComponent> MeleeAttackMeshComponent;*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Equipment")
+	TObjectPtr<USkeletalMeshComponent> MeleeAttackMeshComponent;
 	
 protected:
 	virtual void PostInitializeComponents() override;
@@ -77,30 +79,32 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
 	TObjectPtr<UNF_PlayerLifeComponent> NF_PlayerLifeComponent;
 	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
+	TObjectPtr<UNF_ConsumableComponent> NF_ConsumableComponent;
+	
 	//TODO 데이터어셋화 하기
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
 	float InteractionRange = 300.0f;
 	
 private:
 	void ConfigBindDelegate();
+	void ConfigData();
+	
 	void ConfigStatusAttribute();
 	void ConfigLevelAttribute();
+	
 	void GainExpToKiller();
 	
 #pragma region TryAction
+private:
 	void TryMeleeAttack();
-	
 	void TryStartFire();
-	
 	void TryStopFire();
-	
 	void TryZoom(ENF_PlayerActionType ActionType);
-	
 	void TryReload();
-	
 	void TrySkillActionWithInputID(int32 InputID);
-	
 	void TryInteraction(APlayerController* SendController);
+	void TryUseItem();
 	
 	UFUNCTION(Server, Reliable)
 	void ServerRPC_TryInteraction(APlayerController* SendController, AActor* TargetActor);
@@ -114,6 +118,7 @@ private:
 	
 	
 #pragma region BuildShop
+private:
 	void OnEnablePlayerMovementFromType(ENF_BuildShopUIState BuildShopType);
 #pragma endregion 
 	
