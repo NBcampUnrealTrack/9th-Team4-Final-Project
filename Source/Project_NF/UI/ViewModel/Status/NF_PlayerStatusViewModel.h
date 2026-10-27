@@ -28,6 +28,18 @@ class PROJECT_NF_API UNF_PlayerStatusViewModel : public UNF_GASViewModelBase
     UFUNCTION(BlueprintPure, FieldNotify)
     float GetExperiencePercent() const;
 
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "Player|UI")
+    FText GetHealthText() const;
+
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "Player|UI")
+    FText GetShieldText() const;
+
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "Player|UI")
+    FText GetLevelText() const;
+
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "Player|UI")
+    FText GetExperienceText() const;
+
 protected:
     virtual void OnInitializeViewModel() override;
     virtual void OnViewModelContextChanged() override;
