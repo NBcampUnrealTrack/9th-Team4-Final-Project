@@ -4,6 +4,7 @@
 #include "NF_GameFlowViewModel.h"
 
 #include "Core/NF_GameState.h"
+#include "Player/State/NF_PlayerState.h"
 
 void UNF_GameFlowViewModel::OnInitializeViewModel()
 {
@@ -175,10 +176,9 @@ void UNF_GameFlowViewModel::RefreshEscapeState()
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapePausedVisibility);
 	}
 
-	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeState, Progress.State))
-	{
-		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeStatusText);
-	}
+	UE_MVVM_SET_PROPERTY_VALUE(EscapeState, Progress.State);
+	// 상태가 같아도 탈출 팀이나 로컬 플레이어 컨텍스트가 바뀔 수 있다.
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeStatusText);
 
 	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeTotalSeconds, FMath::Max(0.0f, Progress.TotalDuration)))
 	{
@@ -282,10 +282,8 @@ void UNF_GameFlowViewModel::HandleEscapeProgressChanged(const FNF_EscapeProgress
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapePausedVisibility);
 	}
 
-	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeState, NewProgress.State))
-	{
-		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeStatusText);
-	}
+	UE_MVVM_SET_PROPERTY_VALUE(EscapeState, NewProgress.State);
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeStatusText);
 
 	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeTotalSeconds, FMath::Max(0.0f, NewProgress.TotalDuration)))
 	{
@@ -442,7 +440,31 @@ ESlateVisibility UNF_GameFlowViewModel::GetNotificationVisibility() const
 
 FText UNF_GameFlowViewModel::GetEscapeStatusText() const
 {
-	switch (EscapeState)
+	if (!IsValid(GameState))
+	{
+		return FText::GetEmpty();
+	}
+
+	const FNF_EscapeProgress Progress = GameState->GetEscapeProgress();
+	if (!Progress.bInProgress)
+	{
+		return FText::GetEmpty();
+	}
+
+	const ANF_PlayerState* LocalPlayerState =
+		Cast<ANF_PlayerState>(GetViewModelContext().PlayerState.Get());
+	if (!IsValid(LocalPlayerState))
+	{
+		return FText::GetEmpty();
+	}
+
+	// 팀 ID는 이미 배정 및 복제가 완료된 상태를 전제로 한다.
+	if (LocalPlayerState->NF_TeamID != Progress.TeamId)
+	{
+		return FText::FromString(TEXT("다른 팀이 탈출을 시도하고 있습니다."));
+	}
+
+	switch (Progress.State)
 	{
 	case ENF_EscapeState::CountingWithTeammate:
 		return FText::FromString(TEXT("탈출 진행 중"));
