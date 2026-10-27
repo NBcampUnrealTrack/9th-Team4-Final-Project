@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Data/Enum/NF_MatchPhase.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_GameFlowViewModel.generated.h"
@@ -33,6 +34,12 @@ public:
 
 	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Phase")
 	FText GetRemainingTimeText() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Phase")
+	ESlateVisibility GetPhaseTimerVisibility() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Notification")
+	ESlateVisibility GetNotificationVisibility() const;
 
 protected:
 	virtual void OnInitializeViewModel() override;

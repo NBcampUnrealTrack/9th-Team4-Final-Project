@@ -133,8 +133,14 @@ void UNF_WeaponStatusViewModel::RefreshWeapon()
 	}
 
 	UE_MVVM_SET_PROPERTY_VALUE(WeaponName, GetWeaponTypeText(Data->WeaponType));
-	UE_MVVM_SET_PROPERTY_VALUE(MagazineAmmo, FMath::Max(0, Weapon->GetCurrentAmmo()));
-	UE_MVVM_SET_PROPERTY_VALUE(MagazineSize, FMath::Max(0, Data->MagazineSize));
+	if (UE_MVVM_SET_PROPERTY_VALUE(MagazineAmmo, FMath::Max(0, Weapon->GetCurrentAmmo())))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetMagazineAmmoText);
+	}
+	if (UE_MVVM_SET_PROPERTY_VALUE(MagazineSize, FMath::Max(0, Data->MagazineSize)))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetMagazineSizeText);
+	}
 	UE_MVVM_SET_PROPERTY_VALUE(bHasWeapon, true);
 }
 
@@ -142,6 +148,22 @@ void UNF_WeaponStatusViewModel::ClearWeapon()
 {
 	UE_MVVM_SET_PROPERTY_VALUE(bHasWeapon, false);
 	UE_MVVM_SET_PROPERTY_VALUE(WeaponName, NSLOCTEXT("NFHUD", "NoWeapon", "무기 없음"));
-	UE_MVVM_SET_PROPERTY_VALUE(MagazineAmmo, 0);
-	UE_MVVM_SET_PROPERTY_VALUE(MagazineSize, 0);
+	if (UE_MVVM_SET_PROPERTY_VALUE(MagazineAmmo, 0))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetMagazineAmmoText);
+	}
+	if (UE_MVVM_SET_PROPERTY_VALUE(MagazineSize, 0))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetMagazineSizeText);
+	}
+}
+
+FText UNF_WeaponStatusViewModel::GetMagazineAmmoText() const
+{
+	return FText::AsNumber(FMath::Max(0, MagazineAmmo));
+}
+
+FText UNF_WeaponStatusViewModel::GetMagazineSizeText() const
+{
+	return FText::AsNumber(FMath::Max(0, MagazineSize));
 }

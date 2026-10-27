@@ -56,7 +56,13 @@ bool UNF_SkillSlotViewModel::ConfigureSlot(ENF_ItemType InSlotType,int32 InSlotI
     SlotType = InSlotType;
     SlotIndex = InSlotIndex;
 
-    UE_MVVM_SET_PROPERTY_VALUE(bIsPassive,InSlotType == ENF_ItemType::PassiveSkill);
+    if (UE_MVVM_SET_PROPERTY_VALUE(bIsPassive,InSlotType == ENF_ItemType::PassiveSkill))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetShortcutVisibility);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetCooldownText);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetCooldownVisibility);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSkillIconOpacity);
+    }
 
     if (IsViewModelInitialized()) {StartRefreshTimer();}
 
@@ -69,7 +75,10 @@ void UNF_SkillSlotViewModel::SetSkillIcon(FName InSkillId,UTexture2D* InIcon)
    
     if (SkillId != InSkillId) return;
 
-    UE_MVVM_SET_PROPERTY_VALUE(SkillIcon, InIcon);
+    if (UE_MVVM_SET_PROPERTY_VALUE(SkillIcon, InIcon))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSkillIconVisibility);
+    }
 }
 
 float UNF_SkillSlotViewModel::GetCooldownPercent() const
@@ -77,6 +86,46 @@ float UNF_SkillSlotViewModel::GetCooldownPercent() const
     if (CooldownDurationSeconds <= 0.0f) {return 0.0f;}
 
     return FMath::Clamp(CooldownRemainingSeconds / CooldownDurationSeconds,0.0f,1.0f);
+}
+
+FText UNF_SkillSlotViewModel::GetCooldownText() const
+{
+    if (!ShouldShowCooldown()) {return FText::GetEmpty();}
+
+    return FText::AsNumber(FMath::CeilToInt(CooldownRemainingSeconds));
+}
+
+ESlateVisibility UNF_SkillSlotViewModel::GetSkillIconVisibility() const
+{
+    if (bIsEquipped && IsValid(SkillIcon)) {return ESlateVisibility::HitTestInvisible;}
+
+    return ESlateVisibility::Hidden;
+}
+
+ESlateVisibility UNF_SkillSlotViewModel::GetShortcutVisibility() const
+{
+    if (bIsEquipped && !bIsPassive) {return ESlateVisibility::HitTestInvisible;}
+
+    return ESlateVisibility::Collapsed;
+}
+
+ESlateVisibility UNF_SkillSlotViewModel::GetCooldownVisibility() const
+{
+    if (ShouldShowCooldown()) {return ESlateVisibility::HitTestInvisible;}
+
+    return ESlateVisibility::Collapsed;
+}
+
+float UNF_SkillSlotViewModel::GetSkillIconOpacity() const
+{
+    if (bIsEquipped && (bIsPassive || bCanUse)) {return 1.0f;}
+
+    return 0.35f;
+}
+
+bool UNF_SkillSlotViewModel::ShouldShowCooldown() const
+{
+    return bIsEquipped && !bIsPassive && CooldownRemainingSeconds > 0.0f;
 }
 
 void UNF_SkillSlotViewModel::OnInitializeViewModel()
@@ -241,14 +290,29 @@ void UNF_SkillSlotViewModel::RefreshSlot()
     UE_MVVM_SET_PROPERTY_VALUE(SkillId, NewSkillId);
     UE_MVVM_SET_PROPERTY_VALUE(SkillName, NewSkillName);
     // 빈 슬롯, 원본 누락, 아이콘 미지정 시에도 이전 이미지를 정리한다.
-    UE_MVVM_SET_PROPERTY_VALUE(SkillIcon, NewSkillIcon);
-    UE_MVVM_SET_PROPERTY_VALUE(bIsEquipped, !NewSkillId.IsNone());
+    if (UE_MVVM_SET_PROPERTY_VALUE(SkillIcon, NewSkillIcon))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSkillIconVisibility);
+    }
+    if (UE_MVVM_SET_PROPERTY_VALUE(bIsEquipped, !NewSkillId.IsNone()))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSkillIconVisibility);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetShortcutVisibility);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetCooldownText);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetCooldownVisibility);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSkillIconOpacity);
+    }
     UE_MVVM_SET_PROPERTY_VALUE(ShortcutText, NewShortcutText);
-    UE_MVVM_SET_PROPERTY_VALUE(bCanUse, bNewCanUse);
+    if (UE_MVVM_SET_PROPERTY_VALUE(bCanUse, bNewCanUse))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSkillIconOpacity);
+    }
 
     if (UE_MVVM_SET_PROPERTY_VALUE(CooldownRemainingSeconds,FMath::Max(0.0f, NewRemainingSeconds)))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetCooldownPercent);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetCooldownText);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetCooldownVisibility);
     }
 
     if (UE_MVVM_SET_PROPERTY_VALUE(CooldownDurationSeconds,FMath::Max(0.0f, NewDurationSeconds)))

@@ -18,10 +18,6 @@ public:
 
 	APlayerState* GetMemberPlayerState() const;
 
-	// 레벨 데이터 제공자가 변경 시 호출한다.
-	UFUNCTION(BlueprintCallable, Category = "NF|UI|Team")
-	void SetMemberLevel(int32 NewLevel);
-
 protected:
 	virtual void OnDeinitializeViewModel() override;
 

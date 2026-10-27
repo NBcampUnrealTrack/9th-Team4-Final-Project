@@ -120,7 +120,10 @@ void UNF_GameFlowViewModel::RefreshFromGameState()
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetPhaseText);
 	}
 
-	UE_MVVM_SET_PROPERTY_VALUE(bShowPhaseTimer,MatchState.bHasTimeLimit);
+	if (UE_MVVM_SET_PROPERTY_VALUE(bShowPhaseTimer,MatchState.bHasTimeLimit))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetPhaseTimerVisibility);
+	}
 
 	RefreshRemainingTime();
 }
@@ -156,7 +159,10 @@ void UNF_GameFlowViewModel::HandleMatchStateChanged(FNF_MatchState& NewMatchStat
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetPhaseText);
 	}
 
-	UE_MVVM_SET_PROPERTY_VALUE(bShowPhaseTimer,NewMatchState.bHasTimeLimit);
+	if (UE_MVVM_SET_PROPERTY_VALUE(bShowPhaseTimer,NewMatchState.bHasTimeLimit))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetPhaseTimerVisibility);
+	}
 
 	RefreshRemainingTime();
 
@@ -221,7 +227,10 @@ void UNF_GameFlowViewModel::ShowNotification(const FNF_QueuedNotification& Notif
 	if (!IsValid(World))return;
 
 	UE_MVVM_SET_PROPERTY_VALUE(NotificationText,Notification.Message);
-	UE_MVVM_SET_PROPERTY_VALUE(bShowNotification,true);
+	if (UE_MVVM_SET_PROPERTY_VALUE(bShowNotification,true))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetNotificationVisibility);
+	}
 
 	NotificationEndWorldTime =World->GetTimeSeconds()+ Notification.DisplayDuration;
 }
@@ -263,7 +272,10 @@ void UNF_GameFlowViewModel::ClearNotification()
 	NotificationEndWorldTime = 0.0;
 
 	UE_MVVM_SET_PROPERTY_VALUE(NotificationText,FText::GetEmpty());
-	UE_MVVM_SET_PROPERTY_VALUE(bShowNotification,false);
+	if (UE_MVVM_SET_PROPERTY_VALUE(bShowNotification,false))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetNotificationVisibility);
+	}
 }
 
 FText UNF_GameFlowViewModel::GetPhaseText() const
@@ -293,4 +305,14 @@ FText UNF_GameFlowViewModel::GetRemainingTimeText() const
 	const int32 Seconds =RemainingPhaseSeconds % 60;
 
 	return FText::FromString(FString::Printf(TEXT("%02d:%02d"),Minutes,Seconds));
+}
+
+ESlateVisibility UNF_GameFlowViewModel::GetPhaseTimerVisibility() const
+{
+	return bShowPhaseTimer ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+}
+
+ESlateVisibility UNF_GameFlowViewModel::GetNotificationVisibility() const
+{
+	return bShowNotification ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
 }
