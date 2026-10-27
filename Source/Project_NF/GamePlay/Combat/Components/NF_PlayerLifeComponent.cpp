@@ -547,7 +547,31 @@ ENFTeammateCheckResult UNF_PlayerLifeComponent::CheckAliveTeammate() const
 	
 	if (!IsValid(TeammatePawn))
 	{
-		return ENFTeammateCheckResult::Unknown;
+		const ANF_GameMode* NF_GameMode =
+			World->GetAuthGameMode<ANF_GameMode>();
+		
+		if (!IsValid(NF_GameMode))
+		{
+			return ENFTeammateCheckResult::Unknown;
+		}
+		
+		const ENF_PlayerPawnState PawnState =
+			NF_GameMode->GetPlayerPawnState(TeammateState);
+
+		switch (PawnState)
+		{
+		case ENF_PlayerPawnState::InitialSpawnPending:
+		case ENF_PlayerPawnState::Unknown:
+			return ENFTeammateCheckResult::Unknown;
+			
+		case ENF_PlayerPawnState::RespawnPending:
+		case ENF_PlayerPawnState::Eliminated:
+			return ENFTeammateCheckResult::NoAliveTeammate;
+			
+		case ENF_PlayerPawnState::Active:
+		default:
+			return ENFTeammateCheckResult::Unknown;
+		}
 	}
 	
 	if (TeammatePawn->IsActorBeingDestroyed())
