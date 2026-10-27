@@ -25,6 +25,11 @@ void UNF_MonsterStatusViewModel::SetObservedUnit(
 	RefreshFromAbilitySystem();
 }
 
+void UNF_MonsterStatusViewModel::SetUnitName(const FText& InUnitName)
+{
+	UE_MVVM_SET_PROPERTY_VALUE(UnitName, InUnitName);
+}
+
 void UNF_MonsterStatusViewModel::ClearObservedUnit()
 {
 	UnbindAbilitySystemDelegates();
@@ -153,4 +158,9 @@ float UNF_MonsterStatusViewModel::GetHealthPercent() const
 	if (MaxHealth <= 0.0f) {return 0.0f;}
 
 	return FMath::Clamp(CurrentHealth / MaxHealth, 0.0f, 1.0f);
+}
+
+FText UNF_MonsterStatusViewModel::GetUnitName() const
+{
+	return UnitName;
 }
