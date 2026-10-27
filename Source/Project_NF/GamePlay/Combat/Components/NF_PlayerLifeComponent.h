@@ -7,6 +7,7 @@
 
 class UGameplayEffect;
 class UAbilitySystemComponent;
+class UNF_PlayerLifeComponent;
 struct FOnAttributeChangeData;
 
 // 플레이어의 생존 상태
@@ -17,6 +18,11 @@ enum class ENFPlayerLifeState : uint8
 	Downed UMETA(DisplayName = "Downed"),
 	Dead UMETA(DisplayName = "Dead"),
 };
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(
+	FNF_OnServerPlayerLifeStateChanged,
+	UNF_PlayerLifeComponent*,
+	ENFPlayerLifeState);
 
 enum class ENFTeammateCheckResult : uint8
 {
@@ -86,6 +92,8 @@ public:
 	// 생존 상태 변경 알림
 	UPROPERTY(BlueprintAssignable, Category = "Life")
 	FOnPlayerLifeStateChanged OnLifeStateChanged;
+	
+	FNF_OnServerPlayerLifeStateChanged OnServerPlayerLifeStateChanged;
 	
 	// 체력 0 되면 알림
 	UPROPERTY(BlueprintAssignable, Category = "Life|Health")
