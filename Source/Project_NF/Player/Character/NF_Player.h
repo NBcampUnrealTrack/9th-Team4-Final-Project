@@ -45,8 +45,8 @@ public:
 	UPROPERTY(EditAnywhere, Replicated)
 	ENF_WeaponType NF_WeaponType = ENF_WeaponType::Pistol;
 	
-	/*UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Equipment")
-	TObjectPtr<USkeletalMeshComponent> MeleeAttackMeshComponent;*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Equipment")
+	TObjectPtr<USkeletalMeshComponent> MeleeAttackMeshComponent;
 	
 protected:
 	virtual void PostInitializeComponents() override;
