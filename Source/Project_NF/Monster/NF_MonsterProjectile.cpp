@@ -48,8 +48,8 @@ ANF_MonsterProjectile::ANF_MonsterProjectile()
         CreateDefaultSubobject<UProjectileMovementComponent>(
             TEXT("ProjectileMovementComponent"));
 
-    ProjectileMovementComponent->InitialSpeed = 1200.0f;
-    ProjectileMovementComponent->MaxSpeed = 1200.0f;
+    ProjectileMovementComponent->InitialSpeed = 2400.0f;
+    ProjectileMovementComponent->MaxSpeed = 2400.0f;
     ProjectileMovementComponent->bRotationFollowsVelocity = true;
     ProjectileMovementComponent->ProjectileGravityScale = 0.0f;
 }

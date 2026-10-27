@@ -25,10 +25,16 @@ public:
 
 	/** Applies immediate combat awareness when a player damages this monster. */
 	void ApplyDamageAggro(AActor* DamageSource);
+
+	bool HasPersistentDamageAggro() const { return bPersistentDamageAggro; }
+
+	void SetGuardFocusActor(AActor* InGuardFocusActor);
+
+	AActor* GetGuardFocusActor() const;
 	
 	void SetCurrentTargetActor(AActor* NewTargetActor);
 
-	void ClearCurrentTargetActor();
+	void ClearCurrentTargetActor(bool bForceClear = false);
 	
 	void UpdateLastKnownLocation();
 	
@@ -58,6 +64,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|AI")
 	FName CombatSlotAnchorLocationKeyName = TEXT("CombatSlotAnchorLocation");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|AI")
+	FName GuardFocusActorKeyName = TEXT("GuardFocusActor");
 	
 	// 타깃 변경 직후, 현재 타깃을 최소한 유지할 시간
 	UPROPERTY(
@@ -90,4 +99,9 @@ private:
 
 	// 서버 월드 시간 기준으로 타깃 변경이 다시 허용되는 시각
 	float TargetLockEndTime = 0.0f;
+
+	// A player that damages the monster remains its target until force-cleared.
+	bool bPersistentDamageAggro = false;
+
+	TWeakObjectPtr<AActor> PersistentAggroTarget;
 };
