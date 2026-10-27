@@ -17,7 +17,6 @@ class PROJECT_NF_API UNF_TeamPanelWidget : public UUserWidget
 
 public:
 	// HUD에서 지정한다. nullptr를 전달하면 구독과 행을 모두 해제한다.
-	UFUNCTION(BlueprintCallable, Category = "NF|UI|Team")
 	void SetTeamPanelViewModel(UNF_TeamPanelViewModel* NewViewModel);
 
 protected:

@@ -4,7 +4,7 @@
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_InteractionViewModel.generated.h"
 
-class UNF_PlayerInputDataAsset;
+class UNF_PlayerControllerDataAsset;
 
 UENUM(BlueprintType)
 enum class ENF_InteractionTargetType : uint8
@@ -60,7 +60,7 @@ class PROJECT_NF_API UNF_InteractionViewModel : public UNF_ViewModelBase
 
 public:
 	//상호작용 키를 가져옴
-	void ConfigureInput(const UNF_PlayerInputDataAsset* InputDataAsset);
+	void ConfigureInput(const UNF_PlayerControllerDataAsset* InputDataAsset);
 
 	//상호작용 대상의 상태
 	void ApplyInteractionState(const FNF_InteractionViewData& NewState);
