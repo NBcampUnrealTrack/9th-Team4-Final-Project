@@ -288,12 +288,12 @@ void ANF_PlayerController::CreateGameHUD()
 {
 	if (IsLocalController() == true)
 	{
-		if (GameHUDClass == nullptr) return;
+		if (NF_PlayerControllerDataAsset->GameHUDClass == nullptr) return;
 
 		auto* UIManager = ULocalPlayer::GetSubsystem<UNF_UIManagerSubsystem>(GetLocalPlayer());
 		if (IsValid(UIManager) == false) return;
 
-		UIManager->SetHUD(GameHUDClass);
+		UIManager->SetHUD(NF_PlayerControllerDataAsset->GameHUDClass);
 	}
 }
 
