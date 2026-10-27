@@ -4,6 +4,7 @@
 #include "NF_GameFlowViewModel.h"
 
 #include "Core/NF_GameState.h"
+#include "Player/State/NF_PlayerState.h"
 
 void UNF_GameFlowViewModel::OnInitializeViewModel()
 {
@@ -55,6 +56,7 @@ void UNF_GameFlowViewModel::TryBindGameState()
 	
 
 	GameState->OnMatchStateChanged.AddUObject(this,&ThisClass::HandleMatchStateChanged);
+	GameState->OnEscapeProgressChanged.AddUObject(this,&ThisClass::HandleEscapeProgressChanged);
 
 	RefreshFromGameState();
 }
@@ -64,6 +66,7 @@ void UNF_GameFlowViewModel::UnbindGameState()
 	if (IsValid(GameState))
 	{
 		GameState->OnMatchStateChanged.RemoveAll(this);
+		GameState->OnEscapeProgressChanged.RemoveAll(this);
 	}
 
 	GameState = nullptr;
@@ -106,6 +109,8 @@ void UNF_GameFlowViewModel::RefreshViewModel()
 	TryBindGameState();
 
 	RefreshRemainingTime();
+	RefreshEscapeRemainingTime();
+	RefreshConclusionTime();
 	UpdateNotification();
 }
 
@@ -126,6 +131,8 @@ void UNF_GameFlowViewModel::RefreshFromGameState()
 	}
 
 	RefreshRemainingTime();
+	RefreshEscapeState();
+	RefreshConclusionTime();
 }
 
 void UNF_GameFlowViewModel::RefreshRemainingTime()
@@ -150,6 +157,97 @@ void UNF_GameFlowViewModel::RefreshRemainingTime()
 	}
 }
 
+void UNF_GameFlowViewModel::RefreshEscapeState()
+{
+	FNF_EscapeProgress Progress;
+
+	if (IsValid(GameState))
+	{
+		Progress = GameState->GetEscapeProgress();
+	}
+
+	if (UE_MVVM_SET_PROPERTY_VALUE(bShowEscapeProgress, Progress.bInProgress))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeProgressVisibility);
+	}
+
+	if (UE_MVVM_SET_PROPERTY_VALUE(bEscapePaused, Progress.bPaused))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapePausedVisibility);
+	}
+
+	UE_MVVM_SET_PROPERTY_VALUE(EscapeState, Progress.State);
+	// 상태가 같아도 탈출 팀이나 로컬 플레이어 컨텍스트가 바뀔 수 있다.
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeStatusText);
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeDetailsVisibility);
+
+	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeTotalSeconds, FMath::Max(0.0f, Progress.TotalDuration)))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeTotalTimeText);
+	}
+
+	RefreshEscapeRemainingTime();
+}
+
+void UNF_GameFlowViewModel::RefreshEscapeRemainingTime()
+{
+	float NewRemainingSeconds = 0.0f;
+
+	if (IsValid(GameState) && bShowEscapeProgress)
+	{
+		NewRemainingSeconds = GameState->GetRemainingEscapeTime();
+	}
+
+	NewRemainingSeconds = FMath::Max(0.0f, NewRemainingSeconds);
+
+	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeRemainingSeconds, NewRemainingSeconds))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeRemainingTimeText);
+	}
+
+	float NewProgressPercent = 0.0f;
+	if (EscapeTotalSeconds > KINDA_SMALL_NUMBER)
+	{
+		NewProgressPercent = 1.0f - NewRemainingSeconds / EscapeTotalSeconds;
+		NewProgressPercent = FMath::Clamp(NewProgressPercent, 0.0f, 1.0f);
+	}
+
+	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeProgressPercent, NewProgressPercent))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeProgressPercent);
+	}
+}
+
+void UNF_GameFlowViewModel::RefreshConclusionTime()
+{
+	bool bNewShowConclusionTimer = false;
+	int32 NewRemainingSeconds = 0;
+
+	if (IsValid(GameState))
+	{
+		const FNF_MatchState MatchState = GameState->GetMatchState();
+		bNewShowConclusionTimer = MatchState.Phase == ENF_MatchPhase::Finished &&
+			MatchState.ConclusionEndServerTime > 0.0;
+
+		if (bNewShowConclusionTimer)
+		{
+			NewRemainingSeconds = FMath::CeilToInt(GameState->GetRemainingConclusionTime());
+		}
+	}
+
+	NewRemainingSeconds = FMath::Max(0, NewRemainingSeconds);
+
+	if (UE_MVVM_SET_PROPERTY_VALUE(bShowConclusionTimer, bNewShowConclusionTimer))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetConclusionTimerVisibility);
+	}
+
+	if (UE_MVVM_SET_PROPERTY_VALUE(RemainingConclusionSeconds, NewRemainingSeconds))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetConclusionRemainingTimeText);
+	}
+}
+
 void UNF_GameFlowViewModel::HandleMatchStateChanged(FNF_MatchState& NewMatchState)
 {
 	const bool bPhaseChanged =CurrentPhase != NewMatchState.Phase;
@@ -165,11 +263,36 @@ void UNF_GameFlowViewModel::HandleMatchStateChanged(FNF_MatchState& NewMatchStat
 	}
 
 	RefreshRemainingTime();
+	RefreshConclusionTime();
 
 	if (bPhaseChanged)
 	{
 		ShowPhaseNotification(NewMatchState.Phase);
 	}
+}
+
+void UNF_GameFlowViewModel::HandleEscapeProgressChanged(const FNF_EscapeProgress& NewProgress)
+{
+	if (UE_MVVM_SET_PROPERTY_VALUE(bShowEscapeProgress, NewProgress.bInProgress))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeProgressVisibility);
+	}
+
+	if (UE_MVVM_SET_PROPERTY_VALUE(bEscapePaused, NewProgress.bPaused))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapePausedVisibility);
+	}
+
+	UE_MVVM_SET_PROPERTY_VALUE(EscapeState, NewProgress.State);
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeStatusText);
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeDetailsVisibility);
+
+	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeTotalSeconds, FMath::Max(0.0f, NewProgress.TotalDuration)))
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeTotalTimeText);
+	}
+
+	RefreshEscapeRemainingTime();
 }
 
 void UNF_GameFlowViewModel::ShowPhaseNotification(const ENF_MatchPhase NewPhase)
@@ -315,4 +438,111 @@ ESlateVisibility UNF_GameFlowViewModel::GetPhaseTimerVisibility() const
 ESlateVisibility UNF_GameFlowViewModel::GetNotificationVisibility() const
 {
 	return bShowNotification ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+}
+
+FText UNF_GameFlowViewModel::GetEscapeStatusText() const
+{
+	if (!IsValid(GameState))
+	{
+		return FText::GetEmpty();
+	}
+
+	const FNF_EscapeProgress Progress = GameState->GetEscapeProgress();
+	if (!Progress.bInProgress)
+	{
+		return FText::GetEmpty();
+	}
+
+	const ANF_PlayerState* LocalPlayerState =
+		Cast<ANF_PlayerState>(GetViewModelContext().PlayerState.Get());
+	if (!IsValid(LocalPlayerState))
+	{
+		return FText::GetEmpty();
+	}
+
+	// 팀 ID는 이미 배정 및 복제가 완료된 상태를 전제로 한다.
+	if (LocalPlayerState->NF_TeamID != Progress.TeamId)
+	{
+		return FText::FromString(TEXT("다른 팀이 탈출을 시도하고 있습니다."));
+	}
+
+	switch (Progress.State)
+	{
+	case ENF_EscapeState::CountingWithTeammate:
+		return FText::FromString(TEXT("탈출 진행 중"));
+
+	case ENF_EscapeState::PausedForTeammate:
+		return FText::FromString(TEXT("팀원 대기"));
+
+	case ENF_EscapeState::CountingSolo:
+		return FText::FromString(TEXT("단독 탈출 진행 중"));
+
+	case ENF_EscapeState::Idle:
+	default:
+		return FText::GetEmpty();
+	}
+}
+
+FText UNF_GameFlowViewModel::GetEscapeRemainingTimeText() const
+{
+	return FText::FromString(FString::Printf(TEXT("%.1f초"), EscapeRemainingSeconds));
+}
+
+FText UNF_GameFlowViewModel::GetEscapeTotalTimeText() const
+{
+	return FText::FromString(FString::Printf(TEXT("%.1f초"), EscapeTotalSeconds));
+}
+
+float UNF_GameFlowViewModel::GetEscapeProgressPercent() const
+{
+	return EscapeProgressPercent;
+}
+
+ESlateVisibility UNF_GameFlowViewModel::GetEscapeProgressVisibility() const
+{
+	return bShowEscapeProgress ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+}
+
+ESlateVisibility UNF_GameFlowViewModel::GetEscapeDetailsVisibility() const
+{
+	if (!IsValid(GameState))
+	{
+		return ESlateVisibility::Collapsed;
+	}
+
+	const FNF_EscapeProgress Progress = GameState->GetEscapeProgress();
+	if (!Progress.bInProgress)
+	{
+		return ESlateVisibility::Collapsed;
+	}
+
+	const ANF_PlayerState* LocalPlayerState =
+		Cast<ANF_PlayerState>(GetViewModelContext().PlayerState.Get());
+	if (!IsValid(LocalPlayerState))
+	{
+		return ESlateVisibility::Collapsed;
+	}
+
+	if (LocalPlayerState->NF_TeamID != Progress.TeamId)
+	{
+		return ESlateVisibility::Collapsed;
+	}
+
+	return ESlateVisibility::HitTestInvisible;
+}
+
+ESlateVisibility UNF_GameFlowViewModel::GetEscapePausedVisibility() const
+{
+	return bEscapePaused ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+}
+
+FText UNF_GameFlowViewModel::GetConclusionRemainingTimeText() const
+{
+	return FText::FromString(
+		FString::Printf(TEXT("서버 연결 종료까지 %d초"), RemainingConclusionSeconds));
+}
+
+ESlateVisibility UNF_GameFlowViewModel::GetConclusionTimerVisibility() const
+{
+	return bShowConclusionTimer ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
 }

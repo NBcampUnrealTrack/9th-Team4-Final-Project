@@ -566,7 +566,7 @@ bool ANF_GameMode::FinishMatch(const FNF_MatchResult& Result)
 	// 결과 변경 이벤트 내부의 재진입을 먼저 차단.
 	bMatchFinalized = true;
 
-	if (!NFGameState->AuthorityFinishMatch(Result))
+	if (!NFGameState->AuthorityFinishMatch(Result, FMath::Max(0.1f, ResultDisplayDuration)))
 	{
 		bMatchFinalized = false;
 		return false;

@@ -4,6 +4,7 @@
 #include "Engine/DataAsset.h"
 #include "NF_WeaponTypes.h"
 #include "Data/Enum/NF_ItemTypes.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
 #include "NF_WeaponDataAsset.generated.h"
 
 UENUM(BlueprintType)
@@ -23,11 +24,16 @@ enum class ENF_ZoomMode : uint8
 };
 
 UCLASS()
-class PROJECT_NF_API UNF_WeaponDataAsset : public UDataAsset
+class PROJECT_NF_API UNF_WeaponDataAsset : public UDataAsset, public INF_BuildItemSource
 {
 	GENERATED_BODY()
 	
 public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon|Build")
+	TSubclassOf<ANF_WeaponBase> WeaponClass;
+
+	virtual bool GetBuildItemData_Implementation(FNF_BuildItemData& OutData) const override;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	int32 Cost = 0;
 	
@@ -44,6 +50,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	FName MuzzleSocketName = TEXT("Muzzle");
 
+	// // 무기별 발사 사운드. 재생할 에셋이 없으면 None으로 둔다.
+	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
+	// TObjectPtr<class USoundBase> FireSound = nullptr;
+	//
+	// // MuzzleSocketName 소켓에서 재생할 Niagara 머즐 플래시.
+	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
+	// TObjectPtr<class UNiagaraSystem> MuzzleFlashSystem = nullptr;
+
 	// 스코프 카메라를 부착할 무기 메시 소켓.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom")
 	FName ScopeSocketName = TEXT("Scope");
@@ -54,14 +68,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(ClampMin="5.0", ClampMax="170.0", EditCondition="ZoomMode != ENF_ZoomMode::None"))
 	float ZoomFieldOfView = 60.f;
 
-	// Zero applies the target FOV immediately.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(ClampMin="0.0", EditCondition="ZoomMode != ENF_ZoomMode::None"))
 	float ZoomInterpSpeed = 12.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(ClampMin="0.01", ClampMax="1.0", EditCondition="ZoomMode != ENF_ZoomMode::None"))
 	float ZoomSensitivityMultiplier = 0.7f;
 
-	// Hide character/weapon meshes only for the local player while scoped.
+	// 스코프 시 캐릭터, 무기 메시 숨김 여부
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom", meta=(EditCondition="ZoomMode == ENF_ZoomMode::Scope"))
 	bool bHideMeshesWhileScoped = true;
 

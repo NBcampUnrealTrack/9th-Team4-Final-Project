@@ -4,14 +4,20 @@
 #include "Engine/DataAsset.h"
 #include "GamePlay/Combat/Armor/NF_ArmorTypes.h"
 #include "Data/Enum/NF_ItemTypes.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
 #include "NF_ArmorDataAsset.generated.h"
 
 UCLASS()
-class PROJECT_NF_API UNF_ArmorDataAsset : public UDataAsset
+class PROJECT_NF_API UNF_ArmorDataAsset : public UDataAsset, public INF_BuildItemSource
 {
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor|Build")
+	TSubclassOf<ANF_ArmorBase> ArmorClass;
+
+	virtual bool GetBuildItemData_Implementation(FNF_BuildItemData& OutData) const override;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	int32 Cost = 0;
 	
