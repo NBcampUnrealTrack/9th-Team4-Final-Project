@@ -48,7 +48,7 @@ void UNF_PlayerLevelAttribute::GetLifetimeReplicatedProps(TArray<class FLifetime
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxLevel, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, CurrentLevel, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, CurrentExp, COND_None, REPNOTIFY_Always);
-	//DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, TargetExp, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, TargetExp, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, IncomingExp, COND_None, REPNOTIFY_Always);
 }
 
@@ -67,10 +67,10 @@ void UNF_PlayerLevelAttribute::OnRep_CurrentExp(const FGameplayAttributeData& Ol
 	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, CurrentExp, OldCurrentExp);
 }
 
-/*void UNF_PlayerLevelAttribute::OnRep_TargetExp(const FGameplayAttributeData& OldTargetExp)
+void UNF_PlayerLevelAttribute::OnRep_TargetExp(const FGameplayAttributeData& OldTargetExp)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, TargetExp, OldTargetExp);
-}*/
+}
 
 void UNF_PlayerLevelAttribute::OnRep_IncomingExp(const FGameplayAttributeData& OldIncomingExp)
 {
