@@ -34,19 +34,14 @@ protected:
 #pragma region MeleeTrace
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeleeTrace")
 	int32 SubStepCount = 4;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeleeTrace")
-	FName MeleeSocket_Start = TEXT("MeleeSocket_Start");
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeleeTrace")
-	FName MeleeSocket_End = TEXT("MeleeSocket_End");
 	
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> HitActors;
 	
 	UPROPERTY()
-	TObjectPtr<UMeshComponent> WeaponMesh;
+	TObjectPtr<UMeshComponent> MeleeAttackMeshComp;
 	
-	UMeshComponent* GetWeaponMeshFromSourceActor(AActor* InSourceActor) const;
+	UMeshComponent* GetMeleeAttackMeshFromSourceActor(AActor* InSourceActor) const;
 	
 	UFUNCTION(BlueprintCallable)
 	TArray<FHitResult> GetMeleeTraceResults(AActor* InSourceActor);
@@ -54,6 +49,9 @@ protected:
 	void ResetMeleeTrace();
 
 	float MeleeTraceRadius = 20.0f;
+	FName MeleeSocket_Start = "MeleeSocket_Start";
+	FName MeleeSocket_End = "MeleeSocket_End";
+	
 	FVector PreviousStartLocation = FVector::ZeroVector;
 	FVector PreviousEndLocation = FVector::ZeroVector;
 	bool bIsPreviousLocationValid = false;

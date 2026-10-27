@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystemInterface.h"
+#include "Data/Interface/NF_MeleeAttackInterface.h"
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "Player/Data/NF_PlayerActionType.h"
@@ -24,7 +25,7 @@ class USpringArmComponent;
 class UCameraComponent;
 
 UCLASS()
-class PROJECT_NF_API ANF_Player : public ACharacter, public IAbilitySystemInterface
+class PROJECT_NF_API ANF_Player : public ACharacter, public IAbilitySystemInterface, public INF_MeleeAttackInterface
 {
 	GENERATED_BODY()
 
@@ -33,20 +34,24 @@ public:
 	
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override; 
 	
+	virtual UMeshComponent* NF_GetMeleeAttackMesh() override {return MeleeAttackMeshComponent;};
+	
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	
 	void OnTryAction(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	void OnSkillBind(APlayerController* SendController, ENF_PlayerActionType ActionType);
 	
-	//TODO 데이터어셋화 하기
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
+	TObjectPtr<UStaticMeshComponent> MeleeAttackMeshComponent;
 	
 	UPROPERTY(EditAnywhere, Replicated)
 	ENF_WeaponType NF_WeaponType = ENF_WeaponType::Pistol;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Equipment")
-	TObjectPtr<USkeletalMeshComponent> MeleeAttackMeshComponent;
+	
 	
 protected:
 	virtual void PostInitializeComponents() override;
@@ -82,9 +87,7 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
 	TObjectPtr<UNF_ConsumableComponent> NF_ConsumableComponent;
 	
-	//TODO 데이터어셋화 하기
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|Interaction")
-	float InteractionRange = 300.0f;
+	
 	
 private:
 	void ConfigBindDelegate();
@@ -94,6 +97,9 @@ private:
 	void ConfigLevelAttribute();
 	
 	void GainExpToKiller();
+	
+	FName MeleeAttackSocket = "MeleeAttackSocket";
+	float InteractionRange = 0.0f;
 	
 #pragma region TryAction
 private:
