@@ -105,7 +105,13 @@ bool UNF_ConsumableComponent::TryUseItem(int32 SlotIndex)
 		|| !GetWorld() || !Slots.IsValidIndex(SlotIndex)) { return false; }
 	const FNF_ConsumableSlot Before = Slots[SlotIndex];
 	const auto* Data = Before.ItemData.Get();
-	if (!IsValid(Data) || Before.Quantity <= 0 || !Data->ItemClass
+	if (!IsValid(Data) || Before.Quantity <= 0)
+	{
+		UE_LOG(LogProject_NF, Log, TEXT("[Consumable] 사용 취소: 빈 슬롯 | 캐릭터=%s | 슬롯=%d | 수량=%d"),
+			*GetNameSafe(User), SlotIndex, Before.Quantity);
+		return false;
+	}
+	if (!Data->ItemClass
 		|| !Data->ItemClass->IsChildOf(ANF_ConsumableItem::StaticClass())
 		|| Data->ItemClass->HasAnyClassFlags(CLASS_Abstract)) { return false; }
 

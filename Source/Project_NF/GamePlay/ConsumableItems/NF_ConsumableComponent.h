@@ -9,7 +9,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnConsumableSlotsChanged);
 
 // @Owner: 이정준 (구현: Codex) | 2026-10-26
-// 5칸 소모품 보관 및 서버 사용 요청. 픽업/키 입력은 외부에서 연결한다.
+// 5칸 소모품 보관 및 서버 사용 요청. 키 입력은 외부에서 연결한다.
 UCLASS(ClassGroup = (NF), BlueprintType, meta = (BlueprintSpawnableComponent))
 class PROJECT_NF_API UNF_ConsumableComponent : public UActorComponent, public INF_UseItemInterface
 {
