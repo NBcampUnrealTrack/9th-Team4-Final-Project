@@ -18,7 +18,7 @@ public:
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxLevel);
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, CurrentLevel);
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, CurrentExp);
-	//ATTRIBUTE_ACCESSORS_BASIC(ThisClass, TargetExp);
+	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, TargetExp);
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, IncomingExp);
 	
 	UPROPERTY(BlueprintAssignable)
@@ -40,8 +40,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_CurrentExp, Category = "Player|Attribute")
 	FGameplayAttributeData CurrentExp = 0.0f;
 	
-	/*UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_TargetExp, Category = "Player|Attribute")
-	FGameplayAttributeData TargetExp = 100.0f;*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_TargetExp, Category = "Player|Attribute")
+	FGameplayAttributeData TargetExp = 100.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_IncomingExp, Category = "Player|Attribute")
 	FGameplayAttributeData IncomingExp = 0.0f;
@@ -55,8 +55,8 @@ protected:
 	UFUNCTION()
 	void OnRep_CurrentExp(const FGameplayAttributeData& OldCurrentExp);
 	
-	/*UFUNCTION()
-	void OnRep_TargetExp(const FGameplayAttributeData& OldTargetExp);*/
+	UFUNCTION()
+	void OnRep_TargetExp(const FGameplayAttributeData& OldTargetExp);
 	
 	UFUNCTION()
 	void OnRep_IncomingExp(const FGameplayAttributeData& OldIncomingExp);
