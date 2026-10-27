@@ -2,17 +2,21 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "NF_PlayerInputDataAsset.generated.h"
+#include "NF_PlayerControllerDataAsset.generated.h"
 
+class UNF_GameHUDWidget;
 class UInputAction;
 class UInputMappingContext;
 
 UCLASS()
-class PROJECT_NF_API UNF_PlayerInputDataAsset : public UDataAsset
+class PROJECT_NF_API UNF_PlayerControllerDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 	
 public:
+	UPROPERTY(EditDefaultsOnly, Category = "PlayerController|UI")
+	TSubclassOf<UNF_GameHUDWidget> GameHUDClass;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UInputMappingContext> NF_PlayerIMC;
 	

@@ -2,10 +2,10 @@
 
 #include "EnhancedActionKeyMapping.h"
 #include "InputMappingContext.h"
-#include "Player/Data/NF_PlayerInputDataAsset.h"
+#include "Player/Data/NF_PlayerControllerDataAsset.h"
 
 void UNF_InteractionViewModel::ConfigureInput(
-	const UNF_PlayerInputDataAsset* InputDataAsset)
+	const UNF_PlayerControllerDataAsset* InputDataAsset)
 {
 	FText NewInteractionKeyText;
 

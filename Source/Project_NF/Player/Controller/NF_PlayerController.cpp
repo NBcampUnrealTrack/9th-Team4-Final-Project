@@ -10,7 +10,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Player/Character/NF_Player.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
-#include "Player/Data/NF_PlayerInputDataAsset.h"
+#include "Player/Data/NF_PlayerControllerDataAsset.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -39,10 +39,9 @@ void ANF_PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	//TODO 정준님 협의 필요 (남이 내 코드를 건드린거라 왜 붙힌건지 알 수 가 없음, 아마도 리프레쉬 용도인듯)
-	RefreshMiniMap();
 	
 	InputConfig();
+	RefreshMiniMap();
 	BindDelegate();
 	CreateGameHUD();
 }
@@ -55,13 +54,13 @@ void ANF_PlayerController::InputConfig()
 		auto* EILPS = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(this->GetLocalPlayer());
 		if (IsValid(EILPS) == false) return;
 
-		if (NF_PlayerInputDataAsset == nullptr)
+		if (NF_PlayerControllerDataAsset == nullptr)
 		{
-			UE_LOG(LogTemp, Error, TEXT("[NF_PlayerInputDataAsset]이 유효하지않아, Key바인딩이 무시됩니다."));
+			UE_LOG(LogTemp, Error, TEXT("[NF_PlayerControllerDataAsset]이 유효하지않아, Key바인딩이 무시됩니다."));
 			return;
 		}
 		
-		EILPS->AddMappingContext(NF_PlayerInputDataAsset->NF_PlayerIMC, 0);
+		EILPS->AddMappingContext(NF_PlayerControllerDataAsset->NF_PlayerIMC, 0);
 	}
 }
 
@@ -84,7 +83,7 @@ void ANF_PlayerController::SetupInputComponent()
 
 void ANF_PlayerController::BindInputButton()
 {
-	if (NF_PlayerInputDataAsset == nullptr)
+	if (NF_PlayerControllerDataAsset == nullptr)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[NF_PlayerInputDataAsset]이 유효하지않아, Key바인딩이 무시됩니다."));
 		return;
@@ -94,43 +93,43 @@ void ANF_PlayerController::BindInputButton()
 	if (IsValid(EnhancedInputComponent) == false) return;
 	
 	//Test
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomToggleSettingButton, ETriggerEvent::Started, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomToggleSettingButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ToggleSettingButton);
 	
 	
 	//Attack
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->MeleeAttack, ETriggerEvent::Started, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->MeleeAttack, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::MeleeAttack);
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Started, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->FireButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::Fire);
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Completed, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->FireButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->FireButton, ETriggerEvent::Canceled, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->FireButton, ETriggerEvent::Canceled, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ReloadButton, ETriggerEvent::Started, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ReloadButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::Reload);
 	
 	
 	//Zoom
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Started, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomIn);
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->ZoomButton, ETriggerEvent::Canceled, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Canceled, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
 	
 	
 	//Skill
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillA);
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->SkillButton_B, ETriggerEvent::Started, this, 
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->SkillButton_B, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillB);
 	
 	
 	//상호작용
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->InteractButton, ETriggerEvent::Started, this,
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->InteractButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::Interaction);
-	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->UseItemButton, ETriggerEvent::Started, this,
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->UseItemButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::UseItem);
 }
 
@@ -289,12 +288,12 @@ void ANF_PlayerController::CreateGameHUD()
 {
 	if (IsLocalController() == true)
 	{
-		if (GameHUDClass == nullptr) return;
+		if (NF_PlayerControllerDataAsset->GameHUDClass == nullptr) return;
 
 		auto* UIManager = ULocalPlayer::GetSubsystem<UNF_UIManagerSubsystem>(GetLocalPlayer());
 		if (IsValid(UIManager) == false) return;
 
-		UIManager->SetHUD(GameHUDClass);
+		UIManager->SetHUD(NF_PlayerControllerDataAsset->GameHUDClass);
 	}
 }
 

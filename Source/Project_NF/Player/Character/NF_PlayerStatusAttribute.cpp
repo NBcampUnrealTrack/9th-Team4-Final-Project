@@ -7,6 +7,7 @@
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "GameFramework/PlayerState.h"
 #include "GAS/Tags/NFTag_Player.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -67,6 +68,11 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
+	
+	UKismetSystemLibrary::PrintString(GetOwningActor(),
+		FString::Printf(TEXT("데미지 = %.2f 남은 체력 = %.2f 남은 쉴드 = %.2f"),
+		Data.EvaluatedData.Magnitude, GetHealth(), GetShield()),
+		true, true, FLinearColor::Black, 5.0f);
 	
 	IsOutOfHealth(Data);
 	IsOutOfShield(Data);
