@@ -58,6 +58,9 @@ public:
 	ESlateVisibility GetEscapeProgressVisibility() const;
 
 	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Escape")
+	ESlateVisibility GetEscapeDetailsVisibility() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Escape")
 	ESlateVisibility GetEscapePausedVisibility() const;
 
 	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Conclusion")

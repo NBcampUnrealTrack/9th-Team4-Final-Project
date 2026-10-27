@@ -179,6 +179,7 @@ void UNF_GameFlowViewModel::RefreshEscapeState()
 	UE_MVVM_SET_PROPERTY_VALUE(EscapeState, Progress.State);
 	// 상태가 같아도 탈출 팀이나 로컬 플레이어 컨텍스트가 바뀔 수 있다.
 	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeStatusText);
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeDetailsVisibility);
 
 	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeTotalSeconds, FMath::Max(0.0f, Progress.TotalDuration)))
 	{
@@ -284,6 +285,7 @@ void UNF_GameFlowViewModel::HandleEscapeProgressChanged(const FNF_EscapeProgress
 
 	UE_MVVM_SET_PROPERTY_VALUE(EscapeState, NewProgress.State);
 	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeStatusText);
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetEscapeDetailsVisibility);
 
 	if (UE_MVVM_SET_PROPERTY_VALUE(EscapeTotalSeconds, FMath::Max(0.0f, NewProgress.TotalDuration)))
 	{
@@ -499,6 +501,34 @@ float UNF_GameFlowViewModel::GetEscapeProgressPercent() const
 ESlateVisibility UNF_GameFlowViewModel::GetEscapeProgressVisibility() const
 {
 	return bShowEscapeProgress ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+}
+
+ESlateVisibility UNF_GameFlowViewModel::GetEscapeDetailsVisibility() const
+{
+	if (!IsValid(GameState))
+	{
+		return ESlateVisibility::Collapsed;
+	}
+
+	const FNF_EscapeProgress Progress = GameState->GetEscapeProgress();
+	if (!Progress.bInProgress)
+	{
+		return ESlateVisibility::Collapsed;
+	}
+
+	const ANF_PlayerState* LocalPlayerState =
+		Cast<ANF_PlayerState>(GetViewModelContext().PlayerState.Get());
+	if (!IsValid(LocalPlayerState))
+	{
+		return ESlateVisibility::Collapsed;
+	}
+
+	if (LocalPlayerState->NF_TeamID != Progress.TeamId)
+	{
+		return ESlateVisibility::Collapsed;
+	}
+
+	return ESlateVisibility::HitTestInvisible;
 }
 
 ESlateVisibility UNF_GameFlowViewModel::GetEscapePausedVisibility() const

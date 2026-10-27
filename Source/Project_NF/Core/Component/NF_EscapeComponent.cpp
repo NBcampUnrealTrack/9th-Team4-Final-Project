@@ -351,7 +351,7 @@ void UNF_EscapeComponent::CancelEscape()
 		PreviousZone->AuthoritySetProgress(EmptyProgress);
 	}
 
-	if (UWorld* World = GetWorld())
+	if (IsValid(World))
 	{
 		if (ANF_GameState* GameState = World->GetGameState<ANF_GameState>())
 		{
