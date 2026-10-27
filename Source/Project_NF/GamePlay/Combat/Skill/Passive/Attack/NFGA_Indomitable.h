@@ -7,6 +7,7 @@
 // @Owner: 이정준 (구현: Codex) | 2026-10-26
 // 공통 즉시 피해 GE의 적용 전 검사. 플레이어 소스나 Health Setter를 사용하지 않는다.
 struct FActiveGameplayEffectsContainer;
+struct FOnAttributeChangeData;
 UCLASS(Blueprintable)
 class PROJECT_NF_API UNFGA_Indomitable : public UNFGA_SkillBase
 {
@@ -33,6 +34,8 @@ private:
 	void BindDamageQuery();
 	void QueueBindRetry(const TCHAR* Reason);
 	void UnbindDamageQuery();
+	float GetCooldownReductionRate() const;
+	void OnCooldownReductionRateChanged(const FOnAttributeChangeData& Data);
 	bool AllowGameplayEffect(const FActiveGameplayEffectsContainer& Container, const FGameplayEffectSpec& Spec);
 	bool PredictCommonDamage(const FGameplayEffectSpec& Spec, float& OutHealthDamage, float& OutShieldDamage) const;
 	void EmitActivationCues();
@@ -40,6 +43,7 @@ private:
 	TWeakObjectPtr<UAbilitySystemComponent> HealthASC;
 	TWeakObjectPtr<AActor> ObservedAvatar;
 	FDelegateHandle DamageQueryHandle;
+	FDelegateHandle CooldownReductionHandle;
 	FTimerHandle ActivationCueTimer;
 	float PendingTriggerDamage = 0.f;
 	FTimerHandle ProtectionTimer;
@@ -49,5 +53,8 @@ private:
 	bool bRemoving = false;
 	double ProtectionEndsAt = 0.0;
 	double NextTriggerTime = 0.0;
+	double CooldownStartTime = 0.0;
+	double BaseCooldownAtTrigger = 0.0;
+	bool bHasTriggeredCooldown = false;
 	bool bHandlingDamage = false;
 };
