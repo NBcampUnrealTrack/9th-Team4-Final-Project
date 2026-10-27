@@ -12,18 +12,18 @@ class PROJECT_NF_API UNF_WeaponComponentConfigDataAsset : public UDataAsset
 public:
 	UNF_WeaponComponentConfigDataAsset();
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	TSubclassOf<class ANF_WeaponBase> DefaultWeaponClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Weapon")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	FName WeaponSocketName = TEXT("WeaponSocket_R");
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Abilities")
 	TSubclassOf<class UNFGA_WeaponFire> FireAbilityClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Abilities")
 	TSubclassOf<class UNFGA_WeaponZoom> ZoomAbilityClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Abilities")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Abilities")
 	TSubclassOf<class UNFGA_WeaponReload> ReloadAbilityClass;
 };

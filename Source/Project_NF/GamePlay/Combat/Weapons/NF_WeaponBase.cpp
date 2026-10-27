@@ -64,7 +64,7 @@ void ANF_WeaponBase::BeginPlay()
 	
 	if (HasAuthority() && IsValid(WeaponData))
 	{
-		CurrentAmmo = WeaponData->MagazineSize;
+		SetCurrentAmmo(WeaponData->MagazineSize);
 	}
 }
 
@@ -245,9 +245,11 @@ bool ANF_WeaponBase::FireProjectile()
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	const int32 PelletCount = WeaponData->ProjectilesPerShot;
+	AActor* Shooter = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
+	const bool bLastRound = CurrentAmmo == 1;
 	// Snapshot before consuming ammo; all pellets from this shot use the same bonuses.
 	const float ShotDamage = UNF_WeaponDamageLibrary::CalculateShotDamage(
-		IsValid(GetInstigator()) ? GetInstigator() : GetOwner(), WeaponData->Damage, CurrentAmmo == 1);
+		Shooter, WeaponData->Damage, bLastRound);
 	const float SpreadRadians = FMath::DegreesToRadians(WeaponData->SpreadAngleDegrees);
 	TArray<ANF_WeaponProjectile*, TInlineAllocator<64>> SpawnedProjectiles;
 
@@ -283,8 +285,15 @@ bool ANF_WeaponBase::FireProjectile()
 	if (SpawnedProjectiles.IsEmpty())
 		return false;
 
-	--CurrentAmmo;
 	LastFireTime = GetWorld()->GetTimeSeconds();
+	SetCurrentAmmo(CurrentAmmo - 1);
+	if (IsValid(Shooter))
+	{
+		if (auto* Weapons = Shooter->FindComponentByClass<UNF_WeaponComponent>())
+		{
+			Weapons->OnShotFired.Broadcast(Shooter, this, bLastRound);
+		}
+	}
 	return true;
 }
 
@@ -338,9 +347,21 @@ void ANF_WeaponBase::FinishReload()
 	
 	if (IsValid(WeaponData))
 	{
-		CurrentAmmo = FMath::Max(0, WeaponData->MagazineSize);
+		SetCurrentAmmo(FMath::Max(0, WeaponData->MagazineSize));
 	}
 	ForceNetUpdate();
+}
+
+void ANF_WeaponBase::SetCurrentAmmo(int32 NewAmmo)
+{
+	if (CurrentAmmo == NewAmmo) return;
+	CurrentAmmo = NewAmmo;
+	OnCurrentAmmoChanged.Broadcast(CurrentAmmo);
+}
+
+void ANF_WeaponBase::OnRep_CurrentAmmo()
+{
+	OnCurrentAmmoChanged.Broadcast(CurrentAmmo);
 }
 
 float ANF_WeaponBase::GetFireInterval() const

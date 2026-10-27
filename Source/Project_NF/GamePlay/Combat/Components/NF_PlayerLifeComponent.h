@@ -68,6 +68,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Life|Team")
 	bool ConfirmTeamAssignment();
 	
+	void NotifyInitialTeammateReady();
+	
 	// 팀원 정보가 준비되면 보류 중인 체력 0 판정 다시함
 	UFUNCTION(BlueprintCallable, Category = "Life|Health")
 	bool RetryPendingHealthZeroCheck();
