@@ -271,6 +271,11 @@ void UNF_EscapeComponent::PublishProgress()
 	}
 
 	Zone->AuthoritySetProgress(Progress);
+
+	if (ANF_GameState* GameState = GetWorld()->GetGameState<ANF_GameState>())
+	{
+		GameState->AuthoritySetEscapeProgress(Progress);
+	}
 }
 
 void UNF_EscapeComponent::BindTeammateDeathEvent()
@@ -339,9 +344,19 @@ void UNF_EscapeComponent::CancelEscape()
 	TotalDuration = 0.0f;
 	RemainingTime = 0.0f;
 
+	const FNF_EscapeProgress EmptyProgress;
+
 	if (IsValid(PreviousZone))
 	{
-		PreviousZone->AuthoritySetProgress(FNF_EscapeProgress());
+		PreviousZone->AuthoritySetProgress(EmptyProgress);
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		if (ANF_GameState* GameState = World->GetGameState<ANF_GameState>())
+		{
+			GameState->AuthoritySetEscapeProgress(EmptyProgress);
+		}
 	}
 }
 
