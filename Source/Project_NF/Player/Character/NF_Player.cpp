@@ -69,9 +69,9 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//Equipment
 	NF_WeaponComponent = CreateDefaultSubobject<UNF_WeaponComponent>(TEXT("NF_WeaponComponent"));
 	NF_ArmorComponent = CreateDefaultSubobject<UNF_ArmorComponent>(TEXT("NF_ArmorComponent"));
-	/*MeleeAttackMeshComponent =CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeleeAttackMeshComponent"));
-	MeleeAttackMeshComponent->SetupAttachment(VisualMesh);
-	MeleeAttackMeshComponent->SetHiddenInGame(true);*/
+	MeleeAttackMeshComponent =CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeleeAttackMeshComponent"));
+	MeleeAttackMeshComponent->SetupAttachment(VisualMesh, TEXT("MeleeAttackSocket"));
+	MeleeAttackMeshComponent->SetHiddenInGame(true);
 	
 	//Life
 	NF_PlayerLifeComponent = CreateDefaultSubobject<UNF_PlayerLifeComponent>(TEXT("NF_PlayerLifeComponent"));
