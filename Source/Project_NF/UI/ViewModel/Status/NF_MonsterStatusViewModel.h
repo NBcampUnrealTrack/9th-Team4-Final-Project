@@ -18,11 +18,15 @@ class PROJECT_NF_API UNF_MonsterStatusViewModel : public UMVVMViewModelBase
 public:
 	void SetObservedUnit(UAbilitySystemComponent* InAbilitySystemComponent,const FText& InUnitName);
 
+	void SetUnitName(const FText& InUnitName);
+	
 	void ClearObservedUnit();
 
 	UFUNCTION(BlueprintPure, FieldNotify, Category = "Unit|UI")
 	float GetHealthPercent() const;
 
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "Unit|UI")
+	FText GetUnitName() const;
 protected:
 	virtual void BeginDestroy() override;
 
