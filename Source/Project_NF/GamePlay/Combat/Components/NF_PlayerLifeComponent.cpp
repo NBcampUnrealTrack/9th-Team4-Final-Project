@@ -270,7 +270,7 @@ bool UNF_PlayerLifeComponent::ChangeLifeState(ENFPlayerLifeState NewState)
 	}
 	
 	// 서버에서 생존 상태 변경 알림
-	OnLifeStateChanged.Broadcast(LifeState);
+	OnLifeStateChanged.Broadcast(this, LifeState);
 	
 	return true;
 }
@@ -747,5 +747,5 @@ void UNF_PlayerLifeComponent::StopHealthZeroDetection()
 void UNF_PlayerLifeComponent::OnRep_LifeState()
 {
 	// 클라에서 복제된 생존 상태 변경 알림
-	OnLifeStateChanged.Broadcast(LifeState);
+	OnLifeStateChanged.Broadcast(this, LifeState);
 }

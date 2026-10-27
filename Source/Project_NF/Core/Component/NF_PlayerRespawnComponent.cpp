@@ -119,7 +119,7 @@ void UNF_PlayerRespawnComponent::Shutdown()
 	{
 		if (Pair.Value.IsValid())
 		{
-			Pair.Value->OnServerLifeStateChanged.RemoveAll(this);
+			Pair.Value->OnLifeStateChanged.RemoveAll(this);
 		}
 	}
 
@@ -220,12 +220,12 @@ void UNF_PlayerRespawnComponent::BindPlayerLifeComponent(
 			ExistingComponent->Get() != LifeComponent)
 		{
 			ExistingComponent->Get()
-				->OnServerLifeStateChanged.RemoveAll(this);
+				->OnLifeStateChanged.RemoveAll(this);
 		}
 	}
 
-	LifeComponent->OnServerLifeStateChanged.RemoveAll(this);
-	LifeComponent->OnServerLifeStateChanged.AddUObject(
+	LifeComponent->OnLifeStateChanged.RemoveAll(this);
+	LifeComponent->OnLifeStateChanged.AddDynamic(
 		this,
 		&ThisClass::HandlePlayerLifeStateChanged);
 
@@ -243,7 +243,7 @@ void UNF_PlayerRespawnComponent::UnbindPlayerLifeComponent(
 
 	if (FoundComponent != nullptr && FoundComponent->IsValid())
 	{
-		FoundComponent->Get()->OnServerLifeStateChanged.RemoveAll(this);
+		FoundComponent->Get()->OnLifeStateChanged.RemoveAll(this);
 	}
 
 	BoundLifeComponents.Remove(PlayerStateKey);

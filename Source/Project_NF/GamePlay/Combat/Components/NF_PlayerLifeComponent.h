@@ -7,6 +7,7 @@
 
 class UGameplayEffect;
 class UAbilitySystemComponent;
+class UNF_PlayerLifeComponent;
 struct FOnAttributeChangeData;
 
 // 플레이어의 생존 상태
@@ -26,8 +27,9 @@ enum class ENFTeammateCheckResult : uint8
 };
 
 // 생존 상태가 변경됐을 때 알림
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnPlayerLifeStateChanged,
+	UNF_PlayerLifeComponent*, SourceLifeComponent,
 	ENFPlayerLifeState, NewState);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHealthReachedZero);

@@ -74,6 +74,7 @@ private:
 	void BindPlayerLifeComponent(UNF_PlayerLifeComponent* LifeComponent);
 	void UnbindPlayerLifeComponent(ANF_PlayerState* PlayerState);
 
+	UFUNCTION()
 	void HandlePlayerLifeStateChanged(
 		UNF_PlayerLifeComponent* SourceLifeComponent,
 		ENFPlayerLifeState NewState);
