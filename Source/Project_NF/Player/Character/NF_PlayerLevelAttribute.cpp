@@ -29,12 +29,12 @@ void UNF_PlayerLevelAttribute::PostGameplayEffectExecute(const FGameplayEffectMo
 		
 		SetCurrentExp(GetCurrentExp() + ReceivedExp);
 		
-		float TargetExp = GetTargetExpFromLevel();
-		if (TargetExp <= 0.0f) return;
+		SetTargetExp(GetTargetExpFromLevel());
+		if (GetTargetExp() <= 0.0f) return;
 		
-		if (GetCurrentExp() >= TargetExp && GetCurrentLevel() < GetMaxLevel())
+		if (GetCurrentExp() >= GetTargetExp() && GetCurrentLevel() < GetMaxLevel())
 		{
-			SetCurrentExp(GetCurrentExp() - TargetExp);   //목표치만큼 빼고 남은 경험치는 이월
+			SetCurrentExp(GetCurrentExp() - GetTargetExp());   //목표치만큼 빼고 남은 경험치는 이월
 			SetCurrentLevel(GetCurrentLevel() + 1.0f);          //1레벨 업
 			OnLevelUp.Broadcast(FMath::FloorToInt32(GetCurrentLevel()));   //레벨은 소수점 내림으로 정수 유지
 		}
@@ -48,7 +48,7 @@ void UNF_PlayerLevelAttribute::GetLifetimeReplicatedProps(TArray<class FLifetime
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxLevel, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, CurrentLevel, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, CurrentExp, COND_None, REPNOTIFY_Always);
-	//DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, TargetExp, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, TargetExp, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, IncomingExp, COND_None, REPNOTIFY_Always);
 }
 
@@ -67,10 +67,10 @@ void UNF_PlayerLevelAttribute::OnRep_CurrentExp(const FGameplayAttributeData& Ol
 	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, CurrentExp, OldCurrentExp);
 }
 
-/*void UNF_PlayerLevelAttribute::OnRep_TargetExp(const FGameplayAttributeData& OldTargetExp)
+void UNF_PlayerLevelAttribute::OnRep_TargetExp(const FGameplayAttributeData& OldTargetExp)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, TargetExp, OldTargetExp);
-}*/
+}
 
 void UNF_PlayerLevelAttribute::OnRep_IncomingExp(const FGameplayAttributeData& OldIncomingExp)
 {

@@ -269,6 +269,8 @@ bool UNF_PlayerLifeComponent::ChangeLifeState(ENFPlayerLifeState NewState)
 			NFTag_Player::Player_Ability_Death);
 	}
 	
+	OnServerPlayerLifeStateChanged.Broadcast(this,LifeState);
+	
 	// 서버에서 생존 상태 변경 알림
 	OnLifeStateChanged.Broadcast(this, LifeState);
 	

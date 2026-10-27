@@ -19,6 +19,11 @@ enum class ENFPlayerLifeState : uint8
 	Dead UMETA(DisplayName = "Dead"),
 };
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(
+	FNF_OnServerPlayerLifeStateChanged,
+	UNF_PlayerLifeComponent*,
+	ENFPlayerLifeState);
+
 enum class ENFTeammateCheckResult : uint8
 {
 	Unknown,		// 팀원 정보를 확인할 수가 없어서 판정 불가
@@ -88,6 +93,8 @@ public:
 	// 생존 상태 변경 알림
 	UPROPERTY(BlueprintAssignable, Category = "Life")
 	FOnPlayerLifeStateChanged OnLifeStateChanged;
+	
+	FNF_OnServerPlayerLifeStateChanged OnServerPlayerLifeStateChanged;
 	
 	// 체력 0 되면 알림
 	UPROPERTY(BlueprintAssignable, Category = "Life|Health")
