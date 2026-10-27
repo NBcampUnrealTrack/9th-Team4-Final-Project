@@ -3,6 +3,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "Engine/World.h"
+#include "GAS/Attributes/NF_KeyHolderAttributeSet.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "GameplayEffectExecutionCalculation.h"
@@ -90,6 +91,9 @@ void UNFGA_Indomitable::BindDamageQuery()
 		this, &ThisClass::AllowGameplayEffect);
 	DamageQueryHandle = Query.GetHandle();
 	ASC->GameplayEffectApplicationQueries.Add(MoveTemp(Query));
+	CooldownReductionHandle = ASC->GetGameplayAttributeValueChangeDelegate(
+		UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute()).AddUObject(
+			this, &ThisClass::OnCooldownReductionRateChanged);
 	UE_LOG(LogProject_NF, Warning, TEXT("[Indomitable][연결 성공] 캐릭터=%s | ASC=%s | 재시도=%d | 공통 피해 GE 적용 전 검사 등록 완료."),
 		*GetNameSafe(Avatar), *GetNameSafe(ASC), BindRetryCount);
 	BindRetryCount = 0;
@@ -131,6 +135,33 @@ void UNFGA_Indomitable::EndProtection()
 	StopPassiveActiveCue();
 }
 
+float UNFGA_Indomitable::GetCooldownReductionRate() const
+{
+	const auto* ASC = HealthASC.Get();
+	if (!ASC || !ASC->GetSet<UNF_KeyHolderAttributeSet>()) { return 0.f; }
+	const float Rate = ASC->GetNumericAttribute(UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute());
+	return FMath::IsFinite(Rate) ? FMath::Clamp(Rate, 0.f, 1.f) : 0.f;
+}
+
+void UNFGA_Indomitable::OnCooldownReductionRateChanged(const FOnAttributeChangeData& Data)
+{
+	const auto* Info = GetCurrentActorInfo();
+	// Match the common ASC policy: acquiring reduction (0 -> positive) shortens an active cooldown.
+	// Losing the key does not lengthen it, and reacquiring it cannot subtract the same reduction twice.
+	if (bRemoving || !Info || !Info->IsNetAuthority() || !GetWorld() || !bHasTriggeredCooldown
+		|| !FMath::IsFinite(Data.OldValue) || !FMath::IsFinite(Data.NewValue)
+		|| Data.OldValue > 0.f || Data.NewValue <= 0.f) { return; }
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Now >= NextTriggerTime) { return; }
+	const double PreviousRemaining = NextTriggerTime - Now;
+	const float Rate = FMath::Clamp(Data.NewValue, 0.f, 1.f);
+	const double ReducedEndTime = CooldownStartTime + BaseCooldownAtTrigger * (1.0 - Rate);
+	NextTriggerTime = FMath::Min(NextTriggerTime, ReducedEndTime);
+	UE_LOG(LogProject_NF, Log, TEXT("[Indomitable][쿨감 적용] 캐릭터=%s | 기본쿨타임=%.2f초 | 쿨감=%.1f%% | 남은시간=%.2f -> %.2f초"),
+		*GetNameSafe(ObservedAvatar.Get()), BaseCooldownAtTrigger, Rate * 100.f,
+		PreviousRemaining, FMath::Max(0.0, NextTriggerTime - Now));
+}
+
 void UNFGA_Indomitable::UnbindDamageQuery()
 {
 	if (GetWorld())
@@ -139,6 +170,12 @@ void UNFGA_Indomitable::UnbindDamageQuery()
 		GetWorld()->GetTimerManager().ClearTimer(ActivationCueTimer);
 	}
 	PendingTriggerDamage = 0.f;
+	if (auto* ASC = HealthASC.Get(); ASC && CooldownReductionHandle.IsValid())
+	{
+		ASC->GetGameplayAttributeValueChangeDelegate(UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute())
+			.Remove(CooldownReductionHandle);
+	}
+	CooldownReductionHandle.Reset();
 	if (auto* ASC = HealthASC.Get(); ASC && DamageQueryHandle.IsValid())
 	{
 		const FDelegateHandle Handle = DamageQueryHandle;
@@ -223,7 +260,10 @@ bool UNFGA_Indomitable::AllowGameplayEffect(const FActiveGameplayEffectsContaine
 	}
 	if (HealthDamage < Health || Now < NextTriggerTime) { return true; }
 
-	NextTriggerTime = Now + CooldownDuration;
+	CooldownStartTime = Now;
+	BaseCooldownAtTrigger = CooldownDuration;
+	bHasTriggeredCooldown = true;
+	NextTriggerTime = CooldownStartTime + BaseCooldownAtTrigger * (1.0 - GetCooldownReductionRate());
 	ProtectionEndsAt = Now + ProtectionDuration;
 	PendingTriggerDamage = HealthDamage;
 	if (ProtectionDuration > 0.f)
@@ -234,7 +274,7 @@ bool UNFGA_Indomitable::AllowGameplayEffect(const FActiveGameplayEffectsContaine
 	// Unequip/avatar changes cancel this deferred cosmetic notification.
 	ActivationCueTimer = GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ThisClass::EmitActivationCues);
 	UE_LOG(LogProject_NF, Warning, TEXT("[Indomitable][불굴 발동] 캐릭터=%s | 현재체력=%.2f | 예상체력피해=%.2f | 예상쉴드피해=%.2f | 보호시간=%.2f초 | 쿨타임=%.2f초 | GE 적용 거부"),
-		*GetNameSafe(Avatar), Health, HealthDamage, ShieldDamage, ProtectionDuration, CooldownDuration);
+		*GetNameSafe(Avatar), Health, HealthDamage, ShieldDamage, ProtectionDuration, NextTriggerTime - Now);
 	return false;
 }
 

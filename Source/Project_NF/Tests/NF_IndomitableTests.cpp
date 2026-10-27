@@ -84,9 +84,38 @@ bool FNF_IndomitableTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Cooldown does not prevent health reaching zero"), Victim->GetNumericAttribute(Health), 0.f);
 	Victim->SetNumericAttributeBase(Health, 10.f);
 	World->Tick(LEVELTICK_TimeOnly, 0.4f);
+	GA->CooldownDuration = 120.f;
 	TestFalse(TEXT("After cooldown, lethal damage blocked again"), Hit(100.f));
+	const auto CooldownReduction = UNF_KeyHolderAttributeSet::GetCooldownReductionRateAttribute();
+	TestTrue(TEXT("Cooldown starts at full duration without key"),
+		FMath::IsNearlyEqual(GA->NextTriggerTime - GA->CooldownStartTime, 120.0));
+	World->Tick(LEVELTICK_TimeOnly, 20.f);
+	Victim->SetNumericAttributeBase(CooldownReduction, 0.2f);
+	const double Remaining = GA->NextTriggerTime - World->GetTimeSeconds();
+	TestTrue(TEXT("Acquiring 20 percent reduction after 20 seconds leaves 76, not 80"),
+		FMath::IsNearlyEqual(Remaining, 76.0, 0.001));
+	const double ReducedEnd = GA->NextTriggerTime;
+	Victim->SetNumericAttributeBase(CooldownReduction, 0.f);
+	TestEqual(TEXT("Losing key does not extend current cooldown"), GA->NextTriggerTime, ReducedEnd);
+	Victim->SetNumericAttributeBase(CooldownReduction, 0.2f);
+	TestEqual(TEXT("Reacquiring same reduction does not subtract twice"), GA->NextTriggerTime, ReducedEnd);
+	World->Tick(LEVELTICK_TimeOnly, 77.f);
+	TestFalse(TEXT("Ready after reduced cooldown with key held"), Hit(100.f));
+	TestTrue(TEXT("Trigger while holding key starts at 96 seconds"),
+		FMath::IsNearlyEqual(GA->NextTriggerTime - GA->CooldownStartTime, 96.0, 0.001));
+	Victim->SetNumericAttributeBase(CooldownReduction, 0.f);
+	World->Tick(LEVELTICK_TimeOnly, 0.2f);
+	Victim->SetNumericAttributeBase(CooldownReduction, 1.f);
+	TestTrue(TEXT("Reduction beyond remaining time makes cooldown immediately ready"),
+		GA->NextTriggerTime <= World->GetTimeSeconds());
+	TestFalse(TEXT("Lethal damage retriggers after cooldown shortened to ready"), Hit(100.f));
+	const double EndBeforeUnequip = GA->NextTriggerTime;
 	Victim->ClearAbility(Ability);
 	TestEqual(TEXT("Unequip removes only own query"), Victim->GameplayEffectApplicationQueries.Num(), 1);
+	TestFalse(TEXT("Unequip clears cooldown reduction delegate handle"), GA->CooldownReductionHandle.IsValid());
+	Victim->SetNumericAttributeBase(CooldownReduction, 0.f);
+	Victim->SetNumericAttributeBase(CooldownReduction, 0.2f);
+	TestEqual(TEXT("Unequipped passive no longer observes reduction"), GA->NextTriggerTime, EndBeforeUnequip);
 	TestTrue(TEXT("Unequipped passive no longer blocks"), Hit(100.f));
 	TestEqual(TEXT("Damage applies after unequip"), Victim->GetNumericAttribute(Health), 0.f);
 	GEngine->DestroyWorldContext(World);
