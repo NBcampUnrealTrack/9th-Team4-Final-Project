@@ -10,7 +10,7 @@
 #include "UI/Minimap/NF_MinimapRevealRegistry.h"
 #include "NF_PlayerController.generated.h"
 
-class UNF_GameHUDWidget;
+
 enum class ENF_PlayerActionType : uint8;
 enum class ENF_PlayerInteractTypeEnum : uint8;
 enum class ENF_BuildShopUIState : uint8;
@@ -79,9 +79,6 @@ protected:
 	
 	
 #pragma region UI
-protected:
-	UPROPERTY(EditDefaultsOnly, Category = "NF|UI")
-	TSubclassOf<UNF_GameHUDWidget> GameHUDClass;
 private:
 	void CreateGameHUD();
 	void RefreshViewModel();
