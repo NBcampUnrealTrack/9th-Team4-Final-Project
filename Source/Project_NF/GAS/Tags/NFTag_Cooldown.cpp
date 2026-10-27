@@ -20,5 +20,7 @@ namespace NFTag_Cooldown
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Skill_EMP, "Cooldown.Skill.EMP", "EMP 쿨타임");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Skill_Grab, "Cooldown.Skill.Grab", "그랩 쿨타임");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Skill_Thorns, "Cooldown.Skill.Thorns", "가시갑옷 내부쿨");
-	// UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Skill_불굴, "Cooldown.Skill.불굴", "불굴 쿨타임");
+	
+	// @Owner 지우 | 2026-10-27 
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Skill_Indomitable, "Cooldown.Skill.Indomitable", "불굴 쿨타임");
 }
