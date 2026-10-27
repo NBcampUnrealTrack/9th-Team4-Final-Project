@@ -19,20 +19,23 @@ class PROJECT_NF_API UNF_PlayerDataAsset : public UDataAsset
 public:
 	UNF_PlayerDataAsset();
 	
-	UPROPERTY(EditAnywhere, Category = "Montage")
+	/*UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
+	TObjectPtr<USkeletalMesh> VisualMesh;*/
+	
+	UPROPERTY(EditAnywhere, Category = "GA_Montage")
 	TObjectPtr<UAnimMontage> MeleeAttackMontage;
 	
-	UPROPERTY(EditAnywhere, Category = "Montage")
+	UPROPERTY(EditAnywhere, Category = "GA_Montage")
 	TObjectPtr<UAnimMontage> DeathMontage;
 	
 	UPROPERTY(EditAnywhere, Category = "PayLoad_Damage", DisplayName = "MeleeAttackDamage (음수)")
 	float MeleeAttackDamage = 0.0f;
 	
-	UPROPERTY(EditAnywhere, Category = "MeleeTraceRadius", DisplayName = "MeleeTraceRadius (근접공격 범위)")
+	UPROPERTY(EditAnywhere, Category = "GA_ETC", DisplayName = "MeleeTraceRadius (근접공격 범위)")
 	float MeleeTraceRadius = 20.0f;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "GA_Class", DisplayName = "GameplayAbility (Play 전 적용 될 GA_Class)")
-	TArray<TSubclassOf<UGameplayAbility>> GameplayAbilityArray;
+	TArray<TSubclassOf<UGameplayAbility>> InitGA_Array;
 	
 	UPROPERTY(EditAnywhere, Category = "GE_Class", DisplayName = "MeleeAttack_GEClass (Health 영향)")
 	TSubclassOf<UGameplayEffect> MeleeAttack_Health_GEClass;
@@ -43,6 +46,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "GE_Class", DisplayName = "GainExp_GEClass (IncomingExp 영향)")
 	TSubclassOf<UGameplayEffect> GainExp_GEClass;
 	
-	UPROPERTY(EditAnywhere, Category = "Level", DisplayName = "PlayerLevelDataTable (1번째 행 = 1레벨)")
+	UPROPERTY(EditAnywhere, Category = "PlayerLV", DisplayName = "PlayerLevelDataTable (1번째 행 = 1레벨)")
 	TObjectPtr<UDataTable> PlayerLevelDataTable;
 };

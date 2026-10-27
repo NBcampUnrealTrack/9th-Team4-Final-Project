@@ -130,6 +130,8 @@ void ANF_PlayerController::BindInputButton()
 	//상호작용
 	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->InteractButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::Interaction);
+	EnhancedInputComponent->BindAction(NF_PlayerInputDataAsset->UseItemButton, ETriggerEvent::Started, this,
+		&ThisClass::TryAction, ENF_PlayerActionType::UseItem);
 }
 
 
@@ -223,6 +225,12 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 		}
 		
 		if (PlayerActionType == ENF_PlayerActionType::Interaction)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+	
+		if (PlayerActionType == ENF_PlayerActionType::UseItem)
 		{
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 			return;

@@ -19,6 +19,7 @@
 #include "Component/NF_EscapeKeyComponent.h"
 #include "AbilitySystemComponent.h"
 #include "Component/NF_EscapeComponent.h"
+#include "GamePlay/Combat/Components/NF_PlayerLifeComponent.h"
 #include "GamePlay/EscapeZone/NF_EscapeZone.h"
 #include "GAS/Tags/NFTag_LifeState.h"
 
@@ -107,7 +108,21 @@ void ANF_GameMode::PostLogin(APlayerController* NewPlayer)
 
 	if (IsValid(NewPlayer))
 	{
-		BuildReadyComponent->RegisterPlayer(NewPlayer->GetPlayerState<ANF_PlayerState>());
+		ANF_PlayerState* PlayerState = NewPlayer->GetPlayerState<ANF_PlayerState>();
+
+		BuildReadyComponent->RegisterPlayer(PlayerState);
+
+		if (HasAuthority() && IsValid(PlayerState))
+		{
+			ENF_PlayerPawnState InitialPawnState = ENF_PlayerPawnState::InitialSpawnPending;
+
+			if (IsValid(NewPlayer->GetPawn()))
+			{
+				InitialPawnState = ENF_PlayerPawnState::Active;
+			}
+
+			AuthoritySetPlayerPawnState(PlayerState, InitialPawnState);
+		}
 	}
 
 	if (ANF_PlayerController* NFPlayerController = Cast<ANF_PlayerController>(NewPlayer))
@@ -132,6 +147,7 @@ void ANF_GameMode::Logout(AController* Exiting)
 		if (HasAuthority())
 		{
 			OnMatchPlayerLeaving.Broadcast(LeavingPlayerState,Exiting->GetPawn());
+			RemovePlayerPawnState(LeavingPlayerState);
 		}
 		if (IsValid(BuildReadyComponent))
 		{
@@ -147,10 +163,24 @@ void ANF_GameMode::Logout(AController* Exiting)
 	Super::Logout(Exiting);
 }
 
+void ANF_GameMode::RestartPlayer(AController* NewPlayer)
+{
+	Super::RestartPlayer(NewPlayer);
+
+	if (!HasAuthority() || !IsValid(NewPlayer))return;
+
+	ANF_PlayerState* PlayerState = NewPlayer->GetPlayerState<ANF_PlayerState>();
+
+	if (!IsValid(PlayerState) || !IsValid(NewPlayer->GetPawn()))return;
+
+	AuthoritySetPlayerPawnState(PlayerState, ENF_PlayerPawnState::Active);
+}
+
 void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(PhaseTimerHandle);
 	GetWorldTimerManager().ClearTimer(ResultDisplayTimerHandle);
+	PlayerPawnStates.Empty();
 	NotifyMatchCleanup();
 
 	if (IsValid(BossContributionRewardComponent))
@@ -214,6 +244,55 @@ void ANF_GameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 ANF_GameState* ANF_GameMode::GetNFGameState() const
 {
 	return GetGameState<ANF_GameState>();
+}
+
+bool ANF_GameMode::AuthoritySetPlayerPawnState(
+	ANF_PlayerState* PlayerState,
+	const ENF_PlayerPawnState NewState)
+{
+	if (!HasAuthority() || !IsValid(PlayerState)){return false;}
+
+	if (PlayerState->GetWorld() != GetWorld()){return false;}
+
+	const TWeakObjectPtr<ANF_PlayerState> PlayerStateKey(PlayerState);
+	PlayerPawnStates.FindOrAdd(PlayerStateKey) = NewState;
+
+	return true;
+}
+
+ENF_PlayerPawnState ANF_GameMode::GetPlayerPawnState(const ANF_PlayerState* PlayerState) const
+{
+	if (!HasAuthority() || !IsValid(PlayerState))
+	{
+		return ENF_PlayerPawnState::Unknown;
+	}
+
+	const TWeakObjectPtr<ANF_PlayerState> PlayerStateKey(const_cast<ANF_PlayerState*>(PlayerState));
+
+	const ENF_PlayerPawnState* FoundState = PlayerPawnStates.Find(PlayerStateKey);
+
+	if (FoundState == nullptr)
+	{
+		return ENF_PlayerPawnState::Unknown;
+	}
+
+	// 한 번이라도 Pawn이 활성화됐던 플레이어가 현재 Pawn을 잃었다면
+	// 최초 생성 전이 아니라 리스폰 대기 상태로 조회한다.
+	if (*FoundState == ENF_PlayerPawnState::Active && !IsValid(PlayerState->GetPawn()))
+	{
+		return ENF_PlayerPawnState::RespawnPending;
+	}
+
+	return *FoundState;
+}
+
+void ANF_GameMode::RemovePlayerPawnState(const ANF_PlayerState* PlayerState)
+{
+	if (!HasAuthority() || !IsValid(PlayerState))return;
+
+	const TWeakObjectPtr<ANF_PlayerState> PlayerStateKey(const_cast<ANF_PlayerState*>(PlayerState));
+
+	PlayerPawnStates.Remove(PlayerStateKey);
 }
 
 bool ANF_GameMode::CollectMatchParticipants(TArray<ANF_PlayerState*>& OutParticipants) const
@@ -567,9 +646,145 @@ void ANF_GameMode::AbortMatch(const FString& Reason, ENF_MatchEndReason EndReaso
 
 void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssignment>& Assignments)
 {
-	if (!HasAuthority() || bTeamsReady || Assignments.Num() != InitialRequiredPlayers) return;
+	if (!HasAuthority() || bTeamsReady)return;
+
+	if (Assignments.Num() != InitialRequiredPlayers)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("[GameMode] 팀 배정 인원 불일치. Expected=%d, Actual=%d"),
+			InitialRequiredPlayers,
+			Assignments.Num());
+
+		return;
+	}
+
+	TArray<UNF_PlayerLifeComponent*> LifeComponents;
+	LifeComponents.Reserve(Assignments.Num());
+
+	// 모든 플레이어의 LifeComponent를 먼저 수집한다.
+	for (const FNFServerTeamIdAssignment& Assignment : Assignments)
+	{
+		ANF_PlayerState* PlayerState = Assignment.PlayerState.Get();
+
+		if (!IsValid(PlayerState))
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT("[GameMode] 팀 배정 완료 처리 실패: PlayerState가 유효하지 않습니다."));
+
+			return;
+		}
+
+		if (Assignment.TeamId != PlayerState->NF_TeamID)
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT(
+					"[GameMode] 팀 ID 반영 결과 불일치. PlayerId=%d, "
+					"AssignmentTeamId=%d, PlayerStateTeamId=%d"),
+				PlayerState->GetPlayerId(),
+				Assignment.TeamId,
+				PlayerState->NF_TeamID);
+
+			return;
+		}
+
+		APawn* PlayerPawn = PlayerState->GetPawn();
+
+		if (!IsValid(PlayerPawn))
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT(
+					"[GameMode] 팀 배정 완료 처리 실패: Player Pawn이 없습니다. "
+					"PlayerId=%d, TeamId=%d"),
+				PlayerState->GetPlayerId(),
+				PlayerState->NF_TeamID);
+
+			return;
+		}
+
+		UNF_PlayerLifeComponent* LifeComponent =
+			PlayerPawn->FindComponentByClass<UNF_PlayerLifeComponent>();
+
+		if (!IsValid(LifeComponent))
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT(
+					"[GameMode] 팀 배정 완료 처리 실패: LifeComponent가 없습니다. "
+					"PlayerId=%d, Pawn=%s"),
+				PlayerState->GetPlayerId(),
+				*GetNameSafe(PlayerPawn));
+
+			return;
+		}
+
+		if (LifeComponents.Contains(LifeComponent))
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT(
+					"[GameMode] 팀 배정 완료 처리 실패: "
+					"동일한 LifeComponent가 중복되었습니다. Pawn=%s"),
+				*GetNameSafe(PlayerPawn));
+
+			return;
+		}
+
+		LifeComponents.Add(LifeComponent);
+	}
+
+	// 1단계: 모든 LifeComponent의 팀 배정 확인 상태를 먼저 완료한다.
+	for (UNF_PlayerLifeComponent* LifeComponent : LifeComponents)
+	{
+		if (!IsValid(LifeComponent))
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT("[GameMode] 팀 배정 확인 도중 LifeComponent가 유효하지 않게 됐습니다."));
+
+			return;
+		}
+
+		if (!LifeComponent->ConfirmTeamAssignment())
+		{
+			UE_LOG(
+				LogTemp,
+				Error,
+				TEXT(
+					"[GameMode] LifeComponent 팀 배정 확인에 실패했습니다. "
+					"Owner=%s"),
+				*GetNameSafe(LifeComponent->GetOwner()));
+
+			return;
+		}
+	}
+
+	// 2단계: 전원의 확인이 끝난 후 보류된 Health 0 판정을 다시 실행한다.
+	for (UNF_PlayerLifeComponent* LifeComponent : LifeComponents)
+	{
+		if (!IsValid(LifeComponent))continue;
+
+		// 보류 중인 판정이 없는 경우도 false를 반환하므로 반환값은 실패로 처리하지 않는다.
+		LifeComponent->RetryPendingHealthZeroCheck();
+	}
 
 	NotifyTeamsReady();
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[GameMode] 전체 플레이어의 팀 배정과 LifeComponent 확인을 완료했습니다. Count=%d"),
+		LifeComponents.Num());
 }
 
 UNF_BossEncounterComponent* ANF_GameMode::GetBossEncounterComponent() const
