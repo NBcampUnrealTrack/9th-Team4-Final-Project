@@ -57,6 +57,7 @@ void UNF_GameFlowViewModel::TryBindGameState()
 
 	GameState->OnMatchStateChanged.AddUObject(this,&ThisClass::HandleMatchStateChanged);
 	GameState->OnEscapeProgressChanged.AddUObject(this,&ThisClass::HandleEscapeProgressChanged);
+	GameState->OnAnnouncementReceived.AddUObject(this, &ThisClass::HandleAnnouncementReceived);
 
 	RefreshFromGameState();
 }
@@ -67,9 +68,19 @@ void UNF_GameFlowViewModel::UnbindGameState()
 	{
 		GameState->OnMatchStateChanged.RemoveAll(this);
 		GameState->OnEscapeProgressChanged.RemoveAll(this);
+		GameState->OnAnnouncementReceived.RemoveAll(this);
 	}
 
 	GameState = nullptr;
+
+	// 다른 GameState에 연결될 때 이전 경기 알림을 남기지 않는다.
+	PendingNotifications.Reset();
+	ClearNotification();
+}
+
+void UNF_GameFlowViewModel::HandleAnnouncementReceived(const FText& Message, const float DisplayDuration)
+{
+	EnqueueNotification(Message, DisplayDuration);
 }
 
 void UNF_GameFlowViewModel::StartRefreshTimer()

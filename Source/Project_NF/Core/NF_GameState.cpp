@@ -1,12 +1,8 @@
 ﻿#include "Core/NF_GameState.h"
 
 #include "NF_BuildShopAccessPolicy.h"
-#include "Engine/GameInstance.h"
-#include "Engine/LocalPlayer.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/State/NF_PlayerState.h"
-#include "UI/SubSystem/NF_UIManagerSubsystem.h"
-#include "UI/Widget/NF_AnnouncementWidget.h"
 
 ANF_GameState::ANF_GameState()
 {
@@ -198,8 +194,48 @@ bool ANF_GameState::AuthoritySetKeyPublicState(const FNF_KeyPublicState& NewStat
 
 	if (KeyPublicState.State == NewState.State && KeyPublicState.Holder == NewState.Holder) { return true; }
 
+	// Delegate 호출 중 상태 변경이 재진입해도 문구를 유지하도록 미리 확정한다.
+	FText AnnouncementMessage;
+	if (GetMatchPhase() == ENF_MatchPhase::Escape)
+	{
+		switch (NewState.State)
+		{
+		case ENF_KeyState::Held:
+		{
+			const FString HolderName = NewState.Holder->GetPlayerName();
+			if (HolderName.IsEmpty())
+			{
+				AnnouncementMessage = NSLOCTEXT(
+					"NFGameFlow", "KeyAcquiredUnknown", "누군가 탈출 열쇠를 획득했습니다.");
+			}
+			else
+			{
+				AnnouncementMessage = FText::Format(
+					NSLOCTEXT("NFGameFlow", "KeyAcquired", "{0}님이 탈출 열쇠를 획득했습니다."),
+					FText::FromString(HolderName));
+			}
+			break;
+		}
+		case ENF_KeyState::Dropped:
+			AnnouncementMessage = NSLOCTEXT(
+				"NFGameFlow", "KeyDropped", "탈출 열쇠가 바닥에 떨어졌습니다.");
+			break;
+		case ENF_KeyState::Unassigned:
+		case ENF_KeyState::Removed:
+		default:
+			break;
+		}
+	}
+
 	KeyPublicState = NewState;
 	const FNF_KeyPublicState PublishedState = KeyPublicState;
+
+	// 아래 Delegate에서 재진입하기 전에 확정된 변경 알림을 발행한다.
+	if (!AnnouncementMessage.IsEmpty())
+	{
+		MulticastShowAnnouncement(AnnouncementMessage, 3.0f);
+	}
+
 	OnKeyPublicStateChanged.Broadcast(PublishedState);
 	ForceNetUpdate();
 	return true;
@@ -252,30 +288,15 @@ void ANF_GameState::OnRep_EscapeProgress()
 
 void ANF_GameState::MulticastShowAnnouncement_Implementation(const FText& Message, const float Duration)
 {
-	UGameInstance* GameInstance = GetGameInstance();
-	if (!IsValid(GameInstance))
+	if (GetNetMode() == NM_DedicatedServer)
 	{
 		return;
 	}
 
-	for (ULocalPlayer* LocalPlayer : GameInstance->GetLocalPlayers())
+	if (Message.IsEmpty())
 	{
-		if (!IsValid(LocalPlayer))
-		{
-			continue;
-		}
-
-		if (UNF_UIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>())
-		{
-			UNF_AnnouncementWidget* Announcement = Cast<UNF_AnnouncementWidget>(
-				UIManager->AddOverlay(
-					UNF_AnnouncementWidget::StaticClass(),
-					FMath::Max(0.1f, Duration)));
-
-			if (IsValid(Announcement))
-			{
-				Announcement->SetMessage(Message);
-			}
-		}
+		return;
 	}
+
+	OnAnnouncementReceived.Broadcast(Message, FMath::Max(0.1f, Duration));
 }
