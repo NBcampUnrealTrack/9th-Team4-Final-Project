@@ -63,7 +63,7 @@ void UNF_BuildSubSystem::UnbindController()
 		Controller -> GetOnNewPawnNotifier().Remove(PawnChangedHandle);
 	}
 	
-	PawnChagedHandle.Reset();
+	PawnChangedHandle.Reset();
 	BoundController.Reset();
 }
 
