@@ -14,12 +14,11 @@
 #include "TimerManager.h"
 #include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Player/Component/NF_MatchResultPresenterComponent.h"
 #include "UI/SubSystem/NF_UIManagerSubsystem.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UI/Widget/NF_GameHUDWidget.h"
 
-
-class UNF_UIManagerSubsystem;
 
 void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -40,9 +39,9 @@ void ANF_PlayerController::BeginPlay()
 	Super::BeginPlay();
 	
 	ConfigDataAsset();
+	ConfigBindDelegate();
 	InputConfig();
 	RefreshMiniMap();
-	BindDelegate();
 	CreateGameHUD();
 }
 
@@ -78,7 +77,7 @@ void ANF_PlayerController::InputConfig()
 }
 
 
-void ANF_PlayerController::BindDelegate()
+void ANF_PlayerController::ConfigBindDelegate()
 {
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnInteractBuildShop, OnInteractBuildShop);
 }
@@ -390,6 +389,12 @@ void ANF_PlayerController::ClientReceiveMinimapReveals_Implementation(const TArr
 }
 
 
+ANF_PlayerController::ANF_PlayerController()
+{
+	NF_MatchResultPresenterComponent = CreateDefaultSubobject<UNF_MatchResultPresenterComponent>("NF_MatchResultPresenterComponent");
+}
+
+
 void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(MinimapRevealTimer);
@@ -400,12 +405,13 @@ void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ANF_PlayerController::ClientHandleMatchCompleted_Implementation(const FNF_MatchResult& Result)
 {
-	if (UGameInstance* GI = GetGameInstance())
+	if (IsValid(NF_MatchResultPresenterComponent) == false)
 	{
-		if (UNF_MatchmakingSubsystem* Match = GI->GetSubsystem<UNF_MatchmakingSubsystem>())
-		{
-			Match->HandleDedicatedMatchCompleted(Result);
-		}
+		UE_LOG(LogTemp,Error,TEXT("[NF MatchResult] 결과 Presenter가 없어 자동 복귀를 처리할 수 없습니다."));
+
+		return;
 	}
+
+	NF_MatchResultPresenterComponent->RequestReturnToMatchmaking(Result);
 }
 #pragma endregion

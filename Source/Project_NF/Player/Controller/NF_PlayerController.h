@@ -11,6 +11,7 @@
 #include "NF_PlayerController.generated.h"
 
 
+class UNF_MatchResultPresenterComponent;
 enum class ENF_PlayerActionType : uint8;
 enum class ENF_PlayerInteractTypeEnum : uint8;
 enum class ENF_BuildShopUIState : uint8;
@@ -23,6 +24,9 @@ UCLASS()
 class PROJECT_NF_API ANF_PlayerController : public APlayerController
 {
 	GENERATED_BODY()
+	
+public:
+	ANF_PlayerController();
 	
 
 
@@ -41,11 +45,15 @@ private:
 
 #pragma region Input
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|MatchSystem")
+	TObjectPtr<UNF_MatchResultPresenterComponent> NF_MatchResultPresenterComponent;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|MotionMatching")
 	TObjectPtr<UMotionMatchingInputDataAsset> MotionMatchingInputDataAsset;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UNF_PlayerControllerDataAsset> NF_PlayerControllerDataAsset;
+	
 	
 	ENF_PlayerActionType NF_PlayerActionType = ENF_PlayerActionType::None;
 	
@@ -58,7 +66,7 @@ public:
 	
 	void BindInputButton();
 	
-	void BindDelegate();
+	void ConfigBindDelegate();
 	
 	void TryAction(ENF_PlayerActionType PlayerActionType);
 	
@@ -67,6 +75,8 @@ public:
 	void IsCombatAction(ENF_PlayerActionType PlayerActionType);
 	
 	void ZoomSelector(ENF_PlayerActionType PlayerActionType);
+	
+
 	
 private:
 	void OpenOption(ENF_PlayerActionType PlayerActionType);
