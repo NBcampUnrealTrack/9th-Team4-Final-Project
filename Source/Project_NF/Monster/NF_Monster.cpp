@@ -23,6 +23,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "UI/Widget/NF_MonsterStatusWidget.h"
+#include "GAS/Tags/NFTag_BossCombat.h"
 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
@@ -375,8 +376,8 @@ void ANF_Monster::ApplyBasicAttackHit()
     }
 
     EffectSpecHandle.Data->SetSetByCallerMagnitude(
-        NFTag_Monster::Data_Monster_Damage,
-        -MonsterAttributeSet->GetAttackPower());
+    NFTag_BossCombat::Data_Damage,
+FMath::Max(MonsterAttributeSet->GetAttackPower(), 0.0f));
 	
 	const float TargetHealthBefore =
 	TargetASC->GetNumericAttribute(
@@ -737,8 +738,8 @@ void ANF_Monster::ApplyLandingDamage(
 	}
 
 	const float DamageAmount =
-		-MonsterAttributeSet->GetAttackPower()
-		* FMath::Max(DamageMultiplier, 0.0f);
+	FMath::Max(MonsterAttributeSet->GetAttackPower(), 0.0f)
+	* FMath::Max(DamageMultiplier, 0.0f);
 
 	TSet<UAbilitySystemComponent*> DamagedTargetASCs;
 
@@ -785,8 +786,8 @@ void ANF_Monster::ApplyLandingDamage(
 		}
 
 		EffectSpecHandle.Data->SetSetByCallerMagnitude(
-			NFTag_Monster::Data_Monster_Damage,
-			DamageAmount);
+	NFTag_BossCombat::Data_Damage,
+	DamageAmount);
 
 		MonsterASC->ApplyGameplayEffectSpecToTarget(
 			*EffectSpecHandle.Data.Get(),
