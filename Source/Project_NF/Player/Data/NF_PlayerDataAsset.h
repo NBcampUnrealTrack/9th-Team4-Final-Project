@@ -34,6 +34,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|MeleeAttack")
 	FName MeleeSocket_End = "MeleeSocket_End";
 	
+	
 	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad_Damage", DisplayName = "MeleeAttackDamage (음수)")
 	float MeleeAttackDamage = 10.0f;
 	
@@ -46,17 +47,11 @@ public:
 	
 	
 	UPROPERTY(EditDefaultsOnly, Category = "PlayerState|GA_Class", DisplayName = "GameplayAbility (Play 전 적용 될 GA_Class)")
-	TArray<TSubclassOf<UGameplayAbility>> InitGA_Array;
+	TArray<TSubclassOf<UGameplayAbility>> NF_GameplayAbility_Array;
 	
-	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class", DisplayName = "MeleeAttack_GEClass (Health 영향)")
-	TSubclassOf<UGameplayEffect> MeleeAttack_Health_GEClass;
+	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
+	TSubclassOf<UGameplayEffect> NF_GameplayEffectClass;
 	
-	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class", DisplayName = "MeleeAttack_GEClass (Shield 영향)")
-	TSubclassOf<UGameplayEffect> MeleeAttack_Shield_GEClass;
-	
-	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class", DisplayName = "GainExp_GEClass (IncomingExp 영향)")
-	TSubclassOf<UGameplayEffect> GainExp_GEClass;
-	
-	UPROPERTY(EditAnywhere, Category = "PlayerState|PlayerLV", DisplayName = "PlayerLevelDataTable (1번째 행 = 1레벨)")
+	UPROPERTY(EditAnywhere, Category = "PlayerState|Player_Level")
 	TObjectPtr<UDataTable> PlayerLevelDataTable;
 };

@@ -30,6 +30,7 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 	
 	else if (Attribute == GetHealthAttribute())
 	{
+		
 		float ReceivedDamage = GetHealth() - NewValue;
 		
 		if (ReceivedDamage > 0.0f)
@@ -43,16 +44,6 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxHealth());
 	}
 	
-	/*if (Attribute == GetMaxDefenceAttribute())
-	{
-		NewValue = FMath::Max<float>(1.0f, NewValue);
-	}
-	
-	else if (Attribute == GetDefenceAttribute())
-	{
-		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxDefence());
-	}*/
-	
 	if (Attribute == GetMaxShieldAttribute())
 	{
 		NewValue = FMath::Max<float>(1.0f, NewValue);
@@ -62,6 +53,8 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 	{
 		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxShield());
 	}
+	
+	
 }
 
 
