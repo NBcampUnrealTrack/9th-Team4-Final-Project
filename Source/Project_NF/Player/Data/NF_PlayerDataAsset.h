@@ -25,6 +25,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "GAS|GA_Montage")
 	TObjectPtr<UAnimMontage> DeathMontage;
 	
+	UPROPERTY(EditAnywhere, Category = "GAS|GA_Montage")
+	TObjectPtr<UAnimMontage> DownedMontage;
+	
 	UPROPERTY(EditAnywhere, Category = "GAS|MeleeAttack", DisplayName = "MeleeTraceRadius (근접공격 범위)")
 	float MeleeTraceRadius = 20.0f;
 	
