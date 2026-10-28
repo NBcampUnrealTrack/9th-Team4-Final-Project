@@ -7,6 +7,7 @@
 #include "GameplayEffect.h"
 #include "GameplayEffectComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GamePlay/Combat/Armor/NF_ArmorBase.h"
 
 FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, int32 CostLimit,
@@ -105,9 +106,11 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 		if (Data.WeaponClass)
 		{
 			if (Data.ItemType != ENF_ItemType::Weapon ||
-				Data.WeaponClass->HasAnyClassFlags(CLASS_Abstract))
+				Data.WeaponClass->HasAnyClassFlags(CLASS_Abstract) || !IsValid(Data.WeaponData) ||
+				Data.WeaponData->ItemType != ENF_ItemType::Weapon ||
+				Data.WeaponData->WeaponClass != Data.WeaponClass)
 			{
-				return Fail(ENF_BuildResult::InvalidGrant, TEXT("무기 클래스는 Weapon 항목의 생성 가능한 클래스여야 합니다."));
+				return Fail(ENF_BuildResult::InvalidGrant, TEXT("선택한 무기 원본 DA와 생성 클래스를 확인하세요."));
 			}
 			if (Selection.SlotIndex != 0 || ++LinkedWeaponCount > 1)
 			{

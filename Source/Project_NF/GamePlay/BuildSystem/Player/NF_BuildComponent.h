@@ -191,6 +191,7 @@ protected:
 	TObjectPtr<UNF_BuildRules> Rules;
 
 private:
+	friend class FNF_BuildEquipmentTransactionTest;
 	void InitializeDefaultBuildEntitlements();
 
 	// @Owner: 황준현 | 2026-10-15. 범위 상태는 사용 세션과 분리하여 소유 클라이언트에 복제한다.
@@ -244,6 +245,10 @@ private:
 	               int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
 	bool ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections,
 	                          const TMap<FName, FNF_BuildItemData>& SelectedData);
+	bool ApplyEquipmentSelection(const TArray<FNF_BuildSelection>& Selections,
+	                             const TMap<FName, FNF_BuildItemData>& SelectedData);
+	void ReleaseBuildArmors();
+	TMap<FName, TWeakObjectPtr<ANF_ArmorBase>> BuildArmors;
 	void ReleaseBuildWeapon();
 	TWeakObjectPtr<ANF_WeaponBase> BuildWeapon;
 	FName BuildWeaponItemId;
