@@ -35,6 +35,9 @@ protected:
 	
 	virtual void SetupInputComponent() override;
 	
+private:
+	void ConfigDataAsset();
+	
 
 #pragma region Input
 public:
@@ -62,6 +65,9 @@ public:
 	void IsCombatAction(ENF_PlayerActionType PlayerActionType);
 	
 	void ZoomSelector(ENF_PlayerActionType PlayerActionType);
+	
+private:
+	void OpenOption(ENF_PlayerActionType PlayerActionType);
 #pragma endregion 
 
 	
