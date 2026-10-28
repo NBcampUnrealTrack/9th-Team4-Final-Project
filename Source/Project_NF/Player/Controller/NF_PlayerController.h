@@ -52,6 +52,8 @@ public:
 	bool bIsToggleZoom = false;
 	bool bIsZoomIn = false;
 	
+	void OnToggleZoomChanged(bool bNewIsToggleZoom);
+	
 	void InputConfig();
 	
 	void BindInputButton();

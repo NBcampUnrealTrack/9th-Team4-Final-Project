@@ -55,6 +55,15 @@ void ANF_PlayerController::ConfigDataAsset()
 }
 
 
+void ANF_PlayerController::OnToggleZoomChanged(bool bNewIsToggleZoom)
+{
+	if (IsLocalController() == true)
+	{
+		bIsToggleZoom = bNewIsToggleZoom;
+	}
+}
+
+
 void ANF_PlayerController::InputConfig()
 {
 	if (NF_PlayerControllerDataAsset == nullptr) return;
