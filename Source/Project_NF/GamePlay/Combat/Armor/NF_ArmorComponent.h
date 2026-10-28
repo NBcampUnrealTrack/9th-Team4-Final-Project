@@ -35,7 +35,6 @@ public:
 	UFUNCTION(BlueprintPure, Category="Armor")
 	float GetTotalBaseDefence() const;
 
-	/** Reapply equipment defence after equipment changes or ASC initialization. Server only. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Armor")
 	void RefreshArmorDefence();
 
@@ -43,39 +42,12 @@ public:
 	
 	class USkeletalMeshComponent* GetHitMesh() const;
 
-	// Legacy migration values only; gameplay reads Config.
-	// physics asset 의 본 컨테이너
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
-	TMap<FName, ENF_ArmorSlot> BoneToSlot;
-
-	// 피격 판정을 담당하는 메시 이름 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
-	FName HitMeshComponentName;
-
 protected:
-	/** Assign before play; shared settings are read-only at runtime. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Armor")
 	TObjectPtr<UNF_ArmorComponentConfigDataAsset> Config;
 
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
-	TArray<TSubclassOf<class ANF_ArmorBase>> DefaultArmorClasses;
-
-	/** False allows logical equipment without a mesh, bone or socket. */
-	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
-	bool bAttachArmorToSockets = false;
-
-	// 메시를 붙일 소켓 이름 (피격 부위 판정x)
-	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
-	FName HeadSocketName = TEXT("head");
-
-	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
-	FName UpperSocketName = TEXT("spine_03");
-
-	UPROPERTY(VisibleDefaultsOnly, Category="Armor|Legacy Settings", AdvancedDisplay)
-	FName BottomSocketName = TEXT("pelvis");
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category="Armor")
 	TArray<TObjectPtr<class ANF_ArmorBase>> EquippedArmors;
