@@ -190,13 +190,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_BuildConfiguration, Category = "NF|Build")
 	TObjectPtr<UNF_BuildRules> Rules;
 
-	/** Optional native prototype UI. Assign a project widget subclass or disable automatic display. */
-	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|UI")
-	TSubclassOf<UUserWidget> BuildWidgetClass;
-
-	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|UI")
-	bool bAutomaticallyShowWidget = true;
-
 private:
 	void InitializeDefaultBuildEntitlements();
 
@@ -219,14 +212,10 @@ private:
 
 	UAbilitySystemComponent* ResolveAbilitySystem() const;
 	bool CanEditDraft() const;
-	void UpdateLocalShopUI();
 	void CompleteLocalBuildRequest(const FNF_BuildValidation& Validation);
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentShop)
 	TObjectPtr<ANF_BuildShopZone> CurrentShop;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> BuildWidget;
 
 	UPROPERTY(Transient)
 	TArray<FNF_BuildSelection> DraftBuild;

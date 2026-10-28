@@ -28,7 +28,6 @@ UNF_BuildComponent::UNF_BuildComponent()
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.TickInterval = 0.2f;
 	SetIsReplicatedByDefault(true);
-	BuildWidgetClass = UNF_BuildShopWidget::StaticClass();
 }
 
 void UNF_BuildComponent::BeginPlay()
@@ -365,8 +364,7 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 		DraftBuild = CurrentBuild;
 		PendingActiveSkill = NAME_None;
 		bDraftDirty = false;
-
-		UpdateLocalShopUI();
+		
 		OnDraftChanged.Broadcast();
 	}
 
@@ -383,41 +381,6 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 void UNF_BuildComponent::OnRep_BuildConfiguration()
 {
 	OnDraftChanged.Broadcast();
-}
-
-void UNF_BuildComponent::UpdateLocalShopUI()
-{
-	const APawn* Pawn = Cast<APawn>(GetOwner());
-	APlayerController* Controller = BuildWidget
-		                                ? BuildWidget->GetOwningPlayer()
-		                                : Pawn
-		                                ? Cast<APlayerController>(Pawn->GetController())
-		                                : nullptr;
-	if (!Controller || !Controller->IsLocalController() || !Controller->GetLocalPlayer())
-	{
-		return;
-	}
-
-	ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
-	UNF_UIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>();
-	if (!IsValid(UIManager))
-	{
-		return;
-	}
-
-	if (IsValid(CurrentShop) && bAutomaticallyShowWidget && BuildWidgetClass)
-	{
-		if (!IsValid(BuildWidget) || BuildWidget->GetParent() == nullptr)
-		{
-			BuildWidget = UIManager->PushScreen(
-				BuildWidgetClass, ENF_ScreenInputMode::GameAndUI);
-		}
-	}
-	else if (IsValid(BuildWidget))
-	{
-		UIManager->RemoveWidget(BuildWidget);
-		BuildWidget = nullptr;
-	}
 }
 
 bool UNF_BuildComponent::InitializeAbilitySystem(UAbilitySystemComponent* InAbilitySystem)
@@ -882,7 +845,6 @@ void UNF_BuildComponent::OnRep_CurrentBuild()
 void UNF_BuildComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CurrentShop = nullptr;
-	UpdateLocalShopUI();
 	if (GetOwner()->HasAuthority())
 	{
 		if (bOwnsReadyTag && ReadyAbilitySystem.IsValid())
