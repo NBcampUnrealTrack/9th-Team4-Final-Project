@@ -55,6 +55,15 @@ void ANF_PlayerController::ConfigDataAsset()
 }
 
 
+void ANF_PlayerController::OnToggleZoomChanged(bool bNewIsToggleZoom)
+{
+	if (IsLocalController() == true)
+	{
+		bIsToggleZoom = bNewIsToggleZoom;
+	}
+}
+
+
 void ANF_PlayerController::InputConfig()
 {
 	if (NF_PlayerControllerDataAsset == nullptr) return;
@@ -282,7 +291,6 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 			}
 
 			auto* NF_UIManagerSubsystem = GetLocalPlayer()->GetSubsystem<UNF_UIManagerSubsystem>();
-		
 			if (IsValid(NF_UIManagerSubsystem) == false) return;
 		
 			NF_UIManagerSubsystem->PushModal(NF_PlayerControllerDataAsset->OptionsWidgetClass);
