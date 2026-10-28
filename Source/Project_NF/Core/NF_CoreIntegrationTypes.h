@@ -14,7 +14,7 @@ DECLARE_DELEGATE_RetVal_OneParam(bool,FNF_EvaluateRespawnPermission,const ANF_Pl
 
 // @Owner: 조민웅 | 2026-10-19
 // 매치메이킹 연동 코드가 서버에서 바인딩. 남은 클라이언트의 복귀 및 세션 정리를 요청
-DECLARE_DELEGATE_OneParam(FNF_RequestMatchAbort, const FString&);
+DECLARE_DELEGATE_OneParam(FNF_RequestMatchAbort, const FNF_MatchResult&);
 
 // @Owner: 황준현 | 2026-10-19
 // Core의 기본 빌드 요청 계약. 적용과 Ready 갱신을 완료한 경우에만 true를 반환한다.

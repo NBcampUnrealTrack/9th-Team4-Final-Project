@@ -3,6 +3,8 @@
 #include "NF_MatchmakingSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/PackageName.h"
+#include "UObject/SoftObjectPath.h"
 #include "HAL/PlatformTime.h"
 
 #include "Engine/LocalPlayer.h"
@@ -324,7 +326,7 @@ bool UNF_MatchmakingSubsystem::StartMatchmaking(const FString& PlayerId)
 
 bool UNF_MatchmakingSubsystem::StartMatchmakingInQueue(const FString& PlayerId, FName QueueId)
 {
-	if (bCompletionCleanupPending || bCompletionCleanupFailed) return false;
+	if (!IsReadyForMatchmakingAfterReturn()) return false;
 	const FNFMatchQueueDefinition* QueueDefinition = MatchQueueDefinitions.Find(QueueId);
 	if (!QueueDefinition)
 	{
@@ -336,7 +338,6 @@ bool UNF_MatchmakingSubsystem::StartMatchmakingInQueue(const FString& PlayerId, 
 		return false;
 	}
 	ActiveQueueDefinition = *QueueDefinition;
-	bCompletionHandled = false;
 	if (!LocalPartyId.IsEmpty()) RefreshPartyRoster();
 
 	FNFMatchQueueEntry Entry;
@@ -371,6 +372,11 @@ bool UNF_MatchmakingSubsystem::StartMatchmakingInQueue(const FString& PlayerId, 
 		OnMatchmakingFailed.Broadcast(TEXT("파티 대기 시작 시각을 Steam Lobby에 기록하지 못했습니다."));
 		return false;
 	}
+	// Only release the previous return guard after the new queue request passes validation.
+	bCompletionHandled = false;
+	LastMatchResult = FNF_MatchResult();
+	CompletionCleanupAttempts = 0;
+	NextCompletionCleanupAttempt = 0.0;
 	for (const FString& MemberId : Entry.PlayerIds)
 	{
 		Entry.QueueJoinTimes.Add(Now);
@@ -527,11 +533,59 @@ void UNF_MatchmakingSubsystem::HandleDedicatedMatchAborted(const FString& Reason
 
 void UNF_MatchmakingSubsystem::HandleDedicatedMatchCompleted(const FNF_MatchResult& Result)
 {
-	if (bCompletionHandled || Result.Outcome != ENF_MatchOutcome::Victory ||
-		Result.EndReason != ENF_MatchEndReason::EscapeSucceeded || Result.WinningTeamId <= 0) return;
+	if (!RequestReturnToMatchmaking(Result))
+	{
+		UE_LOG(LogProject_NF, Error, TEXT("Match result return request was rejected."));
+	}
+}
+
+bool UNF_MatchmakingSubsystem::RequestReturnToMatchmaking(const FNF_MatchResult& Result)
+{
+	const bool bVictory = Result.Outcome == ENF_MatchOutcome::Victory &&
+		Result.EndReason == ENF_MatchEndReason::EscapeSucceeded && Result.WinningTeamId > 0;
+	const bool bAborted = Result.Outcome == ENF_MatchOutcome::Aborted &&
+		Result.EndReason != ENF_MatchEndReason::None &&
+		Result.EndReason != ENF_MatchEndReason::EscapeSucceeded && Result.WinningTeamId == INDEX_NONE;
+	UWorld* World = GetWorld();
+	if ((!bVictory && !bAborted) || !IsValid(World) || World->GetNetMode() == NM_DedicatedServer)
+	{
+		return false;
+	}
+	// The server RPC may precede GameState replication. Do not require Finished here.
+	if (bCompletionHandled) return true;
+
+	FString MenuMap;
+	GConfig->GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GameDefaultMap"), MenuMap, GEngineIni);
+	const FString MenuPackage = FSoftObjectPath(MenuMap).GetLongPackageName();
+	if (MenuPackage.IsEmpty() || !FPackageName::DoesPackageExist(MenuPackage))
+	{
+		UE_LOG(LogProject_NF, Error, TEXT("Match return requires an existing GameDefaultMap: %s"), *MenuMap);
+		return false;
+	}
+
+	// Set the guard before broadcasts: UI callbacks may request the same return again.
 	bCompletionHandled = true;
 	bCompletionCleanupPending = true;
+	bCompletionCleanupFailed = false;
 	LastMatchResult = Result;
+	ResetStateForMatchReturn();
+	SetMatchState(ENFMatchState::Ended);
+	OnQueueCountChanged.Broadcast(0, ActiveQueueDefinition.PlayerCount);
+	OnMatchCompleted.Broadcast(LastMatchResult);
+
+	// Only local OSS membership is cleaned here; the dedicated server owns its shutdown.
+	RetryCompletedMatchCleanup();
+	UGameplayStatics::OpenLevel(this, FName(*MenuPackage), true);
+	return true;
+}
+
+bool UNF_MatchmakingSubsystem::IsReadyForMatchmakingAfterReturn() const
+{
+	return SessionInterface.IsValid() && !bCompletionCleanupPending && !bCompletionCleanupFailed;
+}
+
+void UNF_MatchmakingSubsystem::ResetStateForMatchReturn()
+{
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(QueueTimeoutTimerHandle);
@@ -562,22 +616,27 @@ void UNF_MatchmakingSubsystem::HandleDedicatedMatchCompleted(const FNF_MatchResu
 	bJoiningPartyMatchInvite = false;
 	bCreateSessionInFlight = false;
 	QueuedPlayerCount = 0;
-	SetMatchState(ENFMatchState::Ended);
-	OnQueueCountChanged.Broadcast(0, ActiveQueueDefinition.PlayerCount);
-	OnMatchCompleted.Broadcast(LastMatchResult);
-	// The Core ticker survives the world change; session cleanup must not use a world timer.
-	RetryCompletedMatchCleanup();
-	FString MenuMap;
-	GConfig->GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GameDefaultMap"), MenuMap, GEngineIni);
-	const FString MenuPackage = FSoftObjectPath(MenuMap).GetLongPackageName();
-	if (!MenuPackage.IsEmpty())
+	// Detach outstanding one-shot lobby operations before the next matchmaking attempt.
+	// Keep participant/invite subscriptions, which are owned for the subsystem lifetime.
+	if (SessionInterface.IsValid())
 	{
-		UGameplayStatics::OpenLevel(this, FName(*MenuPackage), true);
+		if (FindSessionsCompleteHandle.IsValid())
+		{
+			SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteHandle);
+			SessionInterface->CancelFindSessions();
+		}
+		if (CreateSessionCompleteHandle.IsValid())
+			SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteHandle);
+		if (JoinSessionCompleteHandle.IsValid())
+			SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteHandle);
+		if (DestroySessionCompleteHandle.IsValid())
+			SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteHandle);
 	}
-	else
-	{
-		UE_LOG(LogProject_NF, Error, TEXT("Normal match return requires a configured GameDefaultMap."));
-	}
+	FindSessionsCompleteHandle.Reset();
+	CreateSessionCompleteHandle.Reset();
+	JoinSessionCompleteHandle.Reset();
+	DestroySessionCompleteHandle.Reset();
+	SearchRetryCount = 0;
 }
 
 void UNF_MatchmakingSubsystem::RetryCompletedMatchCleanup()
@@ -593,11 +652,21 @@ void UNF_MatchmakingSubsystem::RetryCompletedMatchCleanup()
 
 bool UNF_MatchmakingSubsystem::TickCompletedMatchCleanup(float DeltaTime)
 {
-	const bool bHasMatch = SessionInterface.IsValid() && SessionInterface->GetNamedSession(MatchSessionName);
-	const bool bHasParty = SessionInterface.IsValid() && SessionInterface->GetNamedSession(PartySessionName);
+	if (!SessionInterface.IsValid())
+	{
+		bCompletionCleanupPending = false;
+		bCompletionCleanupFailed = true;
+		CompletionCleanupTicker.Reset();
+		UE_LOG(LogProject_NF, Error, TEXT("Match return cleanup cannot verify sessions: online session interface is unavailable."));
+		OnMatchCleanupFinished.Broadcast(false);
+		return false;
+	}
+	const bool bHasMatch = SessionInterface->GetNamedSession(MatchSessionName) != nullptr;
+	const bool bHasParty = SessionInterface->GetNamedSession(PartySessionName) != nullptr;
 	if (!bHasMatch && !bHasParty)
 	{
 		bCompletionCleanupPending = false;
+		bCompletionCleanupFailed = false;
 		CompletionCleanupTicker.Reset();
 		OnMatchCleanupFinished.Broadcast(true);
 		return false;
@@ -609,7 +678,7 @@ bool UNF_MatchmakingSubsystem::TickCompletedMatchCleanup(float DeltaTime)
 		bCompletionCleanupPending = false;
 		bCompletionCleanupFailed = true;
 		CompletionCleanupTicker.Reset();
-		UE_LOG(LogProject_NF, Warning, TEXT("Normal match session cleanup failed/timed out. RetryCompletedMatchCleanup is required before requeueing."));
+		UE_LOG(LogProject_NF, Warning, TEXT("Match return session cleanup failed/timed out. RetryCompletedMatchCleanup is required before requeueing."));
 		OnMatchCleanupFinished.Broadcast(false);
 		return false;
 	}
@@ -619,11 +688,12 @@ bool UNF_MatchmakingSubsystem::TickCompletedMatchCleanup(float DeltaTime)
 	// Never overlap a destroy already in progress; a stuck operation times out above.
 	for (FName Name : { MatchSessionName, PartySessionName })
 	{
-		if (SessionInterface->GetNamedSession(Name) && SessionInterface->GetSessionState(Name) != EOnlineSessionState::Destroying)
+		const EOnlineSessionState::Type State = SessionInterface->GetSessionState(Name);
+		if (SessionInterface->GetNamedSession(Name) && State != EOnlineSessionState::Destroying && State != EOnlineSessionState::Creating)
 		{
 			if (!SessionInterface->DestroySession(Name))
 			{
-				UE_LOG(LogProject_NF, Warning, TEXT("Normal match cleanup request rejected: %s"), *Name.ToString());
+				UE_LOG(LogProject_NF, Warning, TEXT("Match return cleanup request rejected: %s"), *Name.ToString());
 			}
 		}
 	}

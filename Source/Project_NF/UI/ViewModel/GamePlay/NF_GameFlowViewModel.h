@@ -96,6 +96,7 @@ private:
 
 	void HandleMatchStateChanged(FNF_MatchState& NewMatchState);
 	void HandleEscapeProgressChanged(const FNF_EscapeProgress& NewProgress);
+	void HandleAnnouncementReceived(const FText& Message, float DisplayDuration);
 
 	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Phase",meta = (AllowPrivateAccess = "true"))
 	ENF_MatchPhase CurrentPhase = ENF_MatchPhase::Waiting;

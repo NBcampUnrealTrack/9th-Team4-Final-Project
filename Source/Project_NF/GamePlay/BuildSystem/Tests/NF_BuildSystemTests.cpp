@@ -18,6 +18,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "Core/NF_GameState.h"
 #include "Core/NF_GameMode.h"
 #include "Core/Component/NF_BuildReadyComponent.h"
@@ -84,7 +85,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BuildWeaponDefinitionTest, "NF.Build.Weapon
 bool FNF_BuildWeaponDefinitionTest::RunTest(const FString& Parameters)
 {
 	UNF_BuildRules* Rules = MakeRules();
-	SourceData(Rules, Rules->Catalog[0]).WeaponClass = ANF_WeaponBase::StaticClass();
+	UNF_WeaponDataAsset* WeaponSource = NewObject<UNF_WeaponDataAsset>(Rules);
+	WeaponSource->WeaponClass = ANF_WeaponBase::StaticClass();
+	WeaponSource->Cost = 2;
+	Rules->ItemSources.Add(TEXT("Rifle"), WeaponSource);
 	TestEqual(TEXT("Linked weapon in first slot accepted"),
 	          FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle"))}).Result,
 	          ENF_BuildResult::Success);

@@ -25,11 +25,17 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 	
 	if (Attribute == GetMaxHealthAttribute())
 	{
+	
 		NewValue = FMath::Max<float>(1.0f, NewValue);
 	}
 	
 	else if (Attribute == GetHealthAttribute())
 	{
+		if (GetShield() > 0.0f)
+		{
+			NewValue = GetHealth();
+			return;
+		}
 		
 		float ReceivedDamage = GetHealth() - NewValue;
 		

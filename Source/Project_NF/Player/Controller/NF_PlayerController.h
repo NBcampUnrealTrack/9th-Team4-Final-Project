@@ -35,6 +35,9 @@ protected:
 	
 	virtual void SetupInputComponent() override;
 	
+private:
+	void ConfigDataAsset();
+	
 
 #pragma region Input
 public:
@@ -49,6 +52,8 @@ public:
 	bool bIsToggleZoom = false;
 	bool bIsZoomIn = false;
 	
+	void OnToggleZoomChanged(bool bNewIsToggleZoom);
+	
 	void InputConfig();
 	
 	void BindInputButton();
@@ -62,6 +67,9 @@ public:
 	void IsCombatAction(ENF_PlayerActionType PlayerActionType);
 	
 	void ZoomSelector(ENF_PlayerActionType PlayerActionType);
+	
+private:
+	void OpenOption(ENF_PlayerActionType PlayerActionType);
 #pragma endregion 
 
 	

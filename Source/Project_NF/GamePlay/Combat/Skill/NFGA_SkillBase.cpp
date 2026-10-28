@@ -11,6 +11,8 @@
 #include "GamePlay/Combat/Components/NF_GroundTargetingComponent.h"
 #include "GAS/Tags/NFTag_Skill.h"
 #include "GAS/Tags/NFTag_Player.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GamePlay/Combat/Skill/Execution/NF_SkillCastVisual.h"
 
 namespace
 {
@@ -67,6 +69,31 @@ bool UNFGA_SkillBase::BeginLocalPreview()
 	return true;
 }
 
+void UNFGA_SkillBase::CommitExecute(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+{
+	Super::CommitExecute(Handle, ActorInfo, ActivationInfo);
+	// All native active skills commit at effect execution, after targeting/cast delay checks.
+	// Do not wait for the animation or bind animation completion to EndAbility.
+	if (IsActive() && SkillType == ENF_SkillType::Active) { PlayCastMontage(ActorInfo); }
+}
+
+void UNFGA_SkillBase::PlayCastMontage(const FGameplayAbilityActorInfo* ActorInfo)
+{
+	if (!CastMontage || bCastMontageRequested || !ActorInfo || !ActorInfo->IsNetAuthority()) { return; }
+	bCastMontageRequested = true;
+	AActor* Avatar = ActorInfo->AvatarActor.Get();
+	// Dedicated servers need not initialize an AnimInstance to relay a cosmetic to clients.
+	USkeletalMeshComponent* Mesh = ActorInfo->SkeletalMeshComponent.Get();
+	if (!IsValid(Avatar) || !Avatar->GetWorld() || !IsValid(Mesh))
+	{
+		UE_LOG(LogProject_NF, Warning, TEXT("[SkillAnimation] 시전 모션 생략: ASC의 애니메이션 메시가 없습니다. GA=%s"), *GetName());
+		return;
+	}
+	ANF_SkillCastVisual::SpawnForCast(Avatar, Mesh->GetFName(), CastMontage, CastMontagePlayRate,
+		CastMontageStartSection, ActorInfo->AffectedAnimInstanceTag);
+}
+
 void UNFGA_SkillBase::EndLocalPreview()
 {
 	if (IsValid(LocalPreviewActor))
@@ -115,6 +142,7 @@ void UNFGA_SkillBase::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 		Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 		return;
 	}
+	bCastMontageRequested = false;
 	CancelLocalInput();
 	ClearConfirmedTargetData();
 	if (GetWorld())

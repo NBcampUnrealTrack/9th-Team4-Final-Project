@@ -87,6 +87,4 @@ private:
 	
 	void IsOutOfHealth(const FGameplayEffectModCallbackData& Data);
 	void IsOutOfShield(const FGameplayEffectModCallbackData& Data);
-	
-	
 };

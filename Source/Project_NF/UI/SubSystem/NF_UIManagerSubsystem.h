@@ -4,12 +4,14 @@
 #include "Blueprint/UserWidget.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "TimerManager.h"
+#include "Data/Struct/NF_MatchResult.h"
 #include "NF_UIManagerSubsystem.generated.h"
 
 class APlayerController;
 class UOverlay;
 class UWorld;
 class UNF_UIRootWidget;
+class UNF_MatchResultWidget;
 
 
 UENUM(BlueprintType)
@@ -29,6 +31,10 @@ struct FNF_ScreenEntry
 
 	UPROPERTY(Transient)
 	ENF_ScreenInputMode InputMode = ENF_ScreenInputMode::GameAndUI;
+
+	// 일반 닫기만 제한한다. 시스템 제거는 허용한다.
+	UPROPERTY(Transient)
+	bool bAllowUserClose = true;
 };
 
 USTRUCT()
@@ -57,7 +63,17 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "NF|UI")
 	UUserWidget* PushScreen(
-		TSubclassOf<UUserWidget> WidgetClass,ENF_ScreenInputMode InputMode = ENF_ScreenInputMode::GameAndUI);
+		TSubclassOf<UUserWidget> WidgetClass, ENF_ScreenInputMode InputMode = ENF_ScreenInputMode::GameAndUI,
+		bool bAllowUserClose = true);
+
+	// 기존 결과 화면은 갱신하고, 최초 표시 시 다른 임시 UI를 정리한다.
+	UFUNCTION(BlueprintCallable, Category = "NF|UI")
+	UNF_MatchResultWidget* ShowMatchResult(TSubclassOf<UNF_MatchResultWidget> WidgetClass,
+		const FNF_MatchResult& Result, int32 LocalTeamId);
+
+	// 종료된 매치 또는 표시 중인 결과 화면에서는 빌드샵/옵션 진입을 막는다.
+	UFUNCTION(BlueprintPure, Category = "NF|UI")
+	bool CanOpenGameplayScreen() const;
 
 	// Modal은 UIOnly 입력 사용
 	UFUNCTION(BlueprintCallable, Category = "NF|UI")
@@ -71,7 +87,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF|UI")
 	bool RemoveWidget(UUserWidget* Widget);
 
-	// Modal -> Screen 순서로 하나를 닫는다. HUD/Overlay는 제외
+	// Modal -> Screen 순서로 닫는다. 일반 닫기가 금지된 Screen은 유지한다.
 	UFUNCTION(BlueprintCallable, Category = "NF|UI")
 	bool CloseTop();
 
