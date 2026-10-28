@@ -14,6 +14,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnMatchStateChanged, FNF_MatchState&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnKeyPublicStateChanged, const FNF_KeyPublicState&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnEscapeProgressChanged, const FNF_EscapeProgress&);
 DECLARE_MULTICAST_DELEGATE(FNF_OnTeamRosterChanged);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FNF_OnAnnouncementReceived, const FText&, float);
 
 UCLASS()
 class PROJECT_NF_API ANF_GameState : public AGameState
@@ -69,7 +70,10 @@ public:
 
 	FNF_OnEscapeProgressChanged OnEscapeProgressChanged;
 
-	/** Server broadcasts a one-shot announcement to every connected player. */
+	// 각 클라이언트에서 수신한 일회성 진행 알림.
+	FNF_OnAnnouncementReceived OnAnnouncementReceived;
+
+	// 서버에서 호출하여 현재 접속 중인 클라이언트에 알림 전달.
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastShowAnnouncement(const FText& Message, float Duration = 3.0f);
 
