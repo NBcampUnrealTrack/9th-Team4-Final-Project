@@ -15,19 +15,31 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "Core/Match/NF_MatchmakingSubsystem.h"
+#include "UI/ViewModel/GamePlay/NF_MatchmakingViewModel.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
-#include "Interfaces/OnlineIdentityInterface.h"
+#include "UI/SubSystem/NF_ViewModelSubsystem.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "OnlineSubsystem.h"
 #include "Project_NF.h"
 #include "steam/steam_api.h"
-#include "TimerManager.h"
+#include "Engine/LocalPlayer.h"
+#include "UObject/UnrealType.h"
 
 namespace
 {
+	FText ReadViewModelText(const UNF_MatchmakingViewModel* ViewModel, FName FieldName)
+	{
+		const FTextProperty* Property = FindFProperty<FTextProperty>(ViewModel->GetClass(), FieldName);
+		if (!ensureMsgf(Property, TEXT("Missing matchmaking text field: %s"), *FieldName.ToString()))
+		{
+			return FText::GetEmpty();
+		}
+		return Property->GetPropertyValue_InContainer(ViewModel);
+	}
+
 	UTextBlock* AddLabel(UWidgetTree* WidgetTree, UVerticalBox* Parent, const TCHAR* Text, int32 FontSize)
 	{
 		UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
@@ -72,36 +84,55 @@ void UNF_MatchmakingWidget::NativeOnInitialized()
 void UNF_MatchmakingWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	if (UGameInstance* GameInstance = GetGameInstance())
+	DisconnectViewModel();
+	if (ULocalPlayer* LocalPlayer = GetOwningLocalPlayer())
 	{
-		MatchmakingSubsystem = GameInstance->GetSubsystem<UNF_MatchmakingSubsystem>();
+		ViewModelSubsystem = LocalPlayer->GetSubsystem<UNF_ViewModelSubsystem>();
+		if (UNF_ViewModelSubsystem* Subsystem = ViewModelSubsystem.Get())
+		{
+			MatchmakingViewModel = NewObject<UNF_MatchmakingViewModel>(this);
+			// Native UMG uses the same FieldNotify signals as WBP view bindings.
+			MatchmakingViewModel->GetFieldNotificationDescriptor().ForEachField(
+				MatchmakingViewModel->GetClass(), [this](UE::FieldNotification::FFieldId Field)
+				{
+					MatchmakingViewModel->AddFieldValueChangedDelegate(Field,
+						INotifyFieldValueChanged::FFieldValueChangedDelegate::CreateWeakLambda(
+							this, [this](UObject*, UE::FieldNotification::FFieldId)
+							{
+								RefreshDisplay();
+							}));
+					return true;
+				});
+			Subsystem->RegisterViewModel(MatchmakingViewModel);
+		}
 	}
-	if (MatchmakingSubsystem)
-	{
-		MatchmakingSubsystem->OnMatchStateChanged.AddDynamic(this, &ThisClass::HandleMatchStateChanged);
-		MatchmakingSubsystem->OnQueueCountChanged.AddDynamic(this, &ThisClass::HandleQueueCountChanged);
-		MatchmakingSubsystem->OnMatchmakingFailed.AddDynamic(this, &ThisClass::HandleMatchmakingFailed);
-	}
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(DisplayRefreshTimerHandle, this, &ThisClass::RefreshDisplay, 1.0f, true);
-	}
+	IOnlineSubsystem* DefaultSubsystem = IOnlineSubsystem::Get();
+	LogSteamStartupDiagnostics(DefaultSubsystem ? DefaultSubsystem->GetSubsystemName().ToString() : TEXT("none"));
+	// Initialization may retain default values without emitting FieldNotify.
 	RefreshDisplay();
+}
+
+void UNF_MatchmakingWidget::DisconnectViewModel()
+{
+	if (MatchmakingViewModel)
+	{
+		MatchmakingViewModel->RemoveAllFieldValueChangedDelegates(this);
+		if (UNF_ViewModelSubsystem* Subsystem = ViewModelSubsystem.Get())
+		{
+			Subsystem->UnregisterViewModel(MatchmakingViewModel);
+		}
+		else
+		{
+			MatchmakingViewModel->DeinitializeViewModel();
+		}
+		MatchmakingViewModel = nullptr;
+	}
+	ViewModelSubsystem.Reset();
 }
 
 void UNF_MatchmakingWidget::NativeDestruct()
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(DisplayRefreshTimerHandle);
-	}
-	if (MatchmakingSubsystem)
-	{
-		MatchmakingSubsystem->OnMatchStateChanged.RemoveAll(this);
-		MatchmakingSubsystem->OnQueueCountChanged.RemoveAll(this);
-		MatchmakingSubsystem->OnMatchmakingFailed.RemoveAll(this);
-		MatchmakingSubsystem = nullptr;
-	}
+	DisconnectViewModel();
 	Super::NativeDestruct();
 }
 
@@ -157,92 +188,55 @@ void UNF_MatchmakingWidget::BuildWidgetTree()
 
 void UNF_MatchmakingWidget::RefreshDisplay()
 {
+	const bool bReady = IsValid(MatchmakingViewModel) && MatchmakingViewModel->IsViewModelInitialized();
+	if (StateText) StateText->SetText(bReady ? MatchmakingViewModel->GetMatchStateText()
+		: FText::FromString(TEXT("매치메이킹 서비스를 사용할 수 없음")));
+	if (PlayerCountText) PlayerCountText->SetText(bReady ? MatchmakingViewModel->GetPlayerCountText() : FText::GetEmpty());
+	if (ElapsedTimeText) ElapsedTimeText->SetText(bReady ? MatchmakingViewModel->GetElapsedTimeText() : FText::GetEmpty());
+	if (StartButton)
+	{
+		const bool bCanStart = bReady && MatchmakingViewModel->GetCanStartMatchmaking();
+		StartButton->SetVisibility(!bReady || bCanStart ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		StartButton->SetIsEnabled(bCanStart);
+	}
+	if (CancelButton)
+	{
+		const bool bCanCancel = bReady && MatchmakingViewModel->GetCanCancelMatchmaking();
+		CancelButton->SetVisibility(bCanCancel ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		CancelButton->SetIsEnabled(bCanCancel);
+	}
+	if (FeedbackText)
+	{
+		FeedbackText->SetText(bReady ? ReadViewModelText(MatchmakingViewModel, TEXT("FailureMessage")) : FText::GetEmpty());
+	}
 	RefreshSteamStatus();
-	if (!MatchmakingSubsystem)
-	{
-		if (StateText) StateText->SetText(FText::FromString(TEXT("매치메이킹 서비스를 사용할 수 없음")));
-		if (PlayerCountText) PlayerCountText->SetText(FText::FromString(TEXT("인원 0 / 8")));
-		if (ElapsedTimeText) ElapsedTimeText->SetText(FText::FromString(TEXT("대기 시간 00:00")));
-		if (StartButton) StartButton->SetVisibility(ESlateVisibility::Visible);
-		if (CancelButton) CancelButton->SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
-
-	const ENFMatchState State = MatchmakingSubsystem->GetMatchState();
-	const bool bQueueActive = State == ENFMatchState::Queueing || State == ENFMatchState::LobbyWaiting;
-	const int32 PlayerCount = MatchmakingSubsystem->GetQueuedPlayerCount();
-	const int32 Elapsed = MatchmakingSubsystem->GetQueueElapsedSeconds();
-	if (PlayerCountText)
-	{
-		PlayerCountText->SetText(FText::FromString(FString::Printf(TEXT("인원 %d / %d"), PlayerCount, NF_MatchRules::PlayerCount)));
-	}
-	if (ElapsedTimeText)
-	{
-		ElapsedTimeText->SetText(FText::FromString(FString::Printf(TEXT("대기 시간 %02d:%02d"), Elapsed / 60, Elapsed % 60)));
-	}
-	if (StartButton) StartButton->SetVisibility(bQueueActive || State == ENFMatchState::ServerPreparing ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
-	if (CancelButton) CancelButton->SetVisibility(bQueueActive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-	if (StateText)
-	{
-		FString StateLabel;
-		switch (State)
-		{
-		case ENFMatchState::Queueing: StateLabel = TEXT("매칭 요청 중"); break;
-		case ENFMatchState::LobbyWaiting: StateLabel = TEXT("플레이어 대기 중"); break;
-		case ENFMatchState::ServerPreparing: StateLabel = TEXT("팀 편성 완료 · 서버 준비 중"); break;
-		case ENFMatchState::ServerConnecting: StateLabel = TEXT("서버 접속 중"); break;
-		case ENFMatchState::InProgress: StateLabel = TEXT("게임 진행 중"); break;
-		case ENFMatchState::Canceled: StateLabel = TEXT("매칭 취소됨"); break;
-		default: StateLabel = TEXT("대기열에 참가하지 않음"); break;
-		}
-		StateText->SetText(FText::FromString(StateLabel));
-	}
 }
 
 void UNF_MatchmakingWidget::RefreshSteamStatus()
 {
-	if (!SteamStatusText)
+	if (!SteamStatusText) return;
+	if (!IsValid(MatchmakingViewModel))
 	{
+		SteamStatusText->SetText(FText::GetEmpty());
 		return;
 	}
 
-	IOnlineSubsystem* DefaultSubsystem = IOnlineSubsystem::Get();
-	const FString DefaultName = DefaultSubsystem ? DefaultSubsystem->GetSubsystemName().ToString() : TEXT("none");
-	LogSteamStartupDiagnostics(DefaultName);
-	IOnlineSubsystem* SteamSubsystem = IOnlineSubsystem::Get(FName(TEXT("STEAM")));
-	if (!SteamSubsystem)
+	// These BlueprintReadOnly fields have no public C++ getters. Read the reflected
+	// display contract without changing the existing ViewModel or querying its model.
+	const FEnumProperty* Property = FindFProperty<FEnumProperty>(
+		MatchmakingViewModel->GetClass(), TEXT("SteamConnectionState"));
+	ENFSteamConnectionState State = ENFSteamConnectionState::Unavailable;
+	if (ensureMsgf(Property, TEXT("Matchmaking ViewModel requires SteamConnectionState")))
 	{
-		SetSteamStatus(FString::Printf(TEXT("Steam OSS: 사용할 수 없음 (default OSS: %s)"), *DefaultName), FLinearColor(1.0f, 0.25f, 0.25f), true);
-		return;
+		State = static_cast<ENFSteamConnectionState>(Property->GetUnderlyingProperty()->GetSignedIntPropertyValue(
+			Property->ContainerPtrToValuePtr<void>(MatchmakingViewModel.Get())));
 	}
-
-	const IOnlineIdentityPtr Identity = SteamSubsystem->GetIdentityInterface();
-	if (!Identity.IsValid())
-	{
-		SetSteamStatus(TEXT("Steam OSS 인스턴스는 있지만 Identity 인터페이스를 가져오지 못했습니다."), FLinearColor(1.0f, 0.7f, 0.2f), true);
-		return;
-	}
-
-	const ELoginStatus::Type LoginStatus = Identity->GetLoginStatus(0);
-	const FUniqueNetIdPtr LocalUserId = Identity->GetUniquePlayerId(0);
-	if (LoginStatus == ELoginStatus::LoggedIn && LocalUserId.IsValid())
-	{
-		SetSteamStatus(TEXT("Steam OSS 연결 및 로컬 사용자 로그인 성공"), FLinearColor(0.25f, 0.9f, 0.4f), false);
-	}
-	else if (LoginStatus == ELoginStatus::UsingLocalProfile)
-	{
-		SetSteamStatus(TEXT("Steam OSS가 로컬 오프라인 프로필을 사용 중입니다."), FLinearColor(1.0f, 0.7f, 0.2f), true);
-	}
-	else if (LoginStatus == ELoginStatus::LoggedIn)
-	{
-		SetSteamStatus(TEXT("Steam 로그인 상태지만 로컬 사용자 Steam ID가 없습니다."), FLinearColor(1.0f, 0.45f, 0.25f), true);
-	}
-	else
-	{
-		SetSteamStatus(TEXT("Steam OSS가 로드됐지만 로컬 사용자 로그인 상태가 아닙니다."), FLinearColor(1.0f, 0.45f, 0.25f), true);
-	}
+	const bool bConnected = State == ENFSteamConnectionState::Connected;
+	const FLinearColor Color = bConnected ? FLinearColor(0.25f, 0.9f, 0.4f)
+		: (State == ENFSteamConnectionState::Unavailable ? FLinearColor(1.0f, 0.25f, 0.25f)
+			: FLinearColor(1.0f, 0.7f, 0.2f));
+	SetSteamStatus(ReadViewModelText(MatchmakingViewModel, TEXT("SteamStatusText")).ToString(), Color, !bConnected);
 }
-
 void UNF_MatchmakingWidget::LogSteamStartupDiagnostics(const FString& DefaultSubsystemName)
 {
 	if (bLoggedSteamStartupDiagnostics)
@@ -326,53 +320,18 @@ void UNF_MatchmakingWidget::SetSteamStatus(const FString& StatusText, const FLin
 	}
 }
 
-void UNF_MatchmakingWidget::HandleMatchStateChanged(ENFMatchState NewState)
-{
-	RefreshDisplay();
-	if (FeedbackText && NewState == ENFMatchState::Queueing)
-	{
-		FeedbackText->SetText(FText::GetEmpty());
-	}
-}
-
-void UNF_MatchmakingWidget::HandleQueueCountChanged(int32 PlayerCount, int32 RequiredPlayers)
-{
-	if (PlayerCountText)
-	{
-		PlayerCountText->SetText(FText::FromString(FString::Printf(TEXT("인원 %d / %d"), PlayerCount, RequiredPlayers)));
-	}
-}
-
-void UNF_MatchmakingWidget::HandleMatchmakingFailed(const FString& Reason)
-{
-	if (FeedbackText)
-	{
-		FeedbackText->SetText(FText::FromString(Reason));
-	}
-	RefreshDisplay();
-}
-
 void UNF_MatchmakingWidget::HandleStartButtonClicked()
 {
-	if (!MatchmakingSubsystem || !MatchmakingSubsystem->StartLocalMatchmaking())
+	if (IsValid(MatchmakingViewModel))
 	{
-		if (FeedbackText)
-		{
-			FeedbackText->SetText(FText::FromString(TEXT("매칭을 시작하지 못했습니다. Steam 로그인 및 현재 상태를 확인하세요.")));
-		}
+		MatchmakingViewModel->StartMatchmaking();
 	}
-	else if (FeedbackText)
-	{
-		FeedbackText->SetText(FText::GetEmpty());
-	}
-	RefreshDisplay();
 }
 
 void UNF_MatchmakingWidget::HandleCancelButtonClicked()
 {
-	if (MatchmakingSubsystem)
+	if (IsValid(MatchmakingViewModel))
 	{
-		MatchmakingSubsystem->CancelLocalMatchmaking();
+		MatchmakingViewModel->CancelMatchmaking();
 	}
-	RefreshDisplay();
 }

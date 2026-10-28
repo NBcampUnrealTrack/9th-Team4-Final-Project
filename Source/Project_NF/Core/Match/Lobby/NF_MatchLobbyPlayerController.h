@@ -43,6 +43,12 @@ protected:
 	bool ShouldUseTouchControls() const;
 
 public:
+	/** Screen selection belongs to the caller, not the generic UI manager. */
+	UPROPERTY(EditDefaultsOnly, Category = "NF|UI")
+	TSubclassOf<UUserWidget> OptionsWidgetClass;
+
+	UFUNCTION(BlueprintCallable, Category = "NF|UI")
+	void OpenOptions();
 	UFUNCTION(Client, Reliable)
 	void ClientHandleMatchCompleted(const FNF_MatchResult& Result);
 

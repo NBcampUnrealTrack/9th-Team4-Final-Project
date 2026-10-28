@@ -11,6 +11,7 @@ class UOverlay;
 class UWorld;
 class UNF_UIRootWidget;
 
+
 UENUM(BlueprintType)
 enum class ENF_ScreenInputMode : uint8
 {

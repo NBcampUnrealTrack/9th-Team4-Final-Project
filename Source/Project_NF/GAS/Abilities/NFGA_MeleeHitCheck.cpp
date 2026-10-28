@@ -31,7 +31,7 @@ void UNFGA_MeleeHitCheck::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	auto* NF_PlayerDataAsset = Cast<UNF_PlayerDataAsset>(GetCurrentSourceObject());
 	if (IsValid(NF_PlayerDataAsset) == false) return EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 	
-	HitCheck(NF_PlayerDataAsset->MeleeAttack_Health_GEClass, NF_PlayerDataAsset->MeleeAttackDamage);
+	HitCheck(NF_PlayerDataAsset->NF_GameplayEffectClass, NF_PlayerDataAsset->MeleeAttackDamage);
 	
 	UAbilityTask_WaitGameplayEvent* WaitGameplayEvent = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 		this, NFTag_Player::Player_Event_HitCheckEnd, nullptr, false, true);

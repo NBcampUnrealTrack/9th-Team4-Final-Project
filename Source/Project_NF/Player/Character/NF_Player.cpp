@@ -437,7 +437,7 @@ void ANF_Player::GainExpToKiller()
 	if (IsValid(NF_KillerPlayerState) == true)
 	{
 		UAbilitySystemComponent* KillerASC = NF_KillerPlayerState->GetAbilitySystemComponent();
-		KillerASC->BP_ApplyGameplayEffectToSelf(NF_KillerPlayerState->NF_PlayerDataAsset->GainExp_GEClass, 
+		KillerASC->BP_ApplyGameplayEffectToSelf(NF_KillerPlayerState->NF_PlayerDataAsset->NF_GameplayEffectClass, 
 			1.0f, KillerASC->MakeEffectContext());
 		
 		
