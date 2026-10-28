@@ -16,4 +16,5 @@ namespace NFTag_LifeState
 	
 	// @Owner: 지우 | 2026-10-28
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Life_Revive);
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_Life_ReviveHealth);
 }

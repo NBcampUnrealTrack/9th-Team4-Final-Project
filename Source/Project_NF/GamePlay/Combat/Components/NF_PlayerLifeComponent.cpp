@@ -145,6 +145,19 @@ bool UNF_PlayerLifeComponent::Revive()
 		return false;
 	}
 	
+	const float MaxHealth = ASC->GetNumericAttribute(
+		UNF_PlayerStatusAttribute::GetMaxHealthAttribute());
+	
+	if (!FMath::IsFinite(MaxHealth) || MaxHealth <= 0.0f)
+	{
+		return false;
+	}
+	
+	const float ReviveHealth = MaxHealth * 0.3f;
+	
+	HealSpec.Data->SetSetByCallerMagnitude(
+		NFTag_LifeState::Data_Life_ReviveHealth, ReviveHealth);
+	
 	// 소생 대상에게 Health 회복 GE 적용
 	ASC->ApplyGameplayEffectSpecToSelf(
 		*HealSpec.Data.Get());
