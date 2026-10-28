@@ -1,4 +1,6 @@
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
+#include "GamePlay/Combat/Armor/NF_ArmorDataAsset.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 
 bool UNF_BuildRules::ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) const
 {
@@ -15,6 +17,9 @@ bool UNF_BuildRules::ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) c
 	{
 		return false;
 	}
+	// 반환자가 임의의 다른 티어를 지정하지 못하도록 실제 조회한 원본으로 고정한다.
+	Resolved.WeaponData = Cast<UNF_WeaponDataAsset>(Source->Get());
+	Resolved.ArmorData = Cast<UNF_ArmorDataAsset>(Source->Get());
 	OutData = MoveTemp(Resolved);
 	return true;
 }

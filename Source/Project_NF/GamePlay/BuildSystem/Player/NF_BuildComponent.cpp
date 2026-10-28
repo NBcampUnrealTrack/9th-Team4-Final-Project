@@ -17,6 +17,8 @@
 #include "EngineUtils.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
+#include "GamePlay/BuildSystem/Player/NF_BuildEquipmentAdapter.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Core/NF_GameState.h"
@@ -28,7 +30,6 @@ UNF_BuildComponent::UNF_BuildComponent()
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.TickInterval = 0.2f;
 	SetIsReplicatedByDefault(true);
-	BuildWidgetClass = UNF_BuildShopWidget::StaticClass();
 }
 
 void UNF_BuildComponent::BeginPlay()
@@ -365,8 +366,7 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 		DraftBuild = CurrentBuild;
 		PendingActiveSkill = NAME_None;
 		bDraftDirty = false;
-
-		UpdateLocalShopUI();
+		
 		OnDraftChanged.Broadcast();
 	}
 
@@ -383,41 +383,6 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 void UNF_BuildComponent::OnRep_BuildConfiguration()
 {
 	OnDraftChanged.Broadcast();
-}
-
-void UNF_BuildComponent::UpdateLocalShopUI()
-{
-	const APawn* Pawn = Cast<APawn>(GetOwner());
-	APlayerController* Controller = BuildWidget
-		                                ? BuildWidget->GetOwningPlayer()
-		                                : Pawn
-		                                ? Cast<APlayerController>(Pawn->GetController())
-		                                : nullptr;
-	if (!Controller || !Controller->IsLocalController() || !Controller->GetLocalPlayer())
-	{
-		return;
-	}
-
-	ULocalPlayer* LocalPlayer = Controller->GetLocalPlayer();
-	UNF_UIManagerSubsystem* UIManager = LocalPlayer->GetSubsystem<UNF_UIManagerSubsystem>();
-	if (!IsValid(UIManager))
-	{
-		return;
-	}
-
-	if (IsValid(CurrentShop) && bAutomaticallyShowWidget && BuildWidgetClass)
-	{
-		if (!IsValid(BuildWidget) || BuildWidget->GetParent() == nullptr)
-		{
-			BuildWidget = UIManager->PushScreen(
-				BuildWidgetClass, ENF_ScreenInputMode::GameAndUI);
-		}
-	}
-	else if (IsValid(BuildWidget))
-	{
-		UIManager->RemoveWidget(BuildWidget);
-		BuildWidget = nullptr;
-	}
 }
 
 bool UNF_BuildComponent::InitializeAbilitySystem(UAbilitySystemComponent* InAbilitySystem)
@@ -677,14 +642,14 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 		StagedItems.Add(Selection.ItemId, MoveTemp(Handles));
 	}
 
-	// 기존 GAS 부여를 회수하기 전에, 실패할 수 있는 마지막 단계인 무기 장착을 수행한다.
-	if (!ApplyWeaponSelection(Selections, SelectedData))
+	// 장비 전체 적용이 성공하기 전에는 기존 GAS 부여를 회수하지 않는다.
+	if (!ApplyEquipmentSelection(Selections, SelectedData))
 	{
 		for (const TPair<FName, FNF_BuildGrantHandles>& Staged : StagedItems)
 		{
 			RevokeItem(Staged.Value);
 		}
-		return Fail(ENF_BuildResult::GrantFailed, TEXT("무기 장착에 실패했습니다. 기존 빌드를 유지합니다."));
+		return Fail(ENF_BuildResult::GrantFailed, TEXT("장비 적용 실패: 원본 DA·장비 컴포넌트·무기 DA 수신 구현을 확인하세요."));
 	}
 
 	for (auto Iterator = AppliedItems.CreateIterator(); Iterator; ++Iterator)
@@ -753,7 +718,8 @@ bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& 
 	}
 	if (BuildWeapon.IsValid() && BuildWeaponItemId == SelectedWeaponId &&
 		Weapons->GetEquippedWeapon() == BuildWeapon.Get() &&
-		BuildWeapon->GetClass() == SelectedWeapon->WeaponClass.Get())
+		BuildWeapon->GetClass() == SelectedWeapon->WeaponClass.Get() &&
+		BuildWeapon->GetWeaponData() == SelectedWeapon->WeaponData.Get())
 	{
 		return true; // 동일한 무기를 유지하여 탄약과 재장전 상태를 보존한다.
 	}
@@ -764,6 +730,15 @@ bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& 
 		SelectedWeapon->WeaponClass, GetOwner()->GetActorTransform(), Parameters);
 	if (!NewWeapon)
 	{
+		return false;
+	}
+	if (!FNF_BuildEquipmentAdapter::ApplyWeaponData(NewWeapon, *SelectedWeapon))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("빌드 무기 DA 적용 실패: ItemId=%s, Source=%s, Class=%s. "
+			"공용 BP의 티어 교체에는 INF_BuildWeaponDataReceiver 구현이 필요합니다."),
+			*SelectedWeaponId.ToString(), *GetNameSafe(SelectedWeapon->WeaponData.Get()),
+			*GetNameSafe(SelectedWeapon->WeaponClass.Get()));
+		NewWeapon->Destroy();
 		return false;
 	}
 	ANF_WeaponBase* PreviousWeapon = Weapons->GetEquippedWeapon();
@@ -882,7 +857,6 @@ void UNF_BuildComponent::OnRep_CurrentBuild()
 void UNF_BuildComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CurrentShop = nullptr;
-	UpdateLocalShopUI();
 	if (GetOwner()->HasAuthority())
 	{
 		if (bOwnsReadyTag && ReadyAbilitySystem.IsValid())
@@ -893,6 +867,7 @@ void UNF_BuildComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 			ReadyAbilitySystem.Reset();
 		}
 		ReleaseBuildWeapon();
+		ReleaseBuildArmors();
 		for (const TPair<FName, FNF_BuildGrantHandles>& Item : AppliedItems)
 		{
 			RevokeItem(Item.Value);

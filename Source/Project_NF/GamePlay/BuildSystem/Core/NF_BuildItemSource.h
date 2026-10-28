@@ -8,6 +8,8 @@
 
 class ANF_ArmorBase;
 class ANF_WeaponBase;
+class UNF_WeaponDataAsset;
+class UNF_ArmorDataAsset;
 class UGameplayAbility;
 class UGameplayEffect;
 
@@ -32,6 +34,13 @@ struct PROJECT_NF_API FNF_BuildItemData
 
 	UPROPERTY(BlueprintReadWrite, Transient, Category = "NF|Build|Source")
 	TSubclassOf<ANF_ArmorBase> ArmorClass;
+
+	// @Owner: 황준현 | 2026-10-28. Rules가 선택한 원본에서 채우는 티어별 참조.
+	UPROPERTY(BlueprintReadOnly, Transient, Category = "NF|Build|Source")
+	TObjectPtr<UNF_WeaponDataAsset> WeaponData;
+
+	UPROPERTY(BlueprintReadOnly, Transient, Category = "NF|Build|Source")
+	TObjectPtr<UNF_ArmorDataAsset> ArmorData;
 
 	UPROPERTY(BlueprintReadWrite, Transient, Category = "NF|Build|Source")
 	TSubclassOf<UGameplayAbility> AbilityClass;
