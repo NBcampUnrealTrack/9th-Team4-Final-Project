@@ -282,7 +282,6 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 			}
 
 			auto* NF_UIManagerSubsystem = GetLocalPlayer()->GetSubsystem<UNF_UIManagerSubsystem>();
-		
 			if (IsValid(NF_UIManagerSubsystem) == false) return;
 		
 			NF_UIManagerSubsystem->PushModal(NF_PlayerControllerDataAsset->OptionsWidgetClass);
