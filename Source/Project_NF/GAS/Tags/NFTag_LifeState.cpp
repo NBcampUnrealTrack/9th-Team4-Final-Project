@@ -19,4 +19,10 @@ namespace NFTag_LifeState
 		Ability_Life_Downed,
 		"Ability.Life.Downed",
 		" 기절 상태 진입 시 실행하는 GA");
+	
+	// @Owner: 지우 | 2026-10-28
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(
+		Ability_Life_Revive,
+		"Ability.Life.Revive",
+		"기절한 팀원을 소생하는 GA 식별 및 활성화용 태그")
 }

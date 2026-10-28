@@ -8,6 +8,7 @@
 class UGameplayEffect;
 class UAbilitySystemComponent;
 class UNF_PlayerLifeComponent;
+class APawn;
 struct FOnAttributeChangeData;
 
 // 플레이어의 생존 상태
@@ -62,6 +63,9 @@ public:
 	// Health 회복 후 Downed에서 Alive로 변경
 	UFUNCTION(BlueprintCallable, Category = "Life")
 	bool Revive();
+	
+	// 소생 GA에서 호출할 구조자 조건 검증 함수
+	bool CanReviveFrom(APawn* ReviverPawn) const;
 	
 	// ASC가 준비된 후 현재 생존 상태에 맞게 태그
 	UFUNCTION(BlueprintCallable, Category = "Life")
