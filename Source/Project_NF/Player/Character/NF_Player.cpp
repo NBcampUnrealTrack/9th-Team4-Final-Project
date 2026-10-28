@@ -126,6 +126,8 @@ void ANF_Player::ConfigData()
 	const auto& NF_PlayerDataAsset = NF_PlayerState->NF_PlayerDataAsset;
 	if (IsValid(NF_PlayerDataAsset) == false) return;
 	
+	checkf(IsValid(MeleeAttackMeshComponent) == true, TEXT("[Player]의 [MeleeAttackMeshComponent]가 비어있습니다."));
+		
 	InteractionRange = NF_PlayerDataAsset->InteractionRange;
 	MeleeAttackSocket = NF_PlayerDataAsset->MeleeAttackSocket;
 	
