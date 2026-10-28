@@ -8,6 +8,7 @@
 
 class ANF_SkillPreviewActor;
 class ANF_SkillExecutionActor;
+class UAnimMontage;
 
 // @Owner: 스킬 담당 | 2026-10-12
 // 목적: 장착 유형과 기능 분류를 분리하여 공통 스킬 GA의 설정 정보를 제공한다.
@@ -153,6 +154,15 @@ public:
 	float GetExecutionDuration() const { return ExecutionDuration; }
 
 protected:
+	// @Owner: 이정준 (구현: Codex) | 2026-10-28 | 사용 확정과 동시에 재생하는 선택적 연출.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Animation", meta = (ToolTip = "사용 확정 시 스킬 효과와 동시에 재생할 연출 전용 몽타주입니다. None이면 재생하지 않습니다. 공격 판정 Notify가 없는 몽타주를 지정하세요. 루트 모션 몽타주는 이동에 영향을 주므로 지원하지 않습니다."))
+	TObjectPtr<UAnimMontage> CastMontage;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Animation", meta = (ClampMin = "0.01", ToolTip = "시전 모션의 재생 속도입니다. 스킬 효과 발생 시점이나 쿨타임은 변경하지 않습니다."))
+	float CastMontagePlayRate = 1.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Animation", meta = (ToolTip = "재생을 시작할 몽타주 섹션입니다. None이면 처음부터 재생합니다."))
+	FName CastMontageStartSection = NAME_None;
+	virtual void CommitExecute(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo) override;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive|Visual", meta = (Categories = "GameplayCue"))
 	FGameplayTag ActivationCueTag;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive|Visual", meta = (Categories = "GameplayCue"))
@@ -228,6 +238,9 @@ protected:
 	int32 BuildCost = 0;
 
 private:
+	friend class FNF_SkillCastMontageTest;
+	void PlayCastMontage(const FGameplayAbilityActorInfo* ActorInfo);
+	bool bCastMontageRequested = false;
 	friend class FNF_BerserkerTest;
 	TWeakObjectPtr<UAbilitySystemComponent> PassiveCueASC;
 	FGameplayTag RegisteredActiveCueTag;
