@@ -16,7 +16,6 @@
 #include "GAS/Tags/NFTag_Player.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 
-
 UNF_PlayerLifeComponent::UNF_PlayerLifeComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -161,6 +160,82 @@ bool UNF_PlayerLifeComponent::Revive()
 	}
 	
 	return ChangeLifeState(ENFPlayerLifeState::Alive);
+}
+
+bool UNF_PlayerLifeComponent::CanReviveFrom(APawn* ReviverPawn) const
+{
+	const AActor* TargetActor = GetOwner();
+	
+	if (!IsValid(TargetActor) || !TargetActor->HasAuthority() || LifeState != ENFPlayerLifeState::Downed)
+	{
+		return false;
+	}
+	
+	if (!IsValid(ReviverPawn) || ReviverPawn == TargetActor || ReviverPawn->IsActorBeingDestroyed())
+	{
+		return false;
+	}
+	
+	const APawn* TargetPawn = Cast<APawn>(TargetActor);
+
+	if (!IsValid(TargetPawn))
+	{
+		return false;
+	}
+	
+	const ANF_PlayerState* TargetPlayerState =
+		TargetPawn->GetPlayerState<ANF_PlayerState>();
+	
+	const ANF_PlayerState* ReviverPlayerState =
+		ReviverPawn->GetPlayerState<ANF_PlayerState>();
+
+	if (!IsValid(TargetPlayerState) || !IsValid(ReviverPlayerState))
+	{
+		return false;
+	}
+	
+	const int32 TargetTeamID = TargetPlayerState->NF_TeamID;
+	const int32 ReviverTeamID = ReviverPlayerState->NF_TeamID;
+	
+	if (TargetTeamID < 1 || TargetTeamID > 4 || TargetTeamID != ReviverTeamID)
+	{
+		return false;
+	}
+	
+	const UNF_PlayerLifeComponent* ReviverLifeComponent =
+		ReviverPawn->FindComponentByClass<UNF_PlayerLifeComponent>();
+	
+	if (!IsValid(ReviverLifeComponent) || ReviverLifeComponent->GetLifeState() != ENFPlayerLifeState::Alive)
+	{
+		return false;
+	}
+	
+	UAbilitySystemComponent* ReviverASC =
+		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(ReviverPawn);
+	
+	if (!IsValid(ReviverASC) || ReviverASC->GetAvatarActor() != ReviverPawn 
+		|| !ReviverASC->GetSet<UNF_PlayerStatusAttribute>())
+	{
+		return false;
+	}
+	
+	const float ReviverHealth = ReviverASC->GetNumericAttribute(
+		UNF_PlayerStatusAttribute::GetHealthAttribute());
+	
+	if (!FMath::IsFinite(ReviverHealth) || ReviverHealth <= 0.0f)
+	{
+		return false;
+	}
+	
+	// 서버에서 구조자와 대상의 실제 거리 확인 임시값 (50cm)
+	constexpr float MaxReviveDistance = 50.0f;
+	
+	if (FVector::DistSquared(ReviverPawn->GetActorLocation(), TargetPawn->GetActorLocation()) > FMath::Square(MaxReviveDistance))
+	{
+		return false;
+	}
+	
+	return true;
 }
 
 // 기절 제한 시간이 끝나면 자동으로 사망
