@@ -38,6 +38,11 @@ ANF_GameMode::ANF_GameMode()
 	PlayerRespawnComponent = CreateDefaultSubobject<UNF_PlayerRespawnComponent>(TEXT("PlayerRespawnComponent"));
 }
 
+bool ANF_GameMode::ShouldUseDedicatedMatchSubsystem() const
+{
+	return true;
+}
+
 void ANF_GameMode::BeginPlay()
 {
 	Super::BeginPlay();
@@ -52,7 +57,7 @@ void ANF_GameMode::BeginPlay()
 			&UNF_PlayerRespawnComponent::Shutdown);
 	}
 
-	if (HasAuthority())
+	if (HasAuthority() && ShouldUseDedicatedMatchSubsystem())
 	{
 		if (UGameInstance* GameInstance = GetGameInstance())
 		{
@@ -848,11 +853,7 @@ void ANF_GameMode::HandleBossSpawnSucceeded(ANF_BossBase* Boss)
 		return;
 	}
 
-	if (ANF_GameState* NFGameState = GetNFGameState())
-	{
-		NFGameState->MulticastShowAnnouncement(FText::FromString(TEXT("보스가 나타났습니다!")), 3.0f);
-	}
-
+	// Boss 페이즈 변경을 통해 ViewModel에서 출현 알림을 생성한다.
 	EnterBoss();
 }
 
@@ -872,17 +873,18 @@ void ANF_GameMode::HandleBossDefeatResolved(const FNF_BossDefeatResult& DefeatRe
 
 	if (!HasAuthority() || bMatchAborting || bMatchFinalized)return;
 
-	UE_LOG(LogTemp,Log,TEXT("[GameMode] 보스 처치 확정. ""PlayerID=%d"),DefeatResult.LastHitPlayerID);
-	if (ANF_GameState* NFGameState = GetNFGameState())
-	{
-		NFGameState->MulticastShowAnnouncement(FText::FromString(TEXT("보스를 처치했습니다!")), 3.0f);
-	}
-
-
 	const ANF_GameState* NFGameState =GetNFGameState();
 	
 	if (!IsValid(NFGameState))return;
 	if (NFGameState->GetMatchPhase()!= ENF_MatchPhase::Boss)return;
+
+	UE_LOG(LogTemp,Log,TEXT("[GameMode] 보스 처치 확정. ""PlayerID=%d"),DefeatResult.LastHitPlayerID);
+	if (ANF_GameState* AnnouncementGameState = GetNFGameState())
+	{
+		AnnouncementGameState->MulticastShowAnnouncement(
+			NSLOCTEXT("NFGameFlow", "BossDefeated", "보스를 처치했습니다! 이제 부활과 소생이 불가능합니다."),
+			3.0f);
+	}
 
 	// 보스 처치가 확정된 시점부터 예약과 실제 리스폰을 모두 금지한다.
 	if (IsValid(PlayerRespawnComponent))
@@ -1200,7 +1202,7 @@ void ANF_GameMode::DispatchMatchConclusion()
 		if (!RequestMatchAbort.IsBound())return;
 
 		bConclusionDispatched = true;
-		RequestMatchAbort.Execute(Result.Message);
+		RequestMatchAbort.Execute(Result);
 	}
 	else if (Result.Outcome == ENF_MatchOutcome::Victory)
 	{

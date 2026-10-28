@@ -14,12 +14,11 @@
 #include "TimerManager.h"
 #include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Player/Component/NF_MatchResultPresenterComponent.h"
 #include "UI/SubSystem/NF_UIManagerSubsystem.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UI/Widget/NF_GameHUDWidget.h"
 
-
-class UNF_UIManagerSubsystem;
 
 void ANF_PlayerController::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -39,33 +38,46 @@ void ANF_PlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	
+	ConfigDataAsset();
+	ConfigBindDelegate();
 	InputConfig();
 	RefreshMiniMap();
-	BindDelegate();
 	CreateGameHUD();
+}
+
+
+void ANF_PlayerController::ConfigDataAsset()
+{
+	checkf(IsValid(NF_PlayerControllerDataAsset) == true, TEXT("[PlayerController]의 [NF_PlayerControllerDataAsset]가 삽입되지않았습니다."));
+	checkf(IsValid(NF_PlayerControllerDataAsset->GameHUDClass) == true, TEXT("[NF_PlayerControllerDataAsset]의 [GameHUDClass]가 삽입되지않았습니다."));
+	checkf(IsValid(NF_PlayerControllerDataAsset->OptionsWidgetClass) == true, TEXT("[NF_PlayerControllerDataAsset]의 [OptionsWidgetClass]가 삽입되지않았습니다."));
+}
+
+
+void ANF_PlayerController::OnToggleZoomChanged(bool bNewIsToggleZoom)
+{
+	if (IsLocalController() == true)
+	{
+		bIsToggleZoom = bNewIsToggleZoom;
+	}
 }
 
 
 void ANF_PlayerController::InputConfig()
 {
+	if (NF_PlayerControllerDataAsset == nullptr) return;
+	
 	if (IsLocalController() == true)
 	{
 		auto* EILPS = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(this->GetLocalPlayer());
 		if (IsValid(EILPS) == false) return;
-
-		if (NF_PlayerControllerDataAsset == nullptr)
-		{
-			UE_LOG(LogTemp, Error, TEXT("[NF_PlayerControllerDataAsset]이 유효하지않아, Key바인딩이 무시됩니다."));
-			return;
-		}
 		
 		EILPS->AddMappingContext(NF_PlayerControllerDataAsset->NF_PlayerIMC, 0);
 	}
 }
 
 
-void ANF_PlayerController::BindDelegate()
+void ANF_PlayerController::ConfigBindDelegate()
 {
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnInteractBuildShop, OnInteractBuildShop);
 }
@@ -79,6 +91,7 @@ void ANF_PlayerController::SetupInputComponent()
 	
 	BindInputButton();
 }
+
 
 
 void ANF_PlayerController::BindInputButton()
@@ -131,12 +144,15 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::Interaction);
 	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->UseItemButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::UseItem);
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->OpenOptionButton, ETriggerEvent::Started, this,
+		&ThisClass::TryAction, ENF_PlayerActionType::OpenOption);
 }
 
 
 #pragma region TryAction
 void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 {
+	OpenOption(PlayerActionType);
 	IsCombatAction(PlayerActionType);
 	IsBuildShopAction(PlayerActionType);
 }
@@ -258,6 +274,29 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 		}
 	}
+
+	void ANF_PlayerController::OpenOption(ENF_PlayerActionType PlayerActionType)
+	{	
+		if (PlayerActionType == ENF_PlayerActionType::OpenOption)
+		{
+			if (IsValid(NF_PlayerControllerDataAsset) == false) return;
+	
+			if (IsLocalController() == false || GetLocalPlayer() == nullptr) return;
+
+			if (NF_PlayerControllerDataAsset->OptionsWidgetClass == nullptr || NF_PlayerControllerDataAsset->OptionsWidgetClass->HasAnyClassFlags(CLASS_Abstract))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Assign WBP_Option to OptionsWidgetClass on the PlayerController defaults."));
+				return;
+			}
+
+			auto* NF_UIManagerSubsystem = GetLocalPlayer()->GetSubsystem<UNF_UIManagerSubsystem>();
+			if (IsValid(NF_UIManagerSubsystem) == false) return;
+		
+			NF_UIManagerSubsystem->PushModal(NF_PlayerControllerDataAsset->OptionsWidgetClass);
+			
+			return;
+		}
+	}
 	#pragma endregion
 #pragma endregion
 
@@ -286,10 +325,10 @@ void ANF_PlayerController::ReleaseGameplayInputForUI()
 #pragma region UI
 void ANF_PlayerController::CreateGameHUD()
 {
+	if (NF_PlayerControllerDataAsset->GameHUDClass == nullptr) return;
+	
 	if (IsLocalController() == true)
 	{
-		if (NF_PlayerControllerDataAsset->GameHUDClass == nullptr) return;
-
 		auto* UIManager = ULocalPlayer::GetSubsystem<UNF_UIManagerSubsystem>(GetLocalPlayer());
 		if (IsValid(UIManager) == false) return;
 
@@ -350,6 +389,12 @@ void ANF_PlayerController::ClientReceiveMinimapReveals_Implementation(const TArr
 }
 
 
+ANF_PlayerController::ANF_PlayerController()
+{
+	NF_MatchResultPresenterComponent = CreateDefaultSubobject<UNF_MatchResultPresenterComponent>("NF_MatchResultPresenterComponent");
+}
+
+
 void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(MinimapRevealTimer);
@@ -360,12 +405,13 @@ void ANF_PlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ANF_PlayerController::ClientHandleMatchCompleted_Implementation(const FNF_MatchResult& Result)
 {
-	if (UGameInstance* GI = GetGameInstance())
+	if (IsValid(NF_MatchResultPresenterComponent) == false)
 	{
-		if (UNF_MatchmakingSubsystem* Match = GI->GetSubsystem<UNF_MatchmakingSubsystem>())
-		{
-			Match->HandleDedicatedMatchCompleted(Result);
-		}
+		UE_LOG(LogTemp,Error,TEXT("[NF MatchResult] 결과 Presenter가 없어 자동 복귀를 처리할 수 없습니다."));
+
+		return;
 	}
+
+	NF_MatchResultPresenterComponent->RequestReturnToMatchmaking(Result);
 }
 #pragma endregion

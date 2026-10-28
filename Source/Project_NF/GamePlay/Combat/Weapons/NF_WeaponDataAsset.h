@@ -58,6 +58,10 @@ public:
 	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
 	// TObjectPtr<class UNiagaraSystem> MuzzleFlashSystem = nullptr;
 
+	// 무기별 발사 카메라 흔들림 클래스. 사용하지 않으면 None으로 둔다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
+	TSubclassOf<class UNF_WeaponCameraShakeBase> FireCameraShakeClass;
+
 	// 스코프 카메라를 부착할 무기 메시 소켓.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom")
 	FName ScopeSocketName = TEXT("Scope");

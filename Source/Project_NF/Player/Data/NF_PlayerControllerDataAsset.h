@@ -17,6 +17,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "PlayerController|UI")
 	TSubclassOf<UNF_GameHUDWidget> GameHUDClass;
 	
+	UPROPERTY(EditDefaultsOnly, Category = "PlayerController|UI")
+	TSubclassOf<UUserWidget> OptionsWidgetClass;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UInputMappingContext> NF_PlayerIMC;
 	
@@ -34,6 +37,9 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UInputAction> InteractButton;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputAction> OpenOptionButton;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UInputAction> UseItemButton;

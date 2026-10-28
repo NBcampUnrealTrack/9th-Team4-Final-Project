@@ -106,7 +106,10 @@ void ANF_MatchLobbyPlayerController::ClientHandleMatchCompleted_Implementation(c
 	{
 		if (UNF_MatchmakingSubsystem* Match = GI->GetSubsystem<UNF_MatchmakingSubsystem>())
 		{
-			Match->HandleDedicatedMatchCompleted(Result);
+			if (!Match->RequestReturnToMatchmaking(Result))
+			{
+				UE_LOG(LogProject_NF, Error, TEXT("Match result return request was rejected."));
+			}
 		}
 	}
 }

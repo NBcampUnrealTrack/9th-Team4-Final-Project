@@ -6,6 +6,7 @@
 #include "GAS/Tags/NFTag_Monster.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "GAS/Tags/NFTag_BossCombat.h"
 #include "GameplayEffect.h"
 
 ANF_MonsterProjectile::ANF_MonsterProjectile()
@@ -157,8 +158,8 @@ void ANF_MonsterProjectile::ApplyDamageToPlayer(
     }
 
     EffectSpecHandle.Data->SetSetByCallerMagnitude(
-        NFTag_Monster::Data_Monster_Damage,
-        -DamageAmount);
+    NFTag_BossCombat::Data_Damage,
+    FMath::Max(DamageAmount, 0.0f));
 
     SourceASC->ApplyGameplayEffectSpecToTarget(
         *EffectSpecHandle.Data.Get(),

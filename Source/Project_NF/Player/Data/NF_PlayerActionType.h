@@ -14,6 +14,7 @@ enum class ENF_PlayerActionType : uint8
 	ZoomOut UMETA(DisplayName = "ZoomOut"),
 	Reload UMETA(DisplayName = "Reload"),
 	Interaction UMETA(DisplayName = "Interaction"),	
+	OpenOption UMETA(DisplayName = "Interaction"),	
 	UseItem UMETA(DisplayName = "UseItem"),
 	SkillA UMETA(DisplayName = "SkillA"),
 	SkillB UMETA(DisplayName = "SkillB"),

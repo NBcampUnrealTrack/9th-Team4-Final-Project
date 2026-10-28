@@ -100,6 +100,14 @@ public:
 	void HandleDedicatedMatchAborted(const FString& Reason);
 	void HandleDedicatedMatchCompleted(const FNF_MatchResult& Result);
 
+	/** Accepts a confirmed result from either the return button or the server RPC. */
+	UFUNCTION(BlueprintCallable, Category = "Matchmaking|Result")
+	bool RequestReturnToMatchmaking(const FNF_MatchResult& Result);
+
+	/** Combine with the existing Ended/Canceled check when enabling the start button. */
+	UFUNCTION(BlueprintPure, Category = "Matchmaking|Result")
+	bool IsReadyForMatchmakingAfterReturn() const;
+
 	UFUNCTION(BlueprintPure, Category = "Matchmaking|Result")
 	FNF_MatchResult GetLastMatchResult() const { return LastMatchResult; }
 
@@ -137,6 +145,7 @@ public:
 	FNFMatchTeamsAssigned OnMatchTeamsAssigned;
 
 private:
+	void ResetStateForMatchReturn();
 	bool TickCompletedMatchCleanup(float DeltaTime);
 	FTSTicker::FDelegateHandle CompletionCleanupTicker;
 	UPROPERTY(Transient)

@@ -126,6 +126,8 @@ void ANF_Player::ConfigData()
 	const auto& NF_PlayerDataAsset = NF_PlayerState->NF_PlayerDataAsset;
 	if (IsValid(NF_PlayerDataAsset) == false) return;
 	
+	checkf(IsValid(MeleeAttackMeshComponent) == true, TEXT("[Player]의 [MeleeAttackMeshComponent]가 비어있습니다."));
+		
 	InteractionRange = NF_PlayerDataAsset->InteractionRange;
 	MeleeAttackSocket = NF_PlayerDataAsset->MeleeAttackSocket;
 	
@@ -255,9 +257,9 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 
 	void ANF_Player::TryUseItem()
 	{
-		UKismetSystemLibrary::PrintString(this,TEXT("아이템 사용, 정준님 협의 예정"));
+		if (IsValid(NF_ConsumableComponent) == false) return;
 		
-		NF_ConsumableComponent->NF_UseItem();
+		INF_UseItemInterface::Execute_NF_UseItem(NF_ConsumableComponent, 0);
 	}
 
 	void ANF_Player::ServerRPC_TryInteraction_Implementation(APlayerController* SendController, AActor* TargetActor)
