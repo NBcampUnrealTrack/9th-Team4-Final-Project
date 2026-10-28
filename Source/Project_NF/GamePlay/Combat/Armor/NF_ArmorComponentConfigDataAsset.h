@@ -18,6 +18,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sockets")
 	bool bAttachArmorToSockets = false;
 
+	// 메시를 붙일 소켓 이름 (피격 부위 판정x)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sockets", meta=(EditCondition="bAttachArmorToSockets"))
 	FName HeadSocketName = TEXT("head");
 
@@ -27,6 +28,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Sockets", meta=(EditCondition="bAttachArmorToSockets"))
 	FName BottomSocketName = TEXT("pelvis");
 
+	// physics asset 의 본 컨테이너
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Hit Regions")
 	TMap<FName, ENF_ArmorSlot> BoneToSlot;
 
