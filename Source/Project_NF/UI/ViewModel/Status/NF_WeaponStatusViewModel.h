@@ -13,6 +13,13 @@ class PROJECT_NF_API UNF_WeaponStatusViewModel : public UNF_ViewModelBase
 {
 	GENERATED_BODY()
 
+public:
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "NF|UI|Weapon")
+	FText GetMagazineAmmoText() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "NF|UI|Weapon")
+	FText GetMagazineSizeText() const;
+
 protected:
 	virtual void OnInitializeViewModel() override;
 	virtual void OnViewModelContextChanged() override;

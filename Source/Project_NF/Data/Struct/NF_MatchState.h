@@ -21,6 +21,10 @@ struct FNF_MatchState
 	// 현재 Phase가 종료되는 서버 시각.
 	UPROPERTY(BlueprintReadOnly)
 	double PhaseEndServerTime = 0.0;
+
+	// 결과 HUD 표시가 끝나고 클라이언트가 서버에서 나갈 서버 시각.
+	UPROPERTY(BlueprintReadOnly)
+	double ConclusionEndServerTime = 0.0;
 	
 	UPROPERTY(BlueprintReadOnly)
 	FNF_MatchResult Result;

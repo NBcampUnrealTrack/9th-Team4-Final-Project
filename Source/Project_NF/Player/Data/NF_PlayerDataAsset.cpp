@@ -8,8 +8,8 @@
 
 UNF_PlayerDataAsset::UNF_PlayerDataAsset()
 {
-	InitGA_Array.Add(UNFGA_PlayerDeath::StaticClass());
-	InitGA_Array.Add(UNFGA_Downed::StaticClass());
-	InitGA_Array.Add(UNFGA_MeleeAttack::StaticClass());
-	InitGA_Array.Add(UNFGA_MeleeHitCheck::StaticClass());
+	NF_GameplayAbility_Array.Add(UNFGA_PlayerDeath::StaticClass());
+	NF_GameplayAbility_Array.Add(UNFGA_Downed::StaticClass());
+	NF_GameplayAbility_Array.Add(UNFGA_MeleeAttack::StaticClass());
+	NF_GameplayAbility_Array.Add(UNFGA_MeleeHitCheck::StaticClass());
 }

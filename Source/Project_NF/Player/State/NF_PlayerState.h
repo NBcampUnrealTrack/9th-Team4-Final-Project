@@ -31,6 +31,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Player|Data")
 	TObjectPtr<UNF_PlayerDataAsset> NF_PlayerDataAsset;  
 	
+	UPROPERTY()
+	TArray<TSubclassOf<UGameplayAbility>> NF_PlayerNewAbility_Array;
+	
 	
 	//Core
 	UPROPERTY(ReplicatedUsing = OnRep_NFTeamID, BlueprintReadOnly, Category = "Core|ID")

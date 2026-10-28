@@ -30,6 +30,11 @@ void UBTService_NF_MonsterLeash::TickNode(
 
 	if (!MonsterAIController) {	return;	}
 
+	if (MonsterAIController->HasPersistentDamageAggro())
+	{
+		return;
+	}
+
 	ANF_Monster* Monster =
 		Cast<ANF_Monster>(MonsterAIController->GetPawn());
 

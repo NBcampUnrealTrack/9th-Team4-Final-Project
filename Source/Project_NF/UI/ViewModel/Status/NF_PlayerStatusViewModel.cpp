@@ -5,6 +5,28 @@
 #include "Player/Character/NF_PlayerLevelAttribute.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
+namespace
+{
+    FText MakeCurrentMaximumText(float Current, float Maximum)
+    {
+        const float SafeMaximum = FMath::Max(0.0f, Maximum);
+        const float SafeCurrent = FMath::Clamp(Current, 0.0f, SafeMaximum);
+
+        return FText::Format(
+            NSLOCTEXT("NFHUD", "CurrentMaximum", "{0} / {1}"),
+            FText::AsNumber(FMath::RoundToInt(SafeCurrent)),
+            FText::AsNumber(FMath::RoundToInt(SafeMaximum)));
+    }
+
+    FText MakeNonNegativeCurrentMaximumText(float Current, float Maximum)
+    {
+        return FText::Format(
+            NSLOCTEXT("NFHUD", "CurrentMaximum", "{0} / {1}"),
+            FText::AsNumber(FMath::RoundToInt(FMath::Max(0.0f, Current))),
+            FText::AsNumber(FMath::RoundToInt(FMath::Max(0.0f, Maximum))));
+    }
+}
+
 void UNF_PlayerStatusViewModel::OnInitializeViewModel()
 {
     Super::OnInitializeViewModel();
@@ -98,11 +120,15 @@ void UNF_PlayerStatusViewModel::RefreshProgressionFromAbilitySystem()
         }
     }
 
-    UE_MVVM_SET_PROPERTY_VALUE(Level, NewLevel);
+    if (UE_MVVM_SET_PROPERTY_VALUE(Level, NewLevel))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetLevelText);
+    }
     // 필요 경험치는 공용 조회 경로가 준비된 뒤 연결한다.
     if (UE_MVVM_SET_PROPERTY_VALUE(Experience, NewExperience))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetExperiencePercent);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetExperienceText);
     }
 }
 
@@ -111,21 +137,25 @@ void UNF_PlayerStatusViewModel::UpdateVitals(float NewHealth,float NewMaxHealth,
     if (UE_MVVM_SET_PROPERTY_VALUE(Health, NewHealth))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetHealthPercent);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetHealthText);
     }
 
     if (UE_MVVM_SET_PROPERTY_VALUE(MaxHealth, NewMaxHealth))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetHealthPercent);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetHealthText);
     }
 
     if (UE_MVVM_SET_PROPERTY_VALUE(Shield, NewShield))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetShieldPercent);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetShieldText);
     }
 
     if (UE_MVVM_SET_PROPERTY_VALUE(MaxShield, NewMaxShield))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetShieldPercent);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetShieldText);
     }
 }
 
@@ -140,16 +170,21 @@ void UNF_PlayerStatusViewModel::RefreshPlayerName()
 
 void UNF_PlayerStatusViewModel::UpdateProgression(int32 NewLevel,float NewExperience,float NewRequiredExperience)
 {
-    UE_MVVM_SET_PROPERTY_VALUE(Level, NewLevel);
+    if (UE_MVVM_SET_PROPERTY_VALUE(Level, NewLevel))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetLevelText);
+    }
 
     if (UE_MVVM_SET_PROPERTY_VALUE(Experience, NewExperience))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetExperiencePercent);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetExperienceText);
     }
 
     if (UE_MVVM_SET_PROPERTY_VALUE(RequiredExperience, NewRequiredExperience))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetExperiencePercent);
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetExperienceText);
     }
 }
 
@@ -187,4 +222,26 @@ float UNF_PlayerStatusViewModel::GetExperiencePercent() const
     }
 
     return 0.0f;
+}
+
+FText UNF_PlayerStatusViewModel::GetHealthText() const
+{
+    return MakeCurrentMaximumText(Health, MaxHealth);
+}
+
+FText UNF_PlayerStatusViewModel::GetShieldText() const
+{
+    return MakeCurrentMaximumText(Shield, MaxShield);
+}
+
+FText UNF_PlayerStatusViewModel::GetLevelText() const
+{
+    return FText::Format(
+        NSLOCTEXT("NFHUD", "Level", "Lv. {0}"),
+        FText::AsNumber(FMath::Max(1, Level)));
+}
+
+FText UNF_PlayerStatusViewModel::GetExperienceText() const
+{
+    return MakeNonNegativeCurrentMaximumText(Experience, RequiredExperience);
 }

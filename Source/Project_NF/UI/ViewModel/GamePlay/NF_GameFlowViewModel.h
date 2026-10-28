@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Data/Enum/NF_MatchPhase.h"
+#include "Data/Struct/NF_EscapeState.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "NF_GameFlowViewModel.generated.h"
 
@@ -34,6 +36,39 @@ public:
 	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Phase")
 	FText GetRemainingTimeText() const;
 
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Phase")
+	ESlateVisibility GetPhaseTimerVisibility() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Notification")
+	ESlateVisibility GetNotificationVisibility() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Escape")
+	FText GetEscapeStatusText() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Escape")
+	FText GetEscapeRemainingTimeText() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Escape")
+	FText GetEscapeTotalTimeText() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Escape")
+	float GetEscapeProgressPercent() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Escape")
+	ESlateVisibility GetEscapeProgressVisibility() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Escape")
+	ESlateVisibility GetEscapeDetailsVisibility() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Escape")
+	ESlateVisibility GetEscapePausedVisibility() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Conclusion")
+	FText GetConclusionRemainingTimeText() const;
+
+	UFUNCTION(BlueprintPure, FieldNotify, Category = "GameFlow|Conclusion")
+	ESlateVisibility GetConclusionTimerVisibility() const;
+
 protected:
 	virtual void OnInitializeViewModel() override;
 	virtual void OnViewModelContextChanged() override;
@@ -49,6 +84,9 @@ private:
 
 	void RefreshFromGameState();
 	void RefreshRemainingTime();
+	void RefreshEscapeState();
+	void RefreshEscapeRemainingTime();
+	void RefreshConclusionTime();
 
 	void ShowPhaseNotification(ENF_MatchPhase NewPhase);
 	void ShowNotification(const FNF_QueuedNotification& Notification);
@@ -57,6 +95,7 @@ private:
 	void ClearNotification();
 
 	void HandleMatchStateChanged(FNF_MatchState& NewMatchState);
+	void HandleEscapeProgressChanged(const FNF_EscapeProgress& NewProgress);
 
 	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Phase",meta = (AllowPrivateAccess = "true"))
 	ENF_MatchPhase CurrentPhase = ENF_MatchPhase::Waiting;
@@ -72,6 +111,30 @@ private:
 
 	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Notification",meta = (AllowPrivateAccess = "true"))
 	bool bShowNotification = false;
+
+	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Escape",meta = (AllowPrivateAccess = "true"))
+	bool bShowEscapeProgress = false;
+
+	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Escape",meta = (AllowPrivateAccess = "true"))
+	bool bEscapePaused = false;
+
+	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Escape",meta = (AllowPrivateAccess = "true"))
+	ENF_EscapeState EscapeState = ENF_EscapeState::Idle;
+
+	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Escape",meta = (AllowPrivateAccess = "true"))
+	float EscapeRemainingSeconds = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Escape",meta = (AllowPrivateAccess = "true"))
+	float EscapeTotalSeconds = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Escape",meta = (AllowPrivateAccess = "true"))
+	float EscapeProgressPercent = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Conclusion",meta = (AllowPrivateAccess = "true"))
+	bool bShowConclusionTimer = false;
+
+	UPROPERTY(BlueprintReadOnly,FieldNotify,Category = "GameFlow|Conclusion",meta = (AllowPrivateAccess = "true"))
+	int32 RemainingConclusionSeconds = 0;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ANF_GameState> GameState;

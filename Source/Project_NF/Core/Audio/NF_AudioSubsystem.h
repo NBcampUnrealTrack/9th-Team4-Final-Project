@@ -16,6 +16,9 @@ class PROJECT_NF_API UNF_AudioSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UFUNCTION(BlueprintCallable, Category = "NF|Audio|Volume")
+	void SaveVolumeSettings();
 	virtual void Deinitialize() override;
 
 	UFUNCTION(BlueprintPure, Category = "NF|Audio", meta = (WorldContext = "WorldContextObject"))

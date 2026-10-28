@@ -5,12 +5,14 @@
 #include "Data/Struct/NF_MatchState.h"
 #include "GameFramework/GameState.h"
 #include "Data/Enum/NF_BuildShopType.h"
+#include "Data/Struct/NF_EscapeState.h"
 #include "Data/Struct/NF_KeyPublicState.h"
 
 #include "NF_GameState.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnMatchStateChanged, FNF_MatchState&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnKeyPublicStateChanged, const FNF_KeyPublicState&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnEscapeProgressChanged, const FNF_EscapeProgress&);
 DECLARE_MULTICAST_DELEGATE(FNF_OnTeamRosterChanged);
 
 UCLASS()
@@ -38,12 +40,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NF|Match")
 	double GetRemainingPhaseTime() const;
 
+	UFUNCTION(BlueprintPure, Category = "NF|Match")
+	double GetRemainingConclusionTime() const;
+
 	//서버권한으로만 호출
 	bool AuthoritySetTimedMatchPhase(ENF_MatchPhase NewPhase,float Duration);
 	//제한시간 없는 페이즈용
 	bool AuthoritySetUntimedMatchPhase(ENF_MatchPhase NewPhase);
 	// 결과 기록과 Finished 전환을 한 번에 수행.
-	bool AuthorityFinishMatch(const FNF_MatchResult& Result);
+	bool AuthorityFinishMatch(const FNF_MatchResult& Result, float ConclusionDuration);
 	
 	FNF_OnMatchStateChanged OnMatchStateChanged;
 
@@ -53,6 +58,16 @@ public:
 	bool AuthoritySetKeyPublicState(const FNF_KeyPublicState& NewState);
 
 	FNF_OnKeyPublicStateChanged OnKeyPublicStateChanged;
+
+	UFUNCTION(BlueprintPure, Category = "NF|Escape")
+	FNF_EscapeProgress GetEscapeProgress() const;
+
+	UFUNCTION(BlueprintPure, Category = "NF|Escape")
+	float GetRemainingEscapeTime() const;
+
+	bool AuthoritySetEscapeProgress(const FNF_EscapeProgress& NewProgress);
+
+	FNF_OnEscapeProgressChanged OnEscapeProgressChanged;
 
 	/** Server broadcasts a one-shot announcement to every connected player. */
 	UFUNCTION(NetMulticast, Reliable)
@@ -70,8 +85,14 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_KeyPublicState)
 	FNF_KeyPublicState KeyPublicState;
 
+	UPROPERTY(ReplicatedUsing = OnRep_EscapeProgress)
+	FNF_EscapeProgress EscapeProgress;
+
 	UFUNCTION()
 	void OnRep_KeyPublicState();
+
+	UFUNCTION()
+	void OnRep_EscapeProgress();
 	
 	UFUNCTION()
 	void OnRep_NFMatchState();

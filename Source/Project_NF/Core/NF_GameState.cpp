@@ -19,6 +19,7 @@ void ANF_GameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 
 	DOREPLIFETIME(ANF_GameState, NF_MatchState);
 	DOREPLIFETIME(ANF_GameState, KeyPublicState);
+	DOREPLIFETIME(ANF_GameState, EscapeProgress);
 }
 
 void ANF_GameState::AddPlayerState(APlayerState* PlayerState)
@@ -84,6 +85,16 @@ double ANF_GameState::GetRemainingPhaseTime() const
 	return FMath::Max(0.0, NF_MatchState.PhaseEndServerTime - GetServerWorldTimeSeconds());
 }
 
+double ANF_GameState::GetRemainingConclusionTime() const
+{
+	if (NF_MatchState.Phase != ENF_MatchPhase::Finished || NF_MatchState.ConclusionEndServerTime <= 0.0)
+	{
+		return 0.0;
+	}
+
+	return FMath::Max(0.0, NF_MatchState.ConclusionEndServerTime - GetServerWorldTimeSeconds());
+}
+
 bool ANF_GameState::AuthoritySetTimedMatchPhase(ENF_MatchPhase NewPhase,float Duration)
 {
 	if (!HasAuthority()) { return false; }
@@ -94,6 +105,7 @@ bool ANF_GameState::AuthoritySetTimedMatchPhase(ENF_MatchPhase NewPhase,float Du
 	NF_MatchState.Phase = NewPhase;
 	NF_MatchState.bHasTimeLimit = true;
 	NF_MatchState.PhaseEndServerTime = GetServerWorldTimeSeconds() + Duration;
+	NF_MatchState.ConclusionEndServerTime = 0.0;
 
 	BroadcastMatchStateChanged();
 	ForceNetUpdate();
@@ -108,6 +120,7 @@ bool ANF_GameState::AuthoritySetUntimedMatchPhase(ENF_MatchPhase NewPhase)
 	NF_MatchState.Phase = NewPhase;
 	NF_MatchState.bHasTimeLimit = false;
 	NF_MatchState.PhaseEndServerTime = 0.0;
+	NF_MatchState.ConclusionEndServerTime = 0.0;
 
 	BroadcastMatchStateChanged();
 	ForceNetUpdate();
@@ -115,9 +128,10 @@ bool ANF_GameState::AuthoritySetUntimedMatchPhase(ENF_MatchPhase NewPhase)
 	return true;
 }
 
-bool ANF_GameState::AuthorityFinishMatch(const FNF_MatchResult& Result)
+bool ANF_GameState::AuthorityFinishMatch(const FNF_MatchResult& Result, const float ConclusionDuration)
 {
 	if (!HasAuthority()){return false;}
+	if (!FMath::IsFinite(ConclusionDuration) || ConclusionDuration <= 0.0f){return false;}
 
 	if (NF_MatchState.Result.Outcome != ENF_MatchOutcome::None){return false;}
 
@@ -136,6 +150,7 @@ bool ANF_GameState::AuthorityFinishMatch(const FNF_MatchResult& Result)
 	NF_MatchState.Phase = ENF_MatchPhase::Finished;
 	NF_MatchState.bHasTimeLimit = false;
 	NF_MatchState.PhaseEndServerTime = 0.0;
+	NF_MatchState.ConclusionEndServerTime = GetServerWorldTimeSeconds() + ConclusionDuration;
 
 	BroadcastMatchStateChanged();
 	ForceNetUpdate();
@@ -194,6 +209,45 @@ void ANF_GameState::OnRep_KeyPublicState()
 {
 	const FNF_KeyPublicState PublishedState = KeyPublicState;
 	OnKeyPublicStateChanged.Broadcast(PublishedState);
+}
+
+FNF_EscapeProgress ANF_GameState::GetEscapeProgress() const
+{
+	return EscapeProgress;
+}
+
+float ANF_GameState::GetRemainingEscapeTime() const
+{
+	if (!EscapeProgress.bInProgress)
+	{
+		return 0.0f;
+	}
+
+	if (EscapeProgress.bPaused)
+	{
+		return FMath::Max(0.0f, EscapeProgress.RemainingTime);
+	}
+
+	const double RemainingTime = EscapeProgress.EndServerTime - GetServerWorldTimeSeconds();
+	return FMath::Max(0.0f, static_cast<float>(RemainingTime));
+}
+
+bool ANF_GameState::AuthoritySetEscapeProgress(const FNF_EscapeProgress& NewProgress)
+{
+	if (!HasAuthority())
+	{
+		return false;
+	}
+
+	EscapeProgress = NewProgress;
+	OnEscapeProgressChanged.Broadcast(EscapeProgress);
+	ForceNetUpdate();
+	return true;
+}
+
+void ANF_GameState::OnRep_EscapeProgress()
+{
+	OnEscapeProgressChanged.Broadcast(EscapeProgress);
 }
 
 void ANF_GameState::MulticastShowAnnouncement_Implementation(const FText& Message, const float Duration)

@@ -5,6 +5,7 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Engine/World.h"
+#include "Monster/NF_Monster.h"
 #include "Monster/AI/Tasks/BTTask_NF_MonsterReserveCombatSlot.h"
 
 ANF_MonsterAIController::ANF_MonsterAIController()
@@ -60,6 +61,11 @@ void ANF_MonsterAIController::OnPossess(APawn* InPawn)
 		Warning,
 		TEXT("Monster AI: Behavior Tree 시작 결과 = %s"),
 		bBehaviorTreeStarted ? TEXT("True") : TEXT("False"));
+
+	if (ANF_Monster* Monster = Cast<ANF_Monster>(InPawn))
+	{
+		SetGuardFocusActor(Monster->GetGuardFocusActor());
+	}
 }
 
 void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
@@ -85,6 +91,11 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
+		const ANF_Monster* Monster = Cast<ANF_Monster>(GetPawn());
+		if (Monster
+			&& Monster->RequiresDamageToAggro()
+			&& !bPersistentDamageAggro) { return; }
+
 		ConsiderTargetActor(UpdatedActor);
 
 		if (GetCurrentTargetActor() != UpdatedActor) { return; }
@@ -112,6 +123,16 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 	}
 	
 	if (GetCurrentTargetActor() != UpdatedActor) { return; }
+
+	if (bPersistentDamageAggro)
+	{
+		BlackboardComponent->SetValueAsVector(
+			LastKnownLocationKeyName,
+			UpdatedActor->GetActorLocation());
+		BlackboardComponent->SetValueAsBool(HasLineOfSightKeyName, true);
+		SetFocus(UpdatedActor, EAIFocusPriority::Gameplay);
+		return;
+	}
 	
 	AActor* ReplacementTarget =
 	FindClosestPerceivedPlayer(UpdatedActor);
@@ -177,6 +198,11 @@ bool ANF_MonsterAIController::ShouldSwitchTarget(
 	if (!IsValidPlayerTarget(CurrentTargetActor))
 	{
 		return true;
+	}
+
+	if (bPersistentDamageAggro)
+	{
+		return false;
 	}
 
 	// 현재 타깃과 후보가 같으면 변경할 필요 x
@@ -269,24 +295,72 @@ void ANF_MonsterAIController::ApplyDamageAggro(AActor* DamageSource)
 		return;
 	}
 
-	SetCurrentTargetActor(DamageSource);
+	if (PersistentAggroTarget.IsValid()
+		&& PersistentAggroTarget.Get() != DamageSource)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster damage aggro ignored: Monster=%s / LockedTarget=%s / NewSource=%s"),
+			*GetNameSafe(GetPawn()),
+			*GetNameSafe(PersistentAggroTarget.Get()),
+			*GetNameSafe(DamageSource));
+
+		return;
+	}
+
+	PersistentAggroTarget = DamageSource;
+	bPersistentDamageAggro = true;
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster persistent damage aggro enabled: Monster=%s / Target=%s"),
+		*GetNameSafe(GetPawn()),
+		*GetNameSafe(DamageSource));
+
+	SetCurrentTargetActor(PersistentAggroTarget.Get());
 
 	BlackboardComponent->SetValueAsVector(
 		LastKnownLocationKeyName,
-		DamageSource->GetActorLocation());
+		PersistentAggroTarget->GetActorLocation());
 
 	BlackboardComponent->SetValueAsBool(
 		HasLineOfSightKeyName,
 		true);
 
-	SetFocus(DamageSource, EAIFocusPriority::Gameplay);
+	SetFocus(PersistentAggroTarget.Get(), EAIFocusPriority::Gameplay);
 
 	UE_LOG(
 		LogTemp,
 		Warning,
 		TEXT("Monster damage aggro: Monster=%s / Target=%s"),
 		*GetNameSafe(GetPawn()),
-		*GetNameSafe(DamageSource));
+		*GetNameSafe(PersistentAggroTarget.Get()));
+}
+
+void ANF_MonsterAIController::SetGuardFocusActor(AActor* InGuardFocusActor)
+{
+	UBlackboardComponent* BlackboardComponent = GetBlackboardComponent();
+	if (!BlackboardComponent) { return; }
+
+	BlackboardComponent->SetValueAsObject(
+		GuardFocusActorKeyName,
+		InGuardFocusActor);
+
+	if (!GetCurrentTargetActor() && IsValid(InGuardFocusActor))
+	{
+		SetFocus(InGuardFocusActor, EAIFocusPriority::Gameplay);
+	}
+}
+
+AActor* ANF_MonsterAIController::GetGuardFocusActor() const
+{
+	const UBlackboardComponent* BlackboardComponent = GetBlackboardComponent();
+	if (!BlackboardComponent) { return nullptr; }
+
+	return Cast<AActor>(
+		BlackboardComponent->GetValueAsObject(GuardFocusActorKeyName));
 }
 
 AActor* ANF_MonsterAIController::FindClosestPerceivedPlayer(
@@ -410,8 +484,13 @@ void ANF_MonsterAIController::SetCurrentTargetActor(
 	}
 }
 
-void ANF_MonsterAIController::ClearCurrentTargetActor()
+void ANF_MonsterAIController::ClearCurrentTargetActor(bool bForceClear)
 {
+	if (bPersistentDamageAggro && !bForceClear)
+	{
+		return;
+	}
+
 	UBlackboardComponent* BlackboardComponent =
 		GetBlackboardComponent();
 
@@ -421,6 +500,8 @@ void ANF_MonsterAIController::ClearCurrentTargetActor()
 	UBTTask_NF_MonsterReserveCombatSlot::ReleaseReservation(GetPawn());
 		
 	TargetLockEndTime = 0.0f;
+	bPersistentDamageAggro = false;
+	PersistentAggroTarget.Reset();
 
 	BlackboardComponent->SetValueAsBool(
 		HasLineOfSightKeyName,
@@ -437,6 +518,11 @@ void ANF_MonsterAIController::ClearCurrentTargetActor()
 
 	BlackboardComponent->ClearValue(
 		TargetActorKeyName);
+
+	if (AActor* GuardFocusActor = GetGuardFocusActor())
+	{
+		SetFocus(GuardFocusActor, EAIFocusPriority::Gameplay);
+	}
 }
 
 void ANF_MonsterAIController::UpdateLastKnownLocation()
@@ -450,7 +536,7 @@ void ANF_MonsterAIController::UpdateLastKnownLocation()
 		BlackboardComponent->GetValueAsBool(
 			HasLineOfSightKeyName);
 
-	if (!bHasLineOfSight) {	return;	}
+	if (!bHasLineOfSight && !bPersistentDamageAggro) {	return;	}
 
 	AActor* TargetActor = GetCurrentTargetActor();
 

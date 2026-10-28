@@ -19,33 +19,39 @@ class PROJECT_NF_API UNF_PlayerDataAsset : public UDataAsset
 public:
 	UNF_PlayerDataAsset();
 	
-	/*UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character")
-	TObjectPtr<USkeletalMesh> VisualMesh;*/
-	
-	UPROPERTY(EditAnywhere, Category = "GA_Montage")
+	UPROPERTY(EditAnywhere, Category = "GAS|GA_Montage")
 	TObjectPtr<UAnimMontage> MeleeAttackMontage;
 	
-	UPROPERTY(EditAnywhere, Category = "GA_Montage")
+	UPROPERTY(EditAnywhere, Category = "GAS|GA_Montage")
 	TObjectPtr<UAnimMontage> DeathMontage;
 	
-	UPROPERTY(EditAnywhere, Category = "PayLoad_Damage", DisplayName = "MeleeAttackDamage (음수)")
-	float MeleeAttackDamage = 0.0f;
-	
-	UPROPERTY(EditAnywhere, Category = "GA_ETC", DisplayName = "MeleeTraceRadius (근접공격 범위)")
+	UPROPERTY(EditAnywhere, Category = "GAS|MeleeAttack", DisplayName = "MeleeTraceRadius (근접공격 범위)")
 	float MeleeTraceRadius = 20.0f;
 	
-	UPROPERTY(EditDefaultsOnly, Category = "GA_Class", DisplayName = "GameplayAbility (Play 전 적용 될 GA_Class)")
-	TArray<TSubclassOf<UGameplayAbility>> InitGA_Array;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|MeleeAttack")
+	FName MeleeSocket_Start = "MeleeSocket_Start";
 	
-	UPROPERTY(EditAnywhere, Category = "GE_Class", DisplayName = "MeleeAttack_GEClass (Health 영향)")
-	TSubclassOf<UGameplayEffect> MeleeAttack_Health_GEClass;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|MeleeAttack")
+	FName MeleeSocket_End = "MeleeSocket_End";
 	
-	UPROPERTY(EditAnywhere, Category = "GE_Class", DisplayName = "MeleeAttack_GEClass (Shield 영향)")
-	TSubclassOf<UGameplayEffect> MeleeAttack_Shield_GEClass;
 	
-	UPROPERTY(EditAnywhere, Category = "GE_Class", DisplayName = "GainExp_GEClass (IncomingExp 영향)")
-	TSubclassOf<UGameplayEffect> GainExp_GEClass;
+	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad_Damage", DisplayName = "MeleeAttackDamage (음수)")
+	float MeleeAttackDamage = 10.0f;
 	
-	UPROPERTY(EditAnywhere, Category = "PlayerLV", DisplayName = "PlayerLevelDataTable (1번째 행 = 1레벨)")
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Interact" , DisplayName = "InteractionRange (상호작용 범위)")
+	float InteractionRange = 300.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Socket")
+	FName MeleeAttackSocket = "MeleeAttackSocket";
+	
+	
+	UPROPERTY(EditDefaultsOnly, Category = "PlayerState|GA_Class", DisplayName = "GameplayAbility (Play 전 적용 될 GA_Class)")
+	TArray<TSubclassOf<UGameplayAbility>> NF_GameplayAbility_Array;
+	
+	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
+	TSubclassOf<UGameplayEffect> NF_GameplayEffectClass;
+	
+	UPROPERTY(EditAnywhere, Category = "PlayerState|Player_Level")
 	TObjectPtr<UDataTable> PlayerLevelDataTable;
 };

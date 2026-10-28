@@ -14,6 +14,10 @@ struct FOnAttributeChangeData;
 class ANF_Monster;
 class AActor;
 class ANF_MonsterItemDrop;
+class ANF_MonsterSpawner;
+class UWidgetComponent;
+class APlayerState;
+class UNF_MonsterStatusWidget;
 
 //사망 알림 deligate
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
@@ -70,9 +74,47 @@ public:
 	FNFOnMonsterDied OnMonsterDied;
 	
 	FVector GetHomeLocation() const;
+
+	void ApplyGroupDamageAggro(AActor* TargetActor);
+
+	void SetGuardFocusActor(AActor* InGuardFocusActor);
+
+	void SetGuardSpawner(ANF_MonsterSpawner* InGuardSpawner);
+
+	AActor* GetGuardFocusActor() const { return GuardFocusActor.Get(); }
+
+	bool RequiresDamageToAggro() const { return bRequiresDamageToAggro; }
+
+	UFUNCTION(BlueprintPure, Category = "NF|Monster|UI")
+	FText GetMonsterDisplayName() const { return MonsterDisplayName; }
 	
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	void UpdateLocalStatusVisibility();
+
+	UFUNCTION()
+	void OnRep_MonsterDisplayName();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastRevealStatusToAttacker(APlayerState* Attacker);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_MonsterDisplayName, Category = "NF|Monster|UI")
+	FText MonsterDisplayName;
+
+	/** Assign a Widget Blueprint derived from NF_MonsterStatusWidget. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|UI")
+	TSubclassOf<UNF_MonsterStatusWidget> MonsterStatusWidgetClass;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Monster|UI")
+	TObjectPtr<UWidgetComponent> MonsterStatusWidgetComponent;
+
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Monster|UI", meta = (ClampMin = "0.0", Units = "cm"))
+	float StatusVisibleDistance = 1000.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Monster|UI", meta = (ClampMin = "0.0", Units = "s"))
+	float StatusDamageVisibleDuration = 4.0f;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Monster|GAS")
 	TObjectPtr<UNF_AbilitySystemComponent> MonsterASC;
@@ -128,6 +170,15 @@ protected:
 		Category = "NF|Monster|AI",
 		meta = (ClampMin = "0.0"))
 	float PatrolRadius = 500.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Guard")
+	bool bRequiresDamageToAggro = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> GuardFocusActor;
+
+	TWeakObjectPtr<ANF_MonsterSpawner> GuardSpawner;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 	Category = "NF|Monster|Drop")
@@ -140,6 +191,8 @@ protected:
 	
 private:
 	FVector HomeLocation;
+	FTimerHandle StatusVisibilityTimerHandle;
+	float StatusRevealedUntil = 0.0f;
 	
 	void SpawnMonsterDrops();
 	bool FindMonsterDropLocation(FVector& OutDropLocation) const;

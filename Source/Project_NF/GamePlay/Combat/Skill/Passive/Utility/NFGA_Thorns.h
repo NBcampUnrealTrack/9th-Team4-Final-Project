@@ -3,6 +3,8 @@
 #include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
 #include "NFGA_Thorns.generated.h"
 
+struct FOnAttributeChangeData;
+
 // @Owner: 이정준 (구현: Codex) | 2026-10-22
 // Observe actual health loss on the server; shield damage and overkill are excluded.
 UCLASS(Blueprintable)
@@ -29,8 +31,14 @@ private:
 	void BindHealth();
 	void UnbindHealth();
 	void HandleHealthChanged(const FOnAttributeChangeData& Data);
+	float GetCooldownReductionRate() const;
+	void OnCooldownReductionRateChanged(const FOnAttributeChangeData& Data);
 	TWeakObjectPtr<UAbilitySystemComponent> HealthASC;
 	FDelegateHandle HealthDelegate;
+	FDelegateHandle CooldownReductionHandle;
 	double NextReflectionTime = 0;
+	double CooldownStartTime = 0.0f;
+	double BaseCooldownAtTrigger = 0.0f;
+	bool bHasTriggeredCooldown = false;
 	bool bReflecting = false;
 };

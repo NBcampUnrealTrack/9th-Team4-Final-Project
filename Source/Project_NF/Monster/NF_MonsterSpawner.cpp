@@ -1,6 +1,9 @@
 #include "Monster/NF_MonsterSpawner.h"
 
 #include "Components/SceneComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Pawn.h"
 #include "Monster/NF_Monster.h"
 #include "NavigationSystem.h"
 
@@ -21,24 +24,48 @@ void ANF_MonsterSpawner::BeginPlay()
 
     if (!HasAuthority()) { return; }
 
+    PendingInitialSpawnCount = FMath::Clamp(InitialSpawnCount, 0, FMath::Max(MaxAliveCount, 0));
     SpawnInitialMonsters();
+    if (PendingInitialSpawnCount > 0)
+    {
+        UE_LOG(LogTemp, Display, TEXT("MonsterSpawner %s waiting for navigation / ground collision (%d remaining)."),
+            *GetName(), PendingInitialSpawnCount);
+    }
+}
+
+void ANF_MonsterSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    GetWorldTimerManager().ClearTimer(InitialSpawnRetryTimerHandle);
+    GetWorldTimerManager().ClearTimer(RespawnTimerHandle);
+    Super::EndPlay(EndPlayReason);
 }
 
 void ANF_MonsterSpawner::SpawnInitialMonsters()
 {
-    const int32 SpawnCount = FMath::Min(
-        InitialSpawnCount,
-        MaxAliveCount);
+    if (!HasAuthority()) { return; }
+    const int32 SpawnCount = PendingInitialSpawnCount;
 
     for (int32 Index = 0; Index < SpawnCount; ++Index)
     {
-        SpawnMonster();
+        if (SpawnMonster())
+        {
+            --PendingInitialSpawnCount;
+        }
+    }
+
+    // Level instances can register their floor collision after the persistent
+    // level's BeginPlay, particularly on dedicated servers. Retry only missing
+    // initial monsters; do not turn this into an unconditional population refill.
+    if (PendingInitialSpawnCount > 0)
+    {
+        GetWorldTimerManager().SetTimer(InitialSpawnRetryTimerHandle, this,
+            &ThisClass::SpawnInitialMonsters, 0.5f, false);
     }
 }
 
 bool ANF_MonsterSpawner::SpawnMonster()
 {
-    if (MonsterClasses.IsEmpty()
+    if (!HasAuthority() || MonsterClasses.IsEmpty()
         || AliveMonsters.Num() >= MaxAliveCount)
     {
         return false;
@@ -63,15 +90,28 @@ bool ANF_MonsterSpawner::SpawnMonster()
         ++AttemptIndex)
     {
         FVector SpawnLocation;
-        if (!FindSafeSpawnLocation(SpawnLocation))
+        int32 GuardFormationSlotIndex = INDEX_NONE;
+
+		const bool bUseFormationSpawn = bIsGuardSpawner
+			&& bUseGuardFormation
+			&& IsValid(GuardFocusActor);
+
+        const bool bFoundSpawnLocation = bUseFormationSpawn
+			? FindGuardFormationSpawnLocation(
+				MonsterClass,
+				AttemptIndex,
+				SpawnLocation,
+				GuardFormationSlotIndex)
+			: FindSafeSpawnLocation(MonsterClass, SpawnLocation);
+
+        if (!bFoundSpawnLocation)
         {
             continue;
         }
 
-        const FRotator SpawnRotation(
-            0.0f,
-            FMath::FRandRange(-180.0f, 180.0f),
-            0.0f);
+        const FRotator SpawnRotation = bUseFormationSpawn
+			? (GuardFocusActor->GetActorLocation() - SpawnLocation).Rotation()
+			: FRotator(0.0f, FMath::FRandRange(-180.0f, 180.0f), 0.0f);
 
         ANF_Monster* SpawnedMonster =
             GetWorld()->SpawnActor<ANF_Monster>(
@@ -81,11 +121,14 @@ bool ANF_MonsterSpawner::SpawnMonster()
                 SpawnParameters);
 
         if (!SpawnedMonster)
-        {
-            // The point is on NavMesh but the monster capsule still overlaps
-            // geometry or another actor. Try another candidate instead.
+        {            
             continue;
         }
+        
+        SpawnedMonster->SetReplicates(true);
+        SpawnedMonster->SetReplicateMovement(true);
+        SpawnedMonster->SetNetDormancy(DORM_Awake);
+        SpawnedMonster->ForceNetUpdate();
 
         SpawnedMonster->OnMonsterDied.AddUniqueDynamic(
             this,
@@ -93,10 +136,27 @@ bool ANF_MonsterSpawner::SpawnMonster()
 
         AliveMonsters.Add(SpawnedMonster);
 
+		if (GuardFormationSlotIndex != INDEX_NONE)
+		{
+			GuardFormationSlots.Add(SpawnedMonster, GuardFormationSlotIndex);
+		}
+
+		if (bIsGuardSpawner)
+		{
+			SpawnedMonster->SetGuardSpawner(this);
+			SpawnedMonster->SetGuardFocusActor(GuardFocusActor.Get());
+
+			if (GroupAggroTarget.IsValid())
+			{
+				SpawnedMonster->ApplyGroupDamageAggro(
+					GroupAggroTarget.Get());
+			}
+		}
+        
         return true;
     }
 
-    UE_LOG(LogTemp, Warning,
+    UE_LOG(LogTemp, Verbose,
         TEXT("MonsterSpawner %s could not find a safe spawn location after %d attempts."),
         *GetName(), MaxSpawnLocationAttempts);
     return false;
@@ -122,7 +182,8 @@ bool ANF_MonsterSpawner::IsSpawnLocationSeparated(
     return true;
 }
 
-bool ANF_MonsterSpawner::FindSafeSpawnLocation(FVector& OutSpawnLocation) const
+bool ANF_MonsterSpawner::FindSafeSpawnLocation(
+    TSubclassOf<ANF_Monster> MonsterClass, FVector& OutSpawnLocation) const
 {
 	UNavigationSystemV1* NavigationSystem =
         UNavigationSystemV1::GetCurrent(GetWorld());
@@ -146,7 +207,7 @@ bool ANF_MonsterSpawner::FindSafeSpawnLocation(FVector& OutSpawnLocation) const
         ProjectedSpawnerLocation,
         ProjectionExtent))
     {
-        UE_LOG(LogTemp, Warning,
+        UE_LOG(LogTemp, Verbose,
             TEXT("MonsterSpawner %s has no NavMesh near its placed location."),
             *GetName());
         return false;
@@ -162,8 +223,121 @@ bool ANF_MonsterSpawner::FindSafeSpawnLocation(FVector& OutSpawnLocation) const
         return false;
     }
 
-    OutSpawnLocation = NavigationLocation.Location;
+    const ANF_Monster* MonsterDefaults = MonsterClass.GetDefaultObject();
+    const UCapsuleComponent* Capsule = MonsterDefaults ? MonsterDefaults->GetCapsuleComponent() : nullptr;
+    const UCharacterMovementComponent* Movement = MonsterDefaults ? MonsterDefaults->GetCharacterMovement() : nullptr;
+    if (!Capsule || !Movement)
+    {
+        return false;
+    }
+
+    // A baked NavMesh may already exist while the streamed floor does not.
+    // Require a real, walkable blocking surface using the capsule's collision
+    // responses. NavMesh locations are foot positions, not capsule centers.
+    const float HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+    const float GroundTolerance = FMath::Max(Movement->MaxStepHeight, 50.0f);
+    const FVector TraceStart = NavigationLocation.Location + FVector(0, 0, GroundTolerance);
+    const FVector TraceEnd = NavigationLocation.Location - FVector(0, 0, GroundTolerance);
+    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MonsterSpawnGround), false, this);
+    FHitResult GroundHit;
+    if (!GetWorld()->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd,
+        Capsule->GetCollisionObjectType(), QueryParams,
+        FCollisionResponseParams(Capsule->GetCollisionResponseToChannels()))
+        || !Movement->IsWalkable(GroundHit))
+    {
+        return false;
+    }
+
+    OutSpawnLocation = GroundHit.ImpactPoint + FVector(0, 0, HalfHeight + 2.0f);
     return true;
+}
+
+bool ANF_MonsterSpawner::FindGuardFormationSpawnLocation(
+	TSubclassOf<ANF_Monster> MonsterClass,
+	int32 SlotSearchOffset,
+	FVector& OutSpawnLocation,
+	int32& OutSlotIndex) const
+{
+	if (!IsValid(GuardFocusActor)) { return false; }
+
+	UNavigationSystemV1* NavigationSystem =
+		UNavigationSystemV1::GetCurrent(GetWorld());
+	if (!NavigationSystem) { return false; }
+
+	const ANF_Monster* MonsterDefaults = MonsterClass.GetDefaultObject();
+	const UCapsuleComponent* Capsule =
+		MonsterDefaults ? MonsterDefaults->GetCapsuleComponent() : nullptr;
+	const UCharacterMovementComponent* Movement =
+		MonsterDefaults ? MonsterDefaults->GetCharacterMovement() : nullptr;
+	if (!Capsule || !Movement) { return false; }
+
+	const int32 SlotCount = FMath::Max(MaxAliveCount, 1);
+	const FVector GuardLocation = GuardFocusActor->GetActorLocation();
+	const FVector ProjectionExtent(100.0f, 100.0f, 2000.0f);
+
+	for (int32 SlotOffset = 0; SlotOffset < SlotCount; ++SlotOffset)
+	{
+		const int32 SlotIndex = (SlotSearchOffset + SlotOffset) % SlotCount;
+
+		bool bSlotOccupied = false;
+		for (const TPair<TObjectPtr<ANF_Monster>, int32>& Pair : GuardFormationSlots)
+		{
+			if (IsValid(Pair.Key) && Pair.Value == SlotIndex)
+			{
+				bSlotOccupied = true;
+				break;
+			}
+		}
+		if (bSlotOccupied) { continue; }
+
+		const float SlotAngleDegrees = GuardFormationStartAngleDegrees
+			+ (360.0f * static_cast<float>(SlotIndex)
+				/ static_cast<float>(SlotCount));
+		const float SlotAngleRadians = FMath::DegreesToRadians(SlotAngleDegrees);
+		const FVector DesiredLocation = GuardLocation + FVector(
+			FMath::Cos(SlotAngleRadians) * GuardFormationRadius,
+			FMath::Sin(SlotAngleRadians) * GuardFormationRadius,
+			0.0f);
+
+		FNavLocation NavigationLocation;
+		if (!NavigationSystem->ProjectPointToNavigation(
+			DesiredLocation,
+			NavigationLocation,
+			ProjectionExtent)) { continue; }
+
+		const float RadiusDifference = FMath::Abs(
+			FVector::Dist2D(NavigationLocation.Location, GuardLocation)
+			- GuardFormationRadius);
+		if (RadiusDifference > GuardFormationRadiusTolerance
+			|| !IsSpawnLocationSeparated(NavigationLocation.Location)) { continue; }
+
+		const float HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+		const float GroundTolerance = FMath::Max(Movement->MaxStepHeight, 50.0f);
+		const FVector TraceStart = NavigationLocation.Location
+			+ FVector(0.0f, 0.0f, GroundTolerance);
+		const FVector TraceEnd = NavigationLocation.Location
+			- FVector(0.0f, 0.0f, GroundTolerance);
+		FCollisionQueryParams QueryParams(
+			SCENE_QUERY_STAT(MonsterGuardSpawnGround), false, this);
+		FHitResult GroundHit;
+
+		if (!GetWorld()->LineTraceSingleByChannel(
+			GroundHit,
+			TraceStart,
+			TraceEnd,
+			Capsule->GetCollisionObjectType(),
+			QueryParams,
+			FCollisionResponseParams(
+				Capsule->GetCollisionResponseToChannels()))
+			|| !Movement->IsWalkable(GroundHit)) { continue; }
+
+		OutSpawnLocation = GroundHit.ImpactPoint
+			+ FVector(0.0f, 0.0f, HalfHeight + 2.0f);
+		OutSlotIndex = SlotIndex;
+		return true;
+	}
+
+	return false;
 }
 
 TSubclassOf<ANF_Monster> ANF_MonsterSpawner::GetRandomMonsterClass() const
@@ -185,6 +359,69 @@ TSubclassOf<ANF_Monster> ANF_MonsterSpawner::GetRandomMonsterClass() const
     return ValidMonsterClasses[FMath::RandRange(0, ValidMonsterClasses.Num() - 1)];
 }
 
+bool ANF_MonsterSpawner::TryAlertGuardGroup(AActor* DamageSource)
+{
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster guard group alert requested: Spawner=%s / IsGuardSpawner=%s / Members=%d / Source=%s"),
+		*GetNameSafe(this),
+		bIsGuardSpawner ? TEXT("True") : TEXT("False"),
+		AliveMonsters.Num(),
+		*GetNameSafe(DamageSource));
+
+	if (!HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Monster guard group alert skipped: Not Authority."));
+		return false;
+	}
+
+	if (!bIsGuardSpawner)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Monster guard group alert skipped: Is Guard Spawner is false."));
+		return false;
+	}
+
+	APawn* DamagePawn = Cast<APawn>(DamageSource);
+	if (!IsValid(DamagePawn) || !DamagePawn->IsPlayerControlled())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Monster guard group alert skipped: Source is not a player pawn."));
+		return false;
+	}
+
+	if (GroupAggroTarget.IsValid())
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster guard group aggro ignored: Spawner=%s / LockedTarget=%s / NewSource=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(GroupAggroTarget.Get()),
+			*GetNameSafe(DamageSource));
+
+		return true;
+	}
+
+	GroupAggroTarget = DamageSource;
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Monster guard group alerted: Spawner=%s / Target=%s / Members=%d"),
+		*GetNameSafe(this),
+		*GetNameSafe(GroupAggroTarget.Get()),
+		AliveMonsters.Num());
+
+	for (const TObjectPtr<ANF_Monster>& LivingMonster : AliveMonsters)
+	{
+		if (!IsValid(LivingMonster)) { continue; }
+
+		LivingMonster->ApplyGroupDamageAggro(GroupAggroTarget.Get());
+	}
+
+	return true;
+}
+
 void ANF_MonsterSpawner::HandleMonsterDied(
     ANF_Monster* DeadMonster)
 {
@@ -194,6 +431,12 @@ void ANF_MonsterSpawner::HandleMonsterDied(
     }
 
     AliveMonsters.Remove(DeadMonster);
+	GuardFormationSlots.Remove(DeadMonster);
+
+	if (bIsGuardSpawner && AliveMonsters.IsEmpty())
+	{
+		GroupAggroTarget.Reset();
+	}
 
     if (!bRespawnEnabled
         || AliveMonsters.Num() >= MaxAliveCount)

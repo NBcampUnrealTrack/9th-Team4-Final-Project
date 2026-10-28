@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Data/Enum/NF_ItemTypes.h"
 #include "TimerManager.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
@@ -29,6 +30,21 @@ public:
     UFUNCTION(BlueprintPure, FieldNotify, Category = "SkillSlot")
     float GetCooldownPercent() const;
 
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "SkillSlot")
+    FText GetCooldownText() const;
+
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "SkillSlot")
+    ESlateVisibility GetSkillIconVisibility() const;
+
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "SkillSlot")
+    ESlateVisibility GetShortcutVisibility() const;
+
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "SkillSlot")
+    ESlateVisibility GetCooldownVisibility() const;
+
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "SkillSlot")
+    float GetSkillIconOpacity() const;
+
 protected:
     virtual void OnInitializeViewModel() override;
     virtual void OnViewModelContextChanged() override;
@@ -43,6 +59,7 @@ private:
     void UnbindSources();
     void StartRefreshTimer();
     void StopRefreshTimer();
+    bool ShouldShowCooldown() const;
 
     UPROPERTY(BlueprintReadOnly, Category = "SkillSlot",meta = (AllowPrivateAccess = "true"))
     ENF_ItemType SlotType = ENF_ItemType::ActiveSkill;
