@@ -257,9 +257,9 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 
 	void ANF_Player::TryUseItem()
 	{
-		UKismetSystemLibrary::PrintString(this,TEXT("아이템 사용, 정준님 협의 예정"));
+		if (IsValid(NF_ConsumableComponent) == false) return;
 		
-		NF_ConsumableComponent->NF_UseItem();
+		INF_UseItemInterface::Execute_NF_UseItem(NF_ConsumableComponent, 0);
 	}
 
 	void ANF_Player::ServerRPC_TryInteraction_Implementation(APlayerController* SendController, AActor* TargetActor)
