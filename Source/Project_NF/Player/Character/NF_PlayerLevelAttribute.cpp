@@ -11,10 +11,12 @@ UNF_PlayerLevelAttribute::UNF_PlayerLevelAttribute()
 	
 }
 
+
 void UNF_PlayerLevelAttribute::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
 {
 	Super::PreAttributeChange(Attribute, NewValue);
 }
+
 
 void UNF_PlayerLevelAttribute::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
@@ -41,41 +43,6 @@ void UNF_PlayerLevelAttribute::PostGameplayEffectExecute(const FGameplayEffectMo
 	}
 }
 
-void UNF_PlayerLevelAttribute::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	
-	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxLevel, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, CurrentLevel, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, CurrentExp, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, TargetExp, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, IncomingExp, COND_None, REPNOTIFY_Always);
-}
-
-void UNF_PlayerLevelAttribute::OnRep_MaxLevel(const FGameplayAttributeData& OldMaxLevel)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MaxLevel, OldMaxLevel);
-}
-
-void UNF_PlayerLevelAttribute::OnRep_CurrentLevel(const FGameplayAttributeData& OldCurrentLevel)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, CurrentLevel, OldCurrentLevel);
-}
-
-void UNF_PlayerLevelAttribute::OnRep_CurrentExp(const FGameplayAttributeData& OldCurrentExp)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, CurrentExp, OldCurrentExp);
-}
-
-void UNF_PlayerLevelAttribute::OnRep_TargetExp(const FGameplayAttributeData& OldTargetExp)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, TargetExp, OldTargetExp);
-}
-
-void UNF_PlayerLevelAttribute::OnRep_IncomingExp(const FGameplayAttributeData& OldIncomingExp)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, IncomingExp, OldIncomingExp);
-}
 
 float UNF_PlayerLevelAttribute::GetTargetExpFromLevel() const
 {
@@ -93,4 +60,46 @@ float UNF_PlayerLevelAttribute::GetTargetExpFromLevel() const
 	if (LevelRows.IsValidIndex(LevelIndex) == false) return 0.0f;
 	
 	return LevelRows[LevelIndex]->TargetExp;
+}
+
+
+void UNF_PlayerLevelAttribute::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxLevel, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, CurrentLevel, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, CurrentExp, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, TargetExp, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, IncomingExp, COND_None, REPNOTIFY_Always);
+}
+
+
+void UNF_PlayerLevelAttribute::OnRep_MaxLevel(const FGameplayAttributeData& OldMaxLevel)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MaxLevel, OldMaxLevel);
+}
+
+
+void UNF_PlayerLevelAttribute::OnRep_CurrentLevel(const FGameplayAttributeData& OldCurrentLevel)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, CurrentLevel, OldCurrentLevel);
+}
+
+
+void UNF_PlayerLevelAttribute::OnRep_CurrentExp(const FGameplayAttributeData& OldCurrentExp)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, CurrentExp, OldCurrentExp);
+}
+
+
+void UNF_PlayerLevelAttribute::OnRep_TargetExp(const FGameplayAttributeData& OldTargetExp)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, TargetExp, OldTargetExp);
+}
+
+
+void UNF_PlayerLevelAttribute::OnRep_IncomingExp(const FGameplayAttributeData& OldIncomingExp)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, IncomingExp, OldIncomingExp);
 }

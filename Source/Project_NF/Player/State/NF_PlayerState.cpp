@@ -19,6 +19,7 @@ ANF_PlayerState::ANF_PlayerState()
 	PlayerASC = CreateDefaultSubobject<UNF_AbilitySystemComponent>(TEXT("PlayerASC"));
 	PlayerASC->SetIsReplicated(true);
 	PlayerASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+	
 	PlayerStatusAttribute = CreateDefaultSubobject<UNF_PlayerStatusAttribute>(TEXT("PlayerStatusAttribute"));
 	PlayerLevelAttribute = CreateDefaultSubobject<UNF_PlayerLevelAttribute>(TEXT("PlayerLevelAttribute"));
 	KeyHolderAttributeSet = CreateDefaultSubobject<UNF_KeyHolderAttributeSet>(TEXT("KeyHolderAttributeSet"));
@@ -39,7 +40,7 @@ void ANF_PlayerState::GiveDefaultAbility()
 	if (HasAuthority() == false) return;
 	if (bIsGiveAbility == true) return;
 
-	for (const auto& EachAbility : NF_PlayerDataAsset->InitGA_Array)
+	for (const auto& EachAbility : NF_PlayerDataAsset->NF_GameplayAbility_Array)
 	{
 		if (IsValid(EachAbility) == false) continue;
 
@@ -86,6 +87,7 @@ void ANF_PlayerState::BeginPlay()
 	{
 		NF_PlayerID = GetPlayerId();
 	}
+	
 	ConfigDataAsset();
 }
 
@@ -93,9 +95,7 @@ void ANF_PlayerState::BeginPlay()
 void ANF_PlayerState::ConfigDataAsset()
 {
 	checkf(IsValid(NF_PlayerDataAsset) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]가  삽입되어있지않습니다."));
-	checkf(IsValid(NF_PlayerDataAsset->MeleeAttack_Health_GEClass) == true, TEXT("[NF_PlayerDataAsset]의 [MeleeAttack_GEClass]가  삽입되어있지않습니다."));
-	checkf(IsValid(NF_PlayerDataAsset->MeleeAttack_Shield_GEClass) == true, TEXT("[NF_PlayerDataAsset]의 [MeleeAttack_GEClass]가  삽입되어있지않습니다."));
-	
+	checkf(IsValid(NF_PlayerDataAsset->NF_GameplayEffectClass) == true, TEXT("[NF_PlayerDataAsset]의 [NF_GameplayEffectClass]가  삽입되어있지않습니다."));
 }
 
 void ANF_PlayerState::OnRep_NFTeamID()
