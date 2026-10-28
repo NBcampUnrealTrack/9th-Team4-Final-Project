@@ -31,8 +31,8 @@ void UNFGA_MeleeAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	auto* NF_PlayerDataAsset = Cast<UNF_PlayerDataAsset>(GetCurrentSourceObject());
 	if (IsValid(NF_PlayerDataAsset) == false) return EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 	
+	//AttackMontage에서 노티파이로 히트체크GA 호출함
 	UNF_GASFunctionLibrary::NF_PlayMontageAndWaitWithEndAbility(this, NF_PlayerDataAsset->MeleeAttackMontage);
-	
 }
 
 void UNFGA_MeleeAttack::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
