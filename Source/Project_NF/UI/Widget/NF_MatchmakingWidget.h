@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Core/Match/NF_MatchRules.h"
 #include "NF_MatchmakingWidget.generated.h"
 
 class UButton;
 class UTextBlock;
-class UNF_MatchmakingSubsystem;
+class UNF_MatchmakingViewModel;
+class UNF_ViewModelSubsystem;
 
 /** Lightweight native UMG panel for joining and leaving the Steam matchmaking queue. */
 UCLASS()
@@ -25,18 +25,10 @@ protected:
 private:
 	void BuildWidgetTree();
 	void RefreshDisplay();
+	void DisconnectViewModel();
 	void RefreshSteamStatus();
 	void LogSteamStartupDiagnostics(const FString& DefaultSubsystemName);
 	void SetSteamStatus(const FString& StatusText, const FLinearColor& Color, bool bIsError);
-
-	UFUNCTION()
-	void HandleMatchStateChanged(ENFMatchState NewState);
-
-	UFUNCTION()
-	void HandleQueueCountChanged(int32 PlayerCount, int32 RequiredPlayers);
-
-	UFUNCTION()
-	void HandleMatchmakingFailed(const FString& Reason);
 
 	UFUNCTION()
 	void HandleStartButtonClicked();
@@ -66,9 +58,9 @@ private:
 	TObjectPtr<UTextBlock> FeedbackText;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UNF_MatchmakingSubsystem> MatchmakingSubsystem;
+	TObjectPtr<UNF_MatchmakingViewModel> MatchmakingViewModel;
 
-	FTimerHandle DisplayRefreshTimerHandle;
+	TWeakObjectPtr<UNF_ViewModelSubsystem> ViewModelSubsystem;
 	FString LastLoggedSteamStatus;
 	bool bLoggedSteamStartupDiagnostics = false;
 };

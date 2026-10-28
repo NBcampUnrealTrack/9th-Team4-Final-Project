@@ -3,7 +3,6 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "UI/Widget/NF_AnnouncementWidget.h"
-
 void UNF_UIManagerSubsystem::Deinitialize()
 {
 	PopAllWidgets();
