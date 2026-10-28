@@ -1,6 +1,7 @@
 #include "UI/Widget/NF_MatchResultWidget.h"
 
 #include "Components/Button.h"
+#include "InputCoreTypes.h"
 #include "Engine/LocalPlayer.h"
 #include "MVVMSubsystem.h"
 #include "View/MVVMView.h"
@@ -13,6 +14,15 @@ void UNF_MatchResultWidget::EnsureViewModel()
 	{
 		ResultViewModel = NewObject<UNF_MatchResultViewModel>(this);
 	}
+}
+
+FReply UNF_MatchResultWidget::NativeOnPreviewKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == EKeys::Escape)
+	{
+		return FReply::Handled();
+	}
+	return Super::NativeOnPreviewKeyDown(InGeometry, InKeyEvent);
 }
 
 void UNF_MatchResultWidget::NativeConstruct()

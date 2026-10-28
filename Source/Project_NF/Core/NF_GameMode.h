@@ -187,7 +187,7 @@ private:
 	float WaitingDuration = 90.0f;
 
 	UPROPERTY(EditDefaultsOnly,Category = "NF|Match|Result",meta = (ClampMin = "0.1"))
-	float ResultDisplayDuration = 5.0f;
+	float ResultDisplayDuration = 15.0f;
 
 	void StartWaiting();
 	void HandleWaitingPhaseExpired();

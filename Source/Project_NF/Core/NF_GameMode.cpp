@@ -1200,7 +1200,7 @@ void ANF_GameMode::DispatchMatchConclusion()
 		if (!RequestMatchAbort.IsBound())return;
 
 		bConclusionDispatched = true;
-		RequestMatchAbort.Execute(Result.Message);
+		RequestMatchAbort.Execute(Result);
 	}
 	else if (Result.Outcome == ENF_MatchOutcome::Victory)
 	{
