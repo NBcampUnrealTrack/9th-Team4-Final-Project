@@ -38,6 +38,11 @@ ANF_GameMode::ANF_GameMode()
 	PlayerRespawnComponent = CreateDefaultSubobject<UNF_PlayerRespawnComponent>(TEXT("PlayerRespawnComponent"));
 }
 
+bool ANF_GameMode::ShouldUseDedicatedMatchSubsystem() const
+{
+	return true;
+}
+
 void ANF_GameMode::BeginPlay()
 {
 	Super::BeginPlay();
@@ -52,7 +57,7 @@ void ANF_GameMode::BeginPlay()
 			&UNF_PlayerRespawnComponent::Shutdown);
 	}
 
-	if (HasAuthority())
+	if (HasAuthority() && ShouldUseDedicatedMatchSubsystem())
 	{
 		if (UGameInstance* GameInstance = GetGameInstance())
 		{
@@ -1200,7 +1205,7 @@ void ANF_GameMode::DispatchMatchConclusion()
 		if (!RequestMatchAbort.IsBound())return;
 
 		bConclusionDispatched = true;
-		RequestMatchAbort.Execute(Result.Message);
+		RequestMatchAbort.Execute(Result);
 	}
 	else if (Result.Outcome == ENF_MatchOutcome::Victory)
 	{

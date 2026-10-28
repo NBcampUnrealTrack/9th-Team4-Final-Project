@@ -7,6 +7,9 @@
 #include "GameFramework/PlayerController.h"
 #include "Templates/UnrealTemplate.h"
 #include "UI/Widget/NF_UIRootWidget.h"
+#include "UI/Widget/NF_MatchResultWidget.h"
+#include "UI/Widget/NF_OptionsWidget.h"
+#include "Core/NF_GameState.h"
 
 void UNF_UIManagerSubsystem::Deinitialize()
 {
@@ -48,6 +51,8 @@ bool UNF_UIManagerSubsystem::EnsureRoot()
 UUserWidget* UNF_UIManagerSubsystem::CreateManagedWidget(TSubclassOf<UUserWidget> WidgetClass)
 {
 	if (!WidgetClass || WidgetClass->HasAnyClassFlags(CLASS_Abstract) || !EnsureRoot()){return nullptr;}
+	// 옵션창은 Blueprint에서 직접 PushScreen/PushModal로 열 수도 있다.
+	if (WidgetClass->IsChildOf(UNF_OptionsWidget::StaticClass()) && !CanOpenGameplayScreen()){return nullptr;}
 	
 	return CreateWidget<UUserWidget>(OwningController.Get(), WidgetClass);
 }
@@ -83,7 +88,8 @@ UUserWidget* UNF_UIManagerSubsystem::SetHUD(TSubclassOf<UUserWidget> WidgetClass
 	return NewHUD;
 }
 
-UUserWidget* UNF_UIManagerSubsystem::PushScreen(TSubclassOf<UUserWidget> WidgetClass, const ENF_ScreenInputMode InputMode)
+UUserWidget* UNF_UIManagerSubsystem::PushScreen(TSubclassOf<UUserWidget> WidgetClass, const ENF_ScreenInputMode InputMode,
+	const bool bAllowUserClose)
 {
 	if (bChangingUI){return nullptr;}
 	
@@ -97,6 +103,7 @@ UUserWidget* UNF_UIManagerSubsystem::PushScreen(TSubclassOf<UUserWidget> WidgetC
 	FNF_ScreenEntry& Entry = ScreenStack.AddDefaulted_GetRef();
 	Entry.Widget = Widget;
 	Entry.InputMode = InputMode;
+	Entry.bAllowUserClose = bAllowUserClose;
 	AddToLayer(RootWidget->GetScreenLayer(), Widget);
 	RefreshPresentation();
 	return Widget;
@@ -209,7 +216,50 @@ UUserWidget* UNF_UIManagerSubsystem::GetTopInteractiveWidget() const
 
 bool UNF_UIManagerSubsystem::CloseTop()
 {
-	return RemoveWidget(GetTopInteractiveWidget());
+	if (bChangingUI){return false;}
+	if (!ModalStack.IsEmpty())
+	{
+		return RemoveWidget(ModalStack.Last().Get());
+	}
+	if (ScreenStack.IsEmpty() || !ScreenStack.Last().bAllowUserClose){return false;}
+	return RemoveWidget(ScreenStack.Last().Widget.Get());
+}
+
+bool UNF_UIManagerSubsystem::CanOpenGameplayScreen() const
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World)){return false;}
+	const ANF_GameState* GameState = World->GetGameState<ANF_GameState>();
+	if (IsValid(GameState) && GameState->GetMatchPhase() == ENF_MatchPhase::Finished){return false;}
+	for (const FNF_ScreenEntry& Entry : ScreenStack)
+	{
+		if (IsValid(Entry.Widget) && Entry.Widget->IsA<UNF_MatchResultWidget>()){return false;}
+	}
+	return true;
+}
+
+UNF_MatchResultWidget* UNF_UIManagerSubsystem::ShowMatchResult(
+	TSubclassOf<UNF_MatchResultWidget> WidgetClass, const FNF_MatchResult& Result, const int32 LocalTeamId)
+{
+	if (bChangingUI || !WidgetClass || WidgetClass->HasAnyClassFlags(CLASS_Abstract) ||
+		Result.Outcome == ENF_MatchOutcome::None){return nullptr;}
+	if (!EnsureRoot()){return nullptr;}
+	for (const FNF_ScreenEntry& Entry : ScreenStack)
+	{
+		if (UNF_MatchResultWidget* Existing = Cast<UNF_MatchResultWidget>(Entry.Widget.Get()))
+		{
+			Existing->ApplyResult(Result, LocalTeamId);
+			return Existing;
+		}
+	}
+	ClearTransientUI();
+	UNF_MatchResultWidget* Widget = Cast<UNF_MatchResultWidget>(
+		PushScreen(WidgetClass, ENF_ScreenInputMode::UIOnly, false));
+	if (IsValid(Widget))
+	{
+		Widget->ApplyResult(Result, LocalTeamId);
+	}
+	return Widget;
 }
 
 bool UNF_UIManagerSubsystem::IsGameplayInputBlocked() const

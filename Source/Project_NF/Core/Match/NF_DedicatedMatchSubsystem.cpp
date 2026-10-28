@@ -318,28 +318,41 @@ void UNF_DedicatedMatchSubsystem::HandleMatchCompleted(const FNF_MatchResult& Re
 	BeginSessionCleanup();
 }
 
-void UNF_DedicatedMatchSubsystem::HandleMatchAbort(const FString& Reason)
+void UNF_DedicatedMatchSubsystem::HandleMatchAbort(const FNF_MatchResult& Result)
 {
 	if (bMatchAbortHandled || bMatchCompletedHandled)
 	{
 		return;
 	}
 	UWorld* World = GetWorld();
-	if (!World || World->GetNetMode() == NM_Client)
+	if (!World || World->GetNetMode() == NM_Client ||
+		Result.Outcome != ENF_MatchOutcome::Aborted ||
+		Result.EndReason == ENF_MatchEndReason::None ||
+		Result.EndReason == ENF_MatchEndReason::EscapeSucceeded ||
+		Result.WinningTeamId != INDEX_NONE)
 	{
 		return;
 	}
 	bMatchAbortHandled = true;
+	CompletedResult = Result;
+	SubmittedPlayerStates.Reset();
+	SubmittedPlayerIds.Reset();
+	CurrentTeams.Reset();
+	ExpectedAssignmentSignature.Reset();
 
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
 	{
-		if (APlayerController* PC = It->Get())
+		if (ANF_PlayerController* PC = Cast<ANF_PlayerController>(It->Get()))
 		{
-			if (ANF_MatchLobbyPlayerController* MatchPC = Cast<ANF_MatchLobbyPlayerController>(PC))
-			{
-				MatchPC->ClientHandleMatchAborted(Reason);
-			}
-			PC->ClientReturnToMainMenuWithTextReason(FText::FromString(Reason));
+			PC->ClientHandleMatchCompleted(CompletedResult);
+		}
+		else if (ANF_MatchLobbyPlayerController* LobbyPC = Cast<ANF_MatchLobbyPlayerController>(It->Get()))
+		{
+			LobbyPC->ClientHandleMatchCompleted(CompletedResult);
+		}
+		else
+		{
+			UE_LOG(LogProject_NF, Error, TEXT("Match abort requires an NF player controller: %s"), *GetNameSafe(It->Get()));
 		}
 	}
 

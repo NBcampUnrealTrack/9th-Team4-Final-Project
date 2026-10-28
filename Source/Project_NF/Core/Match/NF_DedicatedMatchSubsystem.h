@@ -30,7 +30,7 @@ public:
 	virtual void Deinitialize() override;
 	bool SubmitTeamAssignments(APlayerController* Submitter, const FString& ClaimedPlayerId,
 		const TArray<FNFMatchTeamAssignment>& Teams);
-	void HandleMatchAbort(const FString& Reason);
+	void HandleMatchAbort(const FNF_MatchResult& Result);
 	void HandleMatchCompleted(const FNF_MatchResult& Result);
 
 	/** Broadcast once on the server after every PlayerState has its final replicated TeamId. */
