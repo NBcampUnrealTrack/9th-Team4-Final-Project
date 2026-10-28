@@ -1,7 +1,9 @@
 #include "Player/Component/NF_MatchResultPresenterComponent.h"
 
 #include "Core/NF_GameState.h"
+#include "Core/Match/NF_MatchmakingSubsystem.h"
 #include "Data/Enum/NF_MatchPhase.h"
+#include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -20,6 +22,7 @@ UNF_MatchResultPresenterComponent::UNF_MatchResultPresenterComponent()
 void UNF_MatchResultPresenterComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	if (bReturnPending || bPresentationCompleted || bEndingPlay) return;
 
 	APlayerController* Controller = Cast<APlayerController>(GetOwner());
 	if (!IsValid(Controller) || !Controller->IsLocalController()) return;
@@ -40,6 +43,7 @@ void UNF_MatchResultPresenterComponent::BeginPlay()
 
 void UNF_MatchResultPresenterComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	bEndingPlay = true;
 	SetComponentTickEnabled(false);
 	ReleaseResultWidget();
 	ObservedGameState.Reset();
@@ -55,6 +59,8 @@ void UNF_MatchResultPresenterComponent::TickComponent(float DeltaTime, ELevelTic
 
 void UNF_MatchResultPresenterComponent::RefreshResultScreen()
 {
+	if (bReturnPending || bEndingPlay) return;
+
 	APlayerController* Controller = Cast<APlayerController>(GetOwner());
 	UWorld* World = GetWorld();
 	if (!IsValid(Controller) || !Controller->IsLocalController() || !IsValid(World)) return;
@@ -132,18 +138,76 @@ bool UNF_MatchResultPresenterComponent::HasResultChanged(const FNF_MatchResult& 
 
 void UNF_MatchResultPresenterComponent::HandleReturnRequested()
 {
-	if (bReturnPending || bPresentationCompleted) return;
-	
-	if (!OnReturnToMatchmakingRequested.IsBound())
+	if (bReturnPending || bPresentationCompleted || bEndingPlay) return;
+
+	UWorld* World = GetWorld();
+	ANF_GameState* GameState = nullptr;
+	if (IsValid(World))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[NF MatchResult] 실제 매칭 복귀 처리자가 연결되지 않았습니다."));
+		GameState = World->GetGameState<ANF_GameState>();
+	}
+
+	// 버튼은 현재 표시 중인 경기의 확정 결과를 사용한다.
+	if (!IsValid(GameState) || GameState->GetMatchPhase() != ENF_MatchPhase::Finished)
+	{
 		NotifyReturnFailed();
 		return;
 	}
 
-	// 콜백에서 동기적으로 실패를 알리거나 맵을 이동할 수 있으므로 먼저 기록한다.
+	const FNF_MatchResult Result = GameState->GetMatchState().Result;
+	RequestReturnToMatchmaking(Result);
+}
+
+void UNF_MatchResultPresenterComponent::RequestReturnToMatchmaking(const FNF_MatchResult& Result)
+{
+	if (bReturnPending || bPresentationCompleted || bEndingPlay) return;
+
+	APlayerController* Controller = Cast<APlayerController>(GetOwner());
+	UWorld* World = GetWorld();
+	if (!IsValid(Controller) || !Controller->IsLocalController() ||
+		!IsValid(World) || World->GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = World->GetGameInstance();
+	UNF_MatchmakingSubsystem* Match = nullptr;
+	if (IsValid(GameInstance))
+	{
+		Match = GameInstance->GetSubsystem<UNF_MatchmakingSubsystem>();
+	}
+	if (!IsValid(Match))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[NF MatchResult] 매칭 Subsystem을 찾을 수 없어 복귀 요청을 거절합니다."));
+		NotifyReturnFailed();
+		return;
+	}
+
+	// 자동 RPC는 GameState 결과 복제보다 먼저 도착할 수 있다.
+	// 전달받은 결과를 복사하고 Finished 조회 없이 공통 API에 전달한다.
+	const FNF_MatchResult ResultCopy = Result;
+	const bool bWasTickEnabled = IsComponentTickEnabled();
 	bReturnPending = true;
-	OnReturnToMatchmakingRequested.Broadcast();
+	SetComponentTickEnabled(false);
+	if (IsValid(ResultWidget))
+	{
+		ResultWidget->SetReturnPending(true);
+	}
+
+	// API 내부에서 맵 이동 및 EndPlay가 실행될 수 있다.
+	TWeakObjectPtr<UNF_MatchResultPresenterComponent> WeakPresenter(this);
+	const bool bAccepted = Match->RequestReturnToMatchmaking(ResultCopy);
+	UNF_MatchResultPresenterComponent* Presenter = WeakPresenter.Get();
+	if (!IsValid(Presenter) || Presenter->bEndingPlay) return;
+
+	if (bAccepted)
+	{
+		Presenter->NotifyReturnCompleted();
+		return;
+	}
+
+	Presenter->NotifyReturnFailed();
+	Presenter->SetComponentTickEnabled(bWasTickEnabled);
 }
 
 void UNF_MatchResultPresenterComponent::NotifyReturnFailed()
@@ -159,6 +223,7 @@ void UNF_MatchResultPresenterComponent::NotifyReturnFailed()
 
 void UNF_MatchResultPresenterComponent::NotifyReturnCompleted()
 {
+	SetComponentTickEnabled(false);
 	bPresentationCompleted = true;
 	bReturnPending = false;
 	ReleaseResultWidget();

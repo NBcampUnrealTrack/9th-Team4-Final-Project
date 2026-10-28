@@ -8,9 +8,7 @@
 class ANF_GameState;
 class UNF_MatchResultWidget;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnPresenterReturnToMatchmakingRequested);
-
-/** 로컬 PlayerController에서 서버의 매치 결과를 결과 UI에 연결한다. */
+/** 로컬 PlayerController에서 결과 UI 표시와 매칭 복귀 요청을 처리한다. */
 UCLASS(ClassGroup = (NF), meta = (BlueprintSpawnableComponent))
 class PROJECT_NF_API UNF_MatchResultPresenterComponent : public UActorComponent
 {
@@ -19,17 +17,18 @@ class PROJECT_NF_API UNF_MatchResultPresenterComponent : public UActorComponent
 public:
 	UNF_MatchResultPresenterComponent();
 
-	// 요청 거절 또는 비동기 실패 시 버튼을 복구한다.
+	// Controller의 자동 복귀 Client RPC에서 전달받은 결과를 사용한다.
+	// GameState의 Finished 복제를 기다리지 않으며 세션 정리와 이동은 매칭 Subsystem에 위임한다.
+	UFUNCTION(BlueprintCallable, Category = "NF|UI|MatchResult")
+	void RequestReturnToMatchmaking(const FNF_MatchResult& Result);
+
+	// 복귀 요청이 접수되기 전에 거절된 경우 버튼을 복구한다.
 	UFUNCTION(BlueprintCallable, Category = "NF|UI|MatchResult")
 	void NotifyReturnFailed();
 
-	// 실제 복귀 완료 시 화면을 닫고 같은 결과의 재표시를 막는다.
+	// 복귀 요청 접수 시 화면을 닫고 같은 결과의 재표시를 막는다.
 	UFUNCTION(BlueprintCallable, Category = "NF|UI|MatchResult")
 	void NotifyReturnCompleted();
-
-	// 실제 서버 이탈과 세션 정리는 매칭 담당 코드에서 연결한다.
-	UPROPERTY(BlueprintAssignable, Category = "NF|UI|MatchResult")
-	FNF_OnPresenterReturnToMatchmakingRequested OnReturnToMatchmakingRequested;
 
 protected:
 	virtual void BeginPlay() override;
@@ -57,4 +56,5 @@ private:
 	bool bHasPresentedResult = false;
 	bool bReturnPending = false;
 	bool bPresentationCompleted = false;
+	bool bEndingPlay = false;
 };
