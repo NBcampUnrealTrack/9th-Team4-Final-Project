@@ -68,10 +68,20 @@ public:
 
 	void UnregisterBossSpawnHandler(const UObject* HandlerOwner);
 
-private:
+protected:
+	// 테스트 게임모드 등에서 온라인 매치 연동 여부를 선택한다.
+	virtual bool ShouldUseDedicatedMatchSubsystem() const;
+
+	bool AreTeamsReady() const { return bTeamsReady; }
+
+	// 팀 배정 이후의 생존 상태 초기화와 매치 시작 처리를 공통으로 사용한다.
+	void HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssignment>& Assignments);
+	void AbortMatch(const FString& Reason, ENF_MatchEndReason EndReason = ENF_MatchEndReason::RuntimeFailure);
+
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Match")
 	int32 InitialRequiredPlayers = 8;
 
+private:
 	int32 CurrentPlayerCount = 0;
 
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Match")
@@ -98,10 +108,6 @@ private:
 	void HandleBuildResolveSucceeded();
 	void HandleBuildResolveFailed(const FString& Reason);
 
-	// 이탈 실패와 빌드 실패가 공유하는 매치 중단 처리
-	void AbortMatch(const FString& Reason,ENF_MatchEndReason EndReason = ENF_MatchEndReason::RuntimeFailure);
-
-	void HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssignment>& Assignments);
 #pragma region component
 
 private:
