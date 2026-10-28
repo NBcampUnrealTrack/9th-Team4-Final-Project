@@ -24,5 +24,9 @@ namespace NFTag_LifeState
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(
 		Ability_Life_Revive,
 		"Ability.Life.Revive",
-		"기절한 팀원을 소생하는 GA 식별 및 활성화용 태그")
+		"기절한 팀원을 소생하는 GA 식별 및 활성화용 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(
+		Data_Life_ReviveHealth,
+		"Data.Life.ReviveHealth",
+		"소생 시 최대 체력을 기준으로 계산한 회복량을 GE에 전달");
 }
