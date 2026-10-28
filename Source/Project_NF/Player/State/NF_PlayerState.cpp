@@ -95,7 +95,7 @@ void ANF_PlayerState::BeginPlay()
 void ANF_PlayerState::ConfigDataAsset()
 {
 	checkf(IsValid(NF_PlayerDataAsset) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]가  삽입되어있지않습니다."));
-	checkf(IsValid(NF_PlayerDataAsset->NF_GameplayEffectClass) == true, TEXT("[NF_PlayerDataAsset]의 [NF_GameplayEffectClass]가  삽입되어있지않습니다."));
+	checkf(IsValid(NF_PlayerDataAsset->NF_GameplayEffectClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_GameplayEffectClass]가  삽입되어있지않습니다."));
 }
 
 void ANF_PlayerState::OnRep_NFTeamID()
