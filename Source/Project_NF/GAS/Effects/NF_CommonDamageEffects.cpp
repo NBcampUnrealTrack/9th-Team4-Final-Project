@@ -2,6 +2,7 @@
 #include "GAS/Tags/NFTag_BossCombat.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 #include "GAS/Attributes/NF_KeyHolderAttributeSet.h"
+#include "GAS/Attributes/NF_MonsterAttributeSet.h"
 
 namespace 
 {
@@ -87,6 +88,20 @@ void UNFExecCalc_CommonDamage::Execute_Implementation(const FGameplayEffectCusto
 	// 데미지가 처리 가능한지
 	if (!ShouldProcessDamage(AttackDamage))
 	{
+		return;
+	}
+	
+	const UAbilitySystemComponent* TargetASC =
+		ExecutionParams.GetTargetAbilitySystemComponent();
+	
+	if (TargetASC && TargetASC->GetSet<UNF_MonsterAttributeSet>())
+	{
+		OutExecutionOutput.AddOutputModifier(
+			FGameplayModifierEvaluatedData(
+				UNF_MonsterAttributeSet::GetIncomingDamageAttribute(),
+				EGameplayModOp::Additive, 
+				AttackDamage));
+		
 		return;
 	}
 	
