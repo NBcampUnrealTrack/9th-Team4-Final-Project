@@ -4,6 +4,24 @@
 #include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
+#include "Misc/ConfigCacheIni.h"
+
+void UNF_AudioSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	float Value = 1.0f;
+	if (GConfig->GetFloat(TEXT("NF.Audio"), TEXT("Master"), Value, GGameUserSettingsIni)) SetMasterVolume(Value);
+	if (GConfig->GetFloat(TEXT("NF.Audio"), TEXT("SFX"), Value, GGameUserSettingsIni)) SetSFXVolume(Value);
+	if (GConfig->GetFloat(TEXT("NF.Audio"), TEXT("BGM"), Value, GGameUserSettingsIni)) SetBGMVolume(Value);
+}
+
+void UNF_AudioSubsystem::SaveVolumeSettings()
+{
+	GConfig->SetFloat(TEXT("NF.Audio"), TEXT("Master"), MasterVolume, GGameUserSettingsIni);
+	GConfig->SetFloat(TEXT("NF.Audio"), TEXT("SFX"), SFXVolume, GGameUserSettingsIni);
+	GConfig->SetFloat(TEXT("NF.Audio"), TEXT("BGM"), BGMVolume, GGameUserSettingsIni);
+	GConfig->Flush(false, GGameUserSettingsIni);
+}
 
 namespace
 {

@@ -2,6 +2,8 @@
 
 #include "NF_MatchLobbyPlayerController.h"
 
+#include "Components/InputComponent.h"
+#include "InputCoreTypes.h"
 #include "Core/Match/NF_DedicatedMatchSubsystem.h"
 #include "Core/Match/NF_MatchmakingSubsystem.h"
 #include "EnhancedInputSubsystems.h"
@@ -112,6 +114,13 @@ void ANF_MatchLobbyPlayerController::ClientHandleMatchCompleted_Implementation(c
 void ANF_MatchLobbyPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
+	if (IsLocalController() && InputComponent && GetLocalPlayer())
+	{
+		if (auto* UI = GetLocalPlayer()->GetSubsystem<UNF_UIManagerSubsystem>())
+		{
+			InputComponent->BindKey(EKeys::F10, IE_Pressed, this, &ThisClass::OpenOptions);
+		}
+	}
 
 	if (!IsLocalPlayerController())
 	{
@@ -138,4 +147,18 @@ void ANF_MatchLobbyPlayerController::SetupInputComponent()
 bool ANF_MatchLobbyPlayerController::ShouldUseTouchControls() const
 {
 	return SVirtualJoystick::ShouldDisplayTouchInterface() || bForceTouchControls;
+}
+
+void ANF_MatchLobbyPlayerController::OpenOptions()
+{
+	if (!IsLocalController() || !GetLocalPlayer()) return;
+	if (!OptionsWidgetClass || OptionsWidgetClass->HasAnyClassFlags(CLASS_Abstract))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Assign the options WBP to OptionsWidgetClass on the PlayerController defaults."));
+		return;
+	}
+	if (auto* UI = GetLocalPlayer()->GetSubsystem<UNF_UIManagerSubsystem>())
+	{
+		UI->PushModal(OptionsWidgetClass);
+	}
 }
