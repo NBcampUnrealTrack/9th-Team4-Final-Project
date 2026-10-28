@@ -3,6 +3,17 @@
 #include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 
+UNF_MonsterAttributeSet::UNF_MonsterAttributeSet()
+{
+	// Default Attributes GE가 실패하거나 늦게 적용돼도
+	// 몬스터가 0 HP로 생성되지 않게 하는 안전 초기값.
+	InitMaxHealth(100.0f);
+	InitHealth(100.0f);
+	InitAttackPower(10.0f);
+	InitMoveSpeed(300.0f);
+	InitIncomingDamage(0.0f);
+}
+
 void UNF_MonsterAttributeSet::GetLifetimeReplicatedProps(
 	TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -106,6 +117,17 @@ void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
 	const float Damage = GetIncomingDamage();
 
 	UE_LOG(
+	LogTemp,
+	Warning,
+	TEXT("Monster Damage Trace | GE=%s | Instigator=%s | Causer=%s | Damage=%.1f | Health=%.1f | MaxHealth=%.1f"),
+	*GetNameSafe(Data.EffectSpec.Def),
+	*GetNameSafe(Data.EffectSpec.GetContext().GetOriginalInstigator()),
+	*GetNameSafe(Data.EffectSpec.GetContext().GetEffectCauser()),
+	Damage,
+	GetHealth(),
+	GetMaxHealth());
+	
+	UE_LOG(
 		LogTemp,
 		Warning,
 		TEXT("Monster damage received: %.1f / Health before: %.1f"),
@@ -131,7 +153,7 @@ void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
 	
 	if (NewHealth <= 0.0f && bIsOutOfHealth == false)
 	{
-		//bIsOutOfHealth = true;
+		bIsOutOfHealth = true;
 
 		UE_LOG(LogTemp, Warning, TEXT("Monster out of health"));
 

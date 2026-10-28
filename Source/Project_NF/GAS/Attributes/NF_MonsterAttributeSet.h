@@ -29,6 +29,8 @@ class PROJECT_NF_API UNF_MonsterAttributeSet : public UAttributeSet
 	GENERATED_BODY()
 	
 public:
+	UNF_MonsterAttributeSet();
+	
 	virtual void GetLifetimeReplicatedProps(
 	TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
