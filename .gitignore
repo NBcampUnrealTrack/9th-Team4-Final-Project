@@ -658,7 +658,7 @@ Plugins/AIBlueprintControlPlugin_1.2.0/.gitkeep
 Plugins/BPToCPPConverter_1.4.14/.gitkeep
 Plugins/GameplayTagConverter/.gitkeep
 Plugins/LanguageSwitcher/.gitkeep
-Plugins/MultiSettings/.gitkeep
+Plugins/EasySetting/.gitkeep
 Plugins/MotionMatchingInstaller_v0.0.6/.gitkeep
 # Local project guidance and design document
 /AGENTS.md
