@@ -302,8 +302,10 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 
 
 #pragma region BuildShop
-void ANF_PlayerController::OnInteractBuildShop(ENF_BuildShopUIState BuildShopType)
+void ANF_PlayerController::OnInteractBuildShop(APlayerController* SendController, ENF_BuildShopUIState BuildShopType)
 {
+	if (SendController != this) return;
+	
 	CurrentBuildShopType = BuildShopType;
 	
 	if (BuildShopType == ENF_BuildShopUIState::BuildOpened)
