@@ -11,8 +11,9 @@ enum class ENF_BuildShopUIState : uint8;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerAction, APlayerController*, ENF_PlayerActionType);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerBindingSkill, APlayerController*, ENF_PlayerActionType);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInteractBuildShop, APlayerController*, ENF_BuildShopUIState);
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnInteractBuildShop, ENF_BuildShopUIState);
+//DECLARE_MULTICAST_DELEGATE_OneParam(FOnInteractBuildShop, ENF_BuildShopUIState);
 
 UCLASS()
 class PROJECT_NF_API UNF_PlayerActionDelegateSubsystem : public UWorldSubsystem
@@ -27,6 +28,7 @@ public:
 		if (IsValid(ThisPawn) == false) return false;
 		
 		if (ThisPawn->GetController() == SendController) return true;
+		
 
 		return false;
 	}

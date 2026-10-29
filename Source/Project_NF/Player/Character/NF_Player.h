@@ -145,7 +145,7 @@ private:
 	
 #pragma region BuildShop
 private:
-	void OnEnablePlayerMovementFromType(ENF_BuildShopUIState BuildShopType);
+	void OnEnablePlayerMovementFromType(APlayerController* SendPlayerController, ENF_BuildShopUIState BuildShopType);
 #pragma endregion 
 	
 	

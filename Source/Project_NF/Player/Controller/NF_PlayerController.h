@@ -92,7 +92,7 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "NF|UI")
 	void ReleaseGameplayInputForUI();
 	
-	void OnInteractBuildShop(ENF_BuildShopUIState BuildShopType);
+	void OnInteractBuildShop(APlayerController* SendController, ENF_BuildShopUIState BuildShopType);
 #pragma endregion
 	
 	
