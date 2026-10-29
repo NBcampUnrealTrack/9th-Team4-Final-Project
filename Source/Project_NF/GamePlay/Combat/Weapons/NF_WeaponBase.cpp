@@ -276,7 +276,7 @@ bool ANF_WeaponBase::FireProjectile()
 			OtherProjectile->IgnoreProjectile(Projectile);
 		}
 
-		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, ShotDamage);
+		Projectile->InitializeProjectile(WeaponData->ProjectileSpeed, ShotDamage, WeaponData);
 		SpawnedProjectiles.Add(Projectile);
 		
 		// 발사체를 Spawn한 직후, 생성된 발사체의 실제 위치 표시

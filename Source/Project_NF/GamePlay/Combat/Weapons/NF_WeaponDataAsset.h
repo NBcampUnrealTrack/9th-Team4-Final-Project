@@ -62,6 +62,19 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
 	TSubclassOf<class UNF_WeaponCameraShakeBase> FireCameraShakeClass;
 
+	// 환경 명중 및 대상별 파티클이 None일 때 사용할 일회성 Cascade 파티클.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="ProjectileHitEffects")
+	TObjectPtr<class UParticleSystem> DefaultImpactParticle = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="ProjectileHitEffects")
+	TObjectPtr<class UParticleSystem> BossImpactParticle = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="ProjectileHitEffects")
+	TObjectPtr<class UParticleSystem> MonsterImpactParticle = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="ProjectileHitEffects")
+	TObjectPtr<class UParticleSystem> PlayerImpactParticle = nullptr;
+
 	// 스코프 카메라를 부착할 무기 메시 소켓.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Zoom")
 	FName ScopeSocketName = TEXT("Scope");

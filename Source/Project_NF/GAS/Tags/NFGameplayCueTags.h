@@ -20,4 +20,5 @@ namespace NFGameplayCueTags
 	
 	// @Owner: 용준 | 2026-10-29
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Weapon_Fire);
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Weapon_ProjectileHit);
 }

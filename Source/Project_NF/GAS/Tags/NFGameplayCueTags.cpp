@@ -28,4 +28,6 @@ namespace NFGameplayCueTags
 	// @Owner: 용준 | 2026-10-29
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Weapon_Fire,
 	"GameplayCue.Weapon.Fire", "무기 발사 성공 시 사운드, 머즐 플래시, 로컬 카메라 흔들림 등 이펙트 재생.");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Weapon_ProjectileHit,
+		"GameplayCue.Weapon.ProjectileHit", "무기 투사체의 대상별 명중 파티클을 재생.");
 }

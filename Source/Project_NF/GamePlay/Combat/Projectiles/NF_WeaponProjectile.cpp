@@ -1,4 +1,5 @@
 #include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
+#include "GamePlay/Combat/Projectiles/NF_WeaponProjectileHitType.h"
 
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -6,6 +7,8 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "GAS/Tags/NFGameplayCueTags.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
 #include "GAS/Tags/NFTag_AttackType.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
@@ -61,7 +64,7 @@ ANF_WeaponProjectile::ANF_WeaponProjectile()
 void ANF_WeaponProjectile::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	if (HasAuthority() == false)
 	{
 		CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -69,7 +72,7 @@ void ANF_WeaponProjectile::BeginPlay()
 		SetLifeSpan(0.f);
 		return;
 	}
-	
+
 	CapsuleComponent->SetCollisionObjectType(NF_WeaponProjectileChannel);
 	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CapsuleComponent->SetCollisionResponseToAllChannels(ECR_Block);
@@ -86,8 +89,9 @@ void ANF_WeaponProjectile::BeginPlay()
 	}
 }
 
-void ANF_WeaponProjectile::InitializeProjectile(float InSpeed, float InDamage)
+void ANF_WeaponProjectile::InitializeProjectile(float InSpeed, float InDamage, UNF_WeaponDataAsset* InWeaponData)
 {
+	ShotWeaponData = InWeaponData;
 	ImpactDamage = FMath::Max(0.f, InDamage);
 
 	if (IsValid(ProjectileMovementComponent))
@@ -114,7 +118,7 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 {
 	if (HasAuthority() == false || bHitProcessed)
 		return;
-	
+
 	// 투사체가 발사한 캐릭터, 총과 Hit 한 경우 무시
 	if (IsValid(OtherActor) == false || OtherActor == this || OtherActor == GetOwner() || OtherActor == GetInstigator())
 		return;
@@ -122,6 +126,29 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 	bHitProcessed = true;
 
 	AActor* Attacker = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
+
+	// 데미지/패시브 콜백으로 대상이나 투사체가 파괴되기 전에 충돌 연출을 전달한다.
+	// 벽처럼 ASC가 없는 대상도 발사자의 ASC를 통해 같은 위치에 연출한다.
+	if (IsValid(ShotWeaponData) && IsValid(Attacker))
+	{
+		if (UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Attacker))
+		{
+			ENF_WeaponProjectileHitType ProjectileHitType = ENF_WeaponProjectileHitType::Environment;
+			if (OtherActor->IsA<ANF_BossBase>()) ProjectileHitType = ENF_WeaponProjectileHitType::Boss;
+			else if (OtherActor->IsA<ANF_Monster>()) ProjectileHitType = ENF_WeaponProjectileHitType::Monster;
+			else if (OtherActor->IsA<ANF_Player>()) ProjectileHitType = ENF_WeaponProjectileHitType::Player;
+
+			FGameplayCueParameters Parameters;
+			Parameters.SourceObject = ShotWeaponData;
+			Parameters.Instigator = Attacker;
+			Parameters.Location = Hit.ImpactPoint;
+			Parameters.Normal = Hit.ImpactNormal;
+			Parameters.RawMagnitude = static_cast<float>(ProjectileHitType);
+			Parameters.bReplicateLocationWhenUsingMinimalRepProxy = true;
+			SourceASC->ExecuteGameplayCue(NFGameplayCueTags::GameplayCue_Weapon_ProjectileHit, Parameters);
+		}
+	}
+
 	const ANF_Player* HitPlayer = Cast<ANF_Player>(OtherActor);
 	const APawn* AttackerPawn = Cast<APawn>(Attacker);
 	const ANF_PlayerState* AttackerState = AttackerPawn ? AttackerPawn->GetPlayerState<ANF_PlayerState>() : nullptr;
@@ -206,7 +233,7 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 				*GetNameSafe(SourceASC), *GetNameSafe(MonsterASC), *GetNameSafe(MonsterDamageEffectClass.Get()), ImpactDamage);
 		}
 	}
-	
+
 	else if (ANF_Player* TargetPlayer = Cast<ANF_Player>(OtherActor))
 	{
 		AActor* DamageSource = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
@@ -261,12 +288,12 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 	UE_LOG(LogTemp, Warning, TEXT("[WeaponHit] Target=%s Component=%s Bone=%s Region=%s Armor=%s AdditionalDefense=%.2f"),
 		*GetNameSafe(OtherActor), *GetNameSafe(OtherComponent), *BoneName.ToString(),
 		*StaticEnum<ENF_ArmorSlot>()->GetNameStringByValue(static_cast<int64>(Slot)), *GetNameSafe(Armor), Defense);
-	
+
 	// 발사체 충돌 처리 함수 안에서, Destroy() 호출 전에 표시
 	// Hit는 해당 충돌 이벤트로 받은 FHitResult
 	DrawDebugSphere(
 		GetWorld(), Hit.ImpactPoint, 12.f, 12,
 		FColor::Magenta, false, 3.f);
-	
+
 	Destroy();
 }
