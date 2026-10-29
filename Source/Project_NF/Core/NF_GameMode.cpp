@@ -20,6 +20,7 @@
 #include "AbilitySystemComponent.h"
 #include "Component/NF_EscapeComponent.h"
 #include "Component/NF_PlayerRespawnComponent.h"
+#include "Core/Spawn/NF_TeamPlayerStart.h"
 #include "GamePlay/Combat/Components/NF_PlayerLifeComponent.h"
 #include "GamePlay/EscapeZone/NF_EscapeZone.h"
 #include "GAS/Tags/NFTag_LifeState.h"
@@ -180,7 +181,32 @@ void ANF_GameMode::Logout(AController* Exiting)
 
 void ANF_GameMode::RestartPlayer(AController* NewPlayer)
 {
-	Super::RestartPlayer(NewPlayer);
+	if (!HasAuthority() || bMatchFinalized || bMatchCleanupNotified || !IsValid(NewPlayer))return;
+
+	ANF_PlayerState* PlayerState = NewPlayer->GetPlayerState<ANF_PlayerState>();
+	if (!IsValid(PlayerState))return;
+
+	// 팀 미배정 상태에서는 기본 PlayerStart로 Pawn을 생성하지 않는다.
+	// 팀 배정 완료 콜백에서 최초 스폰을 다시 요청한다.
+	if (PlayerState->NF_TeamID < 1 || PlayerState->NF_TeamID > 4)return;
+	if (!IsValid(PlayerRespawnComponent))return;
+
+	ANF_TeamPlayerStart* TeamStart = PlayerRespawnComponent->FindTeamPlayerStart(PlayerState);
+	if (!IsValid(TeamStart))
+	{
+		AbortMatch(FString::Printf(
+			TEXT("팀 스폰 지점이 부족합니다. 팀원 수만큼 NF_TeamPlayerStart를 배치하세요. TeamId=%d"),
+			PlayerState->NF_TeamID), ENF_MatchEndReason::RuntimeFailure);
+		return;
+	}
+
+	RestartPlayerAtPlayerStart(NewPlayer, TeamStart);
+	if (!IsValid(NewPlayer->GetPawn()))
+	{
+		AbortMatch(FString::Printf(TEXT("팀 PlayerStart에서 Pawn 생성 실패. PlayerId=%d, Start=%s"),
+			PlayerState->GetPlayerId(), *GetNameSafe(TeamStart)), ENF_MatchEndReason::RuntimeFailure);
+		return;
+	}
 
 	if (IsValid(PlayerRespawnComponent))
 	{
@@ -667,7 +693,7 @@ void ANF_GameMode::AbortMatch(const FString& Reason, ENF_MatchEndReason EndReaso
 
 void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssignment>& Assignments)
 {
-	if (!HasAuthority() || bTeamsReady)return;
+	if (!HasAuthority() || bTeamsReady || bInitialTeamSpawnsStarted || bMatchFinalized)return;
 
 	if (Assignments.Num() != InitialRequiredPlayers)
 	{
@@ -681,54 +707,86 @@ void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssig
 		return;
 	}
 
-	TArray<UNF_PlayerLifeComponent*> LifeComponents;
-	LifeComponents.Reserve(Assignments.Num());
+	if (!IsValid(PlayerRespawnComponent))
+	{
+		AbortMatch(TEXT("최초 팀 스폰에 필요한 RespawnComponent가 없습니다."), ENF_MatchEndReason::RuntimeFailure);
+		return;
+	}
 
-	// 모든 플레이어의 LifeComponent를 먼저 수집한다.
+	// Pawn을 만들기 전에 전원의 배정과 서로 다른 팀 스폰 지점을 검증한다.
+	TSet<ANF_PlayerState*> AssignedPlayers;
 	for (const FNFServerTeamIdAssignment& Assignment : Assignments)
 	{
 		ANF_PlayerState* PlayerState = Assignment.PlayerState.Get();
-
-		if (!IsValid(PlayerState))
+		if (!IsValid(PlayerState) || AssignedPlayers.Contains(PlayerState) ||
+			PlayerState->GetWorld() != GetWorld() || !IsValid(PlayerState->GetPlayerController()) ||
+			Assignment.TeamId != PlayerState->NF_TeamID || Assignment.TeamId < 1 || Assignment.TeamId > 4)
 		{
-			UE_LOG(
-				LogTemp,
-				Error,
-				TEXT("[GameMode] 팀 배정 완료 처리 실패: PlayerState가 유효하지 않습니다."));
-
+			AbortMatch(TEXT("최초 스폰을 위한 팀 배정 정보가 유효하지 않습니다."), ENF_MatchEndReason::RuntimeFailure);
 			return;
 		}
 
-		if (Assignment.TeamId != PlayerState->NF_TeamID)
+		AssignedPlayers.Add(PlayerState);
+		if (!IsValid(PlayerRespawnComponent->FindTeamPlayerStart(PlayerState)))
 		{
-			UE_LOG(
-				LogTemp,
-				Error,
-				TEXT(
-					"[GameMode] 팀 ID 반영 결과 불일치. PlayerId=%d, "
-					"AssignmentTeamId=%d, PlayerStateTeamId=%d"),
-				PlayerState->GetPlayerId(),
-				Assignment.TeamId,
-				PlayerState->NF_TeamID);
+			AbortMatch(FString::Printf(
+				TEXT("최초 팀 스폰 지점이 부족합니다. 팀원 수만큼 NF_TeamPlayerStart를 배치하세요. TeamId=%d"),
+				Assignment.TeamId), ENF_MatchEndReason::RuntimeFailure);
+			return;
+		}
+	}
 
+	bInitialTeamSpawnsStarted = true;
+	for (const FNFServerTeamIdAssignment& Assignment : Assignments)
+	{
+		PendingInitialSpawnPlayers.Add(Assignment.PlayerState);
+	}
+
+	for (const TWeakObjectPtr<ANF_PlayerState>& Entry : PendingInitialSpawnPlayers)
+	{
+		ANF_PlayerState* PlayerState = Entry.Get();
+		if (!IsValid(PlayerState->GetPawn()))
+		{
+			RestartPlayer(PlayerState->GetPlayerController());
+		}
+
+		if (bMatchFinalized)return;
+	}
+
+	// 배정은 한 번만 수행하고, GAS 준비만 별도로 재확인한다.
+	GetWorldTimerManager().SetTimer(InitialSpawnReadyTimerHandle, this,
+		&ThisClass::TryCompleteInitialTeamSpawns, 0.2f, true);
+	TryCompleteInitialTeamSpawns();
+}
+
+void ANF_GameMode::TryCompleteInitialTeamSpawns()
+{
+	if (!HasAuthority() || bMatchFinalized || bMatchCleanupNotified || bTeamsReady)
+	{
+		GetWorldTimerManager().ClearTimer(InitialSpawnReadyTimerHandle);
+		return;
+	}
+
+	const ANF_GameState* NFGameState = GetNFGameState();
+	if (!IsValid(NFGameState) || NFGameState->GetMatchPhase() != ENF_MatchPhase::Waiting)return;
+	if (NFGameState->GetRemainingPhaseTime() <= 0.0)return;
+
+	TArray<UNF_PlayerLifeComponent*> LifeComponents;
+	LifeComponents.Reserve(PendingInitialSpawnPlayers.Num());
+	for (const TWeakObjectPtr<ANF_PlayerState>& Entry : PendingInitialSpawnPlayers)
+	{
+		ANF_PlayerState* PlayerState = Entry.Get();
+		if (!IsValid(PlayerState) || !IsValid(PlayerState->GetPlayerController()))
+		{
+			AbortMatch(TEXT("최초 팀 스폰 준비 중 플레이어가 이탈했습니다."), ENF_MatchEndReason::RuntimeFailure);
 			return;
 		}
 
 		APawn* PlayerPawn = PlayerState->GetPawn();
+		if (!IsValid(PlayerPawn) || PlayerPawn->GetPlayerState<ANF_PlayerState>() != PlayerState)return;
 
-		if (!IsValid(PlayerPawn))
-		{
-			UE_LOG(
-				LogTemp,
-				Error,
-				TEXT(
-					"[GameMode] 팀 배정 완료 처리 실패: Player Pawn이 없습니다. "
-					"PlayerId=%d, TeamId=%d"),
-				PlayerState->GetPlayerId(),
-				PlayerState->NF_TeamID);
-
-			return;
-		}
+		UAbilitySystemComponent* ASC = PlayerState->GetAbilitySystemComponent();
+		if (!IsValid(ASC) || ASC->GetAvatarActor() != PlayerPawn)return;
 
 		UNF_PlayerLifeComponent* LifeComponent =
 			PlayerPawn->FindComponentByClass<UNF_PlayerLifeComponent>();
@@ -805,6 +863,8 @@ void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssig
 		LifeComponent->RetryPendingHealthZeroCheck();
 	}
 
+	GetWorldTimerManager().ClearTimer(InitialSpawnReadyTimerHandle);
+	PendingInitialSpawnPlayers.Empty();
 	NotifyTeamsReady();
 
 	UE_LOG(
@@ -1066,6 +1126,8 @@ void ANF_GameMode::NotifyMatchCleanup()
 	if (!HasAuthority() || bMatchCleanupNotified){return;}
 
 	bMatchCleanupNotified = true;
+	GetWorldTimerManager().ClearTimer(InitialSpawnReadyTimerHandle);
+	PendingInitialSpawnPlayers.Empty();
 
 	OnMatchCleanup.Broadcast();
 }

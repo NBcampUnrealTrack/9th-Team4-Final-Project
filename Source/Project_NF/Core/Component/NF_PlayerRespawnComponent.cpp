@@ -78,6 +78,7 @@ void UNF_PlayerRespawnComponent::HandlePlayerLeaving(
 	CancelPlayerRespawn(PlayerState, false);
 	UnbindPlayerLifeComponent(PlayerState);
 	RemovePlayerPawnState(PlayerState);
+	AssignedPlayerStarts.Remove(TWeakObjectPtr<ANF_PlayerState>(PlayerState));
 }
 
 void UNF_PlayerRespawnComponent::BindAssignedLifeComponents(
@@ -125,6 +126,7 @@ void UNF_PlayerRespawnComponent::Shutdown()
 
 	BoundLifeComponents.Empty();
 	PlayerPawnStates.Empty();
+	AssignedPlayerStarts.Empty();
 	EvaluateRespawnPermission.Unbind();
 }
 
@@ -365,7 +367,7 @@ void UNF_PlayerRespawnComponent::ExecutePlayerRespawn(
 	if (!IsValid(PlayerController) || !IsValid(GameMode))return;
 
 	ANF_TeamPlayerStart* TeamPlayerStart =
-		FindTeamPlayerStart(PlayerState->NF_TeamID);
+		FindTeamPlayerStart(PlayerState);
 
 	if (!IsValid(TeamPlayerStart))
 	{
@@ -485,10 +487,25 @@ void UNF_PlayerRespawnComponent::CancelAllPendingRespawns(
 }
 
 ANF_TeamPlayerStart* UNF_PlayerRespawnComponent::FindTeamPlayerStart(
-	const int32 TeamId) const
+	ANF_PlayerState* PlayerState)
 {
+	if (!HasServerAuthority() || bStopped || !IsValid(PlayerState) ||
+		PlayerState->GetWorld() != GetWorld())return nullptr;
+
+	const int32 TeamId = PlayerState->NF_TeamID;
 	if (TeamId < 1 || TeamId > 4)return nullptr;
 
+	const TWeakObjectPtr<ANF_PlayerState> PlayerStateKey(PlayerState);
+	if (const TWeakObjectPtr<ANF_TeamPlayerStart>* AssignedStart = AssignedPlayerStarts.Find(PlayerStateKey))
+	{
+		if (AssignedStart->IsValid() && AssignedStart->Get()->GetTeamId() == TeamId)
+		{
+			return AssignedStart->Get();
+		}
+	}
+
+	AssignedPlayerStarts.Remove(PlayerStateKey);
+	TArray<ANF_TeamPlayerStart*> Candidates;
 	for (TActorIterator<ANF_TeamPlayerStart> Iterator(GetWorld());
 		Iterator;
 		++Iterator)
@@ -498,7 +515,32 @@ ANF_TeamPlayerStart* UNF_PlayerRespawnComponent::FindTeamPlayerStart(
 		if (IsValid(TeamPlayerStart) &&
 			TeamPlayerStart->GetTeamId() == TeamId)
 		{
-			return TeamPlayerStart;
+			Candidates.Add(TeamPlayerStart);
+		}
+	}
+
+	// 액터 순회 순서와 무관하게 같은 순서로 지점을 예약한다.
+	Candidates.Sort([](const ANF_TeamPlayerStart& Left, const ANF_TeamPlayerStart& Right)
+	{
+		return Left.GetPathName() < Right.GetPathName();
+	});
+
+	for (ANF_TeamPlayerStart* Candidate : Candidates)
+	{
+		bool bReserved = false;
+		for (const auto& Assignment : AssignedPlayerStarts)
+		{
+			if (Assignment.Key.IsValid() && Assignment.Value.Get() == Candidate)
+			{
+				bReserved = true;
+				break;
+			}
+		}
+
+		if (!bReserved)
+		{
+			AssignedPlayerStarts.Add(PlayerStateKey, Candidate);
+			return Candidate;
 		}
 	}
 
