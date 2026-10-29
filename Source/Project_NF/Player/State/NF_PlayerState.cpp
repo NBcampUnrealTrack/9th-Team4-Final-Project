@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "GAS/Attributes/NF_KeyHolderAttributeSet.h"
 #include "GAS/Foundation/NF_AbilitySystemComponent.h"
+#include "GAS/Tags/NFTag_Player.h"
 #include "Player/Data/NF_PlayerDataAsset.h" 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 #include "Net/UnrealNetwork.h"
@@ -33,6 +34,8 @@ void ANF_PlayerState::InitAbilitySystem(APawn* AvatarPawn)
 	PlayerASC->InitAbilityActorInfo(this, AvatarPawn);
 
 	GiveDefaultAbility();
+	
+	PlayerShieldRecovery();
 }
 
 void ANF_PlayerState::GiveDefaultAbility()
@@ -96,6 +99,27 @@ void ANF_PlayerState::ConfigDataAsset()
 {
 	checkf(IsValid(NF_PlayerDataAsset) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]가  삽입되어있지않습니다."));
 	checkf(IsValid(NF_PlayerDataAsset->NF_SetDamage_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_SetDamage_GEClass]가  삽입되어있지않습니다."));
+	checkf(IsValid(NF_PlayerDataAsset->NF_ShieldRecovery_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_ShieldRecovery_GEClass]가  삽입되어있지않습니다."));
+}
+
+void ANF_PlayerState::PlayerShieldRecovery()
+{
+	if (HasAuthority() == true)
+	{
+		if (bIsApplyShieldRecovery == true) return;
+		
+		if (IsValid(NF_PlayerDataAsset) == false) return;
+		if (IsValid(NF_PlayerDataAsset->NF_ShieldRecovery_GEClass) == false) return;
+		
+		const FGameplayEffectSpecHandle EffectSpecHandle = 
+			PlayerASC->MakeOutgoingSpec(NF_PlayerDataAsset->NF_ShieldRecovery_GEClass, 1.0f, PlayerASC->MakeEffectContext());
+		if (EffectSpecHandle.IsValid() == false) return;
+		
+		EffectSpecHandle.Data->SetSetByCallerMagnitude(NFTag_Player::Player_Data_ShieldRecovery, NF_PlayerDataAsset->ShieldRecoveryAmount);
+		PlayerASC->ApplyGameplayEffectSpecToSelf(*EffectSpecHandle.Data.Get());
+		
+		bIsApplyShieldRecovery = true;
+	}
 }
 
 void ANF_PlayerState::OnRep_NFTeamID()
