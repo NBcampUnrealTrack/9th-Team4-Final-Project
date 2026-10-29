@@ -136,6 +136,10 @@ private:
 	TObjectPtr<UNF_PlayerRespawnComponent> PlayerRespawnComponent;
 
 	bool bTeamsReady = false;
+	bool bInitialTeamSpawnsStarted = false;
+	TArray<TWeakObjectPtr<ANF_PlayerState>> PendingInitialSpawnPlayers;
+	FTimerHandle InitialSpawnReadyTimerHandle;
+	void TryCompleteInitialTeamSpawns();
 
 	bool bMatchAborting = false;
 #pragma endregion
