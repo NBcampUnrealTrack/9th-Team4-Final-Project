@@ -6,6 +6,7 @@
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "Data/Enum/NF_ItemTypes.h"
+#include "GamePlay/BuildSystem/UI/NF_BuildShopViewModelBridge.h"
 #include "NF_BuildShopViewModel.generated.h"
 
 USTRUCT(BlueprintType)
@@ -104,15 +105,51 @@ struct FNF_BuildShopViewData
 };
 
 UCLASS(BlueprintType)
-class PROJECT_NF_API UNF_BuildShopViewModel : public UNF_ViewModelBase
+class PROJECT_NF_API UNF_BuildShopViewModel : public UNF_ViewModelBase, public INF_BuildShopViewModelBridge
 {
     GENERATED_BODY()
 
 public:
+    virtual void SetBuildSource(UNF_BuildComponent* InBuild) override;
+
+    UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
+    virtual void RequestClose() override;
+    UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
+    void SelectCatalogItem(FName ItemId);
+    UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
+    void AssignSelectedActiveSkill(int32 SlotIndex);
+    UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
+    void RemoveItem(FName ItemId);
+    UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
+    void ApplyBuild();
+
+protected:
+    virtual void OnDeinitializeViewModel() override;
+
+private:
+    TWeakObjectPtr<UNF_BuildComponent> Build;
+    void UnbindBuild();
+    void ClearApplyResult();
+    UFUNCTION()
+    void RefreshFromModel();
+    UFUNCTION()
+    void HandleShopStateChanged(ENF_BuildShopUIState State);
+    UFUNCTION()
+    void HandleBuildResult(const FNF_BuildValidation& Validation);
+
     // 빌드 시스템의 상태가 바뀔 때 UI용 결과를 전달받는 함수
     void UpdateShop(const FNF_BuildShopViewData& NewData);
 
 private:
+    UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "BuildShop", meta = (AllowPrivateAccess = "true"))
+    FText ApplyResultMessage;
+
+    UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "BuildShop", meta = (AllowPrivateAccess = "true"))
+    bool bIsAwaitingBuildResult = false;
+
+    UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "BuildShop", meta = (AllowPrivateAccess = "true"))
+    bool bIsChoosingActiveSkillSlot = false;
+
     UPROPERTY(BlueprintReadOnly, FieldNotify, Category = "BuildShop",meta = (AllowPrivateAccess = "true"))
     TArray<FNF_BuildShopSlotViewData> SkillSlots;
 
