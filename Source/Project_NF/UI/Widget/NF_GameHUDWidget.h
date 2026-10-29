@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "NF_GameHUDWidget.generated.h"
 
+class UNF_BuffDebuffViewModel;
 class UMVVMViewModelBase;
 class UNF_ViewModelBase;
 class UNF_ViewModelSubsystem;
@@ -34,9 +35,17 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+protected:
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UUserWidget> BuffDebuffWidget;
+	
 	// WBP_NF_GameHUD의 자식 위젯 이름과 일치해야 한다.
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UNF_PlayerStatusWidget> PlayerStatusWidget;
+
+	// PlayerStatusVM을 공유해 PlayerTeamId를 표시
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UUserWidget> PlayerTeamIdWidget;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UNF_SkillSlotWidget> ActiveSkillSlotOne;
@@ -72,11 +81,16 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UNF_WeaponStatusViewModel> WeaponStatusVM;
 
+	UPROPERTY(EditDefaultsOnly, Category = "NF|UI")
+	TSubclassOf<UNF_BuffDebuffViewModel> BuffDebuffVM;
+	
 	// HUD가 생성한 VM만 등록 해제
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNF_ViewModelBase>> OwnedViewModels;
 
 	TWeakObjectPtr<UNF_ViewModelSubsystem> ViewModelSubsystem;
+	
+	
 	
 	bool bViewModelsInitialized = false;
 };
