@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerState.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
+#include "Player/Data/NF_PlayerLifeDataAsset.h"
 
 UNF_PlayerLifeComponent::UNF_PlayerLifeComponent()
 {
@@ -112,8 +113,8 @@ bool UNF_PlayerLifeComponent::Revive()
 		return false;
 	}
 	
-	// 소생 회복 GE가 지정되지 않았다면 실패
-	if (!ReviveHealthEffectClass)
+	// LifeDataAsset과 소생 회복 GE가 설정되어 있는지
+	if (!IsValid(LifeDataAsset) || !LifeDataAsset->ReviveHealthEffectClass)
 	{
 		return false;
 	}
@@ -136,7 +137,7 @@ bool UNF_PlayerLifeComponent::Revive()
 	// 회복 GE 실행 준비
 	FGameplayEffectSpecHandle HealSpec =
 		ASC->MakeOutgoingSpec(
-			ReviveHealthEffectClass,
+			LifeDataAsset->ReviveHealthEffectClass,
 			1.0f,
 			ASC->MakeEffectContext());
 	
@@ -153,7 +154,7 @@ bool UNF_PlayerLifeComponent::Revive()
 		return false;
 	}
 	
-	const float ReviveHealth = MaxHealth * 0.3f;
+	const float ReviveHealth = MaxHealth * LifeDataAsset->ReviveHealthRate;
 	
 	HealSpec.Data->SetSetByCallerMagnitude(
 		NFTag_LifeState::Data_Life_ReviveHealth, ReviveHealth);
@@ -240,8 +241,12 @@ bool UNF_PlayerLifeComponent::CanReviveFrom(APawn* ReviverPawn) const
 		return false;
 	}
 	
-	// 서버에서 구조자와 대상의 실제 거리 확인 임시값 (50cm)
-	constexpr float MaxReviveDistance = 50.0f;
+	if (!IsValid(LifeDataAsset))
+	{
+		return false;
+	}
+	
+	const float MaxReviveDistance = LifeDataAsset->MaxReviveDistance;
 	
 	if (FVector::DistSquared(ReviverPawn->GetActorLocation(), TargetPawn->GetActorLocation()) > FMath::Square(MaxReviveDistance))
 	{
@@ -296,7 +301,7 @@ bool UNF_PlayerLifeComponent::ChangeLifeState(ENFPlayerLifeState NewState)
 	// 기절하면 제한 시간 시작
 	if (LifeState == ENFPlayerLifeState::Downed)
 	{
-		const float Duration = FMath::Max(DownedDurationSeconds, 0.1f);
+		const float Duration = FMath::Max(IsValid(LifeDataAsset) ? LifeDataAsset->DownedDurationSeconds : 30.0f, 0.1f);
 		
 		World->GetTimerManager().SetTimer(
 			DownedTimerHandle,
