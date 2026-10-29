@@ -27,6 +27,7 @@ public:
 	void GiveDefaultAbility();
 
 	bool bIsGiveAbility = false; 
+	bool bIsApplyShieldRecovery = false;
 	
 	UPROPERTY(EditAnywhere, Category = "Player|Data")
 	TObjectPtr<UNF_PlayerDataAsset> NF_PlayerDataAsset;  
@@ -71,8 +72,8 @@ protected:
 	
 private:
 	void ConfigDataAsset();
+	void PlayerShieldRecovery();
 	
 	UFUNCTION()
 	void OnRep_NFTeamID();
-	
 };
