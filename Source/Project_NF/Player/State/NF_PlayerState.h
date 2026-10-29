@@ -42,7 +42,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Core|ID")
 	int32 NF_PlayerID;
 	
-	int32 GetNFPlayerTeamID() {return NF_TeamID;}
+	int32 GetNFTeamID() const {return NF_TeamID;}
 	
 	
 	//GAS
