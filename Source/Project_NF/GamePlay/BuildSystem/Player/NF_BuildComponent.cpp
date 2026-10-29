@@ -7,7 +7,6 @@
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GAS/Tags/NFTag_Build.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
-#include "GamePlay/BuildSystem/UI/NF_BuildShopWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
@@ -22,7 +21,6 @@
 #include "Net/UnrealNetwork.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Core/NF_GameState.h"
-#include "UI/SubSystem/NF_UIManagerSubsystem.h"
 
 UNF_BuildComponent::UNF_BuildComponent()
 {
