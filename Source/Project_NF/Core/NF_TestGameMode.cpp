@@ -1,11 +1,8 @@
 #include "Core/NF_TestGameMode.h"
 
-#include "AbilitySystemComponent.h"
 #include "Core/Match/NF_DedicatedMatchSubsystem.h"
 #include "Core/NF_GameState.h"
-#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "GamePlay/Combat/Components/NF_PlayerLifeComponent.h"
 #include "Player/State/NF_PlayerState.h"
 #include "TimerManager.h"
 
@@ -65,7 +62,7 @@ void ANF_TestGameMode::PostLogin(APlayerController* NewPlayer)
 		LoginOrder.AddUnique(TWeakObjectPtr<ANF_PlayerState>(PlayerState));
 	}
 
-	// PostLogin 직후에는 Pawn이 없을 수 있으므로 타이머에서 준비 여부를 확인한다.
+	// 접속 인원과 PlayerState가 모이면 Pawn 생성 전에 팀을 배정한다.
 }
 
 void ANF_TestGameMode::Logout(AController* Exiting)
@@ -130,28 +127,11 @@ void ANF_TestGameMode::TryAssignTeams()
 		return;
 	}
 
-	// 한 명이라도 초기 스폰이나 GAS 연결이 끝나지 않았으면 다음 호출에서 재확인한다.
+	// Pawn과 GAS Avatar는 팀 배정 이후 부모 GameMode에서 생성 및 확인한다.
 	for (const TWeakObjectPtr<ANF_PlayerState>& Entry : LoginOrder)
 	{
 		ANF_PlayerState* PlayerState = Entry.Get();
-		if (!IsValid(PlayerState))
-		{
-			return;
-		}
-
-		APawn* PlayerPawn = PlayerState->GetPawn();
-		if (!IsValid(PlayerPawn) || PlayerPawn->GetPlayerState<ANF_PlayerState>() != PlayerState)
-		{
-			return;
-		}
-
-		UAbilitySystemComponent* ASC = PlayerState->GetAbilitySystemComponent();
-		if (!IsValid(ASC) || ASC->GetAvatarActor() != PlayerPawn)
-		{
-			return;
-		}
-
-		if (!IsValid(PlayerPawn->FindComponentByClass<UNF_PlayerLifeComponent>()))
+		if (!IsValid(PlayerState) || !IsValid(PlayerState->GetPlayerController()))
 		{
 			return;
 		}
@@ -186,12 +166,8 @@ void ANF_TestGameMode::TryAssignTeams()
 		Assignment.TeamId = TeamId;
 	}
 
-	// 기존 LifeComponent 확인 및 NotifyTeamsReady -> Build 진입 경로를 재사용한다.
+	// 팀 배정은 한 번만 제출한다. 이후 스폰 및 GAS 준비 재확인은 부모가 담당한다.
 	HandleServerTeamIdsAssigned(Assignments);
-
-	if (AreTeamsReady())
-	{
-		UE_LOG(LogTemp, Log, TEXT("[TestGameMode] 접속 순서 기준 팀 배정 완료. Players=%d, PlayersPerTeam=%d"), Assignments.Num(), PlayersPerTeam);
-		StopTeamAssignment();
-	}
+	UE_LOG(LogTemp, Log, TEXT("[TestGameMode] 접속 순서 기준 팀 배정 제출. Players=%d, PlayersPerTeam=%d"), Assignments.Num(), PlayersPerTeam);
+	StopTeamAssignment();
 }
