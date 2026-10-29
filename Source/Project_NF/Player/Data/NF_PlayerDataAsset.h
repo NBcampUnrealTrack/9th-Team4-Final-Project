@@ -53,7 +53,7 @@ public:
 	TArray<TSubclassOf<UGameplayAbility>> NF_GameplayAbility_Array;
 	
 	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
-	TSubclassOf<UGameplayEffect> NF_GameplayEffectClass;
+	TSubclassOf<UGameplayEffect> NF_SetDamage_GEClass;
 	
 	UPROPERTY(EditAnywhere, Category = "PlayerState|Player_Level")
 	TObjectPtr<UDataTable> PlayerLevelDataTable;
