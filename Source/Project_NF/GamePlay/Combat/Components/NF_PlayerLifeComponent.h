@@ -153,4 +153,7 @@ private:
 	void StopHealthZeroDetection();
 	
 	bool bLifeBuildLockApplied = false;
+	
+	// Bulid 잠금을 적용한 ASC 추적
+	TWeakObjectPtr<UAbilitySystemComponent> BuildLockASC;
 };
