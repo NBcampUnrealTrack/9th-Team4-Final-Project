@@ -378,7 +378,7 @@ void ANF_Player::OnSkillBind(APlayerController* SendController, ENF_PlayerAction
 }
 
 
-void ANF_Player::OnEnablePlayerMovementFromType(ENF_BuildShopUIState BuildShopType)
+void ANF_Player::OnEnablePlayerMovementFromType(APlayerController* SendController, ENF_BuildShopUIState BuildShopType)
 {
 	if (IsLocallyControlled() == true)
 	{
