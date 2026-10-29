@@ -23,19 +23,74 @@ ANF_BuildShopZone::ANF_BuildShopZone()
 	BuildArea->SetGenerateOverlapEvents(false);
 }
 
-void ANF_BuildShopZone::NF_Interaction(const APlayerController* InteractedController)
+void ANF_BuildShopZone::NF_Interaction(
+	const APlayerController* InteractedController)
 {
+	UE_LOG(LogTemp, Warning,
+		TEXT("[BuildShop] Interaction: Shop=%s Authority=%d Controller=%s"),
+		*GetNameSafe(this),
+		HasAuthority(),
+		*GetNameSafe(InteractedController));
+
 	if (!HasAuthority() || !IsValid(InteractedController))
 	{
 		return;
 	}
-	APawn* Player = InteractedController->GetPawn();
-	if (CanBuild(Player) && Player->GetController() == InteractedController)
-	{
-		Player->FindComponentByClass<UNF_BuildComponent>()->BeginBuildSession(this);
-	}
-}
 
+	APawn* Player = InteractedController->GetPawn();
+	if (!IsValid(Player))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[BuildShop] Pawn is invalid"));
+		return;
+	}
+
+	const ANF_PlayerState* PlayerState =
+		Player->GetPlayerState<ANF_PlayerState>();
+
+	UNF_BuildComponent* Build =
+		Player->FindComponentByClass<UNF_BuildComponent>();
+
+	const ANF_GameState* GameState =
+		GetWorld()->GetGameState<ANF_GameState>();
+
+	const bool bControllerMatches =
+		Player->GetController() == InteractedController;
+	const bool bCanBuild = CanBuild(Player);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[BuildShop] Player=%s PlayerState=%s ")
+		TEXT("ShopType=%d ShopTeam=%d PlayerTeam=%d ")
+		TEXT("Enabled=%d InRange=%d Distance=%.1f Limit=%.1f ")
+		TEXT("BuildComponent=%s GameState=%s PhaseAllowed=%d ")
+		TEXT("ControllerMatches=%d CanBuild=%d"),
+		*GetNameSafe(Player),
+		*GetNameSafe(PlayerState),
+		static_cast<int32>(ShopType),
+		OwnerTeamId,
+		IsValid(PlayerState) ? PlayerState->NF_TeamID : INDEX_NONE,
+		bShopEnabled,
+		IsActorInRange(Player),
+		FVector::Dist(Player->GetActorLocation(), GetActorLocation()),
+		InteractionDistance,
+		*GetNameSafe(Build),
+		*GetNameSafe(GameState),
+		IsValid(GameState) && GameState->IsBuildShopAllowed(ShopType),
+		bControllerMatches,
+		bCanBuild);
+
+	if (!bCanBuild || !bControllerMatches || !IsValid(Build))
+	{
+		return;
+	}
+
+	const bool bStarted = Build->BeginBuildSession(this);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[BuildShop] BeginBuildSession=%d Player=%s CurrentShop=%s"),
+		bStarted,
+		*GetNameSafe(Player),
+		*GetNameSafe(Build->GetCurrentShop()));
+}
 bool ANF_BuildShopZone::CanBuild(AActor* PlayerActor) const
 {
 	if (!bShopEnabled ||
