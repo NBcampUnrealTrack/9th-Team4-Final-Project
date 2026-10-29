@@ -77,7 +77,7 @@ public:
 	void SetBGMDuckMultiplier(float InMultiplier, float FadeDuration = 0.25f);
 
 private:
-	float GetEffectiveBGMVolume() const;
+	float GetBGMVolumeMultiplier() const;
 	float GetEffectiveAmbientVolume() const;
 
 	UPROPERTY(Transient)

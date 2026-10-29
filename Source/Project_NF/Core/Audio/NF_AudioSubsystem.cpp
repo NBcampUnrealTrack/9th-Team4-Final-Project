@@ -127,7 +127,7 @@ void UNF_AudioSubsystem::PlayBGM(USoundBase* Sound, const float FadeDuration, co
 
 	const float SafeFadeDuration = SanitizeNonNegative(FadeDuration, 1.0f);
 	CurrentBGMBaseVolume = SanitizeNonNegative(Volume, 1.0f);
-	const float TargetVolume = GetEffectiveBGMVolume();
+	const float TargetVolume = GetBGMVolumeMultiplier();
 
 	if (IsValid(CurrentBGMComponent) && CurrentBGMComponent->IsPlaying()
 		&& CurrentBGMComponent->GetSound() == Sound)
@@ -138,14 +138,14 @@ void UNF_AudioSubsystem::PlayBGM(USoundBase* Sound, const float FadeDuration, co
 
 	UAudioComponent* PreviousComponent = CurrentBGMComponent;
 	UAudioComponent* NewComponent = UGameplayStatics::CreateSound2D(
-		World, Sound, 0.0f, 1.0f, 0.0f, nullptr, true, true);
+		World, Sound, TargetVolume, 1.0f, 0.0f, nullptr, true, true);
 	if (!IsValid(NewComponent))
 	{
 		return;
 	}
 
 	CurrentBGMComponent = NewComponent;
-	NewComponent->FadeIn(SafeFadeDuration, TargetVolume);
+	NewComponent->FadeIn(SafeFadeDuration, BGMDuckMultiplier);
 
 	if (IsValid(PreviousComponent) && PreviousComponent->IsPlaying())
 	{
@@ -186,14 +186,14 @@ void UNF_AudioSubsystem::PlayAmbient(USoundBase* Sound, const float FadeDuration
 
 	UAudioComponent* PreviousComponent = CurrentAmbientComponent;
 	UAudioComponent* NewComponent = UGameplayStatics::CreateSound2D(
-		World, Sound, 0.0f, 1.0f, 0.0f, nullptr, true, true);
+		World, Sound, TargetVolume, 1.0f, 0.0f, nullptr, true, true);
 	if (!IsValid(NewComponent))
 	{
 		return;
 	}
 
 	CurrentAmbientComponent = NewComponent;
-	NewComponent->FadeIn(SafeFadeDuration, TargetVolume);
+	NewComponent->FadeIn(SafeFadeDuration, 1.0f);
 
 	if (IsValid(PreviousComponent) && PreviousComponent->IsPlaying())
 	{
@@ -218,7 +218,7 @@ void UNF_AudioSubsystem::SetMasterVolume(const float InVolume)
 	MasterVolume = FMath::IsFinite(InVolume) ? FMath::Clamp(InVolume, 0.0f, 1.0f) : 1.0f;
 	if (IsValid(CurrentBGMComponent))
 	{
-		CurrentBGMComponent->SetVolumeMultiplier(GetEffectiveBGMVolume());
+		CurrentBGMComponent->SetVolumeMultiplier(GetBGMVolumeMultiplier());
 	}
 	if (IsValid(CurrentAmbientComponent))
 	{
@@ -236,7 +236,7 @@ void UNF_AudioSubsystem::SetBGMVolume(const float InVolume)
 	BGMVolume = FMath::IsFinite(InVolume) ? FMath::Clamp(InVolume, 0.0f, 1.0f) : 1.0f;
 	if (IsValid(CurrentBGMComponent))
 	{
-		CurrentBGMComponent->SetVolumeMultiplier(GetEffectiveBGMVolume());
+		CurrentBGMComponent->SetVolumeMultiplier(GetBGMVolumeMultiplier());
 	}
 }
 
@@ -256,13 +256,13 @@ void UNF_AudioSubsystem::SetBGMDuckMultiplier(const float InMultiplier, const fl
 	{
 		CurrentBGMComponent->AdjustVolume(
 			SanitizeNonNegative(FadeDuration, 0.25f),
-			GetEffectiveBGMVolume());
+			BGMDuckMultiplier);
 	}
 }
 
-float UNF_AudioSubsystem::GetEffectiveBGMVolume() const
+float UNF_AudioSubsystem::GetBGMVolumeMultiplier() const
 {
-	return CurrentBGMBaseVolume * BGMVolume * MasterVolume * BGMDuckMultiplier;
+	return CurrentBGMBaseVolume * BGMVolume * MasterVolume;
 }
 
 float UNF_AudioSubsystem::GetEffectiveAmbientVolume() const
