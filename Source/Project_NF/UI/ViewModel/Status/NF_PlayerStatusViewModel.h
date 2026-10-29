@@ -7,6 +7,7 @@
 #include "NF_PlayerStatusViewModel.generated.h"
 
 struct FOnAttributeChangeData;
+class ANF_PlayerState;
 
 UCLASS()
 class PROJECT_NF_API UNF_PlayerStatusViewModel : public UNF_GASViewModelBase
@@ -43,6 +44,7 @@ class PROJECT_NF_API UNF_PlayerStatusViewModel : public UNF_GASViewModelBase
 protected:
     virtual void OnInitializeViewModel() override;
     virtual void OnViewModelContextChanged() override;
+    virtual void OnDeinitializeViewModel() override;
     virtual void BindAbilitySystemDelegates() override;
     virtual void RefreshFromAbilitySystem() override;
 
@@ -54,10 +56,20 @@ private:
 
     void RefreshPlayerName();
 
+    // PlayerState의 TeamID 변경(서버 SetNFTeamID / 클라 OnRep) 구독
+    void BindPlayerStateDelegates();
+    void UnbindPlayerStateDelegates();
+    void HandleTeamIDChanged();
+
+    TWeakObjectPtr<ANF_PlayerState> BoundPlayerState;
+
     void UpdateVitals(float NewHealth,float NewMaxHealth,float NewShield,float NewMaxShield);
 
     UPROPERTY(BlueprintReadOnly, FieldNotify, Category="Player|UI",meta=(AllowPrivateAccess="true"))
     FText PlayerName;
+	
+	UPROPERTY(BlueprintReadOnly, FieldNotify, Category="Player|UI",meta=(AllowPrivateAccess="true"))
+	FText PlayerTeamId;
 
     UPROPERTY(BlueprintReadOnly, FieldNotify, Category="Player|UI",meta=(AllowPrivateAccess="true"))
     float Health = 0.0f;

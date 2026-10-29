@@ -5,10 +5,10 @@
 #include "TimerManager.h"
 #include "NF_PlayerLifeComponent.generated.h"
 
-class UGameplayEffect;
 class UAbilitySystemComponent;
 class UNF_PlayerLifeComponent;
 class APawn;
+class UNF_PlayerLifeDataAsset;
 struct FOnAttributeChangeData;
 
 // 플레이어의 생존 상태
@@ -112,13 +112,8 @@ protected:
 	// 컴포넌트가 종료될 때 기절 타이머 정리
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
-	// 기절 유지 시간 (임시 30초)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Life|Downed", meta = (ClampMin = "0.1"))
-	float DownedDurationSeconds = 30.0f;
-	
-	// 소생 시 Health를 회복시킬 GE
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Life|Revive")
-	TSubclassOf<UGameplayEffect> ReviveHealthEffectClass;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Life|Config")
+	TObjectPtr<UNF_PlayerLifeDataAsset> LifeDataAsset;
 	
 	// 현재 생존 상태 (서버에서 변경, 클라에서 복제)
 	UPROPERTY(ReplicatedUsing = OnRep_LifeState,

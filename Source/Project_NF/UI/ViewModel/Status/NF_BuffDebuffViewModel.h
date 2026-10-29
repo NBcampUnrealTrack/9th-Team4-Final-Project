@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "TimerManager.h"
+#include "Components/SlateWrapperTypes.h"
 #include "UI/ViewModel/Base/NF_GASViewModelBase.h"
 #include "NF_BuffDebuffViewModel.generated.h"
 
@@ -14,6 +15,14 @@ UCLASS(BlueprintType, Blueprintable)
 class PROJECT_NF_API UNF_BuffDebuffViewModel : public UNF_GASViewModelBase
 {
     GENERATED_BODY()
+
+public:
+    // 버프 아이콘 위젯의 Visibility 바인딩용
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "BuffDebuff|UI")
+    ESlateVisibility GetKeyBuffVisibility() const;
+
+    UFUNCTION(BlueprintPure, FieldNotify, Category = "BuffDebuff|UI")
+    ESlateVisibility GetMaxShieldPenaltyVisibility() const;
 
 protected:
 

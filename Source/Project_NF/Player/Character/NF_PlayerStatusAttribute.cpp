@@ -68,10 +68,10 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 {
 	Super::PostGameplayEffectExecute(Data);
 	
-	UKismetSystemLibrary::PrintString(GetOwningActor(),
+	/*UKismetSystemLibrary::PrintString(GetOwningActor(),
 		FString::Printf(TEXT("데미지 = %.2f 남은 체력 = %.2f 남은 쉴드 = %.2f"),
 		Data.EvaluatedData.Magnitude, GetHealth(), GetShield()),
-		true, true, FLinearColor::Black, 5.0f);
+		true, true, FLinearColor::Black, 5.0f);*/
 	
 	IsOutOfHealth(Data);
 	IsOutOfShield(Data);
