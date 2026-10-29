@@ -27,4 +27,8 @@ namespace  NFTag_Player
 	
 	// @Owner: 용준 | 2026-10-21
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_State_Reload, "Player.State.Reload", "리로드 시 공격 및 줌 기능이 금지 되게 하기 위함")
+	
+	
+	// @Owner: 명현 | 2026-10-29
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Data_ShieldRecovery, "Player.Data.ShieldRecovery", "플레이어의 쉴드 회복 데이터 전송용")
 }
