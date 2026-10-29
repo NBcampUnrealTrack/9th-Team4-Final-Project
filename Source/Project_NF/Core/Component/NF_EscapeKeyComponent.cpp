@@ -301,6 +301,24 @@ bool UNF_EscapeKeyComponent::ApplyKeyHolderEffect(
 	return OutEffectHandle.IsValid();
 }
 
+bool UNF_EscapeKeyComponent::ValidateInitialAssignmentSettings(FString& OutReason) const
+{
+	OutReason.Empty();
+	if (!KeyHolderRewardEffectClass)
+	{
+		OutReason = TEXT("열쇠 보유 GE 클래스가 지정되지 않았습니다.");
+		return false;
+	}
+
+	const UGameplayEffect* EffectDefinition = KeyHolderRewardEffectClass->GetDefaultObject<UGameplayEffect>();
+	if (!IsValid(EffectDefinition) || EffectDefinition->DurationPolicy != EGameplayEffectDurationType::Infinite)
+	{
+		OutReason = TEXT("열쇠 보유 GE는 Infinite로 설정해야 합니다.");
+		return false;
+	}
+	return true;
+}
+
 void UNF_EscapeKeyComponent::TryInitialAssignment()
 {
 	if (!HasServerAuthority() ||bKeyCleanupComplete ||InitState != ENF_KeyInitState::Retrying)return;
@@ -315,17 +333,10 @@ void UNF_EscapeKeyComponent::TryInitialAssignment()
 	const ANF_GameState* NFGameState =GetWorld()->GetGameState<ANF_GameState>();
 
 	// 1. GE 설정을 먼저 검사한다.
-	if (!KeyHolderRewardEffectClass)
+	FString SettingsError;
+	if (!ValidateInitialAssignmentSettings(SettingsError))
 	{
-		FailInitialAssignment(TEXT("열쇠 보유 GE 클래스가 지정되지 않았습니다."));
-		return;
-	}
-
-	const UGameplayEffect* EffectDefinition =KeyHolderRewardEffectClass->GetDefaultObject<UGameplayEffect>();
-
-	if (!IsValid(EffectDefinition) ||EffectDefinition->DurationPolicy !=EGameplayEffectDurationType::Infinite)
-	{
-		FailInitialAssignment(TEXT("열쇠 보유 GE는 Infinite로 설정해야 합니다."));
+		FailInitialAssignment(SettingsError);
 		return;
 	}
 
