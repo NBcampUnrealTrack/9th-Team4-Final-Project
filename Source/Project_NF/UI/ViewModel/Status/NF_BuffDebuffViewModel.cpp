@@ -37,7 +37,24 @@ void UNF_BuffDebuffViewModel::RefreshFromAbilitySystem()
         }
     }
 
-    UE_MVVM_SET_PROPERTY_VALUE(bHasKeyBuff, bNewHasKeyBuff);
-    UE_MVVM_SET_PROPERTY_VALUE(bHasMaxShieldPenalty, bNewHasShieldPenalty);
+    if (UE_MVVM_SET_PROPERTY_VALUE(bHasKeyBuff, bNewHasKeyBuff))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetKeyBuffVisibility);
+    }
+
+    if (UE_MVVM_SET_PROPERTY_VALUE(bHasMaxShieldPenalty, bNewHasShieldPenalty))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetMaxShieldPenaltyVisibility);
+    }
     
+}
+
+ESlateVisibility UNF_BuffDebuffViewModel::GetKeyBuffVisibility() const
+{
+    return bHasKeyBuff ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+}
+
+ESlateVisibility UNF_BuffDebuffViewModel::GetMaxShieldPenaltyVisibility() const
+{
+    return bHasMaxShieldPenalty ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
 }
