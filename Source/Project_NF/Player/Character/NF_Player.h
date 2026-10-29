@@ -57,6 +57,7 @@ protected:
 	virtual void PostInitializeComponents() override;
 	
 	virtual void BeginPlay() override;
+	virtual void Tick( float DeltaTime ) override;
 	
 	virtual void PossessedBy(AController* NewController) override;
 	
@@ -100,6 +101,25 @@ private:
 	
 	FName MeleeAttackSocket = "MeleeAttackSocket";
 	float InteractionRange = 0.0f;
+	
+#pragma region CameraCollision
+public:
+	//막힘이 없을 때 SpringArm 기본 길이
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
+	float DefaultCameraArmLength = 300.0f;
+	
+	//벽에 막혀 당겨질 때 보간 속도
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
+	float CameraArmPullInSpeed = 30.0f;
+	
+	//막힘이 풀려 돌아갈 때 보간 속도
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
+	float CameraArmReturnSpeed = 5.0f;
+	
+private:
+	//벽(WorldStatic/WorldDynamic)만 검사해서 SpringArm 길이를 보간
+	void UpdateCameraArmLength(float DeltaSeconds);
+#pragma endregion 
 	
 #pragma region TryAction
 private:

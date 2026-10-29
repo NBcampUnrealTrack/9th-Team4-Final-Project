@@ -47,10 +47,12 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComponent->SetupAttachment(GetRootComponent());
 	SpringArmComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 20.0f));
-	SpringArmComponent->TargetArmLength = 300.0f;
+	SpringArmComponent->TargetArmLength = DefaultCameraArmLength;
 	SpringArmComponent->bUsePawnControlRotation = true;
 	SpringArmComponent->bEnableCameraLag = true;
 	SpringArmComponent->CameraLagSpeed = 10.0f;
+	SpringArmComponent->bDoCollisionTest = false;
+	
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	CameraComponent->SetupAttachment(SpringArmComponent, USpringArmComponent::SocketName);
 	CameraComponent->SetFieldOfView(100.0f);
@@ -86,6 +88,13 @@ void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
 	ConfigBindDelegate();
+}
+
+void ANF_Player::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	
+	UpdateCameraArmLength(DeltaTime);
 }
 
 
@@ -311,6 +320,44 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 	}
 	#pragma endregion 
 #pragma endregion 
+
+
+void ANF_Player::UpdateCameraArmLength(float DeltaSeconds)
+{
+	if (IsLocallyControlled() == true)
+	{
+		if (IsValid(SpringArmComponent) == false) return;
+	
+		const FVector ArmOrigin = SpringArmComponent->GetComponentLocation();
+		const FVector DesiredCameraLocation = ArmOrigin - (GetControlRotation().Vector() * DefaultCameraArmLength);
+	
+		FCollisionObjectQueryParams ObjectQueryParams;
+		ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
+		ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+	
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(NF_PlayerCameraArm), false, this);
+	
+		FHitResult HitResult;
+		float TargetCameraArmLength = DefaultCameraArmLength;
+		bool bIsCameraArmBlocked = GetWorld()->SweepSingleByObjectType(HitResult, ArmOrigin, DesiredCameraLocation,
+			FQuat::Identity, ObjectQueryParams, FCollisionShape::MakeSphere(12.0f), QueryParams);
+		
+		if (bIsCameraArmBlocked == true)
+		{
+			TargetCameraArmLength = HitResult.Distance;
+		}
+	
+		float CameraArmInterpSpeed = CameraArmReturnSpeed;
+		if (TargetCameraArmLength < SpringArmComponent->TargetArmLength)
+		{
+			CameraArmInterpSpeed = CameraArmPullInSpeed;
+		}
+	
+		SpringArmComponent->TargetArmLength = 
+			FMath::FInterpTo(SpringArmComponent->TargetArmLength, TargetCameraArmLength, DeltaSeconds, CameraArmInterpSpeed);
+	}
+	
+}
 
 
 void ANF_Player::OnSkillBind(APlayerController* SendController, ENF_PlayerActionType ActionType)
