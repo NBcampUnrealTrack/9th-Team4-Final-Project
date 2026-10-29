@@ -16,6 +16,7 @@
 #include "UI/ViewModel/GamePlay/NF_GameFlowViewModel.h"
 #include "UI/ViewModel/GamePlay/NF_MinimapViewModel.h"
 #include "UI/ViewModel/Slots/NF_SkillSlotViewModel.h"
+#include "UI/ViewModel/Status/NF_BuffDebuffViewModel.h"
 #include "UI/ViewModel/Status/NF_PlayerStatusViewModel.h"
 #include "UI/ViewModel/Status/NF_TeamPanelViewModel.h"
 #include "UI/ViewModel/Status/NF_WeaponStatusViewModel.h"
@@ -71,7 +72,10 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 
 	UNF_MinimapViewModel* MinimapVM = NewObject<UNF_MinimapViewModel>(this);
 	RegisterOwnedViewModel(MinimapVM);
-
+	
+	UNF_BuffDebuffViewModel* BuffVM =NewObject<UNF_BuffDebuffViewModel>(this,BuffDebuffVM);
+	RegisterOwnedViewModel(BuffVM);
+	
 	// 개별 TeamMemberViewModel은 TeamPanelVM이 생성하고 해제한다.
 	TeamPanelVM = NewObject<UNF_TeamPanelViewModel>(this);
 	RegisterOwnedViewModel(TeamPanelVM.Get());
@@ -82,6 +86,7 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 	// 각 자식 WBP에 이름이 ViewModel인 Manual MVVM 슬롯 필요
 	bool bAllAssigned = true;
 	if (!AssignViewModel(PlayerStatusWidget.Get(), PlayerStatusVM)){bAllAssigned = false;}
+	if (!AssignViewModel(PlayerTeamIdWidget.Get(), PlayerStatusVM)){bAllAssigned = false;}
 	if (!AssignViewModel(ActiveSkillSlotOne.Get(), ActiveSkillOneVM)){bAllAssigned = false;}
 	if (!AssignViewModel(ActiveSkillSlotTwo.Get(), ActiveSkillTwoVM)){bAllAssigned = false;}
 	if (!AssignViewModel(PassiveSkillSlot.Get(), PassiveSkillVM)){bAllAssigned = false;}
@@ -89,6 +94,7 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 	if (!AssignViewModel(MinimapWidget.Get(), MinimapVM)){bAllAssigned = false;}
 	//if (!AssignViewModel(TeamPanelWidget.Get(), TeamPanelVM.Get())){bAllAssigned = false;}
 	if (!AssignViewModel(WeaponStatusWidget.Get(), WeaponStatusVM.Get())){bAllAssigned = false;}
+	if (!AssignViewModel(BuffDebuffWidget.Get(), BuffVM)){bAllAssigned = false;}
 	
 	if (!bAllAssigned)
 	{
@@ -160,6 +166,7 @@ void UNF_GameHUDWidget::ClearChildViewModels()
 	}
 
 	AssignViewModel(PlayerStatusWidget.Get(), nullptr);
+	AssignViewModel(PlayerTeamIdWidget.Get(), nullptr);
 	AssignViewModel(ActiveSkillSlotOne.Get(), nullptr);
 	AssignViewModel(ActiveSkillSlotTwo.Get(), nullptr);
 	AssignViewModel(PassiveSkillSlot.Get(), nullptr);
@@ -167,6 +174,7 @@ void UNF_GameHUDWidget::ClearChildViewModels()
 	AssignViewModel(MinimapWidget.Get(), nullptr);
 	//AssignViewModel(TeamPanelWidget.Get(), nullptr);
 	AssignViewModel(WeaponStatusWidget.Get(), nullptr);
+	AssignViewModel(BuffDebuffWidget.Get(), nullptr);
 }
 
 void UNF_GameHUDWidget::ReleaseHUDViewModels()

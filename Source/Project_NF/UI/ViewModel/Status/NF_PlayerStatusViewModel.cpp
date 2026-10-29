@@ -2,6 +2,7 @@
 #include "NF_PlayerStatusViewModel.h"
 
 #include "GameFramework/PlayerState.h"
+#include "Player/State/NF_PlayerState.h"
 #include "Player/Character/NF_PlayerLevelAttribute.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
@@ -30,12 +31,14 @@ namespace
 void UNF_PlayerStatusViewModel::OnInitializeViewModel()
 {
     Super::OnInitializeViewModel();
+    BindPlayerStateDelegates();
     RefreshPlayerName();
 }
 
 void UNF_PlayerStatusViewModel::OnViewModelContextChanged()
 {
     Super::OnViewModelContextChanged();
+    BindPlayerStateDelegates();
     RefreshPlayerName();
 
     // 플레이어를 떠나거나 ASC가 아직 준비되지 않은 경우
@@ -44,6 +47,38 @@ void UNF_PlayerStatusViewModel::OnViewModelContextChanged()
         UpdateVitals(0.0f, 0.0f, 0.0f, 0.0f);
         RefreshProgressionFromAbilitySystem();
     }
+}
+
+void UNF_PlayerStatusViewModel::OnDeinitializeViewModel()
+{
+    UnbindPlayerStateDelegates();
+    Super::OnDeinitializeViewModel();
+}
+
+void UNF_PlayerStatusViewModel::BindPlayerStateDelegates()
+{
+    ANF_PlayerState* PlayerState = Cast<ANF_PlayerState>(GetViewModelContext().PlayerState.Get());
+    if (BoundPlayerState.Get() == PlayerState)return;
+
+    UnbindPlayerStateDelegates();
+    if (!IsValid(PlayerState))return;
+
+    PlayerState->OnTeamIDChanged.AddUObject(this, &ThisClass::HandleTeamIDChanged);
+    BoundPlayerState = PlayerState;
+}
+
+void UNF_PlayerStatusViewModel::UnbindPlayerStateDelegates()
+{
+    if (ANF_PlayerState* PlayerState = BoundPlayerState.Get())
+    {
+        PlayerState->OnTeamIDChanged.RemoveAll(this);
+    }
+    BoundPlayerState.Reset();
+}
+
+void UNF_PlayerStatusViewModel::HandleTeamIDChanged()
+{
+    RefreshPlayerName();
 }
 
 void UNF_PlayerStatusViewModel::BindAbilitySystemDelegates()
@@ -161,11 +196,15 @@ void UNF_PlayerStatusViewModel::UpdateVitals(float NewHealth,float NewMaxHealth,
 
 void UNF_PlayerStatusViewModel::RefreshPlayerName()
 {
-    APlayerState* PlayerState =GetViewModelContext().PlayerState.Get();
-
+    ANF_PlayerState* PlayerState =  Cast<ANF_PlayerState>(GetViewModelContext().PlayerState.Get());
+ 
     const FText NewName = IsValid(PlayerState)? FText::FromString(PlayerState->GetPlayerName()): FText::GetEmpty();
-
+    // 팀 배정 전(INDEX_NONE)에는 빈 텍스트
+    const bool bHasTeam = IsValid(PlayerState) && PlayerState->GetNFTeamID() != INDEX_NONE;
+    const FText NewTeamId = bHasTeam ? FText::AsNumber(PlayerState->GetNFTeamID()) : FText::GetEmpty();
+    
     UE_MVVM_SET_PROPERTY_VALUE(PlayerName, NewName);
+    UE_MVVM_SET_PROPERTY_VALUE(PlayerTeamId, NewTeamId);
 }
 
 void UNF_PlayerStatusViewModel::UpdateProgression(int32 NewLevel,float NewExperience,float NewRequiredExperience)
@@ -237,7 +276,7 @@ FText UNF_PlayerStatusViewModel::GetShieldText() const
 FText UNF_PlayerStatusViewModel::GetLevelText() const
 {
     return FText::Format(
-        NSLOCTEXT("NFHUD", "Level", "Lv. {0}"),
+        NSLOCTEXT("NFHUD", "Level", "LV.{0}"),
         FText::AsNumber(FMath::Max(1, Level)));
 }
 

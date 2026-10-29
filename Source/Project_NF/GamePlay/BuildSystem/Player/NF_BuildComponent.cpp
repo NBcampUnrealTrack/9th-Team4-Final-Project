@@ -7,7 +7,6 @@
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GAS/Tags/NFTag_Build.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
-#include "GamePlay/BuildSystem/UI/NF_BuildShopWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
@@ -22,7 +21,6 @@
 #include "Net/UnrealNetwork.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Core/NF_GameState.h"
-#include "UI/SubSystem/NF_UIManagerSubsystem.h"
 
 UNF_BuildComponent::UNF_BuildComponent()
 {
@@ -377,7 +375,12 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 
 	OnBuildShopStateChanged.Broadcast(SessionState);
 
-	NF_BROADCAST_TO_PLAYER_DELEGATE_OneParam(OnInteractBuildShop, SessionState);
+	// 상점 사용 상태가 다른 플레이어에게 적용되지 않도록 대상 컨트롤러를 함께 전달한다.
+	APlayerController* SendController = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	if (IsValid(SendController))
+	{
+		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnInteractBuildShop, SendController, SessionState);
+	}
 }
 
 void UNF_BuildComponent::OnRep_BuildConfiguration()

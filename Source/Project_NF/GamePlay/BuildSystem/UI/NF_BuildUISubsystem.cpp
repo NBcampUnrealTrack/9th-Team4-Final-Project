@@ -1,6 +1,11 @@
-﻿#include "NF_BuildUISubsystem.h"
+#include "NF_BuildUISubsystem.h"
 
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "Subsystems/SubsystemCollection.h"
+#include "GamePlay/BuildSystem/UI/NF_BuildShopViewModelBridge.h"
+#include "UI/SubSystem/NF_ViewModelSubsystem.h"
+#include "UI/ViewModel/BuildShop/NF_BuildShopViewModel.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "NF_BuildShopScreen.h"
@@ -8,6 +13,30 @@
 #include "UI/SubSystem/NF_UIManagerSubsystem.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 
+void UNF_BuildSubSystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	Collection.InitializeDependency<UNF_UIManagerSubsystem>();
+	Collection.InitializeDependency<UNF_ViewModelSubsystem>();
+	ShopViewModel = NewObject<UNF_BuildShopViewModel>(this);
+	if (Cast<INF_BuildShopViewModelBridge>(ShopViewModel.Get()))
+	{
+		GetLocalPlayer()->GetSubsystem<UNF_ViewModelSubsystem>()->RegisterViewModel(ShopViewModel);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("BuildShop integration pending: NF_BuildShopViewModel must implement NF_BuildShopViewModelBridge. See BuildShop_ViewModel_Handoff.md."));
+	}
+	WorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddUObject(this, &ThisClass::HandleWorldCleanup);
+}
+
+bool UNF_BuildSubSystem::ConnectViewModel()
+{
+	INF_BuildShopViewModelBridge* Bridge = Cast<INF_BuildShopViewModelBridge>(ShopViewModel.Get());
+	if (!Bridge) return false;
+	Bridge->SetBuildSource(ObservedBuild.Get());
+	return true;
+}
 
 void UNF_BuildSubSystem::ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScreenClass)
 {
@@ -16,12 +45,12 @@ void UNF_BuildSubSystem::ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScre
 		CloseScreen();
 		ScreenClass = InScreenClass;
 	}
-	
+
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	APlayerController* Controller = LocalPlayer ? LocalPlayer->GetPlayerController(LocalPlayer->GetWorld()) : nullptr;
-	
+
 	BindController(Controller);
-	
+
 	RefreshScreen();
 }
 
@@ -38,57 +67,62 @@ void UNF_BuildSubSystem::BindController(APlayerController* Controller)
 		HandlePawnChanged(Controller ? Controller->GetPawn() : nullptr);
 		return;
 	}
-	
+
 	UnbindController();
-	
+	CloseScreen();
+	UnbindBuild();
+
 	BoundController = Controller;
-	
+	BoundWorld = IsValid(Controller) ? Controller->GetWorld() : nullptr;
+
 	if (IsValid(Controller))
 	{
-		PawnChangedHandle = 
-			Controller -> GetOnNewPawnNotifier().AddUObject(
+		PawnChangedHandle =
+			Controller-> GetOnNewPawnNotifier().AddUObject(
 				this,
 				&ThisClass::HandlePawnChanged);
 	}
-	
+
 	// 이미 소유한 Pawn도 즉시 연결한다.
 	HandlePawnChanged(IsValid(Controller) ? Controller->GetPawn() : nullptr);
-	
+
 }
 
 void UNF_BuildSubSystem::UnbindController()
 {
 	if (APlayerController* Controller = BoundController.Get())
 	{
-		Controller -> GetOnNewPawnNotifier().Remove(PawnChangedHandle);
+		Controller-> GetOnNewPawnNotifier().Remove(PawnChangedHandle);
 	}
-	
+
 	PawnChangedHandle.Reset();
 	BoundController.Reset();
 }
 
 void UNF_BuildSubSystem::HandlePawnChanged(APawn* NewPawn)
 {
-	UNF_BuildComponent* NewBuild = IsValid(NewPawn) ? NewPawn -> FindComponentByClass<UNF_BuildComponent>() : nullptr;
-	
+	UNF_BuildComponent* NewBuild = IsValid(NewPawn) ? NewPawn-> FindComponentByClass<UNF_BuildComponent>() : nullptr;
+
 	if (ObservedBuild.Get() == NewBuild)
 	{
+		ConnectViewModel();
 		RefreshScreen();
 		return;
 	}
-	
+
 	CloseScreen();
 	UnbindBuild();
-	
+
 	ObservedBuild = NewBuild;
-	
+	ConnectViewModel();
+
 	if (IsValid(NewBuild))
 	{
 		NewBuild->OnBuildShopStateChanged.AddUniqueDynamic(this, &ThisClass::HandleShopStateChanged);
 	}
-	
+
 	RefreshScreen();
-	
+
 }
 
 void UNF_BuildSubSystem::UnbindBuild()
@@ -97,8 +131,9 @@ void UNF_BuildSubSystem::UnbindBuild()
 	{
 		Build->OnBuildShopStateChanged.RemoveDynamic(this, &ThisClass::HandleShopStateChanged);
 	}
-	
+
 	ObservedBuild.Reset();
+	ConnectViewModel();
 }
 
 void UNF_BuildSubSystem::HandleShopStateChanged(ENF_BuildShopUIState State)
@@ -108,39 +143,44 @@ void UNF_BuildSubSystem::HandleShopStateChanged(ENF_BuildShopUIState State)
 		CloseScreen();
 		return;
 	}
-	
+
 	RefreshScreen();
 }
 
 void UNF_BuildSubSystem::RefreshScreen()
 {
 	UNF_BuildComponent* Build = ObservedBuild.Get();
-	
+
 	if (!IsValid(Build) || !IsValid(Build->GetCurrentShop()))
 	{
 		CloseScreen();
 		return;
 	}
-	
-	if (!ScreenClass)
+
+	if (!ScreenClass || !ConnectViewModel())
 	{
 		return;
 	}
-	
-	if (IsValid(Screen) && Screen -> GetParent()!=nullptr)
+
+	if (IsValid(Screen) && Screen-> GetParent() != nullptr)
 	{
 		return;
 	}
-	
+
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
-	UNF_UIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer -> GetSubsystem<UNF_UIManagerSubsystem>() : nullptr;
-	
+	UNF_UIManagerSubsystem* UIManager = LocalPlayer ? LocalPlayer-> GetSubsystem<UNF_UIManagerSubsystem>() : nullptr;
+
 	if (IsValid(UIManager))
 	{
 		Screen = Cast<UNF_BuildShopScreen>(
 			UIManager->PushScreen(
 				ScreenClass,
-				ENF_ScreenInputMode::GameAndUI));
+				ENF_ScreenInputMode::GameAndUI, false));
+		if (IsValid(Screen) && !Screen->SetShopViewModel(ShopViewModel))
+		{
+			UE_LOG(LogTemp, Error, TEXT("BuildShop Manual ViewModel injection failed; closing the local screen."));
+			CloseScreen();
+		}
 	}
 }
 
@@ -153,17 +193,38 @@ void UNF_BuildSubSystem::CloseScreen()
 
 	if (IsValid(Screen) && IsValid(UIManager))
 	{
+		Screen->SetShopViewModel(nullptr);
 		UIManager->RemoveWidget(Screen);
 	}
 
 	Screen = nullptr;
 }
 
+void UNF_BuildSubSystem::HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
+{
+	if (World != BoundWorld.Get()) return;
+	CloseScreen();
+	UnbindBuild();
+	UnbindController();
+	BoundWorld.Reset();
+}
+
 void UNF_BuildSubSystem::Deinitialize()
 {
+	FWorldDelegates::OnWorldCleanup.Remove(WorldCleanupHandle);
+	WorldCleanupHandle.Reset();
+	CloseScreen();
 	UnbindController();
 	UnbindBuild();
-	CloseScreen();
-	
+	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
+	{
+		if (UNF_ViewModelSubsystem* Models = LocalPlayer->GetSubsystem<UNF_ViewModelSubsystem>())
+		{
+			Models->UnregisterViewModel(ShopViewModel);
+		}
+	}
+	ShopViewModel = nullptr;
+	BoundWorld.Reset();
+
 	Super::Deinitialize();
 }
