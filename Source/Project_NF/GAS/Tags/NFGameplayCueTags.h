@@ -17,4 +17,7 @@ namespace NFGameplayCueTags
 	// 강명우 10-29
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Boss_GroundDamageZone_Start);
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Boss_GroundDamageZone_End);
+	
+	// @Owner: 용준 | 2026-10-29
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_Weapon_Fire);
 }

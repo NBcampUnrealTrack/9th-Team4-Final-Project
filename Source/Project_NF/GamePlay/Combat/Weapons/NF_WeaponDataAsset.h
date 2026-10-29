@@ -50,13 +50,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	FName MuzzleSocketName = TEXT("Muzzle");
 
-	// // 무기별 발사 사운드. 재생할 에셋이 없으면 None으로 둔다.
-	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
-	// TObjectPtr<class USoundBase> FireSound = nullptr;
-	//
-	// // MuzzleSocketName 소켓에서 재생할 Niagara 머즐 플래시.
-	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
-	// TObjectPtr<class UNiagaraSystem> MuzzleFlashSystem = nullptr;
+	// 무기별 발사 사운드. 재생할 에셋이 없으면 None으로 둔다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
+	TObjectPtr<class USoundBase> FireSound = nullptr;
+
+	// MuzzleSocketName 소켓에서 재생할 Cascade 머즐 플래시. 일회성 파티클을 지정한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
+	TObjectPtr<class UParticleSystem> MuzzleFlash = nullptr;
 
 	// 무기별 발사 카메라 흔들림 클래스. 사용하지 않으면 None으로 둔다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")

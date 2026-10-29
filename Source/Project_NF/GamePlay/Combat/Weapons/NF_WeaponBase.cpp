@@ -1,5 +1,8 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "GAS/Tags/NFGameplayCueTags.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
@@ -289,6 +292,20 @@ bool ANF_WeaponBase::FireProjectile()
 	SetCurrentAmmo(CurrentAmmo - 1);
 	if (IsValid(Shooter))
 	{
+		// 산탄의 펠릿 수와 무관하게 성공한 발사당 한 번만 전송한다.
+		// 현재 장착 무기를 다시 조회하지 않도록 발사 시점의 데이터를 담는다.
+		if (UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Shooter))
+		{
+			FGameplayCueParameters Parameters;
+			Parameters.Instigator = Shooter;
+			Parameters.EffectCauser = this;
+			Parameters.SourceObject = WeaponData;
+			Parameters.Location = MuzzleTransform.GetLocation();
+			Parameters.Normal = MuzzleTransform.GetRotation().GetForwardVector();
+			Parameters.bReplicateLocationWhenUsingMinimalRepProxy = true;
+			ASC->ExecuteGameplayCue(NFGameplayCueTags::GameplayCue_Weapon_Fire, Parameters);
+		}
+
 		if (auto* Weapons = Shooter->FindComponentByClass<UNF_WeaponComponent>())
 		{
 			Weapons->OnShotFired.Broadcast(Shooter, this, bLastRound);

@@ -24,4 +24,8 @@ namespace NFGameplayCueTags
 		"GameplayCue.Boss.GroundDamageZone.Start", "보스 지속 피해 장판이 생성될 때 재생하는 연출.");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Boss_GroundDamageZone_End,
 		"GameplayCue.Boss.GroundDamageZone.End", "보스 지속 피해 장판이 사라질 때 재생하는 연출.");
+	
+	// @Owner: 용준 | 2026-10-29
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayCue_Weapon_Fire,
+	"GameplayCue.Weapon.Fire", "무기 발사 성공 시 사운드, 머즐 플래시, 로컬 카메라 흔들림 등 이펙트 재생.");
 }

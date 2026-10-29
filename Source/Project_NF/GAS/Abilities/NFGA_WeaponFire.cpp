@@ -1,9 +1,7 @@
 #include "GAS/Abilities/NFGA_WeaponFire.h"
 
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
-#include "GameFramework/PlayerController.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
-#include "GamePlay/Combat/Weapons/NF_WeaponCameraShakeBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GAS/Tags/NFTag_Player.h"
@@ -72,15 +70,6 @@ void UNFGA_WeaponFire::TryFire()
 	}
 
 	if (!IsActive() || !Weapon.IsValid()) return;
-
-	// 서버에서 발사가 성공한 경우에만 소유 클라이언트에 한 번 전달한다.
-	// PlayerController RPC를 사용하므로 단발 직후 어빌리티가 종료되어도 재생할 수 있다.
-	const UNF_WeaponDataAsset* WeaponData = Weapon->GetWeaponData();
-	APlayerController* PlayerController = CurrentActorInfo->PlayerController.Get();
-	if (IsValid(WeaponData) && WeaponData->FireCameraShakeClass && IsValid(PlayerController))
-	{
-		PlayerController->ClientStartCameraShake(WeaponData->FireCameraShakeClass);
-	}
 
 	PlayFireAnimation();
 	if (!IsActive() || !Weapon.IsValid()) return;
