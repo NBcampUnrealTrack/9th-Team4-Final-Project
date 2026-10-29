@@ -14,7 +14,6 @@ class APlayerController;
 class UAbilitySystemComponent;
 class UNF_BuildItemDefinitionDataAsset;
 class UNF_BuildRules;
-class UUserWidget;
 
 USTRUCT()
 struct FNF_BuildGrantHandles
