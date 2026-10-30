@@ -6,8 +6,10 @@ UNFGA_MonsterBasicAttack::UNFGA_MonsterBasicAttack()
 {
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-    AbilityTags.AddTag(
+    FGameplayTagContainer AssetTags = GetAssetTags();
+    AssetTags.AddTag(
         NFTag_Monster::Ability_Monster_BasicAttack);
+    SetAssetTags(AssetTags);
 
     ActivationOwnedTags.AddTag(
         NFTag_Monster::State_Monster_Attacking);

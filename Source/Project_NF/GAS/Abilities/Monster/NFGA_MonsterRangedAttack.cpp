@@ -12,8 +12,10 @@ UNFGA_MonsterRangedAttack::UNFGA_MonsterRangedAttack()
 {
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 
-    AbilityTags.AddTag(
+    FGameplayTagContainer AssetTags = GetAssetTags();
+    AssetTags.AddTag(
         NFTag_Monster::Ability_Monster_RangedAttack);
+    SetAssetTags(AssetTags);
 
     ActivationOwnedTags.AddTag(
         NFTag_Monster::State_Monster_Attacking);
