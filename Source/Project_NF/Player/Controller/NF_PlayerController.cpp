@@ -14,6 +14,7 @@
 #include "TimerManager.h"
 #include "Component/MotionMatchingComponent.h"
 #include "Engine/World.h"
+#include "GamePlay/BuildSystem/UI/NF_BuildUISubsystem.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Player/Component/NF_MatchResultPresenterComponent.h"
 #include "UI/SubSystem/NF_UIManagerSubsystem.h"
@@ -32,6 +33,19 @@ void ANF_PlayerController::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
 	RefreshViewModel();
+}
+
+void ANF_PlayerController::AcknowledgePossession(class APawn* P)
+{
+	Super::AcknowledgePossession(P);
+	
+	if (IsLocalController() == true)
+	{
+		auto* BuildSubSystem = ULocalPlayer::GetSubsystem<UNF_BuildSubSystem>(GetLocalPlayer());
+		if (IsValid(BuildSubSystem) == false) return;
+		
+		BuildSubSystem->RefreshPawnBinding();
+	}
 }
 
 
