@@ -32,16 +32,40 @@ double UNF_EscapeComponent::GetServerTime() const
 
 bool UNF_EscapeComponent::TryStartEscape(ANF_EscapeZone* Zone, ANF_PlayerState* Requester)
 {
-	if (!HasServerAuthority() || bEscaping || !IsValid(Zone) || !IsValid(Requester)) return false;
-	if (!EvaluateEscapeRequest.IsBound()) return false;
+	if (!HasServerAuthority() || bEscaping || !IsValid(Zone) || !IsValid(Requester))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] StartRejected Authority=%d AlreadyEscaping=%d Zone=%s Requester=%s"),
+			HasServerAuthority(), bEscaping, *GetNameSafe(Zone), *GetNameSafe(Requester));
+		return false;
+	}
+	if (!EvaluateEscapeRequest.IsBound())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] StartRejected: ValidationDelegateNotBound"));
+		return false;
+	}
 
 	const FNF_EscapeValidationResult Validation = EvaluateEscapeRequest.Execute(Zone, Requester);
+	UE_LOG(LogTemp, Warning, TEXT("[Escape] Validation State=%d Holder=%s Teammate=%s"),
+		static_cast<int32>(Validation.State), *GetNameSafe(Validation.Holder), *GetNameSafe(Validation.Teammate));
+	if (IsValid(Validation.Teammate))
+	{
+		APawn* TeammatePawn = Validation.Teammate->GetPawn();
+		UAbilitySystemComponent* ASC = Validation.Teammate->GetAbilitySystemComponent();
+		if (IsValid(ASC))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Escape] Teammate Pawn=%s InRange=%d Dead=%d Downed=%d"),
+				*GetNameSafe(TeammatePawn), Zone->ContainsPawn(TeammatePawn),
+				ASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Dead),
+				ASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Downed));
+		}
+	}
 	if (!IsValid(Validation.Holder) || !IsValid(Validation.Teammate)) return false;
 
 	// 최초 상호작용은 팀원이 범위 안에 있거나 이미 사망한 경우에만 허용한다.
 	if (Validation.State != ENF_EscapeValidationState::TeamReady &&
 		Validation.State != ENF_EscapeValidationState::SoloReady)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] StartRejected: WaitingForTeammateOrInvalidState"));
 		return false;
 	}
 
@@ -70,6 +94,7 @@ bool UNF_EscapeComponent::TryStartEscape(ANF_EscapeZone* Zone, ANF_PlayerState* 
 		StartCountdown(ENF_EscapeState::CountingWithTeammate, Zone->GetTeamEscapeDuration());
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("[Escape] Started TeamId=%d Duration=%.1f"), EscapingTeamId, TotalDuration);
 	return true;
 }
 

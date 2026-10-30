@@ -74,9 +74,12 @@ protected:
 
 	bool AreTeamsReady() const { return bTeamsReady; }
 
+	// PIE 테스트 게임모드 전용 진입점. 실제 상태 변경은 서버 Core에서만 처리한다.
+	bool TryStartEscapeTest(ANF_PlayerState* Requester, FString& OutMessage);
+
 	// 팀 배정 이후의 생존 상태 초기화와 매치 시작 처리를 공통으로 사용한다.
 	void HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssignment>& Assignments);
-	void AbortMatch(const FString& Reason, ENF_MatchEndReason EndReason = ENF_MatchEndReason::RuntimeFailure);
+	void NFAbortMatch(const FString& Reason, ENF_MatchEndReason EndReason = ENF_MatchEndReason::RuntimeFailure);
 
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Match")
 	int32 InitialRequiredPlayers = 8;

@@ -34,6 +34,7 @@ public:
 	// 최초 지급이 이미 완료됐다면 중복 지급 없이 true.
 	// 서버에서 확정된 처치 결과로 최초 지급 절차를 시작한다.
 	void BeginInitialAssignment(const FNF_BossDefeatResult& DefeatResult);
+	bool ValidateInitialAssignmentSettings(FString& OutReason) const;
 
 	// 매치 종료·중단 시 호출.
 	void CleanupKey();

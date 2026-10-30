@@ -27,14 +27,26 @@ ANF_EscapeZone::ANF_EscapeZone()
 
 void ANF_EscapeZone::NF_Interaction(const APlayerController* InteractedController)
 {
-	if (!HasAuthority() || !IsValid(InteractedController) || InteractedController->GetWorld() != GetWorld()) return;
+	UE_LOG(LogTemp, Warning, TEXT("[Escape] Interaction Zone=%s Controller=%s Authority=%d"),
+		*GetNameSafe(this), *GetNameSafe(InteractedController), HasAuthority());
+	if (!HasAuthority() || !IsValid(InteractedController) || InteractedController->GetWorld() != GetWorld())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] Rejected: InvalidAuthorityOrControllerWorld"));
+		return;
+	}
 
 	ANF_GameMode* GameMode = GetWorld()->GetAuthGameMode<ANF_GameMode>();
 	ANF_PlayerState* Requester = InteractedController->GetPlayerState<ANF_PlayerState>();
 
 	if (IsValid(GameMode) && IsValid(Requester))
 	{
-		GameMode->RequestEscape(this, Requester);
+		const bool bStarted = GameMode->RequestEscape(this, Requester);
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] RequestResult Started=%d Requester=%s"), bStarted, *GetNameSafe(Requester));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] Rejected: MissingGameModeOrPlayerState GameMode=%s Requester=%s"),
+			*GetNameSafe(GameMode), *GetNameSafe(Requester));
 	}
 }
 

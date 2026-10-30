@@ -194,7 +194,7 @@ void ANF_GameMode::RestartPlayer(AController* NewPlayer)
 	ANF_TeamPlayerStart* TeamStart = PlayerRespawnComponent->FindTeamPlayerStart(PlayerState);
 	if (!IsValid(TeamStart))
 	{
-		AbortMatch(FString::Printf(
+		NFAbortMatch(FString::Printf(
 			TEXT("팀 스폰 지점이 부족합니다. 팀원 수만큼 NF_TeamPlayerStart를 배치하세요. TeamId=%d"),
 			PlayerState->NF_TeamID), ENF_MatchEndReason::RuntimeFailure);
 		return;
@@ -203,7 +203,7 @@ void ANF_GameMode::RestartPlayer(AController* NewPlayer)
 	RestartPlayerAtPlayerStart(NewPlayer, TeamStart);
 	if (!IsValid(NewPlayer->GetPawn()))
 	{
-		AbortMatch(FString::Printf(TEXT("팀 PlayerStart에서 Pawn 생성 실패. PlayerId=%d, Start=%s"),
+		NFAbortMatch(FString::Printf(TEXT("팀 PlayerStart에서 Pawn 생성 실패. PlayerId=%d, Start=%s"),
 			PlayerState->GetPlayerId(), *GetNameSafe(TeamStart)), ENF_MatchEndReason::RuntimeFailure);
 		return;
 	}
@@ -532,7 +532,7 @@ void ANF_GameMode::HandleBuildPhaseExpired()
 
 	if (!IsValid(BuildReadyComponent))
 	{
-		AbortMatch(TEXT("빌드 준비 컴포넌트가 없습니다."));
+		NFAbortMatch(TEXT("빌드 준비 컴포넌트가 없습니다."));
 		return;
 	}
 
@@ -549,7 +549,7 @@ void ANF_GameMode::EnterFarming()
 
 	if (!NFGameState->AuthoritySetTimedMatchPhase(ENF_MatchPhase::Farming, FarmingDuration))
 	{
-		AbortMatch(TEXT("파밍 페이즈 진입에 실패했습니다."));
+		NFAbortMatch(TEXT("파밍 페이즈 진입에 실패했습니다."));
 		return;
 	}
 
@@ -571,8 +571,120 @@ void ANF_GameMode::EnterBoss()
 
 	if (!NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Boss))
 	{
-		AbortMatch(TEXT("보스 페이즈 전환에 실패했습니다."));
+		NFAbortMatch(TEXT("보스 페이즈 전환에 실패했습니다."));
 	}
+}
+
+bool ANF_GameMode::TryStartEscapeTest(ANF_PlayerState* Requester, FString& OutMessage)
+{
+	OutMessage.Empty();
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+	OutMessage = TEXT("이 빌드에서는 테스트 치트를 사용할 수 없습니다.");
+	return false;
+#else
+	if (!HasAuthority() || GetWorld()->WorldType != EWorldType::PIE || ShouldUseDedicatedMatchSubsystem())
+	{
+		OutMessage = TEXT("PIE 테스트 게임모드의 서버에서만 실행할 수 있습니다.");
+		return false;
+	}
+
+	ANF_GameState* NFGameState = GetNFGameState();
+	if (!IsValid(NFGameState) || bMatchFinalized || bMatchAborting || bMatchCleanupNotified)
+	{
+		OutMessage = TEXT("종료되었거나 준비되지 않은 매치에서는 실행할 수 없습니다.");
+		return false;
+	}
+
+	if (!bTeamsReady)
+	{
+		OutMessage = TEXT("팀 배정, 최초 스폰 및 GAS 연결이 완료된 뒤 실행하세요.");
+		return false;
+	}
+
+	const ENF_MatchPhase Phase = NFGameState->GetMatchPhase();
+	if (Phase != ENF_MatchPhase::Build && Phase != ENF_MatchPhase::Farming)
+	{
+		OutMessage = TEXT("NF_TestEscape는 Build 또는 Farming에서 한 번 실행할 수 있습니다. 현재 상태는 NF_PrintMatchState로 확인하세요.");
+		return false;
+	}
+
+	if (!IsValid(Requester) || Requester->GetWorld() != GetWorld() ||
+		!NFGameState->PlayerArray.Contains(Requester) || Requester->NF_TeamID < 1 || Requester->NF_TeamID > 4)
+	{
+		OutMessage = TEXT("명령을 실행한 플레이어의 팀 배정 정보를 확인할 수 없습니다.");
+		return false;
+	}
+
+	int32 TeamMemberCount = 0;
+	for (APlayerState* BaseState : NFGameState->PlayerArray)
+	{
+		const ANF_PlayerState* Member = Cast<ANF_PlayerState>(BaseState);
+		if (IsValid(Member) && Member->NF_TeamID == Requester->NF_TeamID)++TeamMemberCount;
+	}
+	if (TeamMemberCount != 2)
+	{
+		OutMessage = TEXT("실제 탈출 판정에는 같은 팀 2명이 필요합니다. PIE 인원과 InitialRequiredPlayers를 2명 이상으로 맞추세요.");
+		return false;
+	}
+
+	APawn* Pawn = Requester->GetPawn();
+	UAbilitySystemComponent* ASC = Requester->GetAbilitySystemComponent();
+	if (!IsValid(Pawn) || !IsValid(ASC) || ASC->GetAvatarActor() != Pawn ||
+		ASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Dead) ||
+		ASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Downed))
+	{
+		OutMessage = TEXT("명령을 실행한 플레이어가 생존 상태이고 GAS Avatar 연결이 완료되어야 합니다.");
+		return false;
+	}
+
+	if (!IsValid(EscapeKeyComponent) || !IsValid(PlayerRespawnComponent) || !IsValid(BuildReadyComponent))
+	{
+		OutMessage = TEXT("탈출 테스트에 필요한 Core 컴포넌트가 없습니다.");
+		return false;
+	}
+	if (EscapeKeyComponent->GetInitState() != ENF_KeyInitState::NotStarted)
+	{
+		OutMessage = TEXT("이미 열쇠 초기 지급이 시작되었습니다. 새 PIE 세션에서 실행하세요.");
+		return false;
+	}
+	if (!EscapeKeyComponent->ValidateInitialAssignmentSettings(OutMessage))return false;
+	if (IsValid(BossEncounterComponent) && IsValid(BossEncounterComponent->GetActiveBoss()))
+	{
+		OutMessage = TEXT("보스가 활성화된 상태입니다. 보스 출현 전에 실행하세요.");
+		return false;
+	}
+
+	// 모든 사전 검증 이후에만 기존 페이즈 진행을 중단한다.
+	GetWorldTimerManager().ClearTimer(PhaseTimerHandle);
+	BuildReadyComponent->CancelResolve();
+	PlayerRespawnComponent->LockRespawnsAfterBossDefeat();
+	EnterEscape();
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Escape || bMatchFinalized)
+	{
+		OutMessage = TEXT("Escape 전환에 실패했습니다.");
+		return false;
+	}
+
+	// 보스 처치 이벤트와 보상은 만들지 않고, 기존 최초 열쇠 지급 절차만 재사용한다.
+	FNF_BossDefeatResult TestResult;
+	TestResult.LastHitPlayerState = Requester;
+	TestResult.LastHitPlayerID = Requester->GetPlayerId();
+	EscapeKeyComponent->BeginInitialAssignment(TestResult);
+	if (bMatchFinalized || EscapeKeyComponent->GetInitState() == ENF_KeyInitState::Failed)
+	{
+		OutMessage = TEXT("열쇠 지급에 실패했습니다. Output Log의 EscapeKey 로그를 확인하세요.");
+		return false;
+	}
+	if (!EscapeKeyComponent->IsKeyHolder(Requester))
+	{
+		OutMessage = TEXT("Escape로 전환했습니다. 열쇠 지급은 재시도 중입니다. NF_PrintMatchState로 확인하세요.");
+		return true;
+	}
+
+	OutMessage = FString::Printf(TEXT("Escape 테스트 준비 완료. 열쇠 보유자 PlayerId=%d, TeamId=%d. 팀원과 탈출구로 이동하세요."),
+		Requester->GetPlayerId(), Requester->NF_TeamID);
+	return true;
+#endif
 }
 
 void ANF_GameMode::EnterEscape()
@@ -652,7 +764,7 @@ UNF_EscapeKeyComponent* ANF_GameMode::GetEscapeKeyComponent() const
 
 void ANF_GameMode::AbortMatchDueToDepartures()
 {
-	AbortMatch(TEXT("참가자 이탈 한도에 도달하여 매치가 중단되었습니다."),ENF_MatchEndReason::DepartureLimit);
+	NFAbortMatch(TEXT("참가자 이탈 한도에 도달하여 매치가 중단되었습니다."),ENF_MatchEndReason::DepartureLimit);
 }
 
 void ANF_GameMode::HandleBuildResolveSucceeded()
@@ -675,10 +787,10 @@ void ANF_GameMode::HandleBuildResolveFailed(const FString& Reason)
 
 	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Build) return;
 
-	AbortMatch(Reason);
+	NFAbortMatch(Reason);
 }
 
-void ANF_GameMode::AbortMatch(const FString& Reason, ENF_MatchEndReason EndReason)
+void ANF_GameMode::NFAbortMatch(const FString& Reason, ENF_MatchEndReason EndReason)
 {
 	FNF_MatchResult Result;
 	Result.Outcome = ENF_MatchOutcome::Aborted;
@@ -709,7 +821,7 @@ void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssig
 
 	if (!IsValid(PlayerRespawnComponent))
 	{
-		AbortMatch(TEXT("최초 팀 스폰에 필요한 RespawnComponent가 없습니다."), ENF_MatchEndReason::RuntimeFailure);
+		NFAbortMatch(TEXT("최초 팀 스폰에 필요한 RespawnComponent가 없습니다."), ENF_MatchEndReason::RuntimeFailure);
 		return;
 	}
 
@@ -722,14 +834,14 @@ void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssig
 			PlayerState->GetWorld() != GetWorld() || !IsValid(PlayerState->GetPlayerController()) ||
 			Assignment.TeamId != PlayerState->NF_TeamID || Assignment.TeamId < 1 || Assignment.TeamId > 4)
 		{
-			AbortMatch(TEXT("최초 스폰을 위한 팀 배정 정보가 유효하지 않습니다."), ENF_MatchEndReason::RuntimeFailure);
+			NFAbortMatch(TEXT("최초 스폰을 위한 팀 배정 정보가 유효하지 않습니다."), ENF_MatchEndReason::RuntimeFailure);
 			return;
 		}
 
 		AssignedPlayers.Add(PlayerState);
 		if (!IsValid(PlayerRespawnComponent->FindTeamPlayerStart(PlayerState)))
 		{
-			AbortMatch(FString::Printf(
+			NFAbortMatch(FString::Printf(
 				TEXT("최초 팀 스폰 지점이 부족합니다. 팀원 수만큼 NF_TeamPlayerStart를 배치하세요. TeamId=%d"),
 				Assignment.TeamId), ENF_MatchEndReason::RuntimeFailure);
 			return;
@@ -778,7 +890,7 @@ void ANF_GameMode::TryCompleteInitialTeamSpawns()
 		ANF_PlayerState* PlayerState = Entry.Get();
 		if (!IsValid(PlayerState) || !IsValid(PlayerState->GetPlayerController()))
 		{
-			AbortMatch(TEXT("최초 팀 스폰 준비 중 플레이어가 이탈했습니다."), ENF_MatchEndReason::RuntimeFailure);
+			NFAbortMatch(TEXT("최초 팀 스폰 준비 중 플레이어가 이탈했습니다."), ENF_MatchEndReason::RuntimeFailure);
 			return;
 		}
 
@@ -891,7 +1003,7 @@ void ANF_GameMode::HandleFarmingPhaseExpired()
 
 	if (!IsValid(BossEncounterComponent))
 	{
-		AbortMatch(TEXT("보스 출현 컴포넌트가 없습니다."), ENF_MatchEndReason::RuntimeFailure);
+		NFAbortMatch(TEXT("보스 출현 컴포넌트가 없습니다."), ENF_MatchEndReason::RuntimeFailure);
 		return;
 	}
 
@@ -909,7 +1021,7 @@ void ANF_GameMode::HandleBossSpawnSucceeded(ANF_BossBase* Boss)
 		!IsValid(Boss) ||
 		BossEncounterComponent->GetActiveBoss() != Boss)
 	{
-		AbortMatch(TEXT("보스 출현 결과를 확인할 수 없습니다."), ENF_MatchEndReason::RuntimeFailure);
+		NFAbortMatch(TEXT("보스 출현 결과를 확인할 수 없습니다."), ENF_MatchEndReason::RuntimeFailure);
 		return;
 	}
 
@@ -925,7 +1037,7 @@ void ANF_GameMode::HandleBossSpawnFailed(const FString& Reason)
 
 	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Farming)return;
 
-	AbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
+	NFAbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
 }
 
 void ANF_GameMode::HandleBossDefeatResolved(const FNF_BossDefeatResult& DefeatResult)
@@ -1008,7 +1120,12 @@ void ANF_GameMode::HandleBossDefeatResolved(const FNF_BossDefeatResult& DefeatRe
 
 bool ANF_GameMode::RequestEscape(ANF_EscapeZone* Zone, ANF_PlayerState* Requester)
 {
-	if (!HasAuthority() || bMatchFinalized || bMatchAborting || bMatchCleanupNotified || !IsValid(EscapeComponent)) return false;
+	if (!HasAuthority() || bMatchFinalized || bMatchAborting || bMatchCleanupNotified || !IsValid(EscapeComponent))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] RequestRejected Authority=%d Finalized=%d Aborting=%d Cleanup=%d Component=%s"),
+			HasAuthority(), bMatchFinalized, bMatchAborting, bMatchCleanupNotified, *GetNameSafe(EscapeComponent.Get()));
+		return false;
+	}
 	return EscapeComponent->TryStartEscape(Zone, Requester);
 }
 
@@ -1022,18 +1139,48 @@ FNF_EscapeValidationResult ANF_GameMode::EvaluateEscapeRequest(ANF_EscapeZone* Z
 {
 	FNF_EscapeValidationResult Result;
 
-	if (!HasAuthority() || bMatchFinalized || bMatchAborting || bMatchCleanupNotified) return Result;
-	if (!IsValid(Zone) || Zone->GetWorld() != GetWorld() || !IsValid(Requester) || Requester->GetWorld() != GetWorld()) return Result;
+	if (!HasAuthority() || bMatchFinalized || bMatchAborting || bMatchCleanupNotified)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: AuthorityOrMatchEnding"));
+		return Result;
+	}
+	if (!IsValid(Zone) || Zone->GetWorld() != GetWorld() || !IsValid(Requester) || Requester->GetWorld() != GetWorld())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: InvalidZoneOrRequesterWorld"));
+		return Result;
+	}
 
 	const ANF_GameState* NFGameState = GetNFGameState();
-	if (!IsValid(NFGameState) || NFGameState->GetMatchPhase() != ENF_MatchPhase::Escape) return Result;
-	if (!IsValid(EscapeKeyComponent)) return Result;
+	if (!IsValid(NFGameState))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: MissingGameState"));
+		return Result;
+	}
+	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Escape)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: NotEscapePhase Phase=%d"), static_cast<int32>(NFGameState->GetMatchPhase()));
+		return Result;
+	}
+	if (!IsValid(EscapeKeyComponent))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: MissingKeyComponent"));
+		return Result;
+	}
 
 	ANF_PlayerState* Holder = EscapeKeyComponent->GetKeyHolder();
-	if (!IsValid(Holder) || Holder->GetWorld() != GetWorld() || !NFGameState->PlayerArray.Contains(Holder)) return Result;
+	if (!IsValid(Holder) || Holder->GetWorld() != GetWorld() || !NFGameState->PlayerArray.Contains(Holder))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: InvalidKeyHolder Holder=%s"), *GetNameSafe(Holder));
+		return Result;
+	}
 
 	// 탈출 상호작용은 같은 팀원이 대신할 수 없으며 열쇠 보유자가 직접 요청해야 한다.
-	if (Requester != Holder || Holder->NF_TeamID <= 0) return Result;
+	if (Requester != Holder || Holder->NF_TeamID <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: RequesterNotHolderOrInvalidTeam Requester=%s Holder=%s TeamId=%d"),
+			*GetNameSafe(Requester), *GetNameSafe(Holder), Holder->NF_TeamID);
+		return Result;
+	}
 
 	TArray<ANF_PlayerState*> TeamMembers;
 	for (APlayerState* BasePlayerState : NFGameState->PlayerArray)
@@ -1045,7 +1192,11 @@ FNF_EscapeValidationResult ANF_GameMode::EvaluateEscapeRequest(ANF_EscapeZone* Z
 	}
 
 	// 현재 매치 규칙은 2인 1팀이다.
-	if (TeamMembers.Num() != 2) return Result;
+	if (TeamMembers.Num() != 2)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: TeamMemberCount Count=%d TeamId=%d"), TeamMembers.Num(), Holder->NF_TeamID);
+		return Result;
+	}
 
 	ANF_PlayerState* Teammate = nullptr;
 	for (ANF_PlayerState* Member : TeamMembers)
@@ -1057,25 +1208,47 @@ FNF_EscapeValidationResult ANF_GameMode::EvaluateEscapeRequest(ANF_EscapeZone* Z
 		}
 	}
 
-	if (!IsValid(Teammate)) return Result;
+	if (!IsValid(Teammate))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: MissingTeammate"));
+		return Result;
+	}
 
 	Result.Holder = Holder;
 	Result.Teammate = Teammate;
 
 	// 열쇠 보유자는 탈출 진행 내내 생존, 행동 가능, 범위 안 상태여야 한다.
 	UAbilitySystemComponent* HolderASC = Holder->GetAbilitySystemComponent();
-	if (!IsValid(HolderASC)) return FNF_EscapeValidationResult();
-	if (HolderASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Dead)) return FNF_EscapeValidationResult();
-	if (HolderASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Downed)) return FNF_EscapeValidationResult();
+	if (!IsValid(HolderASC))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: MissingHolderASC"));
+		return FNF_EscapeValidationResult();
+	}
+	if (HolderASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Dead))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: HolderDead"));
+		return FNF_EscapeValidationResult();
+	}
+	if (HolderASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Downed))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: HolderDowned"));
+		return FNF_EscapeValidationResult();
+	}
 
 	APawn* HolderPawn = Holder->GetPawn();
 	if (!IsValid(HolderPawn) || HolderASC->GetAvatarActor() != HolderPawn || !Zone->ContainsPawn(HolderPawn))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: HolderPawnAvatarOrRange Pawn=%s Avatar=%s InRange=%d"),
+			*GetNameSafe(HolderPawn), *GetNameSafe(HolderASC->GetAvatarActor()), Zone->ContainsPawn(HolderPawn));
 		return FNF_EscapeValidationResult();
 	}
 
 	UAbilitySystemComponent* TeammateASC = Teammate->GetAbilitySystemComponent();
-	if (!IsValid(TeammateASC)) return FNF_EscapeValidationResult();
+	if (!IsValid(TeammateASC))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: MissingTeammateASC"));
+		return FNF_EscapeValidationResult();
+	}
 
 	// 팀원이 사망했다면 Pawn과 범위 상태에 관계없이 20초 단독 탈출 규칙을 적용한다.
 	if (TeammateASC->HasMatchingGameplayTag(NFTag_LifeState::State_Life_Dead))
@@ -1094,6 +1267,8 @@ FNF_EscapeValidationResult ANF_GameMode::EvaluateEscapeRequest(ANF_EscapeZone* Z
 	APawn* TeammatePawn = Teammate->GetPawn();
 	if (!IsValid(TeammatePawn) || TeammateASC->GetAvatarActor() != TeammatePawn)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[Escape] ValidationRejected: TeammatePawnOrAvatar Pawn=%s Avatar=%s"),
+			*GetNameSafe(TeammatePawn), *GetNameSafe(TeammateASC->GetAvatarActor()));
 		return FNF_EscapeValidationResult();
 	}
 
@@ -1136,14 +1311,14 @@ void ANF_GameMode::HandleInitialKeyAssignmentFailed(const FString& Reason)
 {
 	if (!HasAuthority() || bMatchFinalized)return;
 
-	AbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
+	NFAbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
 }
 
 void ANF_GameMode::HandleKeyOperationFailed(const FString& Reason)
 {
 	if (!HasAuthority() || bMatchFinalized)return;
 
-	AbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
+	NFAbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
 }
 
 void ANF_GameMode::HandleKeyStateChanged(const FNF_KeyPublicState& NewState)
@@ -1234,18 +1409,18 @@ void ANF_GameMode::HandleWaitingPhaseExpired()
 
 	if (GetNumPlayers() != InitialRequiredPlayers)
 	{
-		AbortMatch(TEXT("제한시간 안에 필요한 참가자가 접속하지 않았습니다."),ENF_MatchEndReason::WaitingPlayersTimeout);
+		NFAbortMatch(TEXT("제한시간 안에 필요한 참가자가 접속하지 않았습니다."),ENF_MatchEndReason::WaitingPlayersTimeout);
 		return;
 	}
 
 	if (!bTeamsReady)
 	{
-		AbortMatch(TEXT("제한시간 안에 팀 배정이 완료되지 않았습니다."),ENF_MatchEndReason::WaitingTeamsTimeout);
+		NFAbortMatch(TEXT("제한시간 안에 팀 배정이 완료되지 않았습니다."),ENF_MatchEndReason::WaitingTeamsTimeout);
 		return;
 	}
 
 	// 인원과 팀은 준비됐지만 참가자 수집 등의 문제로 Build에 진입하지 못한 경우.
-	AbortMatch(TEXT("제한시간 안에 매치 시작 초기화가 완료되지 않았습니다."),ENF_MatchEndReason::WaitingInitializationTimeout);
+	NFAbortMatch(TEXT("제한시간 안에 매치 시작 초기화가 완료되지 않았습니다."),ENF_MatchEndReason::WaitingInitializationTimeout);
 }
 
 void ANF_GameMode::DispatchMatchConclusion()

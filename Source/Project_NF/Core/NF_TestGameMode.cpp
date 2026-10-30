@@ -1,7 +1,10 @@
 #include "Core/NF_TestGameMode.h"
 
+#include "AbilitySystemComponent.h"
+#include "Core/Component/NF_EscapeKeyComponent.h"
 #include "Core/Match/NF_DedicatedMatchSubsystem.h"
 #include "Core/NF_GameState.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/State/NF_PlayerState.h"
 #include "TimerManager.h"
@@ -14,6 +17,50 @@ ANF_TestGameMode::ANF_TestGameMode()
 bool ANF_TestGameMode::ShouldUseDedicatedMatchSubsystem() const
 {
 	return false;
+}
+
+bool ANF_TestGameMode::RequestEscapeTest(ANF_PlayerState* Requester, FString& OutMessage)
+{
+	return TryStartEscapeTest(Requester, OutMessage);
+}
+
+FString ANF_TestGameMode::BuildMatchDebugState() const
+{
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+	return TEXT("이 빌드에서는 테스트 치트를 사용할 수 없습니다.");
+#else
+	if (!HasAuthority() || GetWorld()->WorldType != EWorldType::PIE)
+	{
+		return TEXT("PIE 테스트 게임모드의 서버에서만 상태를 조회할 수 있습니다.");
+	}
+
+	const ANF_GameState* NFGameState = GetGameState<ANF_GameState>();
+	if (!IsValid(NFGameState))return TEXT("NF_GameState가 없습니다.");
+
+	const FNF_KeyPublicState KeyState = NFGameState->GetKeyPublicState();
+	int32 HolderId = INDEX_NONE;
+	if (IsValid(KeyState.Holder))HolderId = KeyState.Holder->GetPlayerId();
+	FString Result = FString::Printf(TEXT("Phase=%s, TeamsReady=%d, Players=%d/%d, Remaining=%.1f\nKeyState=%s, HolderPlayerId=%d"),
+		*UEnum::GetValueAsString(NFGameState->GetMatchPhase()), AreTeamsReady(),
+		NumPlayers, InitialRequiredPlayers, NFGameState->GetRemainingPhaseTime(),
+		*UEnum::GetValueAsString(KeyState.State), HolderId);
+
+	if (const UNF_EscapeKeyComponent* KeyComponent = FindComponentByClass<UNF_EscapeKeyComponent>())
+	{
+		Result += FString::Printf(TEXT(", KeyInit=%s"), *UEnum::GetValueAsString(KeyComponent->GetInitState()));
+	}
+	for (APlayerState* BaseState : NFGameState->PlayerArray)
+	{
+		const ANF_PlayerState* State = Cast<ANF_PlayerState>(BaseState);
+		if (!IsValid(State))continue;
+		const APawn* Pawn = State->GetPawn();
+		const UAbilitySystemComponent* ASC = State->GetAbilitySystemComponent();
+		const bool bGASReady = IsValid(Pawn) && IsValid(ASC) && ASC->GetAvatarActor() == Pawn;
+		Result += FString::Printf(TEXT("\nPlayerId=%d, TeamId=%d, Pawn=%s, GASReady=%d"),
+			State->GetPlayerId(), State->NF_TeamID, *GetNameSafe(Pawn), bGASReady);
+	}
+	return Result;
+#endif
 }
 
 void ANF_TestGameMode::BeginPlay()
@@ -33,7 +80,7 @@ void ANF_TestGameMode::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("[TestGameMode] 테스트 인원은 1~8이어야 합니다. Current=%d"), InitialRequiredPlayers);
 		StopTeamAssignment();
-		AbortMatch(TEXT("테스트 게임모드의 인원 설정이 잘못되었습니다."));
+		NFAbortMatch(TEXT("테스트 게임모드의 인원 설정이 잘못되었습니다."));
 		return;
 	}
 
@@ -156,7 +203,7 @@ void ANF_TestGameMode::TryAssignTeams()
 			if (!PlayerState->SetNFTeamID(TeamId))
 			{
 				StopTeamAssignment();
-				AbortMatch(TEXT("테스트 팀 ID 적용에 실패했습니다."));
+				NFAbortMatch(TEXT("테스트 팀 ID 적용에 실패했습니다."));
 				return;
 			}
 		}

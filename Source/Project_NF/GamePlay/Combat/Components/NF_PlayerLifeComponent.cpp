@@ -16,6 +16,8 @@
 #include "GAS/Tags/NFTag_Player.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "Player/Data/NF_PlayerLifeDataAsset.h"
+#include "GameFramework/PlayerController.h"
+#include "GAS/Abilities/NFGA_Revive.h"
 
 UNF_PlayerLifeComponent::UNF_PlayerLifeComponent()
 {
@@ -174,6 +176,78 @@ bool UNF_PlayerLifeComponent::Revive()
 	}
 	
 	return ChangeLifeState(ENFPlayerLifeState::Alive);
+}
+
+void UNF_PlayerLifeComponent::NF_Interaction(const APlayerController* InteractedController)
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	
+	if (LifeState != ENFPlayerLifeState::Downed)
+	{
+		return;
+	}
+	
+	if (!IsValid(InteractedController))
+	{
+		return;
+	}
+	
+	APawn* ReviverPawn = InteractedController->GetPawn();
+	
+	if (!IsValid(ReviverPawn))
+	{
+		return;
+	}
+	
+	if (!CanReviveFrom(ReviverPawn))
+	{
+		return;
+	}
+	
+	APawn* TargetPawn = Cast<APawn>(GetOwner());
+	
+	if (!IsValid(TargetPawn))
+	{
+		return;
+	}
+	
+	UAbilitySystemComponent* ReviverASC =
+		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(ReviverPawn);
+	
+	if (!IsValid(ReviverASC) || ReviverASC->GetAvatarActor() != ReviverPawn)
+	{
+		return;
+	}
+	
+	for (FGameplayAbilitySpec& AbilitySpec : ReviverASC->GetActivatableAbilities())
+	{
+		if (!IsValid(AbilitySpec.Ability) || !AbilitySpec.Ability->IsA(UNFGA_Revive::StaticClass()))
+		{
+			continue;
+		}
+		
+		UNFGA_Revive* ReviveAbility = Cast<UNFGA_Revive>(AbilitySpec.GetPrimaryInstance());
+		
+		if (!IsValid(ReviveAbility))
+		{
+			return;
+		}
+		
+		if (!ReviveAbility->SetReviveTarget(TargetPawn))
+		{
+			return;
+		}
+		
+		if (!ReviverASC->TryActivateAbility(AbilitySpec.Handle))
+		{
+			ReviveAbility->ClearPendingReviveTarget();
+		}
+		
+		return;
+	}
 }
 
 bool UNF_PlayerLifeComponent::CanReviveFrom(APawn* ReviverPawn) const
