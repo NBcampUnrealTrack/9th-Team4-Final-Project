@@ -58,7 +58,7 @@ ANF_WeaponProjectile::ANF_WeaponProjectile()
 	ProjectileMovementComponent->ProjectileGravityScale = 0.f;
 	ProjectileMovementComponent->bRotationFollowsVelocity = true;
 
-	InitialLifeSpan = 2.f;
+	InitialLifeSpan = 1.f;
 }
 
 void ANF_WeaponProjectile::BeginPlay()
