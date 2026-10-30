@@ -35,6 +35,8 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void OnRep_PlayerState() override;
 	
+	virtual void AcknowledgePossession(class APawn* P) override;
+	
 	virtual void BeginPlay() override;
 	
 	virtual void SetupInputComponent() override;
