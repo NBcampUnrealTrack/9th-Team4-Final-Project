@@ -1,11 +1,13 @@
 ﻿
 #include "NFGA_PlayerDeath.h"
 
+#include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GAS/Tags/NFTag_LifeState.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Player/Data/NF_PlayerDataAsset.h"

@@ -20,7 +20,8 @@ public:
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxHealth);
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, Health);
 	
-	//ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxDefence);
+	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, InComingDamage)
+	
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, Defence);
 	
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxShield);
@@ -47,8 +48,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Player|Attribute")
 	FGameplayAttributeData Health;
 	
-	/*UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_MaxDefence, Category = "Player|Attribute")
-	FGameplayAttributeData MaxDefence = 100.0f;	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_InComingDamage, Category = "Player|Attribute")
+	FGameplayAttributeData InComingDamage = 0.0f;
 	
 	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_Defence, Category = "Player|Attribute")
 	FGameplayAttributeData Defence = 0.0f;
@@ -65,8 +66,8 @@ protected:
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldHealth);
 	
-	/*UFUNCTION()
-	void OnRep_MaxDefence(const FGameplayAttributeData& OldMaxDefence);*/
+	UFUNCTION()
+	void OnRep_InComingDamage(const FGameplayAttributeData& OldInComingDamage);
 	
 	UFUNCTION()
 	void OnRep_Defence(const FGameplayAttributeData& OldDefence);
@@ -84,6 +85,8 @@ private:
 	
 	//킬러를 의미
 	TWeakObjectPtr<APlayerState> LethalDamageInstigatorPlayerState;
+	
+	void BlockShieldRecovery(const FGameplayEffectModCallbackData& Data);
 	
 	void IsOutOfHealth(const FGameplayEffectModCallbackData& Data);
 	void IsOutOfShield(const FGameplayEffectModCallbackData& Data);

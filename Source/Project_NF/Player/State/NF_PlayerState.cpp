@@ -35,6 +35,15 @@ void ANF_PlayerState::InitAbilitySystem(APawn* AvatarPawn)
 
 	GiveDefaultAbility();
 	
+	if (HasAuthority() == true && IsValid(PlayerStatusAttribute) == true)
+	{
+		const float MaxHealth = PlayerStatusAttribute->GetMaxHealth();
+		const float MaxShield = PlayerStatusAttribute->GetMaxShield();
+        
+		PlayerASC->SetNumericAttributeBase(UNF_PlayerStatusAttribute::GetHealthAttribute(), MaxHealth);
+		PlayerASC->SetNumericAttributeBase(UNF_PlayerStatusAttribute::GetShieldAttribute(), MaxShield);
+	}
+	
 	PlayerShieldRecovery();
 }
 
@@ -115,7 +124,7 @@ void ANF_PlayerState::PlayerShieldRecovery()
 			PlayerASC->MakeOutgoingSpec(NF_PlayerDataAsset->NF_ShieldRecovery_GEClass, 1.0f, PlayerASC->MakeEffectContext());
 		if (EffectSpecHandle.IsValid() == false) return;
 		
-		EffectSpecHandle.Data->SetSetByCallerMagnitude(NFTag_Player::Player_Data_ShieldRecovery, NF_PlayerDataAsset->ShieldRecoveryAmount);
+		EffectSpecHandle.Data->SetSetByCallerMagnitude(NFTag_Player::Player_Data_ShieldRecoveryAmount, NF_PlayerDataAsset->ShieldRecoveryAmount);
 		PlayerASC->ApplyGameplayEffectSpecToSelf(*EffectSpecHandle.Data.Get());
 		
 		bIsApplyShieldRecovery = true;

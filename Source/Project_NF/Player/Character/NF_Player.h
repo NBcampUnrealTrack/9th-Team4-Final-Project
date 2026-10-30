@@ -143,12 +143,6 @@ private:
 #pragma endregion
 	
 	
-#pragma region BuildShop
-private:
-	void OnEnablePlayerMovementFromType(APlayerController* SendPlayerController, ENF_BuildShopUIState BuildShopType);
-#pragma endregion 
-	
-	
 #pragma region AbilitySystem
 	UFUNCTION()
 	void OnOutOfHealthCpp();

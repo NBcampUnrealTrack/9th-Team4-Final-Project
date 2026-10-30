@@ -26,6 +26,7 @@ UNF_PlayerLifeComponent::UNF_PlayerLifeComponent()
 	SetIsReplicatedByDefault(true);
 }
 
+
 void UNF_PlayerLifeComponent::BeginPlay()
 {
 	Super::BeginPlay();

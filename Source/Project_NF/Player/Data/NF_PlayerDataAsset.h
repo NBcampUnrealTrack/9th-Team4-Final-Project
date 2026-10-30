@@ -38,11 +38,14 @@ public:
 	FName MeleeSocket_End = "MeleeSocket_End";
 	
 	
-	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "MeleeAttackDamage (음수)")
-	float MeleeAttackDamage = 10.0f;
+	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "MeleeAttackDamage (양수)")
+	float MeleeAttackDamage = 30.0f;
 	
 	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "ShieldRecoveryAmount (양수)")
-	float ShieldRecoveryAmount = 5.0f;
+	float ShieldRecoveryAmount = 0.1f;
+	
+	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "ShieldRecoveryBlockedDuration (양수)")
+	float ShieldRecoveryBlockedDuration = 3.0f;
 	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Interact" , DisplayName = "InteractionRange (상호작용 범위)")
@@ -61,6 +64,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
 	TSubclassOf<UGameplayEffect> NF_ShieldRecovery_GEClass;
 	
+	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
+	TSubclassOf<UGameplayEffect> NF_ShieldRecoveryBlocked_GEClass;
 	
 	UPROPERTY(EditAnywhere, Category = "PlayerState|Player_Level")
 	TObjectPtr<UDataTable> PlayerLevelDataTable;

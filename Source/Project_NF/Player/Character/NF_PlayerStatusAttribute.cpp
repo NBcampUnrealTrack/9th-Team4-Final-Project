@@ -9,12 +9,13 @@
 #include "GAS/Tags/NFTag_Player.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/Data/NF_PlayerDataAsset.h"
+#include "Player/State/NF_PlayerState.h"
 
 
 UNF_PlayerStatusAttribute::UNF_PlayerStatusAttribute()
 {
 	InitHealth(GetMaxHealth());
-	//InitDefence(GetMaxDefence());
 	InitShield(GetMaxShield());
 }
 
@@ -25,7 +26,6 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 	
 	if (Attribute == GetMaxHealthAttribute())
 	{
-	
 		NewValue = FMath::Max<float>(1.0f, NewValue);
 	}
 	
@@ -50,6 +50,7 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxHealth());
 	}
 	
+
 	if (Attribute == GetMaxShieldAttribute())
 	{
 		NewValue = FMath::Max<float>(1.0f, NewValue);
@@ -59,8 +60,6 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 	{
 		NewValue = FMath::Clamp<float>(NewValue, 0.0f, GetMaxShield());
 	}
-	
-	
 }
 
 
@@ -73,10 +72,49 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 		Data.EvaluatedData.Magnitude, GetHealth(), GetShield()),
 		true, true, FLinearColor::Black, 5.0f);*/
 	
+	SetShield(GetShield()-GetInComingDamage());
+	SetHealth(GetHealth()-GetInComingDamage());
+	SetInComingDamage(0.0f);
+	
 	IsOutOfHealth(Data);
 	IsOutOfShield(Data);
+	
+	BlockShieldRecovery(Data);
 }
 
+
+void UNF_PlayerStatusAttribute::BlockShieldRecovery(const FGameplayEffectModCallbackData& Data)
+{
+	bool bIsDamaged = false;
+	if (Data.EvaluatedData.Attribute == GetInComingDamageAttribute() && Data.EvaluatedData.Magnitude > 0.0f)
+	{
+		bIsDamaged = true;
+	}
+	if (Data.EvaluatedData.Attribute == GetShieldAttribute() && Data.EvaluatedData.Magnitude < 0.0f)
+	{
+		bIsDamaged = true;
+	}
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute() && Data.EvaluatedData.Magnitude < 0.0f)
+	{
+		bIsDamaged = true;
+	}
+	if (bIsDamaged == false) return;
+	
+	auto* PlayerState = Cast<ANF_PlayerState>(GetOwningActor());
+	if (IsValid(PlayerState) == false) return;
+	if (IsValid(PlayerState->NF_PlayerDataAsset) == false) return;
+	if (IsValid(PlayerState->NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass) == false) return;
+	
+	UAbilitySystemComponent& ASC = Data.Target;
+	const FGameplayEffectSpecHandle EffectSpecHandle = ASC.MakeOutgoingSpec(
+		PlayerState->NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass, 1.0f, ASC.MakeEffectContext());
+	if (EffectSpecHandle.IsValid() == false) return;
+	
+	EffectSpecHandle.Data->SetSetByCallerMagnitude(
+		NFTag_Player::Player_Data_ShieldRecoveryBlockedDuration, PlayerState->NF_PlayerDataAsset->ShieldRecoveryBlockedDuration);
+	
+	ASC.ApplyGameplayEffectSpecToSelf(*EffectSpecHandle.Data.Get());
+}
 
 void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackData& Data)
 {
@@ -88,6 +126,7 @@ void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackDa
 		{
 			bIsOutOfHealth = true;
 			
+			GetOwningAbilitySystemComponent()->AddLooseGameplayTag(NFTag_Player::Player_State_Death);
 			LethalDamageInstigatorPlayerState = Cast<APlayerState>(Data.EffectSpec.GetContext().GetOriginalInstigator());
 			OnOutOfHealth.Broadcast();
 		}
@@ -132,7 +171,7 @@ void UNF_PlayerStatusAttribute::GetLifetimeReplicatedProps(TArray<class FLifetim
 	
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxHealth, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Health, COND_None, REPNOTIFY_Always);
-	//DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxDefence, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, InComingDamage, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Defence, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxShield, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Shield, COND_None, REPNOTIFY_Always);
@@ -150,11 +189,10 @@ void UNF_PlayerStatusAttribute::OnRep_Health(const FGameplayAttributeData& OldHe
 	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, Health, OldHealth);
 }
 
-
-/*void UNF_PlayerStatusAttribute::OnRep_MaxDefence(const FGameplayAttributeData& OldMaxDefence)
+void UNF_PlayerStatusAttribute::OnRep_InComingDamage(const FGameplayAttributeData& OldInComingDamage)
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, MaxDefence, OldMaxDefence);
-}*/
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, InComingDamage, OldInComingDamage);
+}
 
 
 void UNF_PlayerStatusAttribute::OnRep_Defence(const FGameplayAttributeData& OldDefence)
