@@ -36,11 +36,12 @@ ANF_Monster::ANF_Monster()
 	//2026-10-23 데디환경 스폰
 	bAlwaysRelevant = true;
 
-	NetUpdateFrequency = 30.0f;
-	MinNetUpdateFrequency = 10.0f;
+	SetNetUpdateFrequency(30.0f);
+	SetMinNetUpdateFrequency(10.0f);
 
 	// 2026-10-22 몬스터 Mesh 의 콜리전 설정 수정 요청
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	GetMesh()->SetCollisionObjectType(ECC_Pawn); //카메라간섭이슈해결
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	
 	MonsterASC =
