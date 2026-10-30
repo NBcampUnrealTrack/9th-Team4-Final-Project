@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "TimerManager.h"
+#include "Data/Interface/NF_InteractionInterface.h"
 #include "NF_PlayerLifeComponent.generated.h"
 
 class UAbilitySystemComponent;
@@ -41,12 +42,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHealthReachedZero);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PROJECT_NF_API UNF_PlayerLifeComponent : public UActorComponent
+class PROJECT_NF_API UNF_PlayerLifeComponent : public UActorComponent, public INF_InteractionInterface
 {
 	GENERATED_BODY()
 
 public:
 	UNF_PlayerLifeComponent();
+	
+	virtual void NF_Interaction(const APlayerController* InteractedController) override;
 	
 	// 현재 상태 가져오기
 	UFUNCTION(BlueprintPure, Category = "Life")
