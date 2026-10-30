@@ -36,17 +36,16 @@ void UNF_PlayerLifeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		if (bLifeBuildLockApplied)
 		{
-			UAbilitySystemComponent* ASC =
-				UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
+			const FGameplayTag BuildLockedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("State.Build.Locked")));
 			
-			if (IsValid(ASC))
+			// 저장된 ASC에서 Build 잠금 제거
+			if (UAbilitySystemComponent* LockedASC = BuildLockASC.Get())
 			{
-				const FGameplayTag BuildLockedTag =
-					FGameplayTag::RequestGameplayTag(
-						FName(TEXT("State.Build.Locked")));
-				
-				ASC->RemoveLooseGameplayTag(BuildLockedTag);
+				LockedASC->RemoveLooseGameplayTag(BuildLockedTag);
 			}
+			
+			// 잠금 소유 정보 정리
+			BuildLockASC.Reset();
 			
 			bLifeBuildLockApplied = false;
 		}
@@ -330,11 +329,19 @@ bool UNF_PlayerLifeComponent::ChangeLifeState(ENFPlayerLifeState NewState)
 		if (bShouldLockBuild && !bLifeBuildLockApplied)
 		{
 			ASC->AddLooseGameplayTag(BuildLockedTag);
+			// 잠금을 적용한 ASC 저장
+			BuildLockASC = ASC;
 			bLifeBuildLockApplied = true;
 		}
 		else if (!bShouldLockBuild && bLifeBuildLockApplied)
 		{
-			ASC->RemoveLooseGameplayTag(BuildLockedTag);
+			// 저장된 ASC에서 Build 잠금 제거
+			if (UAbilitySystemComponent* LockedASC = BuildLockASC.Get())
+			{
+				LockedASC->RemoveLooseGameplayTag(BuildLockedTag);
+			}
+			// 잠금 소유 정보 정리
+			BuildLockASC.Reset();
 			bLifeBuildLockApplied = false;
 		}
 	}

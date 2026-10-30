@@ -18,6 +18,9 @@ public:
 	virtual void Logout(AController* Exiting) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	bool RequestEscapeTest(ANF_PlayerState* Requester, FString& OutMessage);
+	FString BuildMatchDebugState() const;
+
 protected:
 	virtual bool ShouldUseDedicatedMatchSubsystem() const override;
 

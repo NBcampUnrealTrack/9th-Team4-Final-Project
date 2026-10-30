@@ -5,7 +5,7 @@
 #include "NF_TeamPlayerStart.generated.h"
 
 // @owner : 조민웅 | 2026-10-27
-// 목적: 팀별 플레이어 리스폰 위치를 제공한다.
+// 목적: 팀별 플레이어의 최초 스폰과 리스폰 위치를 제공한다. 팀원 수만큼 배치한다.
 UCLASS()
 class PROJECT_NF_API ANF_TeamPlayerStart : public APlayerStart
 {

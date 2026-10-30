@@ -31,6 +31,9 @@ public:
 	void HandlePlayerRestarted(AController* Controller);
 	void HandlePlayerLeaving(ANF_PlayerState* PlayerState);
 
+	// 최초 스폰과 리스폰이 같은 팀 지점 예약을 사용한다.
+	ANF_TeamPlayerStart* FindTeamPlayerStart(ANF_PlayerState* PlayerState);
+
 	void BindAssignedLifeComponents(
 		const TArray<UNF_PlayerLifeComponent*>& LifeComponents);
 
@@ -57,6 +60,7 @@ private:
 		TWeakObjectPtr<UNF_PlayerLifeComponent>> BoundLifeComponents;
 
 	TMap<TWeakObjectPtr<ANF_PlayerState>, FTimerHandle> RespawnTimerHandles;
+	TMap<TWeakObjectPtr<ANF_PlayerState>, TWeakObjectPtr<ANF_TeamPlayerStart>> AssignedPlayerStarts;
 
 	bool bTeamsReady = false;
 	bool bRespawnLockedByBossDefeat = false;
@@ -89,6 +93,5 @@ private:
 
 	void CancelAllPendingRespawns(bool bMarkEliminated);
 
-	ANF_TeamPlayerStart* FindTeamPlayerStart(int32 TeamId) const;
 	void RetryTeamPendingHealthZeroChecks(int32 TeamId);
 };

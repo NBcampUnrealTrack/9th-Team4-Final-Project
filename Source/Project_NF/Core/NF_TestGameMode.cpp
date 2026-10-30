@@ -1,11 +1,11 @@
 #include "Core/NF_TestGameMode.h"
 
 #include "AbilitySystemComponent.h"
+#include "Core/Component/NF_EscapeKeyComponent.h"
 #include "Core/Match/NF_DedicatedMatchSubsystem.h"
 #include "Core/NF_GameState.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "GamePlay/Combat/Components/NF_PlayerLifeComponent.h"
 #include "Player/State/NF_PlayerState.h"
 #include "TimerManager.h"
 
@@ -17,6 +17,50 @@ ANF_TestGameMode::ANF_TestGameMode()
 bool ANF_TestGameMode::ShouldUseDedicatedMatchSubsystem() const
 {
 	return false;
+}
+
+bool ANF_TestGameMode::RequestEscapeTest(ANF_PlayerState* Requester, FString& OutMessage)
+{
+	return TryStartEscapeTest(Requester, OutMessage);
+}
+
+FString ANF_TestGameMode::BuildMatchDebugState() const
+{
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
+	return TEXT("이 빌드에서는 테스트 치트를 사용할 수 없습니다.");
+#else
+	if (!HasAuthority() || GetWorld()->WorldType != EWorldType::PIE)
+	{
+		return TEXT("PIE 테스트 게임모드의 서버에서만 상태를 조회할 수 있습니다.");
+	}
+
+	const ANF_GameState* NFGameState = GetGameState<ANF_GameState>();
+	if (!IsValid(NFGameState))return TEXT("NF_GameState가 없습니다.");
+
+	const FNF_KeyPublicState KeyState = NFGameState->GetKeyPublicState();
+	int32 HolderId = INDEX_NONE;
+	if (IsValid(KeyState.Holder))HolderId = KeyState.Holder->GetPlayerId();
+	FString Result = FString::Printf(TEXT("Phase=%s, TeamsReady=%d, Players=%d/%d, Remaining=%.1f\nKeyState=%s, HolderPlayerId=%d"),
+		*UEnum::GetValueAsString(NFGameState->GetMatchPhase()), AreTeamsReady(),
+		NumPlayers, InitialRequiredPlayers, NFGameState->GetRemainingPhaseTime(),
+		*UEnum::GetValueAsString(KeyState.State), HolderId);
+
+	if (const UNF_EscapeKeyComponent* KeyComponent = FindComponentByClass<UNF_EscapeKeyComponent>())
+	{
+		Result += FString::Printf(TEXT(", KeyInit=%s"), *UEnum::GetValueAsString(KeyComponent->GetInitState()));
+	}
+	for (APlayerState* BaseState : NFGameState->PlayerArray)
+	{
+		const ANF_PlayerState* State = Cast<ANF_PlayerState>(BaseState);
+		if (!IsValid(State))continue;
+		const APawn* Pawn = State->GetPawn();
+		const UAbilitySystemComponent* ASC = State->GetAbilitySystemComponent();
+		const bool bGASReady = IsValid(Pawn) && IsValid(ASC) && ASC->GetAvatarActor() == Pawn;
+		Result += FString::Printf(TEXT("\nPlayerId=%d, TeamId=%d, Pawn=%s, GASReady=%d"),
+			State->GetPlayerId(), State->NF_TeamID, *GetNameSafe(Pawn), bGASReady);
+	}
+	return Result;
+#endif
 }
 
 void ANF_TestGameMode::BeginPlay()
@@ -65,7 +109,7 @@ void ANF_TestGameMode::PostLogin(APlayerController* NewPlayer)
 		LoginOrder.AddUnique(TWeakObjectPtr<ANF_PlayerState>(PlayerState));
 	}
 
-	// PostLogin 직후에는 Pawn이 없을 수 있으므로 타이머에서 준비 여부를 확인한다.
+	// 접속 인원과 PlayerState가 모이면 Pawn 생성 전에 팀을 배정한다.
 }
 
 void ANF_TestGameMode::Logout(AController* Exiting)
@@ -130,28 +174,11 @@ void ANF_TestGameMode::TryAssignTeams()
 		return;
 	}
 
-	// 한 명이라도 초기 스폰이나 GAS 연결이 끝나지 않았으면 다음 호출에서 재확인한다.
+	// Pawn과 GAS Avatar는 팀 배정 이후 부모 GameMode에서 생성 및 확인한다.
 	for (const TWeakObjectPtr<ANF_PlayerState>& Entry : LoginOrder)
 	{
 		ANF_PlayerState* PlayerState = Entry.Get();
-		if (!IsValid(PlayerState))
-		{
-			return;
-		}
-
-		APawn* PlayerPawn = PlayerState->GetPawn();
-		if (!IsValid(PlayerPawn) || PlayerPawn->GetPlayerState<ANF_PlayerState>() != PlayerState)
-		{
-			return;
-		}
-
-		UAbilitySystemComponent* ASC = PlayerState->GetAbilitySystemComponent();
-		if (!IsValid(ASC) || ASC->GetAvatarActor() != PlayerPawn)
-		{
-			return;
-		}
-
-		if (!IsValid(PlayerPawn->FindComponentByClass<UNF_PlayerLifeComponent>()))
+		if (!IsValid(PlayerState) || !IsValid(PlayerState->GetPlayerController()))
 		{
 			return;
 		}
@@ -186,12 +213,8 @@ void ANF_TestGameMode::TryAssignTeams()
 		Assignment.TeamId = TeamId;
 	}
 
-	// 기존 LifeComponent 확인 및 NotifyTeamsReady -> Build 진입 경로를 재사용한다.
+	// 팀 배정은 한 번만 제출한다. 이후 스폰 및 GAS 준비 재확인은 부모가 담당한다.
 	HandleServerTeamIdsAssigned(Assignments);
-
-	if (AreTeamsReady())
-	{
-		UE_LOG(LogTemp, Log, TEXT("[TestGameMode] 접속 순서 기준 팀 배정 완료. Players=%d, PlayersPerTeam=%d"), Assignments.Num(), PlayersPerTeam);
-		StopTeamAssignment();
-	}
+	UE_LOG(LogTemp, Log, TEXT("[TestGameMode] 접속 순서 기준 팀 배정 제출. Players=%d, PlayersPerTeam=%d"), Assignments.Num(), PlayersPerTeam);
+	StopTeamAssignment();
 }
