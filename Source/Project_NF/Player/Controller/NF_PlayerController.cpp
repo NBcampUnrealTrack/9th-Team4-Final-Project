@@ -12,6 +12,7 @@
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/Data/NF_PlayerControllerDataAsset.h"
 #include "TimerManager.h"
+#include "Component/MotionMatchingComponent.h"
 #include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Player/Component/NF_MatchResultPresenterComponent.h"
@@ -311,6 +312,34 @@ void ANF_PlayerController::OnInteractBuildShop(APlayerController* SendController
 	if (BuildShopType == ENF_BuildShopUIState::BuildOpened)
 	{
 		ReleaseGameplayInputForUI();
+		
+		SetIgnoreMoveInput(true);
+		SetIgnoreLookInput(true);
+	}
+	else if (BuildShopType == ENF_BuildShopUIState::BuildClosed)
+	{
+		ResetIgnoreMoveInput();
+		ResetIgnoreLookInput();
+	}
+	
+	if (IsLocalController() == true)
+	{
+		if (IsValid(GetPawn()) == false) return;
+		
+		auto* MotionMatchingComponent = GetPawn()->FindComponentByClass<UMotionMatchingComponent>();
+		if (IsValid(MotionMatchingComponent) == false) return;
+		
+		if (BuildShopType == ENF_BuildShopUIState::BuildOpened)
+		{
+			MotionMatchingComponent->SetFeatureEnabled(EMotionMatchingFeature::Jump, false);
+			MotionMatchingComponent->SetFeatureEnabled(EMotionMatchingFeature::Traversal, false);
+		}
+		
+		if (BuildShopType == ENF_BuildShopUIState::BuildClosed)
+		{
+			MotionMatchingComponent->SetFeatureEnabled(EMotionMatchingFeature::Jump, true);
+			MotionMatchingComponent->SetFeatureEnabled(EMotionMatchingFeature::Traversal, true);
+		}
 	}
 }
 

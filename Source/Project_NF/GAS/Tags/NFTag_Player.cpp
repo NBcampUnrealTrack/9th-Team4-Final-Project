@@ -30,5 +30,13 @@ namespace  NFTag_Player
 	
 	
 	// @Owner: 명현 | 2026-10-29
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Data_ShieldRecovery, "Player.Data.ShieldRecovery", "플레이어의 쉴드 회복 데이터 전송용")
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Data_ShieldRecoveryAmount, "Player.Data.ShieldRecoveryAmount", "플레이어의 쉴드 회복 데이터 전송용")
+	
+	// @Owner: 명현 | 2026-10-29
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Data_ShieldRecoveryBlockedDuration, 
+		"Player.Data.ShieldRecoveryBlockedDuration", "플레이어의 쉴드 회복 불가 상태의 지속 시간 데이터 전송용")
+	
+	// @Owner: 명현 | 2026-10-30
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_State_ShieldRecoveryBlocked, 
+		"Player.State.ShieldRecoveryBlocked", "플레이어가 쉴드 회복이 불가능한 상태")
 }

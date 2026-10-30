@@ -21,6 +21,7 @@
 #include "Player/State/NF_PlayerState.h"
 #include "Engine/LocalPlayer.h"
 #include "GamePlay/ConsumableItems/NF_ConsumableComponent.h"
+#include "GAS/Abilities/NFGA_PlayerDeath.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UpperBodyBlend/UpperBodyLayer.h"
@@ -40,6 +41,7 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 		VisualMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		VisualMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 		VisualMesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+		VisualMesh->SetCollisionObjectType(ECC_Pawn);
 	}
 	
 	
@@ -123,7 +125,6 @@ void ANF_Player::ConfigBindDelegate()
 {
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, OnTryAction);
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerBindingSkill, OnSkillBind);
-	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnInteractBuildShop, OnEnablePlayerMovementFromType);
 }
 
 
@@ -276,11 +277,22 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 		UE_LOG(LogTemp, Warning, TEXT("ServerRPC_상호작용"));
 	
 		if (UNF_PlayerActionDelegateSubsystem::IsControllerMatchedToThisPawn(SendController, this) == false) return;
+		if (IsValid(TargetActor) == false) return;
 	
 		auto* NF_InteractionInterface = Cast<INF_InteractionInterface>(TargetActor);
-		if (NF_InteractionInterface == nullptr) return;
-				
-		NF_InteractionInterface->NF_Interaction(SendController);
+		if (NF_InteractionInterface != nullptr)
+		{
+			NF_InteractionInterface->NF_Interaction(SendController);
+		}
+	
+		TArray<UActorComponent*> TargetActorComponent = TargetActor->GetComponentsByInterface(UNF_InteractionInterface::StaticClass());
+		for (UActorComponent* InteractionComponent : TargetActorComponent)
+		{
+			auto* InteractionInterfaceComponent = Cast<INF_InteractionInterface>(InteractionComponent);
+			if (InteractionInterfaceComponent == nullptr) continue;
+
+			InteractionInterfaceComponent->NF_Interaction(SendController);
+		}
 	}
 
 	FHitResult ANF_Player::GetActorFromLineTrace()
@@ -322,6 +334,7 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 #pragma endregion 
 
 
+
 void ANF_Player::UpdateCameraArmLength(float DeltaSeconds)
 {
 	if (IsLocallyControlled() == true)
@@ -356,7 +369,6 @@ void ANF_Player::UpdateCameraArmLength(float DeltaSeconds)
 		SpringArmComponent->TargetArmLength = 
 			FMath::FInterpTo(SpringArmComponent->TargetArmLength, TargetCameraArmLength, DeltaSeconds, CameraArmInterpSpeed);
 	}
-	
 }
 
 
@@ -374,23 +386,6 @@ void ANF_Player::OnSkillBind(APlayerController* SendController, ENF_PlayerAction
 	{
 		NF_BuildComponent->AssignSelectedActiveSkill(SkillButtonB_InputID);
 		return;
-	}
-}
-
-
-void ANF_Player::OnEnablePlayerMovementFromType(APlayerController* SendController, ENF_BuildShopUIState BuildShopType)
-{
-	if (IsLocallyControlled() == true)
-	{
-		if (BuildShopType == ENF_BuildShopUIState::BuildOpened)
-		{
-			GetCharacterMovement()->SetMovementMode(MOVE_None);
-		}
-	
-		if (BuildShopType == ENF_BuildShopUIState::BuildClosed)
-		{
-			GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-		}
 	}
 }
 
