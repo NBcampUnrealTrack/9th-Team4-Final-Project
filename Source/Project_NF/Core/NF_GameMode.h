@@ -79,7 +79,7 @@ protected:
 
 	// 팀 배정 이후의 생존 상태 초기화와 매치 시작 처리를 공통으로 사용한다.
 	void HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssignment>& Assignments);
-	void AbortMatch(const FString& Reason, ENF_MatchEndReason EndReason = ENF_MatchEndReason::RuntimeFailure);
+	void NFAbortMatch(const FString& Reason, ENF_MatchEndReason EndReason = ENF_MatchEndReason::RuntimeFailure);
 
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Match")
 	int32 InitialRequiredPlayers = 8;

@@ -194,7 +194,7 @@ void ANF_GameMode::RestartPlayer(AController* NewPlayer)
 	ANF_TeamPlayerStart* TeamStart = PlayerRespawnComponent->FindTeamPlayerStart(PlayerState);
 	if (!IsValid(TeamStart))
 	{
-		AbortMatch(FString::Printf(
+		NFAbortMatch(FString::Printf(
 			TEXT("팀 스폰 지점이 부족합니다. 팀원 수만큼 NF_TeamPlayerStart를 배치하세요. TeamId=%d"),
 			PlayerState->NF_TeamID), ENF_MatchEndReason::RuntimeFailure);
 		return;
@@ -203,7 +203,7 @@ void ANF_GameMode::RestartPlayer(AController* NewPlayer)
 	RestartPlayerAtPlayerStart(NewPlayer, TeamStart);
 	if (!IsValid(NewPlayer->GetPawn()))
 	{
-		AbortMatch(FString::Printf(TEXT("팀 PlayerStart에서 Pawn 생성 실패. PlayerId=%d, Start=%s"),
+		NFAbortMatch(FString::Printf(TEXT("팀 PlayerStart에서 Pawn 생성 실패. PlayerId=%d, Start=%s"),
 			PlayerState->GetPlayerId(), *GetNameSafe(TeamStart)), ENF_MatchEndReason::RuntimeFailure);
 		return;
 	}
@@ -532,7 +532,7 @@ void ANF_GameMode::HandleBuildPhaseExpired()
 
 	if (!IsValid(BuildReadyComponent))
 	{
-		AbortMatch(TEXT("빌드 준비 컴포넌트가 없습니다."));
+		NFAbortMatch(TEXT("빌드 준비 컴포넌트가 없습니다."));
 		return;
 	}
 
@@ -549,7 +549,7 @@ void ANF_GameMode::EnterFarming()
 
 	if (!NFGameState->AuthoritySetTimedMatchPhase(ENF_MatchPhase::Farming, FarmingDuration))
 	{
-		AbortMatch(TEXT("파밍 페이즈 진입에 실패했습니다."));
+		NFAbortMatch(TEXT("파밍 페이즈 진입에 실패했습니다."));
 		return;
 	}
 
@@ -571,7 +571,7 @@ void ANF_GameMode::EnterBoss()
 
 	if (!NFGameState->AuthoritySetUntimedMatchPhase(ENF_MatchPhase::Boss))
 	{
-		AbortMatch(TEXT("보스 페이즈 전환에 실패했습니다."));
+		NFAbortMatch(TEXT("보스 페이즈 전환에 실패했습니다."));
 	}
 }
 
@@ -764,7 +764,7 @@ UNF_EscapeKeyComponent* ANF_GameMode::GetEscapeKeyComponent() const
 
 void ANF_GameMode::AbortMatchDueToDepartures()
 {
-	AbortMatch(TEXT("참가자 이탈 한도에 도달하여 매치가 중단되었습니다."),ENF_MatchEndReason::DepartureLimit);
+	NFAbortMatch(TEXT("참가자 이탈 한도에 도달하여 매치가 중단되었습니다."),ENF_MatchEndReason::DepartureLimit);
 }
 
 void ANF_GameMode::HandleBuildResolveSucceeded()
@@ -787,10 +787,10 @@ void ANF_GameMode::HandleBuildResolveFailed(const FString& Reason)
 
 	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Build) return;
 
-	AbortMatch(Reason);
+	NFAbortMatch(Reason);
 }
 
-void ANF_GameMode::AbortMatch(const FString& Reason, ENF_MatchEndReason EndReason)
+void ANF_GameMode::NFAbortMatch(const FString& Reason, ENF_MatchEndReason EndReason)
 {
 	FNF_MatchResult Result;
 	Result.Outcome = ENF_MatchOutcome::Aborted;
@@ -821,7 +821,7 @@ void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssig
 
 	if (!IsValid(PlayerRespawnComponent))
 	{
-		AbortMatch(TEXT("최초 팀 스폰에 필요한 RespawnComponent가 없습니다."), ENF_MatchEndReason::RuntimeFailure);
+		NFAbortMatch(TEXT("최초 팀 스폰에 필요한 RespawnComponent가 없습니다."), ENF_MatchEndReason::RuntimeFailure);
 		return;
 	}
 
@@ -834,14 +834,14 @@ void ANF_GameMode::HandleServerTeamIdsAssigned(const TArray<FNFServerTeamIdAssig
 			PlayerState->GetWorld() != GetWorld() || !IsValid(PlayerState->GetPlayerController()) ||
 			Assignment.TeamId != PlayerState->NF_TeamID || Assignment.TeamId < 1 || Assignment.TeamId > 4)
 		{
-			AbortMatch(TEXT("최초 스폰을 위한 팀 배정 정보가 유효하지 않습니다."), ENF_MatchEndReason::RuntimeFailure);
+			NFAbortMatch(TEXT("최초 스폰을 위한 팀 배정 정보가 유효하지 않습니다."), ENF_MatchEndReason::RuntimeFailure);
 			return;
 		}
 
 		AssignedPlayers.Add(PlayerState);
 		if (!IsValid(PlayerRespawnComponent->FindTeamPlayerStart(PlayerState)))
 		{
-			AbortMatch(FString::Printf(
+			NFAbortMatch(FString::Printf(
 				TEXT("최초 팀 스폰 지점이 부족합니다. 팀원 수만큼 NF_TeamPlayerStart를 배치하세요. TeamId=%d"),
 				Assignment.TeamId), ENF_MatchEndReason::RuntimeFailure);
 			return;
@@ -890,7 +890,7 @@ void ANF_GameMode::TryCompleteInitialTeamSpawns()
 		ANF_PlayerState* PlayerState = Entry.Get();
 		if (!IsValid(PlayerState) || !IsValid(PlayerState->GetPlayerController()))
 		{
-			AbortMatch(TEXT("최초 팀 스폰 준비 중 플레이어가 이탈했습니다."), ENF_MatchEndReason::RuntimeFailure);
+			NFAbortMatch(TEXT("최초 팀 스폰 준비 중 플레이어가 이탈했습니다."), ENF_MatchEndReason::RuntimeFailure);
 			return;
 		}
 
@@ -1003,7 +1003,7 @@ void ANF_GameMode::HandleFarmingPhaseExpired()
 
 	if (!IsValid(BossEncounterComponent))
 	{
-		AbortMatch(TEXT("보스 출현 컴포넌트가 없습니다."), ENF_MatchEndReason::RuntimeFailure);
+		NFAbortMatch(TEXT("보스 출현 컴포넌트가 없습니다."), ENF_MatchEndReason::RuntimeFailure);
 		return;
 	}
 
@@ -1021,7 +1021,7 @@ void ANF_GameMode::HandleBossSpawnSucceeded(ANF_BossBase* Boss)
 		!IsValid(Boss) ||
 		BossEncounterComponent->GetActiveBoss() != Boss)
 	{
-		AbortMatch(TEXT("보스 출현 결과를 확인할 수 없습니다."), ENF_MatchEndReason::RuntimeFailure);
+		NFAbortMatch(TEXT("보스 출현 결과를 확인할 수 없습니다."), ENF_MatchEndReason::RuntimeFailure);
 		return;
 	}
 
@@ -1037,7 +1037,7 @@ void ANF_GameMode::HandleBossSpawnFailed(const FString& Reason)
 
 	if (NFGameState->GetMatchPhase() != ENF_MatchPhase::Farming)return;
 
-	AbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
+	NFAbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
 }
 
 void ANF_GameMode::HandleBossDefeatResolved(const FNF_BossDefeatResult& DefeatResult)
@@ -1311,14 +1311,14 @@ void ANF_GameMode::HandleInitialKeyAssignmentFailed(const FString& Reason)
 {
 	if (!HasAuthority() || bMatchFinalized)return;
 
-	AbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
+	NFAbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
 }
 
 void ANF_GameMode::HandleKeyOperationFailed(const FString& Reason)
 {
 	if (!HasAuthority() || bMatchFinalized)return;
 
-	AbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
+	NFAbortMatch(Reason, ENF_MatchEndReason::RuntimeFailure);
 }
 
 void ANF_GameMode::HandleKeyStateChanged(const FNF_KeyPublicState& NewState)
@@ -1409,18 +1409,18 @@ void ANF_GameMode::HandleWaitingPhaseExpired()
 
 	if (GetNumPlayers() != InitialRequiredPlayers)
 	{
-		AbortMatch(TEXT("제한시간 안에 필요한 참가자가 접속하지 않았습니다."),ENF_MatchEndReason::WaitingPlayersTimeout);
+		NFAbortMatch(TEXT("제한시간 안에 필요한 참가자가 접속하지 않았습니다."),ENF_MatchEndReason::WaitingPlayersTimeout);
 		return;
 	}
 
 	if (!bTeamsReady)
 	{
-		AbortMatch(TEXT("제한시간 안에 팀 배정이 완료되지 않았습니다."),ENF_MatchEndReason::WaitingTeamsTimeout);
+		NFAbortMatch(TEXT("제한시간 안에 팀 배정이 완료되지 않았습니다."),ENF_MatchEndReason::WaitingTeamsTimeout);
 		return;
 	}
 
 	// 인원과 팀은 준비됐지만 참가자 수집 등의 문제로 Build에 진입하지 못한 경우.
-	AbortMatch(TEXT("제한시간 안에 매치 시작 초기화가 완료되지 않았습니다."),ENF_MatchEndReason::WaitingInitializationTimeout);
+	NFAbortMatch(TEXT("제한시간 안에 매치 시작 초기화가 완료되지 않았습니다."),ENF_MatchEndReason::WaitingInitializationTimeout);
 }
 
 void ANF_GameMode::DispatchMatchConclusion()
