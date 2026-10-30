@@ -22,6 +22,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
 	void ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScreenClass);
 
+	// @Owner: 황준현 | 2026-10-31. 빙의 확인 후 현재 로컬 Pawn의 구독과 화면을 갱신한다.
+	void RefreshPawnBinding();
+
 	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
 	virtual void Deinitialize() override;
 
