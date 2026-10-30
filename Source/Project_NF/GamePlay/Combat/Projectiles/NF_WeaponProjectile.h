@@ -12,7 +12,7 @@ class PROJECT_NF_API ANF_WeaponProjectile : public AActor
 public:	
 	ANF_WeaponProjectile();
 
-	void InitializeProjectile(float InSpeed, float InDamage);
+	void InitializeProjectile(float InSpeed, float InDamage, class UNF_WeaponDataAsset* InWeaponData = nullptr);
 	void IgnoreProjectile(ANF_WeaponProjectile* OtherProjectile);
 	
 protected:
@@ -42,5 +42,9 @@ protected:
 		const FHitResult& Hit);
 
 private:
+	// 서버에서 보관하며 명중 Cue의 SourceObject로 전달한다. 현재 장착 무기를 조회하지 않는다.
+	UPROPERTY(Transient)
+	TObjectPtr<class UNF_WeaponDataAsset> ShotWeaponData;
+
 	bool bHitProcessed = false;
 };
