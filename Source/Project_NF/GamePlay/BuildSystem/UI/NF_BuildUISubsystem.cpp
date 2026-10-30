@@ -54,6 +54,17 @@ void UNF_BuildSubSystem::ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScre
 	RefreshScreen();
 }
 
+void UNF_BuildSubSystem::RefreshPawnBinding()
+{
+	ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	if (!IsValid(LocalPlayer))
+	{
+		return;
+	}
+
+	BindController(LocalPlayer->GetPlayerController(LocalPlayer->GetWorld()));
+}
+
 void UNF_BuildSubSystem::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
 	Super::PlayerControllerChanged(NewPlayerController);
