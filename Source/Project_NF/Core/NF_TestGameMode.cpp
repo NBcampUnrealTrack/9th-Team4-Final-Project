@@ -80,7 +80,7 @@ void ANF_TestGameMode::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("[TestGameMode] 테스트 인원은 1~8이어야 합니다. Current=%d"), InitialRequiredPlayers);
 		StopTeamAssignment();
-		AbortMatch(TEXT("테스트 게임모드의 인원 설정이 잘못되었습니다."));
+		NFAbortMatch(TEXT("테스트 게임모드의 인원 설정이 잘못되었습니다."));
 		return;
 	}
 
@@ -203,7 +203,7 @@ void ANF_TestGameMode::TryAssignTeams()
 			if (!PlayerState->SetNFTeamID(TeamId))
 			{
 				StopTeamAssignment();
-				AbortMatch(TEXT("테스트 팀 ID 적용에 실패했습니다."));
+				NFAbortMatch(TEXT("테스트 팀 ID 적용에 실패했습니다."));
 				return;
 			}
 		}
