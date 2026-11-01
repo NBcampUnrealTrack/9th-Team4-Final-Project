@@ -78,6 +78,10 @@
 		{
 			"Name": "OnlineSubsystemSteam",
 			"Enabled": true
+		},
+		{
+			"Name": "RemoteControl",
+			"Enabled": true
 		}
 	]
 }
