@@ -7,8 +7,6 @@
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GAS/Tags/NFTag_Build.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
-#include "Blueprint/UserWidget.h"
-#include "Engine/LocalPlayer.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayEffect.h"
@@ -45,7 +43,7 @@ void UNF_BuildComponent::InitializeDefaultBuildEntitlements()
 {
 	// 외부 시스템이 먼저 전달한 개인별 조건을 기본값으로 덮어쓰지 않는다.
 	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() ||
-		!bInitializeEntitlementsFromDefaults || bEntitlementsInitialized || !IsValid(Rules))
+		!bInitializeEntitlementsFromDefaults || bEntitlementsInitialized)
 	{
 		return;
 	}
@@ -53,7 +51,7 @@ void UNF_BuildComponent::InitializeDefaultBuildEntitlements()
 	if (!UpdateBuildEntitlements(InitialCostLimit, InitialUnlockedItemIds))
 	{
 		UE_LOG(LogTemp, Warning,
-		       TEXT("빌드 초기 조건 적용 실패: %s. 초기 코스트와 Rules Catalog의 ItemId를 확인하세요."),
+		       TEXT("빌드 초기 조건 적용 실패: %s. 초기 코스트와 ItemId를 확인하세요."),
 		       *GetNameSafe(GetOwner()));
 	}
 }
@@ -200,29 +198,42 @@ void UNF_BuildComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 UNF_BuildItemDefinitionDataAsset* UNF_BuildComponent::FindItemDefinition(FName ItemId) const
 {
-	if (Rules)
+	const UNF_BuildRules* Rules = GetRules();
+	if (IsValid(Rules))
 	{
-		for (UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
-		{
-			if (IsValid(Definition) && Definition->ItemId == ItemId)
-			{
-				return Definition;
-			}
-		}
+		if (UNF_BuildItemDefinitionDataAsset* Definition = Rules->FindItemDefinition(ItemId)) { return Definition; }
+	}
+	for (const FNF_BuildEquippedItem& Item : EquippedItems)
+	{
+		if (IsValid(Item.Definition) && Item.Definition->ItemId == ItemId) { return Item.Definition; }
 	}
 	return nullptr;
 }
 
 bool UNF_BuildComponent::ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) const
 {
+	const UNF_BuildRules* Rules = GetRules();
 	OutData = FNF_BuildItemData();
-	return IsValid(Rules) && FindItemDefinition(ItemId) && Rules->ResolveItemData(ItemId, OutData);
+	if (IsValid(Rules) && Rules->FindItemDefinition(ItemId))
+	{
+		return Rules->ResolveItemData(ItemId, OutData);
+	}
+	for (const FNF_BuildEquippedItem& Item : EquippedItems)
+	{
+		if (IsValid(Item.Definition) && Item.Definition->ItemId == ItemId)
+		{
+			OutData = Item.ItemData;
+			return true;
+		}
+	}
+	return false;
 }
 
 TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
 	ENF_ItemType ItemType,
 	ENF_ArmorSlot ArmorPart) const
 {
+	const UNF_BuildRules* Rules = GetRules();
 	TArray<UNF_BuildItemDefinitionDataAsset*> Result;
 
 	if (!IsValid(Rules) || !bEntitlementsInitialized)
@@ -272,8 +283,9 @@ bool UNF_BuildComponent::CanEditDraft() const
 
 bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 {
+	const UNF_BuildRules* Rules = GetRules();
 	FNF_BuildItemData Data;
-	if (!CanEditDraft() || !ResolveItemData(ItemId, Data) || Rules->GetSlotCount(Data.ItemType) < 1)
+	if (!CanEditDraft() || !IsValid(Rules) || !ResolveItemData(ItemId, Data) || Rules->GetSlotCount(Data.ItemType) < 1)
 	{
 		return false;
 	}
@@ -304,8 +316,10 @@ bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 
 bool UNF_BuildComponent::AssignSelectedActiveSkill(int32 SlotIndex)
 {
+	const UNF_BuildRules* Rules = GetRules();
 	FNF_BuildItemData Data;
-	if (!CanEditDraft() || !ResolveItemData(PendingActiveSkill, Data) || Data.ItemType != ENF_ItemType::ActiveSkill ||
+	if (!CanEditDraft() || !IsValid(Rules) || !ResolveItemData(PendingActiveSkill, Data) || Data.ItemType !=
+		ENF_ItemType::ActiveSkill ||
 		SlotIndex < 0 || SlotIndex > 1 || SlotIndex >= Rules->ActiveSkillSlots)
 	{
 		return false;
@@ -364,7 +378,7 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 		DraftBuild = CurrentBuild;
 		PendingActiveSkill = NAME_None;
 		bDraftDirty = false;
-		
+
 		OnDraftChanged.Broadcast();
 	}
 
@@ -400,19 +414,6 @@ bool UNF_BuildComponent::InitializeAbilitySystem(UAbilitySystemComponent* InAbil
 	return true;
 }
 
-bool UNF_BuildComponent::ConfigureRules(UNF_BuildRules* InRules)
-{
-	if (!GetOwner()->HasAuthority() || bApplyingBuild || !AppliedItems.IsEmpty() || !IsValid(InRules))
-	{
-		return false;
-	}
-	Rules = InRules;
-	InitializeDefaultBuildEntitlements();
-	GetOwner()->ForceNetUpdate();
-	OnDraftChanged.Broadcast();
-	return true;
-}
-
 bool UNF_BuildComponent::SetPlayerLevel(int32 NewLevel)
 {
 	// @Owner: 황준현 | 2026-10-20. 진행 시스템의 레벨 결정을 빌드 유효성으로 거절하지 않는다.
@@ -439,7 +440,7 @@ FNF_BuildValidation UNF_BuildComponent::PreviewBuild(
 	}
 
 	return FNF_BuildValidator::Validate(
-		Rules,
+		GetRules(),
 		CostLimit,
 		UnlockedItemIds,
 		Selections);
@@ -516,14 +517,16 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 			TEXT("상점과 먼저 상호작용하고 사용 조건을 만족해야 합니다."));
 	}
 
-	return CommitBuildOnServer(Selections);
+	return CommitBuildOnServer(Selections, ShopZone->GetRules());
 }
 
-bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart()
+bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop)
 {
+	const UNF_BuildRules* Rules = IsValid(Shop) ? Shop->GetRules() : nullptr;
 	const ANF_GameState* GameState = GetWorld() ? GetWorld()->GetGameState<ANF_GameState>() : nullptr;
 	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || bApplyingBuild ||
-		!IsValid(GameState) || GameState->GetMatchPhase() != ENF_MatchPhase::Build || !IsValid(Rules))
+		!IsValid(GameState) || GameState->GetMatchPhase() != ENF_MatchPhase::Build || !IsValid(Rules) ||
+		Shop->GetWorld() != GetWorld() || !Shop->CanProvideFallbackBuild(GetOwner()))
 	{
 		return false;
 	}
@@ -532,14 +535,16 @@ bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart()
 		return false;
 	}
 	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다.
-	if (!CurrentBuild.IsEmpty() && PreviewBuild(CurrentBuild).Result == ENF_BuildResult::Success &&
+	if (!CurrentBuild.IsEmpty() && bEntitlementsInitialized &&
+		FNF_BuildValidator::Validate(Rules, CostLimit, UnlockedItemIds, CurrentBuild).Result == ENF_BuildResult::Success
+		&&
 		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
 	{
 		return true;
 	}
 	// 적용 중 콜백으로 원본 구성이 바뀌지 않도록 복사한다.
 	const TArray<FNF_BuildSelection> Selections = Rules->FallbackBuild;
-	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections);
+	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections, Rules);
 	const bool bSucceeded = Validation.Result == ENF_BuildResult::Success &&
 		IsValid(AbilitySystem) && AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready);
 	if (bSucceeded)
@@ -562,7 +567,7 @@ void UNF_BuildComponent::MarkBuildReady()
 }
 
 FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
-	const TArray<FNF_BuildSelection>& Selections)
+	const TArray<FNF_BuildSelection>& Selections, const UNF_BuildRules* Rules)
 {
 	FNF_BuildValidation Validation;
 	auto Fail = [&Validation](ENF_BuildResult Result, const TCHAR* Message)
@@ -611,6 +616,20 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 	if (Validation.Result != ENF_BuildResult::Success)
 	{
 		return Validation;
+	}
+
+	// ItemId는 상점 간에도 같은 항목을 뜻해야 한다. 서로 다른 원본에 기존 GAS 핸들을 재사용하지 않는다.
+	for (const FNF_BuildSelection& Selection : Selections)
+	{
+		for (const FNF_BuildEquippedItem& Equipped : EquippedItems)
+		{
+			if (IsValid(Equipped.Definition) && Equipped.Definition->ItemId == Selection.ItemId &&
+				(Equipped.Definition != Rules->FindItemDefinition(Selection.ItemId) ||
+					Equipped.Source != Rules->ItemSources.FindRef(Selection.ItemId)))
+			{
+				return Fail(ENF_BuildResult::InvalidRules, TEXT("상점 간 동일 ItemId의 정의와 원본이 일치해야 합니다."));
+			}
+		}
 	}
 
 	TMap<FName, FNF_BuildGrantHandles> StagedItems;
@@ -681,6 +700,14 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 		}
 	}
 
+	EquippedItems.Reset();
+	for (const FNF_BuildSelection& Selection : Selections)
+	{
+		FNF_BuildEquippedItem& Item = EquippedItems.AddDefaulted_GetRef();
+		Item.Definition = Rules->FindItemDefinition(Selection.ItemId);
+		Item.Source = Rules->ItemSources.FindRef(Selection.ItemId);
+		Item.ItemData = AppliedItems.FindChecked(Selection.ItemId).ItemData;
+	}
 	CurrentBuild = Selections;
 	GetOwner()->ForceNetUpdate();
 	MarkBuildReady();
@@ -738,9 +765,9 @@ bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& 
 	if (!FNF_BuildEquipmentAdapter::ApplyWeaponData(NewWeapon, *SelectedWeapon))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("빌드 무기 DA 적용 실패: ItemId=%s, Source=%s, Class=%s. "
-			"공용 BP의 티어 교체에는 INF_BuildWeaponDataReceiver 구현이 필요합니다."),
-			*SelectedWeaponId.ToString(), *GetNameSafe(SelectedWeapon->WeaponData.Get()),
-			*GetNameSafe(SelectedWeapon->WeaponClass.Get()));
+			       "공용 BP의 티어 교체에는 INF_BuildWeaponDataReceiver 구현이 필요합니다."),
+		       *SelectedWeaponId.ToString(), *GetNameSafe(SelectedWeapon->WeaponData.Get()),
+		       *GetNameSafe(SelectedWeapon->WeaponClass.Get()));
 		NewWeapon->Destroy();
 		return false;
 	}
@@ -885,7 +912,7 @@ void UNF_BuildComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CurrentBuild, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, PlayerLevel, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UNF_BuildComponent, Rules, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UNF_BuildComponent, EquippedItems, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CurrentShop, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, ShopsInRange, COND_OwnerOnly);
 
@@ -907,11 +934,12 @@ bool UNF_BuildComponent::UpdateBuildEntitlements(
 		return false;
 	}
 
+	// 지급은 상점 진입 전에 가능하다. 현재 상점의 Catalog/원본/해금 여부는 적용 시 함께 검증한다.
 	TArray<FName> ValidatedIds;
 
 	for (FName ItemId : NewUnlockedItemIds)
 	{
-		if (ItemId.IsNone() || !FindItemDefinition(ItemId))
+		if (ItemId.IsNone())
 		{
 			return false;
 		}
@@ -932,4 +960,22 @@ void UNF_BuildComponent::OnRep_BuildEntitlements()
 {
 	OnBuildEntitlementsChanged.Broadcast();
 	OnDraftChanged.Broadcast();
+}
+
+UNF_BuildRules* UNF_BuildComponent::GetRules() const
+{
+	return IsValid(CurrentShop) ? CurrentShop->GetRules() : nullptr;
+}
+
+UDataAsset* UNF_BuildComponent::GetItemSource(FName ItemId) const
+{
+	if (const UNF_BuildRules* Rules = GetRules())
+	{
+		if (Rules->FindItemDefinition(ItemId)) { return Rules->ItemSources.FindRef(ItemId); }
+	}
+	for (const FNF_BuildEquippedItem& Item : EquippedItems)
+	{
+		if (IsValid(Item.Definition) && Item.Definition->ItemId == ItemId) { return Item.Source; }
+	}
+	return nullptr;
 }

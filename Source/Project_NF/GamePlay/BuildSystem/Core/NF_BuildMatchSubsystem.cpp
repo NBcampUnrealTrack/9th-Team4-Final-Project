@@ -2,6 +2,8 @@
 
 #include "Core/NF_GameMode.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 #include "GameFramework/Pawn.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "Player/State/NF_PlayerState.h"
@@ -48,13 +50,25 @@ bool UNF_BuildMatchSubsystem::HandleApplyFallbackBuild(ANF_PlayerState* PlayerSt
 		return false;
 	}
 	UNF_BuildComponent* Build = Pawn->FindComponentByClass<UNF_BuildComponent>();
-	const bool bSucceeded = IsValid(Build) &&
+	// 기본 적용은 세션·거리와 무관하게 해당 플레이어가 사용할 수 있는 팀 거점에서 규칙을 받는다.
+	ANF_BuildShopZone* FallbackShop = nullptr;
+	for (TActorIterator<ANF_BuildShopZone> It(GetWorld()); It; ++It)
+	{
+		if (!It->CanProvideFallbackBuild(Pawn)) { continue; }
+		if (FallbackShop && FallbackShop->GetRules() != It->GetRules())
+		{
+			UE_LOG(LogTemp, Error, TEXT("기본 빌드 규칙 충돌: 같은 팀 거점의 Rules를 통일하세요."));
+			return false;
+		}
+		FallbackShop = *It;
+	}
+	const bool bSucceeded = IsValid(Build) && IsValid(FallbackShop) &&
 		Build->InitializeAbilitySystem(PlayerState->GetAbilitySystemComponent()) &&
-		Build->ApplyFallbackBuildForMatchStart();
+		Build->ApplyFallbackBuildForMatchStart(FallbackShop);
 	if (!bSucceeded)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("기본 빌드 적용 실패: %s. Pawn, ASC와 Rules를 확인하세요."),
-			*GetNameSafe(PlayerState));
+		       *GetNameSafe(PlayerState));
 	}
 	return bSucceeded;
 }
