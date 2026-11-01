@@ -12,8 +12,25 @@ class ANF_BuildShopZone;
 class ANF_WeaponBase;
 class APlayerController;
 class UAbilitySystemComponent;
+class UDataAsset;
 class UNF_BuildItemDefinitionDataAsset;
 class UNF_BuildRules;
+
+/** @Owner: 황준현 | 2026-11-01. 장착 항목만 소유 클라이언트에 전달하는 확정 데이터. */
+USTRUCT()
+struct FNF_BuildEquippedItem
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UNF_BuildItemDefinitionDataAsset> Definition;
+
+	UPROPERTY()
+	TObjectPtr<UDataAsset> Source;
+
+	UPROPERTY()
+	FNF_BuildItemData ItemData;
+};
 
 USTRUCT()
 struct FNF_BuildGrantHandles
@@ -62,7 +79,7 @@ public:
 	FNF_OnBuildShopStateChanged OnBuildShopStateChanged;
 
 	/** @Owner: 황준현 | 2026-10-19. Core 연동 객체에서만 호출하는 서버 기본 적용 경로. RPC가 아니다. */
-	bool ApplyFallbackBuildForMatchStart();
+	bool ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop);
 
 	/** Called only from an authorized server interaction. */
 	bool BeginBuildSession(ANF_BuildShopZone* Shop);
@@ -127,10 +144,6 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build")
 	bool InitializeAbilitySystem(UAbilitySystemComponent* InAbilitySystem);
 
-	/** Optional runtime setup before equipping the first build. */
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build")
-	bool ConfigureRules(UNF_BuildRules* InRules);
-
 	/** 기존 호출 호환용 레벨 기록. 상한과 사용 권한은 UpdateBuildEntitlements로 갱신한다. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build",
 		meta = (DeprecatedFunction, DeprecationMessage = "Use UpdateBuildEntitlements for cost and unlock changes."))
@@ -155,10 +168,11 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "NF|Build")
-	UNF_BuildRules* GetRules() const
-	{
-		return Rules;
-	}
+	UNF_BuildRules* GetRules() const;
+
+	/** 현재 상점 또는 확정된 장착 항목의 원본. 전체 규칙 DA를 플레이어에 저장하지 않는다. */
+	UFUNCTION(BlueprintPure, Category = "NF|Build")
+	UDataAsset* GetItemSource(FName ItemId) const;
 
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build")
 	FNF_OnBuildChanged OnBuildChanged;
@@ -185,9 +199,6 @@ protected:
 	TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* TickFunction) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, ReplicatedUsing = OnRep_BuildConfiguration, Category = "NF|Build")
-	TObjectPtr<UNF_BuildRules> Rules;
 
 private:
 	friend class FNF_BuildEquipmentTransactionTest;
@@ -238,7 +249,7 @@ private:
 
 	// @Owner: 황준현 | 2026-10-19
 	// 접근 승인을 마친 요청의 코스트·슬롯 검증과 실제 적용을 담당한다.
-	FNF_BuildValidation CommitBuildOnServer(const TArray<FNF_BuildSelection>& Selections);
+	FNF_BuildValidation CommitBuildOnServer(const TArray<FNF_BuildSelection>& Selections, const UNF_BuildRules* Rules);
 
 	bool GrantItem(UNF_BuildItemDefinitionDataAsset* Definition, const FNF_BuildItemData& Data,
 	               int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
@@ -255,6 +266,9 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentBuild)
 	TArray<FNF_BuildSelection> CurrentBuild;
+
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentBuild)
+	TArray<FNF_BuildEquippedItem> EquippedItems;
 
 	UPROPERTY(ReplicatedUsing = OnRep_BuildConfiguration)
 	int32 PlayerLevel = 1;

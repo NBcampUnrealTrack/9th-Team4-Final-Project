@@ -259,7 +259,7 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	SourceData(Rules, Rules->Catalog[1]).AbilityClass = UGameplayAbility::StaticClass();
 	SourceData(Rules, Rules->Catalog[2]).AbilityClass = UGameplayAbility::StaticClass();
 	TestTrue(TEXT("Initialize authoritative ASC"), Build->InitializeAbilitySystem(ASC));
-	TestTrue(TEXT("Configure initial rules"), Build->ConfigureRules(Rules));
+	TestTrue(TEXT("Configure initial rules"), Shop->ConfigureRules(Rules));
 	TestEqual(TEXT("개인별 조건 초기화 전에는 적용 불가"),
 	          Build->PreviewBuild({Select(TEXT("Rifle"))}).Result, ENF_BuildResult::InvalidRules);
 	TestTrue(TEXT("서버 테스트 권한 초기화"), Build->UpdateBuildEntitlements(8, MakeAllowedItemIds(Rules)));
@@ -365,12 +365,35 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	Build->RequestApplyBuild({Select(TEXT("Rifle")), Select(TEXT("Dash"))}, Shop);
 	TestNull(TEXT("Replacement revokes only previous build ability"), ASC->FindAbilitySpecFromHandle(OriginalHandle));
 	TestEqual(TEXT("Replacement selection committed"), Build->GetCurrentBuild()[1].ItemId, FName(TEXT("Dash")));
-	TestFalse(TEXT("Rules cannot change while a build is equipped"), Build->ConfigureRules(MakeRules()));
+	TestFalse(TEXT("Rules cannot change while a build is equipped"), Shop->ConfigureRules(MakeRules()));
 	TestFalse(TEXT("음수 코스트 상한 갱신 거절"), Build->UpdateBuildEntitlements(-1, MakeAllowedItemIds(Rules)));
 	TestTrue(TEXT("외부 서버에서 코스트 상한 갱신"), Build->UpdateBuildEntitlements(12, MakeAllowedItemIds(Rules)));
 	World->Tick(LEVELTICK_All, 0.25f);
 	TestTrue(TEXT("거리 안의 상점을 조회할 수 있다"), Build->GetShopsInRange().Contains(Shop));
+	TestTrue(TEXT("개인 해금 목록을 공용 카탈로그와 별도로 갱신한다"),
+	         Build->UpdateBuildEntitlements(12, {FName(TEXT("Rifle"))}));
+	TestEqual(TEXT("공용 DA에 있어도 미해금 액티브 스킬은 표시하지 않는다"),
+	          Build->GetCatalogItems(ENF_ItemType::ActiveSkill, ENF_ArmorSlot::None).Num(), 0);
+	TestTrue(TEXT("개인 해금 조건 복원"), Build->UpdateBuildEntitlements(12, MakeAllowedItemIds(Rules)));
+	ANF_BuildShopZone* OtherShop = World->SpawnActor<ANF_BuildShopZone>();
+	ShopTypeProperty->GetUnderlyingProperty()->SetIntPropertyValue(
+		ShopTypeProperty->ContainerPtrToValuePtr<void>(OtherShop), static_cast<int64>(ENF_BuildShopType::Field));
+	UNF_BuildRules* OtherRules = MakeRules();
+	TestTrue(TEXT("다른 상점은 자신의 Rules를 설정한다"), OtherShop->ConfigureRules(OtherRules));
+	TestTrue(TEXT("다른 상점 연결"), Build->BeginBuildSession(OtherShop));
+	TestTrue(TEXT("플레이어는 현재 상점의 Rules를 조회한다"), Build->GetRules() == OtherRules);
+	// 같은 ID에 다른 정의/원본을 연결한 상점은 기존 GAS를 잘못 재사용하지 못한다.
+	const TArray<FNF_BuildSelection> BeforeShopChange = Build->GetCurrentBuild();
+	Build->RequestApplyBuild({Select(TEXT("Rifle")), Select(TEXT("Dash"), 1)}, OtherShop);
+	TestEqual(TEXT("다른 원본을 가진 동일 ID 교체는 기존 빌드를 유지한다"),
+	          Build->GetCurrentBuild()[1].SlotIndex, BeforeShopChange[1].SlotIndex);
+	TestTrue(TEXT("기존 상점으로 복귀"), Build->BeginBuildSession(Shop));
 	Build->CloseBuildSession();
+	TestNull(TEXT("상점을 닫으면 규칙 연결을 해제한다"), Build->GetRules());
+	TestNotNull(TEXT("상점을 닫아도 장착 항목 정의가 유지된다"), Build->FindItemDefinition(TEXT("Dash")));
+	FNF_BuildItemData EquippedData;
+	TestTrue(TEXT("상점을 닫아도 장착 스킬 데이터가 유지된다"), Build->ResolveItemData(TEXT("Dash"), EquippedData));
+	TestNotNull(TEXT("상점을 닫아도 장착 원본이 유지된다"), Build->GetItemSource(TEXT("Dash")));
 	TestTrue(TEXT("상점을 닫아도 범위 안 상태는 유지된다"), Build->GetShopsInRange().Contains(Shop));
 	Player->SetActorLocation(FVector(2000.f, 0.f, 0.f));
 	World->Tick(LEVELTICK_All, 0.25f);
@@ -423,25 +446,37 @@ bool FNF_BuildFallbackTest::RunTest(const FString& Parameters)
 	Player->AddInstanceComponent(Build);
 	Build->RegisterComponent();
 	UNF_BuildRules* Rules = MakeRules();
+	ANF_BuildShopZone* Shop = World->SpawnActor<ANF_BuildShopZone>();
+	ANF_PlayerState* PlayerState = World->SpawnActor<ANF_PlayerState>();
+	PlayerState->NF_TeamID = 1;
+	FObjectProperty* PlayerStateProperty = FindFProperty<FObjectProperty>(APawn::StaticClass(), TEXT("PlayerState"));
+	if (!TestNotNull(TEXT("플레이어 상태 속성"), PlayerStateProperty)) return false;
+	PlayerStateProperty->SetObjectPropertyValue_InContainer(Player, PlayerState);
+	FEnumProperty* TypeProperty = FindFProperty<FEnumProperty>(Shop->GetClass(), TEXT("ShopType"));
+	FIntProperty* TeamProperty = FindFProperty<FIntProperty>(Shop->GetClass(), TEXT("OwnerTeamId"));
+	if (!TestNotNull(TEXT("상점 종류"), TypeProperty) || !TestNotNull(TEXT("상점 팀"), TeamProperty)) return false;
+	TypeProperty->GetUnderlyingProperty()->SetIntPropertyValue(
+		TypeProperty->ContainerPtrToValuePtr<void>(Shop), static_cast<int64>(ENF_BuildShopType::TeamBase));
+	TeamProperty->SetPropertyValue_InContainer(Shop, 1);
 	Rules->FallbackBuild = {Select(TEXT("Rifle")), Select(TEXT("Grenade"))};
 	TestTrue(TEXT("테스트 ASC 연결"), Build->InitializeAbilitySystem(ASC));
-	TestTrue(TEXT("기본 구성 설정"), Build->ConfigureRules(Rules));
+	TestTrue(TEXT("기본 구성 설정"), Shop->ConfigureRules(Rules));
 	TestTrue(TEXT("기본 빌드 아이템도 서버 권한 목록에 포함"),
 	         Build->UpdateBuildEntitlements(8, MakeAllowedItemIds(Rules)));
-	TestFalse(TEXT("Build 외 페이즈에서 기본 적용을 거부한다"), Build->ApplyFallbackBuildForMatchStart());
+	TestFalse(TEXT("Build 외 페이즈에서 기본 적용을 거부한다"), Build->ApplyFallbackBuildForMatchStart(Shop));
 	GameState->AuthoritySetTimedMatchPhase(ENF_MatchPhase::Build, 10.f);
 	Rules->FallbackBuild = {
 		Select(TEXT("Rifle")), Select(TEXT("Grenade")), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))
 	};
-	TestFalse(TEXT("기본 빌드도 코스트 초과를 거부한다"), Build->ApplyFallbackBuildForMatchStart());
+	TestFalse(TEXT("기본 빌드도 코스트 초과를 거부한다"), Build->ApplyFallbackBuildForMatchStart(Shop));
 	TestFalse(TEXT("실패 시 Ready를 부여하지 않는다"), ASC->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready));
 	Rules->FallbackBuild = {Select(TEXT("Rifle")), Select(TEXT("Grenade"))};
 	ASC->AddLooseGameplayTag(NFTag_Build::State_Build_Locked);
-	TestFalse(TEXT("기본 적용도 빌드 잠금을 유지한다"), Build->ApplyFallbackBuildForMatchStart());
+	TestFalse(TEXT("기본 적용도 빌드 잠금을 유지한다"), Build->ApplyFallbackBuildForMatchStart(Shop));
 	ASC->RemoveLooseGameplayTag(NFTag_Build::State_Build_Locked);
-	TestTrue(TEXT("상점 세션 없이 유효한 기본 구성을 확정한다"), Build->ApplyFallbackBuildForMatchStart());
+	TestTrue(TEXT("상점 세션 없이 유효한 기본 구성을 확정한다"), Build->ApplyFallbackBuildForMatchStart(Shop));
 	TestEqual(TEXT("기본 구성 확정"), Build->GetCurrentBuild().Num(), 2);
-	TestTrue(TEXT("반복 기본 요청은 성공 상태를 유지한다"), Build->ApplyFallbackBuildForMatchStart());
+	TestTrue(TEXT("반복 기본 요청은 성공 상태를 유지한다"), Build->ApplyFallbackBuildForMatchStart(Shop));
 	TestEqual(TEXT("Ready는 누적되지 않는다"), ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
 	return true;
 }

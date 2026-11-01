@@ -1,4 +1,5 @@
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
 #include "GamePlay/Combat/Armor/NF_ArmorDataAsset.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 
@@ -51,4 +52,13 @@ bool UNF_BuildRules::TryGetCostLimit(int32 PlayerLevel, int32& OutCostLimit) con
 
 	OutCostLimit = CostLimitsByLevel[PlayerLevel - 1];
 	return OutCostLimit >= 0;
+}
+
+UNF_BuildItemDefinitionDataAsset* UNF_BuildRules::FindItemDefinition(FName ItemId) const
+{
+	for (UNF_BuildItemDefinitionDataAsset* Item : Catalog)
+	{
+		if (IsValid(Item) && Item->ItemId == ItemId) { return Item; }
+	}
+	return nullptr;
 }

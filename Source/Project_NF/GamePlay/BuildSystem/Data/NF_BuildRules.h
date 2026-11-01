@@ -22,6 +22,8 @@ public:
 		meta = (MustImplement = "/Script/Project_NF.NF_BuildItemSource"))
 	TMap<FName, TObjectPtr<UDataAsset>> ItemSources;
 
+	UNF_BuildItemDefinitionDataAsset* FindItemDefinition(FName ItemId) const;
+
 	bool ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) const;
 
 	/** Index 0 = level 1. Missing levels fail closed; no invented balance curve. */

@@ -1,12 +1,14 @@
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 
 #include "Components/BoxComponent.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 #include "Core/NF_GameState.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Player/State/NF_PlayerState.h"
 
 ANF_BuildShopZone::ANF_BuildShopZone()
@@ -27,10 +29,10 @@ void ANF_BuildShopZone::NF_Interaction(
 	const APlayerController* InteractedController)
 {
 	UE_LOG(LogTemp, Warning,
-		TEXT("[BuildShop] Interaction: Shop=%s Authority=%d Controller=%s"),
-		*GetNameSafe(this),
-		HasAuthority(),
-		*GetNameSafe(InteractedController));
+	       TEXT("[BuildShop] Interaction: Shop=%s Authority=%d Controller=%s"),
+	       *GetNameSafe(this),
+	       HasAuthority(),
+	       *GetNameSafe(InteractedController));
 
 	if (!HasAuthority() || !IsValid(InteractedController))
 	{
@@ -58,25 +60,25 @@ void ANF_BuildShopZone::NF_Interaction(
 	const bool bCanBuild = CanBuild(Player);
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("[BuildShop] Player=%s PlayerState=%s ")
-		TEXT("ShopType=%d ShopTeam=%d PlayerTeam=%d ")
-		TEXT("Enabled=%d InRange=%d Distance=%.1f Limit=%.1f ")
-		TEXT("BuildComponent=%s GameState=%s PhaseAllowed=%d ")
-		TEXT("ControllerMatches=%d CanBuild=%d"),
-		*GetNameSafe(Player),
-		*GetNameSafe(PlayerState),
-		static_cast<int32>(ShopType),
-		OwnerTeamId,
-		IsValid(PlayerState) ? PlayerState->NF_TeamID : INDEX_NONE,
-		bShopEnabled,
-		IsActorInRange(Player),
-		FVector::Dist(Player->GetActorLocation(), GetActorLocation()),
-		InteractionDistance,
-		*GetNameSafe(Build),
-		*GetNameSafe(GameState),
-		IsValid(GameState) && GameState->IsBuildShopAllowed(ShopType),
-		bControllerMatches,
-		bCanBuild);
+	       TEXT("[BuildShop] Player=%s PlayerState=%s ")
+	       TEXT("ShopType=%d ShopTeam=%d PlayerTeam=%d ")
+	       TEXT("Enabled=%d InRange=%d Distance=%.1f Limit=%.1f ")
+	       TEXT("BuildComponent=%s GameState=%s PhaseAllowed=%d ")
+	       TEXT("ControllerMatches=%d CanBuild=%d"),
+	       *GetNameSafe(Player),
+	       *GetNameSafe(PlayerState),
+	       static_cast<int32>(ShopType),
+	       OwnerTeamId,
+	       IsValid(PlayerState) ? PlayerState->NF_TeamID : INDEX_NONE,
+	       bShopEnabled,
+	       IsActorInRange(Player),
+	       FVector::Dist(Player->GetActorLocation(), GetActorLocation()),
+	       InteractionDistance,
+	       *GetNameSafe(Build),
+	       *GetNameSafe(GameState),
+	       IsValid(GameState) && GameState->IsBuildShopAllowed(ShopType),
+	       bControllerMatches,
+	       bCanBuild);
 
 	if (!bCanBuild || !bControllerMatches || !IsValid(Build))
 	{
@@ -86,15 +88,25 @@ void ANF_BuildShopZone::NF_Interaction(
 	const bool bStarted = Build->BeginBuildSession(this);
 
 	UE_LOG(LogTemp, Warning,
-		TEXT("[BuildShop] BeginBuildSession=%d Player=%s CurrentShop=%s"),
-		bStarted,
-		*GetNameSafe(Player),
-		*GetNameSafe(Build->GetCurrentShop()));
+	       TEXT("[BuildShop] BeginBuildSession=%d Player=%s CurrentShop=%s"),
+	       bStarted,
+	       *GetNameSafe(Player),
+	       *GetNameSafe(Build->GetCurrentShop()));
 }
+
 bool ANF_BuildShopZone::CanBuild(AActor* PlayerActor) const
 {
-	if (!bShopEnabled ||
-		!IsActorInRange(PlayerActor) ||
+	return IsActorInRange(PlayerActor) && HasBuildAccess(PlayerActor);
+}
+
+bool ANF_BuildShopZone::CanProvideFallbackBuild(AActor* PlayerActor) const
+{
+	return ShopType == ENF_BuildShopType::TeamBase && HasBuildAccess(PlayerActor);
+}
+
+bool ANF_BuildShopZone::HasBuildAccess(AActor* PlayerActor) const
+{
+	if (!bShopEnabled || !IsValid(Rules) || !IsValid(PlayerActor) || PlayerActor->GetWorld() != GetWorld() ||
 		!PlayerActor->FindComponentByClass<UNF_BuildComponent>())
 	{
 		return false;
@@ -130,6 +142,7 @@ bool ANF_BuildShopZone::CanBuild(AActor* PlayerActor) const
 	// Blueprint에서는 추가 조건만 지정한다.
 	return IsPlayerAllowed(PlayerActor);
 }
+
 bool ANF_BuildShopZone::IsActorInRange(AActor* PlayerActor) const
 {
 	return IsValid(PlayerActor) && PlayerActor->GetWorld() == GetWorld() && InteractionDistance >= 0.f &&
@@ -154,4 +167,24 @@ void ANF_BuildShopZone::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ANF_BuildShopZone, bShopEnabled);
+	DOREPLIFETIME(ANF_BuildShopZone, Rules);
+}
+
+bool ANF_BuildShopZone::ConfigureRules(UNF_BuildRules* InRules)
+{
+	if (!HasAuthority() || IsValid(Rules) || !IsValid(InRules)) { return false; }
+	Rules = InRules;
+	ForceNetUpdate();
+	OnRep_Rules();
+	return true;
+}
+
+void ANF_BuildShopZone::OnRep_Rules()
+{
+	// CurrentShop이 Rules보다 먼저 도착한 클라이언트의 목록도 다시 갱신한다.
+	for (TActorIterator<APawn> It(GetWorld()); It; ++It)
+	{
+		UNF_BuildComponent* Build = It->FindComponentByClass<UNF_BuildComponent>();
+		if (Build && Build->GetCurrentShop() == this) { Build->OnDraftChanged.Broadcast(); }
+	}
 }

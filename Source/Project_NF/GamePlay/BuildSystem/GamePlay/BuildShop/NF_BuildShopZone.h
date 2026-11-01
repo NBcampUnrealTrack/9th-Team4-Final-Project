@@ -7,6 +7,7 @@
 #include "NF_BuildShopZone.generated.h"
 
 class UBoxComponent;
+class UNF_BuildRules;
 
 /** Place at spawn/base or field shops. Area eligibility is checked again on the server. */
 UCLASS()
@@ -16,6 +17,15 @@ class PROJECT_NF_API ANF_BuildShopZone : public AActor, public INF_InteractionIn
 
 public:
 	ANF_BuildShopZone();
+
+	UFUNCTION(BlueprintPure, Category = "NF|BuildShop")
+	UNF_BuildRules* GetRules() const { return Rules; }
+
+	/** 최초 빌드 기본 적용: 거리와 세션 없이 팀·페이즈 접근 정책을 확인한다. */
+	bool CanProvideFallbackBuild(AActor* PlayerActor) const;
+
+	/** 서버 초기 설정용. 이미 지정된 규칙 교체는 허용하지 않는다. */
+	bool ConfigureRules(UNF_BuildRules* InRules);
 	virtual void NF_Interaction(const APlayerController* InteractedController) override;
 
 	UFUNCTION(BlueprintPure, Category = "NF|BuildShop")
@@ -34,6 +44,9 @@ public:
 	void SetShopEnabled(bool bEnabled);
 
 protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_Rules, Category = "NF|BuildShop")
+	TObjectPtr<UNF_BuildRules> Rules;
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|BuildShop")
@@ -45,7 +58,7 @@ protected:
 	/** Measured from the player to this actor. Interaction trace collision is separate from authorization. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|BuildShop", meta = (ClampMin = "0"))
 	float InteractionDistance = 300.f;
-	
+
 	// @Owner: 황준현 | 2026-10-19
 	// Core의 페이즈별 상점 접근 정책에 전달할 상점 종류.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|BuildShop")
@@ -55,4 +68,10 @@ protected:
 	// TeamBase 상점 소유 팀. INDEX_NONE이면 사용을 허용하지 않는다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|BuildShop")
 	int32 OwnerTeamId = INDEX_NONE;
+
+private:
+	UFUNCTION()
+	void OnRep_Rules();
+
+	bool HasBuildAccess(AActor* PlayerActor) const;
 };
