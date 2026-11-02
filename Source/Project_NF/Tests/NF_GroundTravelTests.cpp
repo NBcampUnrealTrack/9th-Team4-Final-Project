@@ -9,7 +9,7 @@
 #include "GamePlay/Combat/Components/NF_GroundTravelComponent.h"
 #include "GamePlay/Combat/Components/NF_DetonationComponent.h"
 #include "GamePlay/Combat/Skill/Execution/NF_SkillExecutionActor.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "Monster/NF_Monster.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_GroundTravelTest, "NF.Skills.GroundTravel.GroundWallDistanceAndComposition",
@@ -32,8 +32,8 @@ bool FNF_GroundTravelTest::RunTest(const FString& Parameters)
 	AActor* Floor = Box(FVector(0, 0, -20), FVector(2000, 2000, 20));
 	ANF_Monster* Caster = World->SpawnActor<ANF_Monster>(FVector(0, 0, 100), FRotator::ZeroRotator);
 	auto* ASC = Caster->GetAbilitySystemComponent(); ASC->InitAbilityActorInfo(Caster, Caster);
-	const auto Handle = ASC->GiveAbility(FGameplayAbilitySpec(UNFGA_SkillBase::StaticClass(), 1));
-	auto* Skill = Cast<UNFGA_SkillBase>(ASC->FindAbilitySpecFromHandle(Handle)->GetPrimaryInstance());
+	const auto Handle = ASC->GiveAbility(FGameplayAbilitySpec(UNFGA_ActiveSkillBase::StaticClass(), 1));
+	auto* Skill = Cast<UNFGA_ActiveSkillBase>(ASC->FindAbilitySpecFromHandle(Handle)->GetPrimaryInstance());
 	if (!TestNotNull(TEXT("Granted skill instance"), Skill))
 	{
 		GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return false;

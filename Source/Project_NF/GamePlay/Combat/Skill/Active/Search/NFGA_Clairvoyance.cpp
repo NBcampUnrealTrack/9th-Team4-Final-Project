@@ -13,10 +13,10 @@
 // 목적: 시전자를 따라가는 실시간 플레이어 탐지. 벽 너머도 탐지하며 범위 이탈 시 공개 해제.
 UNFGA_Clairvoyance::UNFGA_Clairvoyance()
 {
-	SkillCategory = ENF_SkillCategory::Search;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Search;
 	SkillExecutionMode = ENF_SkillExecutionMode::Timed;
 	ExecutionDuration = 5.0f;
-	BuildCost = 3;
+	GetMutableSkillDefaults().BuildCost = 3;
 }
 bool UNFGA_Clairvoyance::HasValidClairvoyanceSettings() const
 {

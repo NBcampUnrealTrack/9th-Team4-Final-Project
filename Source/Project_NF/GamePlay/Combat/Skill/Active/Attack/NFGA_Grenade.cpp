@@ -11,11 +11,11 @@
 
 UNFGA_Grenade::UNFGA_Grenade()
 {
-	SkillType = ENF_SkillType::Active;
-	SkillCategory = ENF_SkillCategory::Attack;
-	SkillActivationMethod = ENF_SkillActivationMethod::Input;
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::Input;
 	SkillExecutionMode = ENF_SkillExecutionMode::Instant;
-	BuildCost = 2;
+	GetMutableSkillDefaults().BuildCost = 2;
 	GrenadeClass = ANF_Grenade::StaticClass();
 	PreviewActorClass = ANF_GrenadePreviewActor::StaticClass();
 	bActivateOnInputRelease = true;

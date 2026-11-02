@@ -2,70 +2,79 @@
 
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Actor.h"
-#include "GAS/Tags/NFTag_Skill.h"
 #include "GAS/Tags/NFTag_Player.h"
-#include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
+#include "GamePlay/Combat/Skill/NF_SkillRedirects.h"
 
-// @Owner: 스킬 담당 | 2026-10-12
 UNFGA_SkillBase::UNFGA_SkillBase()
 {
-	// @Owner: 이정준 (구현: Codex) | 2026-10-22
-	// Inherited by every player skill; the death ability itself does not derive from this base.
+	NFRegisterSkillOwnershipRedirects();
 	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Death);
-	// 각 ASC의 스킬 인스턴스에서 실행 상태를 보관한다.
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-
-	// 초기 공통 베이스는 서버에서 실행한다. 예측이 필요한 스킬은 자식에서 정책을 설정한다.
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
-	DefaultPreviewData.DisplayRadius = 300.0f;
+	NativeSkillDefaults = CreateDefaultSubobject<UNF_SkillDataAsset>(TEXT("NativeSkillDefaults"));
 }
 
-void UNFGA_SkillBase::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+const UNF_SkillDataAsset* UNFGA_SkillBase::GetSkillData() const { return SkillData ? SkillData.Get() : SkillDefinition.Get(); }
+UNF_SkillDataAsset& UNFGA_SkillBase::GetMutableSkillDefaults() { check(NativeSkillDefaults); return *NativeSkillDefaults; }
+ENF_SkillType UNFGA_SkillBase::GetSkillType() const { return NativeSkillDefaults->SkillType; }
+ENF_SkillCategory UNFGA_SkillBase::GetSkillCategory() const
 {
-	CancelLocalInput();
-	ClearConfirmedTargetData();
-	CleanupPassive();
-	UnbindCancellationTags();
-	Super::OnRemoveAbility(ActorInfo, Spec);
+	const auto* Data = GetSkillData();
+	return Data && Data->bOverrideIdentity ? Data->SkillCategory : NativeSkillDefaults->SkillCategory;
+}
+int32 UNFGA_SkillBase::GetBuildCost() const
+{
+	const auto* Data = GetSkillData();
+	return Data && Data->bOverrideIdentity ? Data->BuildCost : NativeSkillDefaults->BuildCost;
+}
+ENF_SkillActivationMethod UNFGA_SkillBase::GetSkillActivationMethod() const
+{
+	const auto* Data = GetSkillData();
+	return Data && Data->bOverrideIdentity ? Data->SkillActivationMethod : NativeSkillDefaults->SkillActivationMethod;
+}
+
+void UNFGA_SkillBase::ConfigureFromSkillData(const FGameplayAbilitySpec& Spec)
+{
+	SkillData = Cast<UNF_SkillDataAsset>(Spec.SourceObject.Get());
+	if (!SkillData) { SkillData = SkillDefinition; }
+	AdditionalStateRules.Reset();
+	if (SkillData) { SkillData->ConfigureInstance(*this); }
+}
+
+bool UNFGA_SkillBase::HasBlockingStateRule(const UAbilitySystemComponent* ASC) const
+{
+	if (!ASC) { return false; }
+	for (const auto& Rule : AdditionalStateRules)
+	{
+		if (Rule.bCancelRunning && (Rule.bForceCancel || CanBeCanceled()) && Rule.StateTag.IsValid()
+			&& ASC->HasMatchingGameplayTag(Rule.StateTag)) { return true; }
+	}
+	return false;
 }
 
 bool UNFGA_SkillBase::CanContinueSkillExecution() const
 {
-	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	return ASC && !HasBlockingStateRule(ASC, true) && !ASC->HasMatchingGameplayTag(NFTag_Player::Player_State_Death)
-		&& (!bCancelOnEMP || !IsBlockedByEMP()) && !ASC->HasAnyMatchingGameplayTags(InputCancelTags)
-		&& !ASC->HasAnyMatchingGameplayTags(ActivationBlockedTags);
+	const auto* ASC = GetAbilitySystemComponentFromActorInfo();
+	return ASC && !ASC->HasMatchingGameplayTag(NFTag_Player::Player_State_Death)
+		&& !HasBlockingStateRule(ASC) && !ASC->HasAnyMatchingGameplayTags(ActivationBlockedTags);
 }
 
-bool UNFGA_SkillBase::IsBlockedByEMP() const
+bool UNFGA_SkillBase::CanActivateAbility(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
 {
-	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	return IsAffectedByEMP() && ASC && ASC->HasMatchingGameplayTag(NFTag_Skill::State_Debuff_EMP);
-}
-
-bool UNFGA_SkillBase::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
-	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
-{
-	const UAbilitySystemComponent* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	// CDO preflight must read the spec source rather than instance-only state.
+	const auto* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	if (!ASC || ASC->HasMatchingGameplayTag(NFTag_Player::Player_State_Death)) { return false; }
 	const auto* Definition = Cast<UNF_SkillDataAsset>(GetSourceObject(Handle, ActorInfo));
+	if (!Definition) { Definition = GetSkillData(); }
 	if (Definition)
 	{
-		if (!Definition->HasValidSettings()) { return false; }
+		if (!Definition->HasValidSettings() || !IsA(Definition->AbilityClass.Get())) { return false; }
 		for (const auto& Rule : Definition->StateRules)
 		{
-			if (ASC && Rule.bBlockActivation && Rule.StateTag.IsValid() && ASC->HasMatchingGameplayTag(Rule.StateTag)) { return false; }
+			if (Rule.bBlockActivation && Rule.StateTag.IsValid() && ASC->HasMatchingGameplayTag(Rule.StateTag)) { return false; }
 		}
 	}
-	if (ExecutionActorClass && (NetExecutionPolicy != EGameplayAbilityNetExecutionPolicy::ServerOnly
-		|| !FMath::IsFinite(CastTime) || CastTime < 0.0f || !FMath::IsFinite(ExecutionDuration)
-		|| (SkillExecutionMode == ENF_SkillExecutionMode::Timed && ExecutionDuration <= 0.0f))) { return false; }
-	// Also enforce death explicitly: an old BP can override/clear the inherited editable tag container.
-	return ASC && !ASC->HasMatchingGameplayTag(NFTag_Player::Player_State_Death)
-		&& (!IsAffectedByEMP() || !ASC->HasMatchingGameplayTag(NFTag_Skill::State_Debuff_EMP))
-		&& !ASC->HasAnyMatchingGameplayTags(InputCancelTags)
-		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
+	return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
 
 void UNFGA_SkillBase::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
@@ -73,7 +82,6 @@ void UNFGA_SkillBase::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, 
 	ConfigureFromSkillData(Spec);
 	Super::OnGiveAbility(ActorInfo, Spec);
 	BindCancellationTags();
-	InitializePassive();
 }
 
 void UNFGA_SkillBase::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
@@ -82,45 +90,42 @@ void UNFGA_SkillBase::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, co
 	AActor* NewAvatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
 	if (RegisteredAvatar.Get() != NewAvatar)
 	{
-		// 이전 Pawn에서 준비 중이던 스킬이 새 Pawn에서 실행되지 않게 종료한다.
 		if (IsActive()) { EndAbility(Spec.Handle, ActorInfo, CurrentActivationInfo, true, true); }
 		ClearConfirmedTargetData();
 	}
 	RegisteredAvatar = NewAvatar;
 	Super::OnAvatarSet(ActorInfo, Spec);
-	if (bPassiveInitialized && PassiveAvatar.Get() != GetAvatarActorFromActorInfo())
-	{
-		CleanupPassive();
-	}
 	BindCancellationTags();
-	InitializePassive();
+}
+
+void UNFGA_SkillBase::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	UnbindCancellationTags();
+	Super::OnRemoveAbility(ActorInfo, Spec);
+	SkillData = nullptr;
+	AdditionalStateRules.Reset();
 }
 
 void UNFGA_SkillBase::BindCancellationTags()
 {
 	UnbindCancellationTags();
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	auto* ASC = GetAbilitySystemComponentFromActorInfo();
 	RegisteredASC = ASC;
 	if (!ASC) { return; }
-	FGameplayTagContainer Tags = InputCancelTags;
-	for (const auto& Rule : AdditionalStateRules)
-	{
-		if (Rule.StateTag.IsValid()) { Tags.AddTag(Rule.StateTag); }
-	}
-	Tags.AppendTags(ActivationBlockedTags);
+	FGameplayTagContainer Tags = ActivationBlockedTags;
 	Tags.AddTag(NFTag_Player::Player_State_Death);
-	if (IsAffectedByEMP()) { Tags.AddTag(NFTag_Skill::State_Debuff_EMP); }
-	for (const FGameplayTag& Tag : Tags)
+	for (const auto& Rule : AdditionalStateRules) { if (Rule.StateTag.IsValid()) { Tags.AddTag(Rule.StateTag); } }
+	CollectStateRestrictionTags(Tags);
+	for (const auto& Tag : Tags)
 	{
 		CancellationDelegates.Add(Tag, ASC->RegisterGameplayTagEvent(Tag, EGameplayTagEventType::NewOrRemoved)
 			.AddUObject(this, &UNFGA_SkillBase::OnCancellationTagChanged));
 	}
-	if (IsBlockedByEMP()) { InterruptForEMP(); }
 }
 
 void UNFGA_SkillBase::UnbindCancellationTags()
 {
-	if (UAbilitySystemComponent* ASC = RegisteredASC.Get())
+	if (auto* ASC = RegisteredASC.Get())
 	{
 		for (const auto& Entry : CancellationDelegates)
 		{
@@ -128,73 +133,64 @@ void UNFGA_SkillBase::UnbindCancellationTags()
 		}
 	}
 	CancellationDelegates.Empty();
+	RegisteredASC.Reset();
 }
 
 void UNFGA_SkillBase::OnCancellationTagChanged(FGameplayTag Tag, int32 NewCount)
 {
-	if (NewCount > 0)
+	if (NewCount <= 0) { return; }
+	const auto Rules = AdditionalStateRules;
+	for (const auto& Rule : Rules)
 	{
-		for (const auto& Rule : AdditionalStateRules)
+		if (!Rule.StateTag.IsValid() || Rule.StateTag != Tag) { continue; }
+		if (Rule.bBlockActivation) { CancelLocalInput(); }
+		if (Rule.bCancelRunning && IsActive() && (Rule.bForceCancel || CanBeCanceled()))
 		{
-			if (!Rule.StateTag.IsValid() || Rule.StateTag != Tag) { continue; }
-			if (Rule.bBlockActivation) { CancelLocalInput(); }
-			if (Rule.bCancelRunning && IsActive() && (Rule.bForceCancel || CanBeCanceled()))
-			{
-				EndAbility(CurrentSpecHandle, GetCurrentActorInfo(), CurrentActivationInfo, true, true);
-				break;
-			}
+			EndAbility(CurrentSpecHandle, GetCurrentActorInfo(), CurrentActivationInfo, true, true);
+			break;
 		}
 	}
-	if (Tag == NFTag_Skill::State_Debuff_EMP)
-	{
-		if (NewCount > 0 && IsAffectedByEMP()) { InterruptForEMP(); }
-		return;
-	}
-	// Additional rules must not fall through to the legacy unconditional cancellation path.
-	if (!InputCancelTags.HasTagExact(Tag) && !ActivationBlockedTags.HasTagExact(Tag)
-		&& Tag != NFTag_Player::Player_State_Death) { return; }
-	if (NewCount > 0)
+	if (ActivationBlockedTags.HasTagExact(Tag) || Tag == NFTag_Player::Player_State_Death)
 	{
 		CancelLocalInput();
-		if (IsActive() && CanBeCanceled())
-		{
-			CancelAbility(CurrentSpecHandle, GetCurrentActorInfo(), CurrentActivationInfo, true);
-		}
+		if (IsActive() && CanBeCanceled()) { CancelAbility(CurrentSpecHandle, GetCurrentActorInfo(), CurrentActivationInfo, true); }
 	}
+	HandleStateRestrictionChanged(Tag, NewCount);
 }
 
-void UNFGA_SkillBase::InterruptForEMP()
+bool UNFGA_SkillBase::ConfirmLocalInput(FGameplayAbilityTargetDataHandle& OutTargetData)
 {
-	CancelLocalInput();
-	if (!IsActive() || bCancelOnEMP) { ClearConfirmedTargetData(); }
-	if (IsActive() && bCancelOnEMP)
-	{
-		// EMP is a forced interruption. Do not leave non-cancellable casting/maintained effects alive.
-		// Virtual EndAbility invokes each skill's cleanup, including its timers and reveal requests.
-		EndAbility(CurrentSpecHandle, GetCurrentActorInfo(), CurrentActivationInfo, true, true);
-	}
+	OutTargetData.Clear(); return false;
 }
 
-const UNF_SkillDataAsset* UNFGA_SkillBase::GetSkillData() const
+bool UNFGA_SkillBase::UsesDefinitionStateRules() const
 {
-	return SkillData;
+	const auto* Data = GetSkillData();
+	return Data && Data->bOverrideStateRules;
 }
 
-void UNFGA_SkillBase::ConfigureFromSkillData(const FGameplayAbilitySpec& Spec)
+FGameplayAbilityTargetDataHandle UNFGA_SkillBase::MakeSkillTargetData(ENF_SkillTargetKind Kind,
+	FVector Location, FVector AimDirection)
 {
-	// Legacy build/boss sources are not skill DAs; their saved GA settings remain unchanged.
-	SkillData = Cast<UNF_SkillDataAsset>(Spec.SourceObject.Get());
-	AdditionalStateRules.Reset();
-	if (SkillData) { SkillData->ConfigureInstance(*this); }
+	FGameplayAbilityTargetDataHandle Result;
+	FNF_SkillTargetData* Data = new FNF_SkillTargetData();
+	Data->Kind = Kind;
+	Data->Location = Location;
+	Data->AimDirection = AimDirection.GetSafeNormal();
+	Result.Add(Data);
+	return Result;
 }
 
-bool UNFGA_SkillBase::HasBlockingStateRule(const UAbilitySystemComponent* ASC, bool bRunning) const
+bool UNFGA_SkillBase::ReadSkillTargetData(const FGameplayAbilityTargetDataHandle& TargetData,
+	ENF_SkillTargetKind& Kind, FVector& Location, FVector& AimDirection)
 {
-	if (!ASC) { return false; }
-	for (const auto& Rule : AdditionalStateRules)
-	{
-		if ((bRunning ? (Rule.bCancelRunning && (Rule.bForceCancel || CanBeCanceled())) : Rule.bBlockActivation) && Rule.StateTag.IsValid()
-			&& ASC->HasMatchingGameplayTag(Rule.StateTag)) { return true; }
-	}
-	return false;
+	Kind = ENF_SkillTargetKind::None;
+	Location = FVector::ZeroVector;
+	AimDirection = FVector::ZeroVector;
+	const FNF_SkillTargetData* Data = FNF_SkillTargetData::Get(TargetData);
+	if (!Data) { return false; }
+	Kind = Data->Kind;
+	Location = Data->Location;
+	AimDirection = Data->AimDirection;
+	return true;
 }

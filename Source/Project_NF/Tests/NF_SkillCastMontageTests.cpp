@@ -29,7 +29,7 @@ bool FNF_SkillCastMontageTest::RunTest(const FString& Parameters)
 	ASC->RegisterComponent();
 	ASC->InitAbilityActorInfo(Character, Character);
 	const auto Handle = ASC->GiveAbility(FGameplayAbilitySpec(UNFGA_Movement::StaticClass(), 1));
-	auto* Skill = Cast<UNFGA_SkillBase>(ASC->FindAbilitySpecFromHandle(Handle)->GetPrimaryInstance());
+	auto* Skill = Cast<UNFGA_ActiveSkillBase>(ASC->FindAbilitySpecFromHandle(Handle)->GetPrimaryInstance());
 	if (!TestNotNull(TEXT("Skill granted"), Skill))
 	{
 		GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return false;

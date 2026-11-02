@@ -13,9 +13,9 @@
 
 UNFGA_Berserker::UNFGA_Berserker()
 {
-	SkillType = ENF_SkillType::Passive; SkillCategory = ENF_SkillCategory::Attack;
-	SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
-	bActivatePassiveOnGrant = false; BuildCost = 4;
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive; GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+	bActivatePassiveOnGrant = false; GetMutableSkillDefaults().BuildCost = 4;
 	ActivationCueTag = NFTag_Skill::GameplayCue_Skill_Berserker_Activate;
 }
 void UNFGA_Berserker::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
@@ -64,7 +64,7 @@ void UNFGA_Berserker::BindHealth()
 		: UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Avatar);
 	if (HealthASC.Get() == ASC && BonusASC.Get() == OwnASC && ObservedAvatar.Get() == Avatar && HealthDelegate.IsValid()) { return; }
 	UnbindHealth();
-	if (SkillType != ENF_SkillType::Passive || !IsValid(Avatar) || !ASC || ASC->GetAvatarActor_Direct() != Avatar
+	if (GetSkillType() != ENF_SkillType::Passive || !IsValid(Avatar) || !ASC || ASC->GetAvatarActor_Direct() != Avatar
 		|| !ASC->GetSet<UNF_PlayerStatusAttribute>() || !UNF_WeaponDamageLibrary::EnsureOffenseAttributes(OwnASC))
 	{
 		UE_LOG(LogProject_NF, Warning, TEXT("[Berserker] Player Health and offense attributes are required: %s"), *GetNameSafe(Avatar)); return;

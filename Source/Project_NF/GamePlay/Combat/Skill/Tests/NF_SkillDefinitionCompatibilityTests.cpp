@@ -10,11 +10,20 @@
 #include "GamePlay/Combat/Skill/Passive/NFGA_PassiveSkillBase.h"
 #include "GamePlay/Combat/Skill/Passive/Utility/NFGA_DoubleJump.h"
 #include "GAS/Tags/NFTag_Skill.h"
+#include "UObject/UnrealType.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_SkillDefinitionCompatibilityTest, "NF.Skills.Data.CompatibleDefinition",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FNF_SkillDefinitionCompatibilityTest::RunTest(const FString& Parameters)
 {
+	TestNull(TEXT("Common base no longer owns preview settings"), FindFProperty<FProperty>(UNFGA_SkillBase::StaticClass(), TEXT("PreviewActorClass")));
+	TestNull(TEXT("Common base no longer owns passive GE settings"), FindFProperty<FProperty>(UNFGA_SkillBase::StaticClass(), TEXT("PassiveEffects")));
+	TestNull(TEXT("Common base no longer owns category scalar"), FindFProperty<FProperty>(UNFGA_SkillBase::StaticClass(), TEXT("SkillCategory")));
+	TestNull(TEXT("Common base no longer owns cost scalar"), FindFProperty<FProperty>(UNFGA_SkillBase::StaticClass(), TEXT("BuildCost")));
+	TestNotNull(TEXT("Active owns preview settings"), FindFProperty<FProperty>(UNFGA_ActiveSkillBase::StaticClass(), TEXT("PreviewActorClass")));
+	TestNull(TEXT("Active has no passive GE settings"), FindFProperty<FProperty>(UNFGA_ActiveSkillBase::StaticClass(), TEXT("PassiveEffects")));
+	TestNotNull(TEXT("Passive owns equip GE settings"), FindFProperty<FProperty>(UNFGA_PassiveSkillBase::StaticClass(), TEXT("PassiveEffects")));
+	TestNull(TEXT("Passive has no preview settings"), FindFProperty<FProperty>(UNFGA_PassiveSkillBase::StaticClass(), TEXT("PreviewActorClass")));
 	TestTrue(TEXT("Existing active class retains common-base compatibility"), UNFGA_Acceleration::StaticClass()->IsChildOf(UNFGA_ActiveSkillBase::StaticClass()));
 	TestTrue(TEXT("Existing passive class has passive parent"), UNFGA_DoubleJump::StaticClass()->IsChildOf(UNFGA_PassiveSkillBase::StaticClass()));
 	auto* LegacyData = NewObject<UNF_SkillDataAsset>();

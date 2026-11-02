@@ -22,6 +22,10 @@ class PROJECT_NF_API UNF_SkillDataAsset : public UDataAsset, public INF_BuildIte
 {
 	GENERATED_BODY()
 public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Skill|Definition")
+	ENF_SkillType SkillType = ENF_SkillType::Active;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Definition")
+	ENF_SkillActivationMethod SkillActivationMethod = ENF_SkillActivationMethod::Input;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Source", meta = (ToolTip = "이 항목으로 장착할 스킬 GA입니다. 종류는 GA에서, 코스트는 Definition 설정 또는 기존 GA 기본값에서 조회합니다."))
 	TSubclassOf<UNFGA_SkillBase> AbilityClass;
 
@@ -41,7 +45,9 @@ public:
 	ENF_SkillCategory SkillCategory = ENF_SkillCategory::Utility;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Definition", meta = (ClampMin = "0", EditCondition = "bOverrideIdentity"))
 	int32 BuildCost = 0;
-	// 기존 사망/EMP/InputCancelTags 정책에 추가한다. 기존 정책을 제거하지 않는다.
+	// true이면 액티브의 구형 EMP/InputCancelTags 대신 아래 규칙을 사용한다. 사망 차단은 유지한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|State Restrictions")
+	bool bOverrideStateRules = false;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|State Restrictions")
 	TArray<FNF_SkillStateRule> StateRules;
 
@@ -60,6 +66,7 @@ class PROJECT_NF_API UNF_ActiveSkillDataAsset : public UNF_SkillDataAsset
 {
 	GENERATED_BODY()
 public:
+	UNF_ActiveSkillDataAsset();
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Active")
 	bool bOverrideActiveSettings = false;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Active", meta = (EditCondition = "bOverrideActiveSettings"))
@@ -78,6 +85,12 @@ public:
 	float ExecutionDuration = 0.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Active", meta = (EditCondition = "bOverrideActiveSettings"))
 	bool bRequiresConfirmedTargetData = false;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Active", meta = (EditCondition = "bOverrideActiveSettings"))
+	TObjectPtr<class UAnimMontage> CastMontage;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Active", meta = (ClampMin = "0.01", EditCondition = "bOverrideActiveSettings"))
+	float CastMontagePlayRate = 1.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Active", meta = (EditCondition = "bOverrideActiveSettings"))
+	FName CastMontageStartSection = NAME_None;
 	virtual void ConfigureInstance(UNFGA_SkillBase& Skill) const override;
 };
 
@@ -86,6 +99,7 @@ class PROJECT_NF_API UNF_PassiveSkillDataAsset : public UNF_SkillDataAsset
 {
 	GENERATED_BODY()
 public:
+	UNF_PassiveSkillDataAsset();
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive")
 	bool bOverridePassiveSettings = false;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive", meta = (EditCondition = "bOverridePassiveSettings"))

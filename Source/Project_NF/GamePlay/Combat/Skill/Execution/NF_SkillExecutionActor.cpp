@@ -18,6 +18,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
 #include "Project_NF.h"
@@ -55,7 +56,7 @@ void ANF_SkillExecutionActor::InitializeExecution(AActor* Avatar, UNFGA_SkillBas
 	SourceAbility = Ability;
 	if (Ability)
 	{
-		Ability->GetSkillPreviewData(Avatar, PreviewData);
+		if (const auto* ActiveSkill = Cast<UNFGA_ActiveSkillBase>(Ability)) { ActiveSkill->GetSkillPreviewData(Avatar, PreviewData); }
 		const FNF_SkillTargetData* Target = FNF_SkillTargetData::Get(Ability->GetConfirmedTargetData());
 		bGroundResolved = Target && Target->Kind == ENF_SkillTargetKind::GroundPoint;
 		bHasLaunchDirection = Target && Target->Kind == ENF_SkillTargetKind::Direction;

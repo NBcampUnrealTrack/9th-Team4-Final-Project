@@ -20,7 +20,7 @@ bool FNF_SkillDeathBlockTest::RunTest(const FString& Parameters)
 	auto* Avatar = World->SpawnActor<ANF_Monster>();
 	auto* ASC = Avatar->GetAbilitySystemComponent(); ASC->InitAbilityActorInfo(Avatar, Avatar);
 	const auto Handle = ASC->GiveAbility(FGameplayAbilitySpec(UNFGA_Acceleration::StaticClass(), 1));
-	auto* Skill = Cast<UNFGA_SkillBase>(ASC->FindAbilitySpecFromHandle(Handle)->GetPrimaryInstance());
+	auto* Skill = Cast<UNFGA_ActiveSkillBase>(ASC->FindAbilitySpecFromHandle(Handle)->GetPrimaryInstance());
 	if (!TestNotNull(TEXT("Granted skill instance"), Skill))
 	{
 		GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return false;

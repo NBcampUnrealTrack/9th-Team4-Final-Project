@@ -11,7 +11,7 @@
 
 UNFGA_Grab::UNFGA_Grab()
 {
-	SkillCategory = ENF_SkillCategory::Utility; BuildCost = 2;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Utility; GetMutableSkillDefaults().BuildCost = 2;
 	HookClass = ANF_GrabHook::StaticClass();
 }
 
@@ -24,7 +24,7 @@ void UNFGA_Grab::SetGrabTarget(AActor* Target)
 bool UNFGA_Grab::HasValidSettings() const
 {
 	return HookClass && HookClass->GetDefaultObject<ANF_GrabHook>()->HasValidSettings()
-		&& !ExecutionActorClass && !bRequiresConfirmedTargetData && SkillType == ENF_SkillType::Active
+		&& !ExecutionActorClass && !bRequiresConfirmedTargetData && GetSkillType() == ENF_SkillType::Active
 		&& SkillExecutionMode == ENF_SkillExecutionMode::Instant && NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
 		&& FMath::IsFinite(GrabRange) && GrabRange > 0.0f && FMath::IsFinite(GrabRadius) && GrabRadius > 0.0f
 		&& FMath::IsFinite(StopDistance) && StopDistance > 0.0f && FMath::IsFinite(CastTime) && CastTime >= 0.0f && PullSettings.IsValid();

@@ -7,9 +7,9 @@
 
 UNFGA_WeaponPassive::UNFGA_WeaponPassive()
 {
-	SkillType = ENF_SkillType::Passive;
-	SkillCategory = ENF_SkillCategory::Attack;
-	SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
 	bActivatePassiveOnGrant = false;
 }
 void UNFGA_WeaponPassive::PrepareOffenseAttributes(const FGameplayAbilityActorInfo* ActorInfo)
@@ -54,7 +54,7 @@ void UNFGA_WeaponPassive::RefreshStatEffect()
 	RemoveStatEffect();
 	const float Magnitude = GetStatMagnitude();
 	const float Minimum = MagnitudeTag == NFTag_Skill::Data_Weapon_LastRoundMultiplier ? 1.0f : 0.0f;
-	if (SkillType != ENF_SkillType::Passive || !StatEffectClass || !MagnitudeTag.IsValid()
+	if (GetSkillType() != ENF_SkillType::Passive || !StatEffectClass || !MagnitudeTag.IsValid()
 		|| !FMath::IsFinite(Magnitude) || Magnitude < Minimum || !UNF_WeaponDamageLibrary::EnsureOffenseAttributes(ASC))
 	{
 		UE_LOG(LogProject_NF, Warning, TEXT("[WeaponPassive] Invalid passive type/magnitude/settings: %s"), *GetName()); return;

@@ -13,11 +13,11 @@
 
 UNFGA_Indomitable::UNFGA_Indomitable()
 {
-	SkillType = ENF_SkillType::Passive;
-	SkillCategory = ENF_SkillCategory::Utility;
-	SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Utility;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
 	bActivatePassiveOnGrant = false;
-	BuildCost = 4;
+	GetMutableSkillDefaults().BuildCost = 4;
 }
 
 void UNFGA_Indomitable::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
@@ -64,7 +64,7 @@ void UNFGA_Indomitable::BindDamageQuery()
 		return;
 	}
 	UnbindDamageQuery();
-	if (SkillType != ENF_SkillType::Passive)
+	if (GetSkillType() != ENF_SkillType::Passive)
 	{
 		UE_LOG(LogProject_NF, Warning, TEXT("[Indomitable][연결 실패] Skill Type을 Passive로 설정해야 합니다. GA=%s"), *GetName());
 		return;

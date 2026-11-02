@@ -10,7 +10,7 @@
 
 UNFGA_EMP::UNFGA_EMP()
 {
-	SkillCategory = ENF_SkillCategory::Utility; BuildCost = 3;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Utility; GetMutableSkillDefaults().BuildCost = 3;
 	SkillExecutionMode = ENF_SkillExecutionMode::Instant;
 	EMPEffectClass = UNFGE_EMP::StaticClass();
 }
@@ -20,7 +20,7 @@ bool UNFGA_EMP::HasValidSettings() const
 	return !ExecutionActorClass && !bRequiresConfirmedTargetData && EMPEffectClass
 		&& EMPEffectClass->GetDefaultObject<UNFGE_EMP>()->DurationPolicy == EGameplayEffectDurationType::HasDuration
 		&& EMPEffectClass->GetDefaultObject<UNFGE_EMP>()->GetGrantedTags().HasTag(NFTag_Skill::State_Debuff_EMP)
-		&& SkillType == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Instant
+		&& GetSkillType() == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Instant
 		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
 		&& FMath::IsFinite(Radius) && Radius > 0 && FMath::IsFinite(SealDuration) && SealDuration >= 0.05f
 		&& FMath::IsFinite(CastTime) && CastTime >= 0;

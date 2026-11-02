@@ -26,7 +26,7 @@ bool FNF_EMPTest::RunTest(const FString& Parameters)
 	Target->GetCharacterMovement()->Activate(true); Target->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	UAbilitySystemComponent* ASC = Target->GetAbilitySystemComponent(); ASC->InitAbilityActorInfo(Target, Target);
 	const auto SkillHandle = ASC->GiveAbility(FGameplayAbilitySpec(UNFGA_Grab::StaticClass(), 1));
-	auto* Skill = Cast<UNFGA_SkillBase>(ASC->FindAbilitySpecFromHandle(SkillHandle)->GetPrimaryInstance());
+	auto* Skill = Cast<UNFGA_ActiveSkillBase>(ASC->FindAbilitySpecFromHandle(SkillHandle)->GetPrimaryInstance());
 	if (!TestNotNull(TEXT("Granted skill instance"), Skill))
 	{
 		GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return false;
@@ -65,9 +65,9 @@ bool FNF_EMPTest::RunTest(const FString& Parameters)
 	SealedExit->InitializePortal(SealedEntrance, true, Target, ASC);
 	TestFalse(TEXT("Existing caster tag immediately rejects a deployment"), SealedExit->StartPortal());
 	TestFalse(TEXT("Rejected pair stays inactive"), SealedEntrance->IsPortalActive());
-	Skill->SkillType = ENF_SkillType::Passive;
+	Skill->GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive;
 	TestFalse(TEXT("Passive skills do not consider EMP a block"), Skill->IsBlockedByEMP());
-	Skill->SkillType = ENF_SkillType::Active;
+	Skill->GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
 	Skill->bAffectedByEMP = false;
 	TestTrue(TEXT("Explicit EMP exemption allows activation checks"), Skill->CanActivateAbility(SkillHandle, ASC->AbilityActorInfo.Get()));
 	Skill->bAffectedByEMP = true;

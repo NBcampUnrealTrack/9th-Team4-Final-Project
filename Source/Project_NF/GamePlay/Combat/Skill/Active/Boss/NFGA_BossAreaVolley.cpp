@@ -19,9 +19,9 @@
 
 UNFGA_BossAreaVolley::UNFGA_BossAreaVolley()
 {
-	SkillType = ENF_SkillType::Active;
-	SkillCategory = ENF_SkillCategory::Attack;
-	SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
 	SkillExecutionMode = ENF_SkillExecutionMode::Timed;
 	ExecutionDuration = PatternDuration;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
