@@ -24,6 +24,27 @@ namespace UpperBodyLayerTurnTwist
 	const float BoneCount = 3.0f;
 }
 
+namespace UpperBodyLayerHandIK
+{
+	// 무기를 쥔 오른손 뼈 (보이는 메시 왼손 IK의 기준)
+	const FName RightHandBoneName = TEXT("hand_r");
+
+	// 무기 메시가 붙어 있는 가장 가까운 스켈레탈 메시 (무기 액터 안의 컴포넌트는 건너뜀)
+	const USkeletalMeshComponent* FindHoldingSkeletalMesh(const UMeshComponent* WeaponMeshComponent)
+	{
+		const USceneComponent* ParentComponent = WeaponMeshComponent->GetAttachParent();
+		while (ParentComponent != nullptr)
+		{
+			const auto* ParentSkeletalMesh = Cast<USkeletalMeshComponent>(ParentComponent);
+			if (ParentSkeletalMesh != nullptr && ParentSkeletalMesh->GetOwner() != WeaponMeshComponent->GetOwner()) return ParentSkeletalMesh;
+
+			ParentComponent = ParentComponent->GetAttachParent();
+		}
+
+		return nullptr;
+	}
+}
+
 
 UAnimSequenceBase* UUpperBodyLayer::GetPoseAnimation(int32 StateIndex) const
 {
@@ -490,6 +511,7 @@ void UUpperBodyLayerAnimInstance::UpdatePoseAnimation(UAnimSequenceBase* TargetA
 void UUpperBodyLayerAnimInstance::UpdateLeftHandIK(const UUpperBodyLayer* DataAsset)
 {
 	LeftHandIKAlpha = 0.0f;
+	LeftHandIKTargetAlpha = 0.0f;
 	if (IsValid(DataAsset) == false) return;
 	if (DataAsset->bIsTwoHanded == false) return;
 
@@ -497,6 +519,7 @@ void UUpperBodyLayerAnimInstance::UpdateLeftHandIK(const UUpperBodyLayer* DataAs
 	if (IsValid(CurrentWeaponMesh) == false) return;
 	if (CurrentWeaponMesh->DoesSocketExist(DataAsset->LeftHandSocketName) == false) return;
 
+	LeftHandSocketName = DataAsset->LeftHandSocketName;
 	LeftHandIKLocation = CurrentWeaponMesh->GetSocketLocation(DataAsset->LeftHandSocketName);
 
 	float DisableCurveValue = 0.0f;
@@ -506,7 +529,12 @@ void UUpperBodyLayerAnimInstance::UpdateLeftHandIK(const UUpperBodyLayer* DataAs
 		DisableCurveValue = FMath::Clamp(MeshComponent->GetAnimInstance()->GetCurveValue(TEXT("DisableLeftHandIK")), 0.0f, 1.0f);
 	}
 
-	LeftHandIKAlpha = UpperBodyWeight * (1.0f - DisableCurveValue);
+	LeftHandIKTargetAlpha = UpperBodyWeight * (1.0f - DisableCurveValue);
+
+	// 총이 다른 메시(보이는 메시 등)에 붙어 있으면 이 메시는 IK 하지 않음 → 그 메시의 UUpperBodyLayerHandIKAnimInstance가 적용
+	if (UpperBodyLayerHandIK::FindHoldingSkeletalMesh(CurrentWeaponMesh) != GetSkelMeshComponent()) return;
+
+	LeftHandIKAlpha = LeftHandIKTargetAlpha;
 }
 
 
@@ -716,7 +744,7 @@ FName UUpperBodyLayerAnimInstance::ReadEnumEntryName(const UObject* Owner, FName
 }
 
 
-void UUpperBodyLayerLibrary::SetUpperBodyWeaponMesh(ACharacter* Character, UMeshComponent* WeaponMesh)
+void UUpperBodyLayerLibrary::SetUpperBodyTwoHandIKWeapon(ACharacter* Character, UMeshComponent* WeaponMesh)
 {
 	if (IsValid(Character) == false) return;
 
@@ -733,7 +761,7 @@ void UUpperBodyLayerLibrary::SetUpperBodyWeaponMesh(ACharacter* Character, UMesh
 }
 
 
-bool UUpperBodyLayerLibrary::NotifyUpperBodyFire(ACharacter* Character)
+bool UUpperBodyLayerLibrary::NotifyUpperBodyOnFire(ACharacter* Character)
 {
 	if (IsValid(Character) == false) return false;
 
@@ -753,35 +781,73 @@ bool UUpperBodyLayerLibrary::NotifyUpperBodyFire(ACharacter* Character)
 }
 
 
-void UUpperBodyLayerLibrary::SetUpperBodyZoom(ACharacter* Character, bool bIsZoomHeld)
+void UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByZoom(ACharacter* Character, bool bIsZooming)
 {
 	if (IsValid(Character) == false) return;
 
 	USkeletalMeshComponent* MeshComponent = Character->GetMesh();
 	if (IsValid(MeshComponent) == false) return;
 
-	MeshComponent->ForEachAnimInstance([bIsZoomHeld](UAnimInstance* AnimInstance)
+	MeshComponent->ForEachAnimInstance([bIsZooming](UAnimInstance* AnimInstance)
 	{
 		auto* UpperBodyInstance = Cast<UUpperBodyLayerAnimInstance>(AnimInstance);
 		if (IsValid(UpperBodyInstance) == false) return;
 
-		UpperBodyInstance->SetZoomHeld(bIsZoomHeld);
+		UpperBodyInstance->SetZoomHeld(bIsZooming);
 	});
 }
 
 
-void UUpperBodyLayerLibrary::SetUpperBodyFireHeld(ACharacter* Character, bool bIsFireHeld)
+void UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByFire(ACharacter* Character, bool bIsFiring)
 {
 	if (IsValid(Character) == false) return;
 
 	USkeletalMeshComponent* MeshComponent = Character->GetMesh();
 	if (IsValid(MeshComponent) == false) return;
 
-	MeshComponent->ForEachAnimInstance([bIsFireHeld](UAnimInstance* AnimInstance)
+	MeshComponent->ForEachAnimInstance([bIsFiring](UAnimInstance* AnimInstance)
 	{
 		auto* UpperBodyInstance = Cast<UUpperBodyLayerAnimInstance>(AnimInstance);
 		if (IsValid(UpperBodyInstance) == false) return;
 
-		UpperBodyInstance->SetFireHeld(bIsFireHeld);
+		UpperBodyInstance->SetFireHeld(bIsFiring);
 	});
+}
+
+
+void UUpperBodyLayerHandIKAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
+{
+	Super::NativeUpdateAnimation(DeltaSeconds);
+
+	LeftHandIKAlpha = 0.0f;
+
+	USkeletalMeshComponent* OwnerMeshComponent = GetSkelMeshComponent();
+	if (IsValid(OwnerMeshComponent) == false) return;
+
+	auto* Character = Cast<ACharacter>(GetOwningActor());
+	if (IsValid(Character) == false) return;
+	if (IsValid(Character->GetMesh()) == false) return;
+
+	// 구동용 메시의 상체 레이어에서 무기 메시·소켓 이름·IK 세기를 읽음
+	const UUpperBodyLayerAnimInstance* UpperBodyInstance = nullptr;
+	Character->GetMesh()->ForEachAnimInstance([&UpperBodyInstance](UAnimInstance* AnimInstance)
+	{
+		if (UpperBodyInstance != nullptr) return;
+
+		UpperBodyInstance = Cast<UUpperBodyLayerAnimInstance>(AnimInstance);
+	});
+
+	if (IsValid(UpperBodyInstance) == false) return;
+	if (UpperBodyInstance->GetLeftHandIKTargetAlpha() <= 0.0f) return;
+
+	const UMeshComponent* CurrentWeaponMesh = UpperBodyInstance->GetWeaponMesh();
+	if (IsValid(CurrentWeaponMesh) == false) return;
+	if (UpperBodyLayerHandIK::FindHoldingSkeletalMesh(CurrentWeaponMesh) != OwnerMeshComponent) return;
+	if (OwnerMeshComponent->DoesSocketExist(UpperBodyLayerHandIK::RightHandBoneName) == false) return;
+
+	// 총은 오른손에 고정 → 오른손에서 본 소켓 위치는 항상 같음. 같은 프레임 값끼리 계산하므로 이동 중에도 밀리지 않음
+	const FTransform RightHandTransform = OwnerMeshComponent->GetSocketTransform(UpperBodyLayerHandIK::RightHandBoneName, RTS_World);
+	const FVector SocketLocation = CurrentWeaponMesh->GetSocketLocation(UpperBodyInstance->GetLeftHandSocketName());
+	LeftHandIKOffset = RightHandTransform.InverseTransformPosition(SocketLocation);
+	LeftHandIKAlpha = UpperBodyInstance->GetLeftHandIKTargetAlpha();
 }

@@ -20,6 +20,7 @@
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
 #include "Player/State/NF_PlayerState.h"
 #include "Engine/LocalPlayer.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/ConsumableItems/NF_ConsumableComponent.h"
 #include "GAS/Abilities/NFGA_PlayerDeath.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
@@ -125,6 +126,9 @@ void ANF_Player::ConfigBindDelegate()
 {
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, OnTryAction);
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerBindingSkill, OnSkillBind);
+	
+	NF_WeaponComponent->OnEquippedWeaponChanged.AddUObject(this, &ThisClass::OnEquippedWeaponChanged);
+	OnEquippedWeaponChanged(NF_WeaponComponent->GetEquippedWeapon());
 }
 
 
@@ -218,13 +222,13 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 	}
 	void ANF_Player::TryStartFire()
 	{
-		UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, true);
+		UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByFire(this, true);
 		NF_WeaponComponent->StartFire();
 	}
 	void ANF_Player::TryStopFire()
 	{
 		NF_WeaponComponent->StopFire();
-		UUpperBodyLayerLibrary::SetUpperBodyFireHeld(this, false);
+		UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByFire(this, false);
 	}
 
 	void ANF_Player::TryZoom(ENF_PlayerActionType ActionType)
@@ -232,13 +236,13 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 		if (ActionType == ENF_PlayerActionType::ZoomIn)
 		{
 			NF_WeaponComponent->StartZoom();
-			UUpperBodyLayerLibrary::SetUpperBodyZoom(this, true);
+			UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByZoom(this, true);
 		}
 	
 		if (ActionType == ENF_PlayerActionType::ZoomOut)
 		{
 			NF_WeaponComponent->StopZoom();
-			UUpperBodyLayerLibrary::SetUpperBodyZoom(this, false);
+			UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByZoom(this, false);
 		}	
 	}
 
@@ -495,6 +499,26 @@ void ANF_Player::GainExpToKiller()
 			}
 		}*/
 	}
+}
+
+void ANF_Player::OnEquippedWeaponChanged(ANF_WeaponBase* NewWeapon)
+{
+	UMeshComponent* NewWeaponMesh = nullptr;
+	if (IsValid(NewWeapon) == true)
+	{
+		NewWeaponMesh = NewWeapon->GetWeaponMesh();
+	}
+
+	UUpperBodyLayerLibrary::SetUpperBodyTwoHandIKWeapon(this, NewWeaponMesh);
+
+	if (HasAuthority() == true)
+	{
+		if (IsValid(NewWeapon) == false) return;
+		if (IsValid(NewWeapon->GetWeaponData()) == false) return;
+
+		NF_WeaponType = NewWeapon->GetWeaponData()->WeaponType;
+	}
+
 }
 
 
