@@ -184,14 +184,14 @@ void ANF_TestGameMode::TryAssignTeams()
 		}
 	}
 
-	constexpr int32 PlayersPerTeam = 2;
+	constexpr int32 TestPlayersPerTeam = 2;
 	TArray<FNFServerTeamIdAssignment> Assignments;
 	Assignments.Reserve(LoginOrder.Num());
 
 	for (int32 Index = 0; Index < LoginOrder.Num(); ++Index)
 	{
 		ANF_PlayerState* PlayerState = LoginOrder[Index].Get();
-		const int32 TeamId = (Index / PlayersPerTeam) + 1;
+		const int32 TeamId = (Index / TestPlayersPerTeam) + 1;
 
 		if (!IsValid(PlayerState))
 		{
@@ -215,6 +215,6 @@ void ANF_TestGameMode::TryAssignTeams()
 
 	// 팀 배정은 한 번만 제출한다. 이후 스폰 및 GAS 준비 재확인은 부모가 담당한다.
 	HandleServerTeamIdsAssigned(Assignments);
-	UE_LOG(LogTemp, Log, TEXT("[TestGameMode] 접속 순서 기준 팀 배정 제출. Players=%d, PlayersPerTeam=%d"), Assignments.Num(), PlayersPerTeam);
+	UE_LOG(LogTemp, Log, TEXT("[TestGameMode] 접속 순서 기준 팀 배정 제출. Players=%d, PlayersPerTeam=%d"), Assignments.Num(), TestPlayersPerTeam);
 	StopTeamAssignment();
 }

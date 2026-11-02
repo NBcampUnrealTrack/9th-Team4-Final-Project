@@ -12,8 +12,8 @@
 
 UNFGA_Thorns::UNFGA_Thorns()
 {
-	SkillType = ENF_SkillType::Passive; SkillCategory = ENF_SkillCategory::Utility;
-	SkillActivationMethod = ENF_SkillActivationMethod::OnGranted; BuildCost = 3;
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive; GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Utility;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted; GetMutableSkillDefaults().BuildCost = 3;
 	bActivatePassiveOnGrant = false; ReflectionEffectClass = UNFGE_ThornsDamage::StaticClass();
 	ActivationCueTag = NFTag_Skill::GameplayCue_Skill_Thorns_Activate;
 }
@@ -66,7 +66,7 @@ void UNFGA_Thorns::BindHealth()
 		return;
 	}
 	UnbindHealth();
-	if (SkillType != ENF_SkillType::Passive || !IsValid(Avatar) || !ASC || ASC->GetAvatarActor_Direct() != Avatar
+	if (GetSkillType() != ENF_SkillType::Passive || !IsValid(Avatar) || !ASC || ASC->GetAvatarActor_Direct() != Avatar
 		|| !ASC->GetSet<UNF_PlayerStatusAttribute>())
 	{
 		UE_LOG(LogProject_NF, Warning, TEXT("[Thorns] Player Health AttributeSet is required: %s"), *GetNameSafe(Avatar)); return;

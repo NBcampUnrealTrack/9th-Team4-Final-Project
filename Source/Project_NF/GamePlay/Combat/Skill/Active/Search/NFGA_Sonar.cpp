@@ -12,7 +12,7 @@
 
 UNFGA_Sonar::UNFGA_Sonar()
 {
-	SkillCategory = ENF_SkillCategory::Search; BuildCost = 2;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Search; GetMutableSkillDefaults().BuildCost = 2;
 	SkillExecutionMode = ENF_SkillExecutionMode::Timed; ExecutionDuration = 5.0f;
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Material(TEXT("/Game/ProjectNF/Skills/Sonar/M_PP_Sonar.M_PP_Sonar"));
 	if (Material.Succeeded()) { SilhouetteMaterial = Material.Object; }
@@ -22,7 +22,7 @@ bool UNFGA_Sonar::HasValidSettings() const
 {
 	return !ExecutionActorClass && !bRequiresConfirmedTargetData && SilhouetteMaterial
 		&& SilhouetteMaterial->GetMaterial()->MaterialDomain == MD_PostProcess && SilhouetteStyle.IsValid()
-		&& SkillType == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Timed
+		&& GetSkillType() == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Timed
 		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
 		&& FMath::IsFinite(DetectionRadius) && DetectionRadius > 0
 		&& FMath::IsFinite(CastTime) && CastTime >= 0 && FMath::IsFinite(ExecutionDuration) && ExecutionDuration > 0;

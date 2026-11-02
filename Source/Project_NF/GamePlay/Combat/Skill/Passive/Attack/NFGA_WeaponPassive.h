@@ -1,12 +1,12 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Passive/NFGA_PassiveSkillBase.h"
 #include "NFGA_WeaponPassive.generated.h"
 
 // @Owner: 이정준 (구현: Codex) | 2026-10-21
 // Shared equip/unequip handling only. Concrete skills have their own files.
 UCLASS(Abstract)
-class PROJECT_NF_API UNFGA_WeaponPassive : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_WeaponPassive : public UNFGA_PassiveSkillBase
 {
 	GENERATED_BODY()
 public:

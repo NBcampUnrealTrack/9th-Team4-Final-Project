@@ -63,6 +63,12 @@ EStateTreeRunStatus FNF_BossAbilityTask::Tick(FStateTreeExecutionContext& Contex
 	{
 		return EStateTreeRunStatus::Running;
 	}
+	// Existing OnStateCompleted transitions advance on success or failure; custom
+	// trees can now distinguish an interrupted pattern with OnStateFailed.
+	if (Boss->WasPatternCancelled(InstanceData.AbilityClass))
+	{
+		return EStateTreeRunStatus::Failed;
+	}
 
 	UE_LOG(LogTemp, Display, TEXT("[BossStateTreeDiag] Pattern GA finished; completing state Boss=%s Ability=%s"),
 		*Boss->GetName(), *GetNameSafe(InstanceData.AbilityClass.Get()));

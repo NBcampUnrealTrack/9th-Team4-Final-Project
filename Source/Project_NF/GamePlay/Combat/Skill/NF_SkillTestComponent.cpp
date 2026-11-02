@@ -6,6 +6,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "InputAction.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
@@ -193,7 +194,7 @@ void UNF_SkillTestComponent::CancelTestSkillAim(int32 SlotIndex)
 void UNF_SkillTestComponent::ActivateTestSkill(int32 SlotIndex)
 {
 	FGameplayAbilitySpec* Spec = FindTestSkillSpec(SlotIndex);
-	UNFGA_SkillBase* Ability = Spec ? Cast<UNFGA_SkillBase>(Spec->GetPrimaryInstance()) : nullptr;
+	UNFGA_ActiveSkillBase* Ability = Spec ? Cast<UNFGA_ActiveSkillBase>(Spec->GetPrimaryInstance()) : nullptr;
 	FGameplayAbilityTargetDataHandle TargetData;
 	const bool bRequested = Ability && Ability->BuildConfirmedTargetData(TargetData)
 		&& (TargetData.Num() > 0 ? RequestSkillActivationWithTarget(Spec->Handle, TargetData) : TryActivateAbility(Spec->Handle));

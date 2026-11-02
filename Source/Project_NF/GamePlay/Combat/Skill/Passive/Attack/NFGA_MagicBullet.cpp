@@ -5,7 +5,7 @@
 
 UNFGA_MagicBullet::UNFGA_MagicBullet()
 {
-	BuildCost = 3;
+	GetMutableSkillDefaults().BuildCost = 3;
 	StatEffectClass = UNFGE_MagicBullet::StaticClass();
 	MagnitudeTag = NFTag_Skill::Data_Weapon_LastRoundMultiplier;
 }

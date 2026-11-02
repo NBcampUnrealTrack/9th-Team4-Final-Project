@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "NFGA_Acceleration.generated.h"
 
 class UMotionMatchingComponent;
@@ -10,7 +10,7 @@ class ANF_AccelerationEffect;
 // @Owner: 이정준 (구현: Codex) | 2026-10-20
 // 기존 플레이어 배율 API만 사용하는 시간제 가속화. 플레이어 코드는 수정하지 않는다.
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_Acceleration : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_Acceleration : public UNFGA_ActiveSkillBase
 {
 	GENERATED_BODY()
 public:

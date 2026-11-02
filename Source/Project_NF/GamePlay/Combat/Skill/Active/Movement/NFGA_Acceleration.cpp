@@ -13,16 +13,16 @@
 
 UNFGA_Acceleration::UNFGA_Acceleration()
 {
-	SkillCategory = ENF_SkillCategory::Movement;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Movement;
 	SkillExecutionMode = ENF_SkillExecutionMode::Timed;
 	ExecutionDuration = 5.0f;
-	BuildCost = 4;
+	GetMutableSkillDefaults().BuildCost = 4;
 }
 
 bool UNFGA_Acceleration::HasValidSettings() const
 {
 	return !ExecutionActorClass && !bRequiresConfirmedTargetData
-		&& SkillType == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Timed
+		&& GetSkillType() == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Timed
 		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
 		&& FMath::IsFinite(SpeedMultiplier) && SpeedMultiplier >= 1.0f
 		&& FMath::IsFinite(CastTime) && CastTime >= 0.0f

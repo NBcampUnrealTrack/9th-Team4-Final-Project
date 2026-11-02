@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Passive/NFGA_PassiveSkillBase.h"
 #include "NFGA_Indomitable.generated.h"
 
 // @Owner: 이정준 (구현: Codex) | 2026-10-26
@@ -9,7 +9,7 @@
 struct FActiveGameplayEffectsContainer;
 struct FOnAttributeChangeData;
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_Indomitable : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_Indomitable : public UNFGA_PassiveSkillBase
 {
 	GENERATED_BODY()
 public:

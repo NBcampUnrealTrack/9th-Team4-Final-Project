@@ -16,9 +16,9 @@
 
 UNFGA_BossPatternBase::UNFGA_BossPatternBase()
 {
-	SkillType = ENF_SkillType::Active;
-	SkillCategory = ENF_SkillCategory::Attack;
-	SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
 	SkillExecutionMode = ENF_SkillExecutionMode::Timed;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
@@ -27,6 +27,14 @@ UNFGA_BossPatternBase::UNFGA_BossPatternBase()
 ANF_BossBase* UNFGA_BossPatternBase::GetBoss() const
 {
 	return Cast<ANF_BossBase>(GetAvatarActorFromActorInfo());
+}
+
+void UNFGA_BossPatternBase::EndAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
+	const bool bReplicateEndAbility, const bool bWasCancelled)
+{
+	bLastExecutionCancelled = bWasCancelled;
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 FGameplayEffectSpecHandle UNFGA_BossPatternBase::MakeBossEffectSpec(

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "GamePlay/Combat/Components/NF_TargetQueryTypes.h"
 #include "UI/Sonar/NF_SilhouetteView.h"
 #include "NFGA_Sonar.generated.h"
@@ -10,7 +10,7 @@ class ANF_SonarReveal;
 
 /** One pulse: snapshot targets at cast completion, then reveal their moving silhouettes for ExecutionDuration. */
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_Sonar : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_Sonar : public UNFGA_ActiveSkillBase
 {
 	GENERATED_BODY()
 public:

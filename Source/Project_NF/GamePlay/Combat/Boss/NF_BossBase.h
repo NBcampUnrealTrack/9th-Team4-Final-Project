@@ -23,6 +23,7 @@ class UNF_BossRegistrySubsystem;
 class UDataTable;
 class UWidgetComponent;
 class ANF_PlayerState;
+class UNF_ActiveSkillDataAsset;
 
 /** Stationary GAS-enabled boss base. Boss patterns are granted as GameplayAbilities. */
 UCLASS(Blueprintable)
@@ -30,6 +31,7 @@ class PROJECT_NF_API ANF_BossBase : public AActor, public IAbilitySystemInterfac
 {
 	GENERATED_BODY()
 	friend class UNF_BossStateTreeAssetLibrary;
+	friend class FNF_BossSkillDefinitionTest;
 
 public:
 	ANF_BossBase();
@@ -52,6 +54,7 @@ public:
 	bool IsCombatPatternActive() const;
 	bool ActivateAbilityClass(TSubclassOf<UGameplayAbility> AbilityClass, bool bAllowWhenDefeated = false);
 	bool IsAbilityClassActive(TSubclassOf<UGameplayAbility> AbilityClass) const;
+	bool WasPatternCancelled(TSubclassOf<UGameplayAbility> AbilityClass) const;
 
 	UFUNCTION(BlueprintPure, Category = "NF|Boss")
 	bool IsDefeated() const { return bIsDefeated; }
@@ -130,6 +133,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
 	TSubclassOf<UGameplayAbility> InitialPatternAbility;
 
+	/** Optional definitions keyed by the exact GA class used by the StateTree/legacy slots.
+	 * Patterns retain their own timers: bOverrideActiveSettings must remain false. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
+	TMap<TSubclassOf<UGameplayAbility>, TObjectPtr<UNF_ActiveSkillDataAsset>> PatternSkillData;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities", meta = (DisplayName = "Activate Initial Pattern When Woken"))
 	bool bActivateInitialPatternOnBeginPlay = true;
 
@@ -169,6 +177,8 @@ protected:
 	bool bIsAwake = false;
 
 private:
+	bool GrantPatternAbilities();
+	bool bPatternAbilitiesReady = false;
 	UFUNCTION()
 	void OnRep_IsDefeated();
 
