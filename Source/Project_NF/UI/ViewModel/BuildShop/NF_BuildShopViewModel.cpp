@@ -259,12 +259,14 @@ void UNF_BuildShopViewModel::RefreshFromModel()
                     }
                 }
             }
-    
+            
             ItemData.DisplayName = Item->DisplayName;
             if (ItemData.DisplayName.IsEmpty())
             {
                 ItemData.DisplayName = FText::FromName(Item->ItemId);
             }
+            ItemData.bIsSelected = DraftItemIds.Contains(Item->ItemId);
+            ItemData.bIsEquipped = EquippedItemIds.Contains(Item->ItemId);
             ItemData.bCanSelect = bCanEdit;
             if (!bCanEdit)
             {
