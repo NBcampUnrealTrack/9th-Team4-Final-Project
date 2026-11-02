@@ -15,6 +15,7 @@ class PROJECT_NF_API UNFGA_BossAreaVolley : public UNFGA_ActiveSkillBase
 
 public:
 	UNFGA_BossAreaVolley();
+	bool WasLastExecutionCancelled() const { return bLastExecutionCancelled; }
 
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -77,6 +78,7 @@ protected:
 	FName ProjectileSpawnSocketName = TEXT("FirePoint");
 
 private:
+	bool bLastExecutionCancelled = false;
 	void StartVolley();
 	void FinishTelegraph(FVector_NetQuantize TargetGroundPoint);
 	bool FindGroundPoint(AActor* Target, FVector& OutGroundPoint) const;
