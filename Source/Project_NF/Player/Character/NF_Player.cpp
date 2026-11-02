@@ -488,7 +488,6 @@ void ANF_Player::GainExpToKiller()
 		KillerASC->BP_ApplyGameplayEffectToSelf(NF_KillerPlayerState->NF_PlayerDataAsset->NF_SetDamage_GEClass, 
 			1.0f, KillerASC->MakeEffectContext());
 		
-		
 		//TODO 명우님 요청 사항으로 주석 된 내용
 		/*if (UWorld* World = GetWorld())
 		{
