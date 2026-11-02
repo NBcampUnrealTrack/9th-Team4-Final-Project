@@ -176,6 +176,11 @@ bool FNF_BuildCostTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("카탈로그에 있어도 미획득 항목 거절"),
 	          FNF_BuildValidator::Validate(Rules, 8, {FName(TEXT("Rifle"))}, ExactLimit).Result,
 	          ENF_BuildResult::ItemNotUnlocked);
+	const FNF_BuildValidation OwnedResult =
+		FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), OverLimit, nullptr, &ExactLimit);
+	TestEqual(TEXT("이미 장착한 항목은 코스트에서 제외"), OwnedResult.Result, ENF_BuildResult::Success);
+	TestEqual(TEXT("새로 고른 항목만 코스트에 포함"), OwnedResult.TotalCost,
+	          FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), OverLimit).TotalCost - 8);
 
 	SourceData(Rules, Rules->Catalog[0]).Cost = MAX_int32;
 	SourceData(Rules, Rules->Catalog[1]).Cost = MAX_int32;
@@ -327,9 +332,12 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	{
 		TestEqual(TEXT("두 번째 슬롯의 InputID는 1"), Spec->InputID, 1);
 	}
+	// 장착 중인 Rifle·Grenade는 코스트에서 빠지므로, 새로 고른 Dash+HealthUp(5)가 상한 4를 넘게 한다.
+	TestTrue(TEXT("예산 초과 확인용 상한 축소"), Build->UpdateBuildEntitlements(4, MakeAllowedItemIds(Rules)));
 	Build->RequestApplyBuild(
 		{Select(TEXT("Rifle")), Select(TEXT("Grenade")), Select(TEXT("Dash"), 1), Select(TEXT("HealthUp"))}, Shop);
 	TestEqual(TEXT("Over budget request preserves build"), Build->GetCurrentBuild().Num(), 2);
+	TestTrue(TEXT("상한 복원"), Build->UpdateBuildEntitlements(8, MakeAllowedItemIds(Rules)));
 	TestEqual(TEXT("반복 확정과 실패 요청은 Ready 카운트를 증가시키거나 제거하지 않는다"),
 	          ASC->GetGameplayTagCount(NFTag_Build::State_Build_Ready), 1);
 	ASC->AddLooseGameplayTag(NFTag_Build::State_Build_Locked);
