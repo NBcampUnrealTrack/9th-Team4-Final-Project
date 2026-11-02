@@ -3,6 +3,7 @@
 
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
+#include "GamePlay/Combat/Weapons/NF_CrosshairWidget.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -259,6 +260,19 @@ void UNF_WeaponComponent::StopFire()
 	{
 		FireASC->CancelAbilityHandle(FireAbilityHandle);
 	}
+}
+
+UNF_CrosshairWidget* UNF_WeaponComponent::GetCrosshairForWeapon(ANF_WeaponBase* FiredWeapon)
+{
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (!OwnerPawn || !OwnerPawn->IsLocallyControlled() ||
+		!IsValid(FiredWeapon) || FiredWeapon != EquippedWeapon)
+	{
+		return nullptr;
+	}
+
+	RefreshCrosshair();
+	return Cast<UNF_CrosshairWidget>(CrosshairWidget);
 }
 
 void UNF_WeaponComponent::Reload()

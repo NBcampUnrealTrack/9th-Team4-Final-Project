@@ -9,6 +9,8 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponCameraShakeBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
+#include "GamePlay/Combat/Weapons/NF_CrosshairWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystem.h"
 #include "Sound/SoundBase.h"
@@ -57,7 +59,8 @@ bool UNFGC_WeaponFire::OnExecute_Implementation(AActor* MyTarget, const FGamepla
 				EAttachLocation::SnapToTarget, true);
 		}
 	}
-
+	
+	// 카메라 흔들림
 	APawn* Shooter = Cast<APawn>(Parameters.Instigator.Get());
 	if (IsValid(Shooter) == false)
 	{
@@ -69,6 +72,29 @@ bool UNFGC_WeaponFire::OnExecute_Implementation(AActor* MyTarget, const FGamepla
 		if (IsValid(PC) && PC->IsLocalController() && IsValid(PC->PlayerCameraManager))
 		{
 			PC->PlayerCameraManager->StartCameraShake(Data->FireCameraShakeClass);
+		}
+	}
+
+	// 조준점 벌어짐, 발사 반동
+	if (IsValid(Shooter) && Shooter->IsLocallyControlled() &&
+		Cast<APlayerController>(Shooter->GetController()))
+	{
+		ANF_WeaponBase* FiredWeapon = Cast<ANF_WeaponBase>(Parameters.EffectCauser.Get());
+		UNF_WeaponComponent* Weapons = Shooter->FindComponentByClass<UNF_WeaponComponent>();
+		if (IsValid(FiredWeapon) && IsValid(Weapons) && Weapons->GetEquippedWeapon() == FiredWeapon)
+		{
+			const float MinMultiplier = FMath::Max(0.f,
+				FMath::Min(Data->RecoilPitchRandomRange.X, Data->RecoilPitchRandomRange.Y));
+			const float MaxMultiplier = FMath::Max(MinMultiplier,
+				FMath::Max(Data->RecoilPitchRandomRange.X, Data->RecoilPitchRandomRange.Y));
+			const float PitchInput = FMath::Max(0.f, Data->RecoilPitch)
+				* FMath::FRandRange(MinMultiplier, MaxMultiplier);
+			Shooter->AddControllerPitchInput(-PitchInput);
+
+			if (UNF_CrosshairWidget* Crosshair = Weapons->GetCrosshairForWeapon(FiredWeapon))
+			{
+				Crosshair->NotifyShotFired();
+			}
 		}
 	}
 
