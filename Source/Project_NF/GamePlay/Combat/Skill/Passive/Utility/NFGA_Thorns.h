@@ -1,6 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Passive/NFGA_PassiveSkillBase.h"
 #include "NFGA_Thorns.generated.h"
 
 struct FOnAttributeChangeData;
@@ -8,7 +8,7 @@ struct FOnAttributeChangeData;
 // @Owner: 이정준 (구현: Codex) | 2026-10-22
 // Observe actual health loss on the server; shield damage and overkill are excluded.
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_Thorns : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_Thorns : public UNFGA_PassiveSkillBase
 {
 	GENERATED_BODY()
 public:

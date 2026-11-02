@@ -4,46 +4,15 @@
 #include "Abilities/GameplayAbility.h"
 #include "GAS/Foundation/NF_SkillTargetData.h"
 #include "GamePlay/Combat/Skill/Preview/NF_SkillPreviewData.h"
+#include "GamePlay/Combat/Skill/NF_SkillTypes.h"
 #include "NFGA_SkillBase.generated.h"
 
 class ANF_SkillPreviewActor;
 class ANF_SkillExecutionActor;
 class UAnimMontage;
-
-// @Owner: 스킬 담당 | 2026-10-12
-// 목적: 장착 유형과 기능 분류를 분리하여 공통 스킬 GA의 설정 정보를 제공한다.
-UENUM(BlueprintType)
-enum class ENF_SkillType : uint8
-{
-	Active UMETA(DisplayName = "Active"),
-	Passive UMETA(DisplayName = "Passive")
-};
-
-UENUM(BlueprintType)
-enum class ENF_SkillCategory : uint8
-{
-	Attack UMETA(DisplayName = "Attack"),
-	Utility UMETA(DisplayName = "Utility"),
-	Movement UMETA(DisplayName = "Movement"),
-	Search UMETA(DisplayName = "Search")
-};
-
-UENUM(BlueprintType)
-enum class ENF_SkillActivationMethod : uint8
-{
-	Input UMETA(DisplayName = "Input"),
-	OnGranted UMETA(DisplayName = "On Granted"),
-	GameplayEvent UMETA(DisplayName = "Gameplay Event"),
-	Toggle UMETA(DisplayName = "Toggle")
-};
-
-UENUM(BlueprintType)
-enum class ENF_SkillExecutionMode : uint8
-{
-	Instant UMETA(DisplayName = "Instant"),
-	Timed UMETA(DisplayName = "Timed"),
-	Continuous UMETA(DisplayName = "Continuous")
-};
+class UNF_SkillDataAsset;
+class UNF_ActiveSkillDataAsset;
+class UNF_PassiveSkillDataAsset;
 
 /**
  * @Owner: 스킬 담당 | 2026-10-12
@@ -64,6 +33,8 @@ class PROJECT_NF_API UNFGA_SkillBase : public UGameplayAbility
 
 public:
 	UNFGA_SkillBase();
+	UFUNCTION(BlueprintPure, Category = "NF|Skill|Definition")
+	const UNF_SkillDataAsset* GetSkillData() const;
 	bool ShouldEndOnInputRelease() const;
 	void ReleaseSkillInput();
 	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -238,6 +209,14 @@ protected:
 	int32 BuildCost = 0;
 
 private:
+	friend class UNF_SkillDataAsset;
+	friend class UNF_ActiveSkillDataAsset;
+	friend class UNF_PassiveSkillDataAsset;
+	void ConfigureFromSkillData(const FGameplayAbilitySpec& Spec);
+	bool HasBlockingStateRule(const UAbilitySystemComponent* ASC, bool bRunning) const;
+	UPROPERTY(Transient)
+	TObjectPtr<UNF_SkillDataAsset> SkillData;
+	TArray<FNF_SkillStateRule> AdditionalStateRules;
 	friend class FNF_SkillCastMontageTest;
 	void PlayCastMontage(const FGameplayAbilityActorInfo* ActorInfo);
 	bool bCastMontageRequested = false;

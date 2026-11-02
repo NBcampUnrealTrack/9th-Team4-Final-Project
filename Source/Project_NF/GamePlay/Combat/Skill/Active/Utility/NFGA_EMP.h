@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "GamePlay/Combat/Components/NF_TargetQueryTypes.h"
 #include "NFGA_EMP.generated.h"
 
@@ -9,7 +9,7 @@ class UNFGE_EMP;
 
 /** Instant radial pulse. The same GE can also be applied by HitEffect / ApplyEffect compositions. */
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_EMP : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_EMP : public UNFGA_ActiveSkillBase
 {
 	GENERATED_BODY()
 public:

@@ -1,12 +1,12 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Passive/NFGA_PassiveSkillBase.h"
 #include "NFGA_Berserker.generated.h"
 
 // @Owner: 이정준 (구현: Codex) | 2026-10-22
 // Server-side stacks from actual Health damage. Owns only its attack bonus GE.
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_Berserker : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_Berserker : public UNFGA_PassiveSkillBase
 {
 	GENERATED_BODY()
 public:

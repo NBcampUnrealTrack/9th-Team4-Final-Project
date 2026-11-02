@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "NFGA_Movement.generated.h"
 
 class ACharacter;
@@ -14,7 +14,7 @@ enum class ENF_MovementDirection : uint8 { World, Avatar, Aim, Target };
 
 /** Shared Character movement ability. Damage and AI decision making are external. */
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_Movement : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_Movement : public UNFGA_ActiveSkillBase
 {
 	GENERATED_BODY()
 public:

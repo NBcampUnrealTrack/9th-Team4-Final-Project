@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "NFGA_AirStrike.generated.h"
 
 class ANF_AirStrike;
@@ -10,7 +10,7 @@ class ANF_AirStrike;
  * 목적: 지면 목표를 선택/확정하고 서버에서 공습 액터를 생성하는 액티브 공격 GA.
  */
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_AirStrike : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_AirStrike : public UNFGA_ActiveSkillBase
 {
 	GENERATED_BODY()
 public:
