@@ -39,4 +39,7 @@ namespace NFTag_Player
 	
 	// @Owner: 명현 | 2026-10-30
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_State_ShieldRecoveryBlocked);
+	
+	// @Owner: 명현 | 2026-11-02
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_InComingEXP);
 };

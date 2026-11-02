@@ -38,13 +38,16 @@ public:
 	FName MeleeSocket_End = "MeleeSocket_End";
 	
 	
-	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "MeleeAttackDamage (양수)")
+	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "InComingEXPAmount(양수)")
+	float PlayerKillExp = 30.0f;
+	
+	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "MeleeAttackDamage(양수)")
 	float MeleeAttackDamage = 30.0f;
 	
-	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "ShieldRecoveryAmount (양수)")
+	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "ShieldRecoveryAmount(양수)")
 	float ShieldRecoveryAmount = 0.1f;
 	
-	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "ShieldRecoveryBlockedDuration (양수)")
+	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "ShieldRecoveryBlockedDuration(양수)")
 	float ShieldRecoveryBlockedDuration = 3.0f;
 	
 	
@@ -60,6 +63,9 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
 	TSubclassOf<UGameplayEffect> NF_SetDamage_GEClass;
+	
+	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
+	TSubclassOf<UGameplayEffect> NF_IncomingExp_GEClass;
 	
 	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
 	TSubclassOf<UGameplayEffect> NF_ShieldRecovery_GEClass;

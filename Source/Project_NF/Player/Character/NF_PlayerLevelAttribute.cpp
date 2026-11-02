@@ -1,6 +1,8 @@
 ﻿#include "NF_PlayerLevelAttribute.h"
 
 #include "GameplayEffectExtension.h"
+#include "NF_PlayerStatusAttribute.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
 #include "Player/Data/NF_PlayerLevelDataTable.h"
@@ -15,6 +17,7 @@ UNF_PlayerLevelAttribute::UNF_PlayerLevelAttribute()
 void UNF_PlayerLevelAttribute::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
 {
 	Super::PreAttributeChange(Attribute, NewValue);
+	
 }
 
 
@@ -40,6 +43,8 @@ void UNF_PlayerLevelAttribute::PostGameplayEffectExecute(const FGameplayEffectMo
 			SetCurrentLevel(GetCurrentLevel() + 1.0f);          //1레벨 업
 			OnLevelUp.Broadcast(FMath::FloorToInt32(GetCurrentLevel()));   //레벨은 소수점 내림으로 정수 유지
 		}
+		
+		UKismetSystemLibrary::PrintString(this,FString::Printf(TEXT("%f"), GetTargetExp()));
 	}
 }
 
