@@ -251,6 +251,7 @@ void UNFGA_BossAreaVolley::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
+	bLastExecutionCancelled = bWasCancelled;
 	AActor* AvatarActor = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
 	UWorld* World = IsValid(AvatarActor) ? AvatarActor->GetWorld() : nullptr;
 	if (World)
