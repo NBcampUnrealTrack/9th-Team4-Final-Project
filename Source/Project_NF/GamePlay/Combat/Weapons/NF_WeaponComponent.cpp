@@ -26,23 +26,6 @@ UNF_WeaponComponent::UNF_WeaponComponent()
 	SetIsReplicatedByDefault(true);
 }
 
-void UNF_WeaponComponent::ClientNotifyCrosshairShot_Implementation(ANF_WeaponBase* FiredWeapon)
-{
-	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
-	if (!OwnerPawn || !OwnerPawn->IsLocallyControlled() ||
-		!IsValid(FiredWeapon) || FiredWeapon != EquippedWeapon)
-	{
-		return;
-	}
-
-	// Ensure the widget exists, and discard delayed notifications for a previous weapon.
-	RefreshCrosshair();
-	if (UNF_CrosshairWidget* Crosshair = Cast<UNF_CrosshairWidget>(CrosshairWidget))
-	{
-		Crosshair->NotifyShotFired();
-	}
-}
-
 void UNF_WeaponComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -277,6 +260,19 @@ void UNF_WeaponComponent::StopFire()
 	{
 		FireASC->CancelAbilityHandle(FireAbilityHandle);
 	}
+}
+
+UNF_CrosshairWidget* UNF_WeaponComponent::GetCrosshairForWeapon(ANF_WeaponBase* FiredWeapon)
+{
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (!OwnerPawn || !OwnerPawn->IsLocallyControlled() ||
+		!IsValid(FiredWeapon) || FiredWeapon != EquippedWeapon)
+	{
+		return nullptr;
+	}
+
+	RefreshCrosshair();
+	return Cast<UNF_CrosshairWidget>(CrosshairWidget);
 }
 
 void UNF_WeaponComponent::Reload()

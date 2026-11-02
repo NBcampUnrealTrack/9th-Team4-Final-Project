@@ -45,11 +45,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crosshair", meta=(ClampMin="0.0", ClampMax="1.0", UIMin="0.0", UIMax="1.0"))
 	float Radius = 0.f;
 
-	/** Normalized spread added for each successful shot. */
+	// 조준점 벌어지는 크기 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crosshair", meta=(ClampMin="0.0", ClampMax="1.0"))
 	float SpreadPerShot = 0.35f;
 
-	/** Normalized spread recovered per second. */
+	// 벌어진 조준점 회복 속도
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crosshair", meta=(ClampMin="0.01"))
 	float SpreadRecoverySpeed = 1.5f;
 

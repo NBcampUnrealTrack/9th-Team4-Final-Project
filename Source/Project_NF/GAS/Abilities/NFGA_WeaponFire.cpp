@@ -69,11 +69,6 @@ void UNFGA_WeaponFire::TryFire()
 		return;
 	}
 
-	if (WeaponComponent.IsValid() && Weapon.IsValid())
-	{
-		WeaponComponent->ClientNotifyCrosshairShot(Weapon.Get());
-	}
-
 	if (!IsActive() || !Weapon.IsValid()) return;
 
 	PlayFireAnimation();

@@ -14,6 +14,7 @@ class UNFGA_WeaponZoom;
 class UNFGA_WeaponReload;
 class UCameraComponent;
 class UUserWidget;
+class UNF_CrosshairWidget;
 class APawn;
 class AController;
 class UMeshComponent;
@@ -36,8 +37,7 @@ class PROJECT_NF_API UNF_WeaponComponent : public UActorComponent
 
 public:	
 	UNF_WeaponComponent();
-
-	/** Server equip/unequip and client replication. Subscribe, then read GetEquippedWeapon(). */
+	
 	FNF_OnEquippedWeaponChanged OnEquippedWeaponChanged;
 	
 	FNF_OnShotFired OnShotFired;
@@ -55,12 +55,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void StopFire();
-
-	/** Notify only the owning player after a server-confirmed shot. */
-	UFUNCTION(Client, Reliable)
-	void ClientNotifyCrosshairShot(ANF_WeaponBase* FiredWeapon);
-
-	/** Bind to Started only; do not bind button release to StopZoom. */
+	
 	UFUNCTION(BlueprintCallable, Category="Weapon|Zoom")
 	void ToggleZoom();
 
@@ -93,6 +88,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Weapon")
 	ANF_WeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
+	
+	UNF_CrosshairWidget* GetCrosshairForWeapon(ANF_WeaponBase* FiredWeapon);
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
