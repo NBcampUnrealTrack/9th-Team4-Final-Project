@@ -2,6 +2,8 @@
 
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
+#include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossPatternBase.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -267,29 +269,12 @@ void ANF_BossBase::BeginPlay()
 		BossAttributeSet->InitializeForBoss(ConfiguredMaxHealth);
 	}
 
-	for (const TSubclassOf<UGameplayAbility>& PatternAbility : CombatPatternAbilities)
-	{
-		if (PatternAbility && !AbilitySystemComponent->FindAbilitySpecFromClass(PatternAbility))
-		{
-			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(PatternAbility, 1, INDEX_NONE, this));
-		}
-	}
 	if (InitialPatternAbility && !CombatPatternAbilities.Contains(InitialPatternAbility))
 	{
 		CombatPatternAbilities.Insert(InitialPatternAbility, 0);
 	}
-	if (LastGaspAbility && !AbilitySystemComponent->FindAbilitySpecFromClass(LastGaspAbility))
-	{
-		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(LastGaspAbility, 1, INDEX_NONE, this));
-	}
-
-	if (InitialPatternAbility)
-	{
-		if (!AbilitySystemComponent->FindAbilitySpecFromClass(InitialPatternAbility))
-		{
-			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(InitialPatternAbility, 1, INDEX_NONE, this));
-		}
-	}
+	bPatternAbilitiesReady = GrantPatternAbilities();
+	if (!bPatternAbilitiesReady) return;
 
 	if (!BossStateTree)
 	{
@@ -328,12 +313,65 @@ void ANF_BossBase::BeginPlay()
 	}
 }
 
+bool ANF_BossBase::GrantPatternAbilities()
+{
+	if (!HasAuthority() || !AbilitySystemComponent) return false;
+	TArray<TSubclassOf<UGameplayAbility>> Classes = CombatPatternAbilities;
+	if (InitialPatternAbility) Classes.AddUnique(InitialPatternAbility);
+	if (LastGaspAbility) Classes.AddUnique(LastGaspAbility);
+
+	// Validate all authored definitions before granting anything. Classes are the
+	// StateTree contract: a definition cannot silently substitute another GA.
+	for (const auto& Entry : PatternSkillData)
+	{
+		const UNF_ActiveSkillDataAsset* Data = Entry.Value;
+		if (!Entry.Key || !Classes.Contains(Entry.Key) || !IsValid(Data) ||
+			!Data->HasValidSettings() || Data->AbilityClass.Get() != Entry.Key.Get() ||
+			!Entry.Key->IsChildOf(UNFGA_BossPatternBase::StaticClass()) || Data->bOverrideActiveSettings)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[BossSkillData] Invalid definition for %s on %s. Use the exact configured boss GA and disable bOverrideActiveSettings; boss patterns own their timers."),
+				*GetNameSafe(Entry.Key.Get()), *GetName());
+			return false;
+		}
+	}
+	for (const TSubclassOf<UGameplayAbility>& AbilityClass : Classes)
+	{
+		if (!AbilityClass) continue;
+		if (!AbilityClass->IsChildOf(UNFGA_BossPatternBase::StaticClass()) || AbilityClass->HasAnyClassFlags(CLASS_Abstract))
+		{
+			UE_LOG(LogTemp, Error, TEXT("[BossSkillData] %s is not a concrete boss pattern."), *GetNameSafe(AbilityClass.Get()));
+			return false;
+		}
+	}
+	for (const TSubclassOf<UGameplayAbility>& AbilityClass : Classes)
+	{
+		if (!AbilityClass) continue;
+		UNF_ActiveSkillDataAsset* Data = PatternSkillData.FindRef(AbilityClass);
+		if (!Data)
+		{
+			// Existing BPs need no asset migration to keep working. Hold the generated
+			// definition in the reflected map because Spec.SourceObject is weak.
+			Data = NewObject<UNF_ActiveSkillDataAsset>(this, NAME_None, RF_Transient);
+			Data->AbilityClass = AbilityClass.Get();
+			PatternSkillData.Add(AbilityClass, Data);
+		}
+		if (const FGameplayAbilitySpec* Existing = AbilitySystemComponent->FindAbilitySpecFromClass(AbilityClass))
+		{
+			if (Existing->SourceObject.Get() == Data && Existing->Level == Data->AbilityLevel) continue;
+			UE_LOG(LogTemp, Error, TEXT("[BossSkillData] Conflicting grant for %s on %s."), *GetNameSafe(AbilityClass.Get()), *GetName());
+			return false;
+		}
+		if (!Data->GrantTo(AbilitySystemComponent).IsValid()) return false;
+	}
+	return true;
+}
+
 bool ANF_BossBase::IsReadyForEncounter() const
 {
 	if (!HasAuthority() || !HasActorBegunPlay() || IsActorBeingDestroyed() || IsDefeated() ||
 		!IsValid(AbilitySystemComponent) || AbilitySystemComponent->GetAvatarActor() != this ||
 		AbilitySystemComponent->GetOwnerActor() != this || !IsValid(BossAttributeSet) ||
-		BossAttributeSet->GetHealth() <= 0.0f)
+		BossAttributeSet->GetHealth() <= 0.0f || !bPatternAbilitiesReady)
 	{
 		return false;
 	}
@@ -376,7 +414,7 @@ bool ANF_BossBase::ActivateNextCombatPattern()
 		{
 			continue;
 		}
-		if (AbilitySystemComponent->TryActivateAbilityByClass(AbilityClass))
+		if (ActivateAbilityClass(AbilityClass))
 		{
 			UE_LOG(LogTemp, Display, TEXT("[BossStateTree] Started pattern %s on %s"),
 				*GetNameSafe(AbilityClass), *GetName());
@@ -441,7 +479,7 @@ bool ANF_BossBase::ActivateAbilityClass(const TSubclassOf<UGameplayAbility> Abil
 		? AbilitySystemComponent->FindAbilitySpecFromClass(AbilityClass)
 		: nullptr;
 
-	if (!HasAuthority() || (bIsDefeated && !bAllowWhenDefeated) || !AbilityUClass || !AbilitySystemComponent)
+	if (!HasAuthority() || !bPatternAbilitiesReady || (bIsDefeated && !bAllowWhenDefeated) || !AbilityUClass || !AbilitySystemComponent)
 	{
 		UE_LOG(LogTemp, Warning,
 			TEXT("[BossGADiag] Activation blocked Boss=%s Ability=%s Authority=%d Defeated=%d AllowWhenDefeated=%d ASC=%s"),
@@ -455,6 +493,12 @@ bool ANF_BossBase::ActivateAbilityClass(const TSubclassOf<UGameplayAbility> Abil
 		UE_LOG(LogTemp, Error,
 			TEXT("[BossGADiag] Activation failed: ability is not granted. Boss=%s Ability=%s"),
 			*GetName(), *GetNameSafe(AbilityUClass));
+		return false;
+	}
+	const UNF_ActiveSkillDataAsset* Data = PatternSkillData.FindRef(AbilityClass);
+	if (!Data || AbilitySpec->SourceObject.Get() != Data || Data->AbilityClass.Get() != AbilityUClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[BossSkillData] StateTree/definition mismatch for %s on %s."), *GetNameSafe(AbilityUClass), *GetName());
 		return false;
 	}
 
@@ -482,6 +526,14 @@ bool ANF_BossBase::IsAbilityClassActive(const TSubclassOf<UGameplayAbility> Abil
 	}
 	const FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromClass(AbilityClass);
 	return Spec && Spec->IsActive();
+}
+
+bool ANF_BossBase::WasPatternCancelled(const TSubclassOf<UGameplayAbility> AbilityClass) const
+{
+	const FGameplayAbilitySpec* Spec = AbilitySystemComponent && AbilityClass
+		? AbilitySystemComponent->FindAbilitySpecFromClass(AbilityClass) : nullptr;
+	const auto* Pattern = Spec ? Cast<UNFGA_BossPatternBase>(Spec->GetPrimaryInstance()) : nullptr;
+	return Pattern && Pattern->WasLastExecutionCancelled();
 }
 
 ANF_Player* ANF_BossBase::GetHighestDamageTarget(const float MaxRange) const

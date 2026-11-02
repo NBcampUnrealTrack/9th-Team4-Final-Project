@@ -70,8 +70,9 @@ void UNFGA_BossLastGasp::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	if (UWorld* World = GetWorld()) World->GetTimerManager().ClearTimer(DetonationTimer);
 	MarkedLocations.Reset();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-	if (!bWasCancelled)
+	// State-rule/EMP cancellation must still finish the defeated boss's lifecycle.
+	if (ANF_BossBase* Boss = GetBoss(); Boss && Boss->IsDefeated() && !Boss->IsActorBeingDestroyed())
 	{
-		if (ANF_BossBase* Boss = GetBoss()) Boss->CompleteDeathSequence();
+		Boss->CompleteDeathSequence();
 	}
 }
