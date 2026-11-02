@@ -828,6 +828,39 @@ void UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByFire(ACharacter* Characte
 }
 
 
+// NotifyFire 반환과 같은 기준: 조준 자세로 다 섞였고 총구가 조준 방향에서 15° 안
+bool UUpperBodyLayerAnimInstance::IsAimPoseReady() const
+{
+	const UUpperBodyLayer* DataAsset = FindCurrentDataAsset(Cast<ACharacter>(TryGetPawnOwner()));
+	if (IsValid(DataAsset) == false) return true;
+	if (AimAlpha < 0.99f) return false;
+	if (FMath::Abs(AimResidualYawDegrees) > 15.0f) return false;
+
+	return true;
+}
+
+
+bool UUpperBodyLayerLibrary::IsUpperBodyAimReady(ACharacter* Character)
+{
+	if (IsValid(Character) == false) return true;
+
+	USkeletalMeshComponent* MeshComponent = Character->GetMesh();
+	if (IsValid(MeshComponent) == false) return true;
+
+	// 상체 레이어가 없는 캐릭터는 기다릴 자세가 없음
+	bool bIsReady = true;
+	MeshComponent->ForEachAnimInstance([&bIsReady](UAnimInstance* AnimInstance)
+	{
+		const auto* UpperBodyInstance = Cast<UUpperBodyLayerAnimInstance>(AnimInstance);
+		if (IsValid(UpperBodyInstance) == false) return;
+
+		bIsReady = UpperBodyInstance->IsAimPoseReady();
+	});
+
+	return bIsReady;
+}
+
+
 void UUpperBodyLayerHandIKAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);

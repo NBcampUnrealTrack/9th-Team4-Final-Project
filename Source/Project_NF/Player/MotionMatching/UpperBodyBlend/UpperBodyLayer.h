@@ -130,6 +130,9 @@ public:
 	// 사격 알림: 전투 태세로 전환·유지하고 FireMontage 재생. 반환값 = 지금 총구가 조준 방향을 향하고 있음
 	bool NotifyFire();
 
+	// 지금 조준 자세가 다 잡혔는지 (읽기 전용, NotifyFire 반환과 같은 기준). 무기 데이터 에셋이 없으면(상체 레이어 꺼짐) 기다릴 자세가 없으므로 true
+	bool IsAimPoseReady() const;
+
 	// [v0.0.3 예정분] 보이는 메시 왼손 IK(UUpperBodyLayerHandIKAnimInstance)가 읽는 값. 총이 어느 메시에 붙었는지와 상관없이 계산한 값
 	UMeshComponent* GetWeaponMesh() const { return WeaponMesh.Get(); }
 	FName GetLeftHandSocketName() const { return LeftHandSocketName; }
@@ -336,4 +339,8 @@ public:
 	// 사격 키(방아쇠) 누름/뗌 (조종하는 쪽): 누르고 있는 동안 전투 태세. 떼면 CombatHoldTime 뒤 평상시
 	UFUNCTION(BlueprintCallable, Category = "UpperBody")
 	static void SetUpperBodyCombatStanceByFire(ACharacter* Character, bool bIsFiring);
+
+	// 조준 자세 준비 여부 (총알을 쏘기 직전에 확인, 서버에서도 읽음). 상체 레이어가 없거나 데이터 에셋이 없는 무기면 true
+	UFUNCTION(BlueprintPure, Category = "UpperBody")
+	static bool IsUpperBodyAimReady(ACharacter* Character);
 };
