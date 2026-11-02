@@ -8,7 +8,7 @@
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 #include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
-
+#include "Engine/Texture2D.h"
 
 void UNF_BuildShopViewModel::UpdateShop(const FNF_BuildShopViewData& NewData)
 {
@@ -215,6 +215,17 @@ void UNF_BuildShopViewModel::RefreshFromModel()
     AddSlot(Data.SkillSlots, ENF_ItemType::ActiveSkill, 1, TEXT("액티브 2"));
     AddSlot(Data.SkillSlots, ENF_ItemType::PassiveSkill, 0, TEXT("패시브"));
 
+    TSet<FName> DraftItemIds;
+    for (const FNF_BuildSelection& Selection : Draft)
+    {
+        DraftItemIds.Add(Selection.ItemId);
+    }
+    TSet<FName> EquippedItemIds;
+    for (const FNF_BuildSelection& Selection : Source->GetCurrentBuild())
+    {
+        EquippedItemIds.Add(Selection.ItemId);
+    }
+    
     const ENF_ItemType Categories[] = {
         ENF_ItemType::ActiveSkill, ENF_ItemType::PassiveSkill, ENF_ItemType::Armor, ENF_ItemType::Weapon
     };
@@ -247,17 +258,6 @@ void UNF_BuildShopViewModel::RefreshFromModel()
                         ItemData.Icon = SkillData->GetSkillIcon();
                     }
                 }
-            }
-            
-            TSet<FName> DraftItemIds;
-            for (const FNF_BuildSelection& Selection : Draft)
-            {
-                DraftItemIds.Add(Selection.ItemId);
-            }
-            TSet<FName> EquippedItemIds;
-            for (const FNF_BuildSelection& Selection : Source->GetCurrentBuild())
-            {
-                EquippedItemIds.Add(Selection.ItemId);
             }
     
             ItemData.DisplayName = Item->DisplayName;
