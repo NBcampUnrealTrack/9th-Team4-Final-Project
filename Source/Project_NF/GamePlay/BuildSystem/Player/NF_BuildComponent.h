@@ -74,6 +74,8 @@ public:
 	// @Owner: 황준현 | 2026-10-20. 권한 있는 진행·획득 시스템에서 호출한다.
 	// 클라이언트 RPC로 제공하지 않는다.
 	bool UpdateBuildEntitlements(int32 NewCostLimit, const TArray<FName>& NewUnlockedItemIds);
+	
+	
 
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
 	FNF_OnBuildShopStateChanged OnBuildShopStateChanged;
@@ -270,8 +272,9 @@ private:
 	FNF_BuildValidation CommitBuildOnServer(const TArray<FNF_BuildSelection>& Selections, const UNF_BuildRules* Rules,
 	                                        const TArray<FName>& PaidItemIds);
 
-	bool GrantItem(UNF_BuildItemDefinitionDataAsset* Definition, const FNF_BuildItemData& Data,
-	               int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
+	bool GrantItem(UNF_BuildItemDefinitionDataAsset* Definition, UObject* ItemSource, 
+		const FNF_BuildItemData& Data, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
+	
 	bool ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections,
 	                          const TMap<FName, FNF_BuildItemData>& SelectedData);
 	bool ApplyEquipmentSelection(const TArray<FNF_BuildSelection>& Selections,

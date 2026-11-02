@@ -5,6 +5,7 @@
 #include "GamePlay/BuildSystem/Core/NF_BuildValidator.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
+#include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
 #include "GAS/Tags/NFTag_Build.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 #include "GameFramework/Pawn.h"
@@ -738,7 +739,8 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 			}
 		}
 		FNF_BuildGrantHandles Handles;
-		if (!GrantItem(Definition, SelectedData.FindChecked(Selection.ItemId), Selection.SlotIndex, Handles))
+		if (!GrantItem(Definition, Rules->ItemSources.FindRef(Selection.ItemId).Get(), 
+			SelectedData.FindChecked(Selection.ItemId), Selection.SlotIndex, Handles))
 		{
 			RevokeItem(Handles);
 			for (const TPair<FName, FNF_BuildGrantHandles>& Staged : StagedItems)
@@ -896,25 +898,50 @@ void UNF_BuildComponent::ReleaseBuildWeapon()
 }
 
 bool UNF_BuildComponent::GrantItem(
-	UNF_BuildItemDefinitionDataAsset* Definition, const FNF_BuildItemData& Data, int32 SlotIndex,
+	UNF_BuildItemDefinitionDataAsset* Definition, UObject* ItemSource, const FNF_BuildItemData& Data, int32 SlotIndex,
 	FNF_BuildGrantHandles& OutHandles)
 {
-	if (!Definition)
+	if (!IsValid(Definition))
 	{
 		return false;
 	}
+	
 	OutHandles.Definition = Definition;
 	OutHandles.ItemData = Data;
-	if (Data.AbilityClass)
+	
+	const bool bIsSkill=
+			Data.ItemType == ENF_ItemType::ActiveSkill || Data.ItemType == ENF_ItemType::PassiveSkill;
+	
+	const int32 InputId = 
+		Data.ItemType == ENF_ItemType::ActiveSkill ? SlotIndex : INDEX_NONE;
+	
+	if (bIsSkill)
 	{
-		const int32 InputId = Data.ItemType == ENF_ItemType::ActiveSkill ? SlotIndex : INDEX_NONE;
-		OutHandles.AbilityHandle = AbilitySystem->GiveAbility(
-			FGameplayAbilitySpec(Data.AbilityClass, Data.AbilityLevel, InputId, Definition));
+		UNF_SkillDataAsset* SkillData = Cast<UNF_SkillDataAsset>(ItemSource);
+		
+		if (!IsValid(SkillData))
+		{
+			return false;
+		}
+		
+		OutHandles.AbilityHandle = SkillData->GrantTo(AbilitySystem, InputId);
+		
 		if (!OutHandles.AbilityHandle.IsValid())
 		{
 			return false;
 		}
 	}
+	else if (Data.AbilityClass)
+	{
+		OutHandles.AbilityHandle = AbilitySystem->GiveAbility(
+			FGameplayAbilitySpec(Data.AbilityClass,Data.AbilityLevel, InputId, Definition));
+		
+		if (!OutHandles.AbilityHandle.IsValid())
+		{
+			return false;
+		}
+	}
+	
 
 	for (const TSubclassOf<UGameplayEffect>& EffectClass : Data.EquippedEffects)
 	{
