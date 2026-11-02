@@ -5,6 +5,7 @@
 #include "GamePlay/BuildSystem/Core/NF_BuildValidator.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
+#include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
 #include "GAS/Tags/NFTag_Build.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 #include "GameFramework/Pawn.h"
@@ -308,6 +309,7 @@ bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 		Selection.ItemId = ItemId;
 		Selection.SlotIndex = TargetSlotIndex;
 		DraftBuild.Add(Selection);
+		PickedItemIds.Add(ItemId);
 		bDraftDirty = true;
 	}
 	OnDraftChanged.Broadcast();
@@ -335,6 +337,7 @@ bool UNF_BuildComponent::AssignSelectedActiveSkill(int32 SlotIndex)
 	Selection.ItemId = PendingActiveSkill;
 	Selection.SlotIndex = SlotIndex;
 	DraftBuild.Add(Selection);
+	PickedItemIds.Add(PendingActiveSkill);
 	PendingActiveSkill = NAME_None;
 	bDraftDirty = true;
 	OnDraftChanged.Broadcast();
@@ -353,10 +356,66 @@ bool UNF_BuildComponent::RemoveDraftItem(FName ItemId)
 	}) > 0;
 	if (bRemoved)
 	{
+		PickedItemIds.Remove(ItemId);
 		bDraftDirty = true;
 		OnDraftChanged.Broadcast();
 	}
 	return bRemoved;
+}
+
+bool UNF_BuildComponent::RevertDraftItem(FName ItemId)
+{
+	if (!CanEditDraft())
+	{
+		return false;
+	}
+	// 칸 선택을 기다리는 액티브 스킬은 대기만 취소한다.
+	if (PendingActiveSkill == ItemId)
+	{
+		PendingActiveSkill = NAME_None;
+		OnDraftChanged.Broadcast();
+		return true;
+	}
+	const FNF_BuildSelection* Picked = DraftBuild.FindByPredicate([ItemId](const FNF_BuildSelection& Selection)
+	{
+		return Selection.ItemId == ItemId;
+	});
+	FNF_BuildItemData Data;
+	if (!Picked || !ResolveItemData(ItemId, Data))
+	{
+		return false;
+	}
+	const int32 SlotIndex = Picked->SlotIndex;
+	DraftBuild.RemoveAll([ItemId](const FNF_BuildSelection& Selection)
+	{
+		return Selection.ItemId == ItemId;
+	});
+	PickedItemIds.Remove(ItemId);
+	// 장착돼 있던 항목을 원래 칸으로 되돌린다.
+	// 취소한 칸에 원래 있던 항목, 그리고 취소한 항목 자신이 장착 중이었다면 그 항목이 대상이다.
+	for (const FNF_BuildSelection& Equipped : CurrentBuild)
+	{
+		FNF_BuildItemData EquippedData;
+		if (!ResolveItemData(Equipped.ItemId, EquippedData) || EquippedData.ItemType != Data.ItemType ||
+			(Equipped.SlotIndex != SlotIndex && Equipped.ItemId != ItemId))
+		{
+			continue;
+		}
+		const bool bBlocked = DraftBuild.ContainsByPredicate([this, &Equipped, &Data](const FNF_BuildSelection& Selection)
+		{
+			FNF_BuildItemData Existing;
+			return Selection.ItemId == Equipped.ItemId ||
+				(ResolveItemData(Selection.ItemId, Existing) && Existing.ItemType == Data.ItemType &&
+					Selection.SlotIndex == Equipped.SlotIndex);
+		});
+		if (!bBlocked)
+		{
+			DraftBuild.Add(Equipped);
+		}
+	}
+	bDraftDirty = true;
+	OnDraftChanged.Broadcast();
+	return true;
 }
 
 void UNF_BuildComponent::ApplyDraftBuild()
@@ -365,7 +424,7 @@ void UNF_BuildComponent::ApplyDraftBuild()
 	{
 		bAwaitingBuildResult = true;
 		OnDraftChanged.Broadcast();
-		RequestApplyBuild(DraftBuild, CurrentShop);
+		SendApplyBuild(DraftBuild, CurrentShop, PickedItemIds.Array());
 	}
 }
 
@@ -377,6 +436,7 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 	{
 		DraftBuild = CurrentBuild;
 		PendingActiveSkill = NAME_None;
+		PickedItemIds.Reset();
 		bDraftDirty = false;
 
 		OnDraftChanged.Broadcast();
@@ -439,29 +499,52 @@ FNF_BuildValidation UNF_BuildComponent::PreviewBuild(
 		return Validation;
 	}
 
+	const TArray<FNF_BuildSelection> FreeSelections = GetFreeSelections(PickedItemIds.Array());
 	return FNF_BuildValidator::Validate(
 		GetRules(),
 		CostLimit,
 		UnlockedItemIds,
-		Selections);
+		Selections,
+		nullptr,
+		&FreeSelections);
+}
+
+TArray<FNF_BuildSelection> UNF_BuildComponent::GetFreeSelections(const TArray<FName>& PaidItemIds) const
+{
+	TArray<FNF_BuildSelection> FreeSelections;
+	for (const FNF_BuildSelection& Equipped : CurrentBuild)
+	{
+		if (!PaidItemIds.Contains(Equipped.ItemId))
+		{
+			FreeSelections.Add(Equipped);
+		}
+	}
+	return FreeSelections;
 }
 
 void UNF_BuildComponent::RequestApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone)
 {
+	SendApplyBuild(Selections, ShopZone, {});
+}
+
+void UNF_BuildComponent::SendApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone,
+                                        const TArray<FName>& PaidItemIds)
+{
 	if (GetOwner()->HasAuthority())
 	{
-		CompleteLocalBuildRequest(ApplyBuildOnServer(Selections, ShopZone));
+		CompleteLocalBuildRequest(ApplyBuildOnServer(Selections, ShopZone, PaidItemIds));
 	}
 	else
 	{
-		ServerApplyBuild(Selections, ShopZone);
+		ServerApplyBuild(Selections, ShopZone, PaidItemIds);
 	}
 }
 
 void UNF_BuildComponent::ServerApplyBuild_Implementation(
-	const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone)
+	const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone, const TArray<FName>& PaidItemIds)
 {
-	ClientBuildRequestCompleted(ApplyBuildOnServer(Selections, ShopZone));
+	// 클라이언트가 보낸 목록은 장착 항목의 무료 처리를 없애기만 하므로 코스트를 줄일 수 없다.
+	ClientBuildRequestCompleted(ApplyBuildOnServer(Selections, ShopZone, PaidItemIds));
 }
 
 void UNF_BuildComponent::ClientBuildRequestCompleted_Implementation(const FNF_BuildValidation& Validation)
@@ -484,7 +567,8 @@ void UNF_BuildComponent::CompleteLocalBuildRequest(const FNF_BuildValidation& Va
 
 FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 	const TArray<FNF_BuildSelection>& Selections,
-	ANF_BuildShopZone* ShopZone)
+	ANF_BuildShopZone* ShopZone,
+	const TArray<FName>& PaidItemIds)
 {
 	FNF_BuildValidation Validation;
 
@@ -517,7 +601,7 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 			TEXT("상점과 먼저 상호작용하고 사용 조건을 만족해야 합니다."));
 	}
 
-	return CommitBuildOnServer(Selections, ShopZone->GetRules());
+	return CommitBuildOnServer(Selections, ShopZone->GetRules(), PaidItemIds);
 }
 
 bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop)
@@ -536,7 +620,8 @@ bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop
 	}
 	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다.
 	if (!CurrentBuild.IsEmpty() && bEntitlementsInitialized &&
-		FNF_BuildValidator::Validate(Rules, CostLimit, UnlockedItemIds, CurrentBuild).Result == ENF_BuildResult::Success
+		FNF_BuildValidator::Validate(Rules, CostLimit, UnlockedItemIds, CurrentBuild, nullptr, &CurrentBuild).Result ==
+		ENF_BuildResult::Success
 		&&
 		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
 	{
@@ -544,7 +629,7 @@ bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop
 	}
 	// 적용 중 콜백으로 원본 구성이 바뀌지 않도록 복사한다.
 	const TArray<FNF_BuildSelection> Selections = Rules->FallbackBuild;
-	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections, Rules);
+	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections, Rules, {});
 	const bool bSucceeded = Validation.Result == ENF_BuildResult::Success &&
 		IsValid(AbilitySystem) && AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready);
 	if (bSucceeded)
@@ -567,7 +652,7 @@ void UNF_BuildComponent::MarkBuildReady()
 }
 
 FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
-	const TArray<FNF_BuildSelection>& Selections, const UNF_BuildRules* Rules)
+	const TArray<FNF_BuildSelection>& Selections, const UNF_BuildRules* Rules, const TArray<FName>& PaidItemIds)
 {
 	FNF_BuildValidation Validation;
 	auto Fail = [&Validation](ENF_BuildResult Result, const TCHAR* Message)
@@ -612,7 +697,9 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 	{
 		return PreviewBuild(Selections);
 	}
-	Validation = FNF_BuildValidator::Validate(Rules, CostLimit, UnlockedItemIds, Selections, &SelectedData);
+	const TArray<FNF_BuildSelection> FreeSelections = GetFreeSelections(PaidItemIds);
+	Validation = FNF_BuildValidator::Validate(Rules, CostLimit, UnlockedItemIds, Selections, &SelectedData,
+	                                          &FreeSelections);
 	if (Validation.Result != ENF_BuildResult::Success)
 	{
 		return Validation;
@@ -652,7 +739,8 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 			}
 		}
 		FNF_BuildGrantHandles Handles;
-		if (!GrantItem(Definition, SelectedData.FindChecked(Selection.ItemId), Selection.SlotIndex, Handles))
+		if (!GrantItem(Definition, Rules->ItemSources.FindRef(Selection.ItemId).Get(), 
+			SelectedData.FindChecked(Selection.ItemId), Selection.SlotIndex, Handles))
 		{
 			RevokeItem(Handles);
 			for (const TPair<FName, FNF_BuildGrantHandles>& Staged : StagedItems)
@@ -810,25 +898,50 @@ void UNF_BuildComponent::ReleaseBuildWeapon()
 }
 
 bool UNF_BuildComponent::GrantItem(
-	UNF_BuildItemDefinitionDataAsset* Definition, const FNF_BuildItemData& Data, int32 SlotIndex,
+	UNF_BuildItemDefinitionDataAsset* Definition, UObject* ItemSource, const FNF_BuildItemData& Data, int32 SlotIndex,
 	FNF_BuildGrantHandles& OutHandles)
 {
-	if (!Definition)
+	if (!IsValid(Definition))
 	{
 		return false;
 	}
+	
 	OutHandles.Definition = Definition;
 	OutHandles.ItemData = Data;
-	if (Data.AbilityClass)
+	
+	const bool bIsSkill=
+			Data.ItemType == ENF_ItemType::ActiveSkill || Data.ItemType == ENF_ItemType::PassiveSkill;
+	
+	const int32 InputId = 
+		Data.ItemType == ENF_ItemType::ActiveSkill ? SlotIndex : INDEX_NONE;
+	
+	if (bIsSkill)
 	{
-		const int32 InputId = Data.ItemType == ENF_ItemType::ActiveSkill ? SlotIndex : INDEX_NONE;
-		OutHandles.AbilityHandle = AbilitySystem->GiveAbility(
-			FGameplayAbilitySpec(Data.AbilityClass, Data.AbilityLevel, InputId, Definition));
+		UNF_SkillDataAsset* SkillData = Cast<UNF_SkillDataAsset>(ItemSource);
+		
+		if (!IsValid(SkillData))
+		{
+			return false;
+		}
+		
+		OutHandles.AbilityHandle = SkillData->GrantTo(AbilitySystem, InputId);
+		
 		if (!OutHandles.AbilityHandle.IsValid())
 		{
 			return false;
 		}
 	}
+	else if (Data.AbilityClass)
+	{
+		OutHandles.AbilityHandle = AbilitySystem->GiveAbility(
+			FGameplayAbilitySpec(Data.AbilityClass,Data.AbilityLevel, InputId, Definition));
+		
+		if (!OutHandles.AbilityHandle.IsValid())
+		{
+			return false;
+		}
+	}
+	
 
 	for (const TSubclassOf<UGameplayEffect>& EffectClass : Data.EquippedEffects)
 	{

@@ -74,6 +74,8 @@ public:
 	// @Owner: 황준현 | 2026-10-20. 권한 있는 진행·획득 시스템에서 호출한다.
 	// 클라이언트 RPC로 제공하지 않는다.
 	bool UpdateBuildEntitlements(int32 NewCostLimit, const TArray<FName>& NewUnlockedItemIds);
+	
+	
 
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
 	FNF_OnBuildShopStateChanged OnBuildShopStateChanged;
@@ -100,6 +102,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|Draft")
 	bool RemoveDraftItem(FName ItemId);
 
+	/** 이번 방문에서 고른 항목을 취소한다. 그 칸에 장착돼 있던 항목이 있으면 되돌려 놓는다. */
+	UFUNCTION(BlueprintCallable, Category = "NF|Build|Draft")
+	bool RevertDraftItem(FName ItemId);
+
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|Draft")
 	void ApplyDraftBuild();
 
@@ -108,6 +114,10 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "NF|Build|Draft")
 	FName GetPendingActiveSkill() const { return PendingActiveSkill; }
+
+	/** 이번 상점 방문에서 고른 항목. 장착 중인 항목도 다시 고르면 코스트를 낸다. */
+	UFUNCTION(BlueprintPure, Category = "NF|Build|Draft")
+	TArray<FName> GetPickedItemIds() const { return PickedItemIds.Array(); }
 
 	UFUNCTION(BlueprintPure, Category = "NF|Build|Draft")
 	bool IsAwaitingBuildResult() const { return bAwaitingBuildResult; }
@@ -232,11 +242,20 @@ private:
 	TArray<FNF_BuildSelection> DraftBuild;
 
 	FName PendingActiveSkill;
+	// 상점을 열고 닫을 때 비운다. 장착 중이면서 여기 없는 항목만 코스트 없이 유지된다.
+	TSet<FName> PickedItemIds;
 	bool bDraftDirty = false;
 	bool bAwaitingBuildResult = false;
 	TWeakObjectPtr<APlayerController> SessionController;
 	UFUNCTION(Server, Reliable)
-	void ServerApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone);
+	void ServerApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone,
+	                      const TArray<FName>& PaidItemIds);
+
+	void SendApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone,
+	                    const TArray<FName>& PaidItemIds);
+
+	// 장착 중인 항목 중 PaidItemIds에 없는 것. 검증에서 코스트를 받지 않는 항목이다.
+	TArray<FNF_BuildSelection> GetFreeSelections(const TArray<FName>& PaidItemIds) const;
 
 	UFUNCTION(Client, Reliable)
 	void ClientBuildRequestCompleted(const FNF_BuildValidation& Validation);
@@ -245,14 +264,17 @@ private:
 	void OnRep_CurrentBuild();
 
 	// 일반 상점 요청의 접근 조건을 검사한다.
-	FNF_BuildValidation ApplyBuildOnServer(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone);
+	FNF_BuildValidation ApplyBuildOnServer(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone,
+	                                       const TArray<FName>& PaidItemIds);
 
 	// @Owner: 황준현 | 2026-10-19
 	// 접근 승인을 마친 요청의 코스트·슬롯 검증과 실제 적용을 담당한다.
-	FNF_BuildValidation CommitBuildOnServer(const TArray<FNF_BuildSelection>& Selections, const UNF_BuildRules* Rules);
+	FNF_BuildValidation CommitBuildOnServer(const TArray<FNF_BuildSelection>& Selections, const UNF_BuildRules* Rules,
+	                                        const TArray<FName>& PaidItemIds);
 
-	bool GrantItem(UNF_BuildItemDefinitionDataAsset* Definition, const FNF_BuildItemData& Data,
-	               int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
+	bool GrantItem(UNF_BuildItemDefinitionDataAsset* Definition, UObject* ItemSource, 
+		const FNF_BuildItemData& Data, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
+	
 	bool ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections,
 	                          const TMap<FName, FNF_BuildItemData>& SelectedData);
 	bool ApplyEquipmentSelection(const TArray<FNF_BuildSelection>& Selections,

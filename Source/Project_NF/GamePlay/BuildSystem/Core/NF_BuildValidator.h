@@ -15,5 +15,7 @@ public:
 		int32 CostLimit,
 		const TArray<FName>& AllowedItemIds,
 		const TArray<FNF_BuildSelection>& Selections,
-		TMap<FName, FNF_BuildItemData>* OutSelectedData = nullptr);
+		TMap<FName, FNF_BuildItemData>* OutSelectedData = nullptr,
+		// 이미 장착한 빌드. 여기 있는 항목은 코스트에 포함하지 않는다(상점 방문마다 코스트를 새로 쓴다).
+		const TArray<FNF_BuildSelection>* OwnedSelections = nullptr);
 };

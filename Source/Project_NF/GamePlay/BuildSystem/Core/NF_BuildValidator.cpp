@@ -13,7 +13,8 @@
 FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, int32 CostLimit,
                                                  const TArray<FName>& AllowedItemIds,
                                                  const TArray<FNF_BuildSelection>& Selections,
-                                                 TMap<FName, FNF_BuildItemData>* OutSelectedData)
+                                                 TMap<FName, FNF_BuildItemData>* OutSelectedData,
+                                                 const TArray<FNF_BuildSelection>* OwnedSelections)
 {
 	if (OutSelectedData) OutSelectedData->Reset();
 	FNF_BuildValidation Validation;
@@ -63,6 +64,15 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 	if (Selections.Num() > Rules->WeaponSlots + Rules->ArmorSlots + Rules->ActiveSkillSlots + Rules->PassiveSkillSlots)
 	{
 		return Fail(ENF_BuildResult::InvalidSlot, TEXT("빌드 슬롯 수를 초과했습니다."));
+	}
+
+	TSet<FName> OwnedItemIds;
+	if (OwnedSelections)
+	{
+		for (const FNF_BuildSelection& Owned : *OwnedSelections)
+		{
+			OwnedItemIds.Add(Owned.ItemId);
+		}
 	}
 
 	TSet<FName> ItemIds;
@@ -147,7 +157,10 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 		}
 
 		bHasWeapon |= Data.ItemType == ENF_ItemType::Weapon;
-		TotalCost += Data.Cost;
+		if (!OwnedItemIds.Contains(Selection.ItemId))
+		{
+			TotalCost += Data.Cost;
+		}
 		Validation.TotalCost = static_cast<int32>(FMath::Min<int64>(TotalCost, MAX_int32));
 	}
 
