@@ -9,6 +9,7 @@
 #include "GameplayCueInterface.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
+#include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "GamePlay/Combat/Projectiles/NF_BossAreaProjectile.h"
 #include "GameplayEffect.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
@@ -27,7 +28,7 @@ UNFGA_BossAreaVolley::UNFGA_BossAreaVolley()
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	ProjectileClass = ANF_BossAreaProjectile::StaticClass();
-	DamageEffectClass = UNFGE_BossDamageToPlayer::StaticClass();
+	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
 }
 
@@ -173,10 +174,13 @@ void UNFGA_BossAreaVolley::FinishTelegraph(FVector_NetQuantize TargetGroundPoint
 	FGameplayEffectSpecHandle DamageSpec;
 	if (DamageEffectClass && DamageMagnitudeTag.IsValid())
 	{
-		DamageSpec = MakeOutgoingGameplayEffectSpec(DamageEffectClass, GetAbilityLevel());
+		const float ConfiguredDamage = Boss->GetPatternDamage(ENF_BossPatternId::AreaVolley, Damage);
+		// This GA derives directly from SkillBase, not BossPatternBase.
+		const TSubclassOf<UGameplayEffect> ResolvedDamageClass = DamageEffectClass->IsChildOf(UNFGE_BossDamageToPlayer::StaticClass())
+			? TSubclassOf<UGameplayEffect>(UNFGE_CommonDamage::StaticClass()) : DamageEffectClass;
+		DamageSpec = MakeOutgoingGameplayEffectSpec(ResolvedDamageClass, GetAbilityLevel());
 		if (DamageSpec.IsValid())
 		{
-			const float ConfiguredDamage = Boss->GetPatternDamage(ENF_BossPatternId::AreaVolley, Damage);
 			DamageSpec.Data->SetSetByCallerMagnitude(DamageMagnitudeTag, FMath::Max(ConfiguredDamage, 0.0f));
 		}
 	}

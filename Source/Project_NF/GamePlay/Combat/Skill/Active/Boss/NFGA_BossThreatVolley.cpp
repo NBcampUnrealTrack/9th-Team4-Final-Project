@@ -2,6 +2,7 @@
 
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
+#include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "GamePlay/Combat/Projectiles/NF_BossAreaProjectile.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
@@ -14,7 +15,7 @@
 UNFGA_BossThreatVolley::UNFGA_BossThreatVolley()
 {
 	ProjectileClass = ANF_BossAreaProjectile::StaticClass();
-	DamageEffectClass = UNFGE_BossDamageToPlayer::StaticClass();
+	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
 }
 

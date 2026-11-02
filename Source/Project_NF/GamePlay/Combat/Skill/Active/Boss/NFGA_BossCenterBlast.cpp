@@ -3,6 +3,7 @@
 #include "Engine/World.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
+#include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
@@ -13,7 +14,7 @@
 UNFGA_BossCenterBlast::UNFGA_BossCenterBlast()
 {
 	ExecutionDuration = TelegraphDuration;
-	DamageEffectClass = UNFGE_BossDamageToPlayer::StaticClass();
+	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
 	StunEffectClass = UNFGE_BossStun::StaticClass();
 }
