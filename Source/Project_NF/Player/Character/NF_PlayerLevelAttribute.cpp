@@ -44,7 +44,7 @@ void UNF_PlayerLevelAttribute::PostGameplayEffectExecute(const FGameplayEffectMo
 			OnLevelUp.Broadcast(FMath::FloorToInt32(GetCurrentLevel()));   //레벨은 소수점 내림으로 정수 유지
 		}
 		
-		UKismetSystemLibrary::PrintString(this,FString::Printf(TEXT("%f"), GetTargetExp()));
+		UKismetSystemLibrary::PrintString(this,FString::Printf(TEXT("타겟EXP, %f"), GetTargetExp()));
 	}
 }
 

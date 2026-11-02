@@ -39,10 +39,10 @@ public:
 	
 	
 	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "InComingEXPAmount(양수)")
-	float PlayerKillExp = 30.0f;
+	float PlayerKillExp = 80.0f;
 	
 	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "MeleeAttackDamage(양수)")
-	float MeleeAttackDamage = 30.0f;
+	float MeleeAttackDamage = 110.0f;
 	
 	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "ShieldRecoveryAmount(양수)")
 	float ShieldRecoveryAmount = 0.1f;
