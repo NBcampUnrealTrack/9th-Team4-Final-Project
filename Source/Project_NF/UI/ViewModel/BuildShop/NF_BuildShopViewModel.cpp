@@ -5,10 +5,7 @@
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
-#include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
-#include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
-
 
 void UNF_BuildShopViewModel::UpdateShop(const FNF_BuildShopViewData& NewData)
 {
@@ -154,7 +151,6 @@ void UNF_BuildShopViewModel::ApplyBuild()
 
 void UNF_BuildShopViewModel::RefreshFromModel()
 {
-   
     UNF_BuildComponent* Source = Build.Get();
     FNF_BuildShopViewData Data;
     if (!Source)
@@ -236,30 +232,6 @@ void UNF_BuildShopViewModel::RefreshFromModel()
             ItemData.ItemId = Item->ItemId;
             ItemData.ItemType = ItemSource.ItemType;
             ItemData.ItemCost = ItemSource.Cost;
-            
-            // 스킬은 원본 NF_SkillDataAsset의 아이콘을 사용한다. 그 외 원본은 아이콘 없음.
-            if (const UNF_BuildRules* Rules = Source->GetRules())
-            {
-                if (const TObjectPtr<UDataAsset>* IconSource = Rules->ItemSources.Find(Item->ItemId))
-                {
-                    if (const UNF_SkillDataAsset* SkillData = Cast<UNF_SkillDataAsset>(IconSource->Get()))
-                    {
-                        ItemData.Icon = SkillData->GetSkillIcon();
-                    }
-                }
-            }
-            
-            TSet<FName> DraftItemIds;
-            for (const FNF_BuildSelection& Selection : Draft)
-            {
-                DraftItemIds.Add(Selection.ItemId);
-            }
-            TSet<FName> EquippedItemIds;
-            for (const FNF_BuildSelection& Selection : Source->GetCurrentBuild())
-            {
-                EquippedItemIds.Add(Selection.ItemId);
-            }
-    
             ItemData.DisplayName = Item->DisplayName;
             if (ItemData.DisplayName.IsEmpty())
             {

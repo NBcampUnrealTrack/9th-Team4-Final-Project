@@ -100,7 +100,6 @@ void UNF_PlayerStatusViewModel::BindAbilitySystemDelegates()
 
     BindAttributeChanged(UNF_PlayerLevelAttribute::GetCurrentLevelAttribute(), ProgressionDelegate);
     BindAttributeChanged(UNF_PlayerLevelAttribute::GetCurrentExpAttribute(), ProgressionDelegate);
-    BindAttributeChanged(UNF_PlayerLevelAttribute::GetTargetExpAttribute(),ProgressionDelegate);
 }
 
 void UNF_PlayerStatusViewModel::HandleVitalAttributeChanged(const FOnAttributeChangeData& Data)
@@ -135,16 +134,15 @@ void UNF_PlayerStatusViewModel::HandleProgressionAttributeChanged(const FOnAttri
 void UNF_PlayerStatusViewModel::RefreshProgressionFromAbilitySystem()
 {
     UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-   
     int32 NewLevel = 0;
     float NewExperience = 0.0f;
-    float NewRequiredExperience = 0.0f;
 
     if (IsValid(ASC))
     {
-        const FGameplayAttribute LevelAttribute =UNF_PlayerLevelAttribute::GetCurrentLevelAttribute();
-        const FGameplayAttribute ExperienceAttribute =UNF_PlayerLevelAttribute::GetCurrentExpAttribute();
-        const FGameplayAttribute TargetExperienceAttribute =UNF_PlayerLevelAttribute::GetTargetExpAttribute();
+        const FGameplayAttribute LevelAttribute =
+            UNF_PlayerLevelAttribute::GetCurrentLevelAttribute();
+        const FGameplayAttribute ExperienceAttribute =
+            UNF_PlayerLevelAttribute::GetCurrentExpAttribute();
 
         if (ASC->HasAttributeSetForAttribute(LevelAttribute))
         {
@@ -155,14 +153,8 @@ void UNF_PlayerStatusViewModel::RefreshProgressionFromAbilitySystem()
         {
             NewExperience = FMath::Max(0.0f, ASC->GetNumericAttribute(ExperienceAttribute));
         }
-        if (ASC->HasAttributeSetForAttribute(TargetExperienceAttribute))
-        {
-            NewRequiredExperience = FMath::Max(0.0f, ASC->GetNumericAttribute(TargetExperienceAttribute));
-        }
     }
-    
-    UpdateProgression(NewLevel, NewExperience, NewRequiredExperience);
-    
+
     if (UE_MVVM_SET_PROPERTY_VALUE(Level, NewLevel))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetLevelText);

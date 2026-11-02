@@ -9,8 +9,6 @@
 #include "GamePlay/BuildSystem/UI/NF_BuildShopViewModelBridge.h"
 #include "NF_BuildShopViewModel.generated.h"
 
-class UTexture2D;
-
 USTRUCT(BlueprintType)
 struct FNF_BuildShopSlotViewData
 {
@@ -72,17 +70,6 @@ struct FNF_BuildShopItemViewData
 
     UPROPERTY(BlueprintReadOnly)
     FText CannotSelectReason;
-    
-    UPROPERTY(BlueprintReadOnly)
-    TObjectPtr<UTexture2D> Icon = nullptr;
-    
-    // 현재 편집 중인 빌드(Draft)에 들어 있는지. 상점 목록에서 어둡게 표시하는 기준.
-    UPROPERTY(BlueprintReadOnly)
-    bool bIsSelected = false;
-    // 서버에서 확정된 빌드(CurrentBuild)에 장착돼 있는지.
-    UPROPERTY(BlueprintReadOnly)
-    bool bIsEquipped = false;
-
 };
 
 USTRUCT(BlueprintType)
