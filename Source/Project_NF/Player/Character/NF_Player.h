@@ -48,8 +48,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<UStaticMeshComponent> MeleeAttackMeshComponent;
 	
+	//상점에서 총기류 구매가 가능해지면 초기값 None으로 바꾸기
 	UPROPERTY(EditAnywhere, Replicated)
-	ENF_WeaponType NF_WeaponType = ENF_WeaponType::Pistol;
+	ENF_WeaponType NF_WeaponType = ENF_WeaponType::None;
 	
 	
 	
@@ -98,6 +99,8 @@ private:
 	void ConfigLevelAttribute();
 	
 	void GainExpToKiller();
+	
+	void OnEquippedWeaponChanged(ANF_WeaponBase* NewWeapon);
 	
 	FName MeleeAttackSocket = "MeleeAttackSocket";
 	float InteractionRange = 0.0f;

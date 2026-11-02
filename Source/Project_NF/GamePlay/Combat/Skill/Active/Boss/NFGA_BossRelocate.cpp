@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
+#include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
 #include "GameplayEffect.h"
@@ -15,7 +16,7 @@
 UNFGA_BossRelocate::UNFGA_BossRelocate()
 {
 	ExecutionDuration = 7.45f;
-	DamageEffectClass = UNFGE_BossDamageToPlayer::StaticClass();
+	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
 	AirborneEffectClass = UNFGE_BossAirborne::StaticClass();
 }

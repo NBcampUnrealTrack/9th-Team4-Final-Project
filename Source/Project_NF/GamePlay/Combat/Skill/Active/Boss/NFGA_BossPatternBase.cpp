@@ -5,6 +5,8 @@
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
+#include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
+#include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "GamePlay/Combat/Projectiles/NF_BossAreaProjectile.h"
 #include "GameplayEffect.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
@@ -42,7 +44,11 @@ FGameplayEffectSpecHandle UNFGA_BossPatternBase::MakeBossEffectSpec(
 	{
 		return FGameplayEffectSpecHandle();
 	}
-	FGameplayEffectSpecHandle Spec = MakeOutgoingGameplayEffectSpec(EffectClass, GetAbilityLevel());
+	// Existing pattern BPs may still serialize the old HP-only damage GE.
+	// Resolve those references to common damage without changing stun/airborne effects.
+	const TSubclassOf<UGameplayEffect> ResolvedClass = EffectClass->IsChildOf(UNFGE_BossDamageToPlayer::StaticClass())
+		? TSubclassOf<UGameplayEffect>(UNFGE_CommonDamage::StaticClass()) : EffectClass;
+	FGameplayEffectSpecHandle Spec = MakeOutgoingGameplayEffectSpec(ResolvedClass, GetAbilityLevel());
 	if (Spec.IsValid() && MagnitudeTag.IsValid())
 	{
 		Spec.Data->SetSetByCallerMagnitude(MagnitudeTag, FMath::Max(Magnitude, 0.0f));

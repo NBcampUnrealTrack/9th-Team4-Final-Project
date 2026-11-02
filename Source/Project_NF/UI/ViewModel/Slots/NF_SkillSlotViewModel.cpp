@@ -11,7 +11,6 @@
 #include "GameplayAbilitySpec.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
-#include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildInputComponent.h"
 #include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
@@ -22,6 +21,7 @@ namespace
     {
         if (!IsValid(Build) || ItemId.IsNone()){return nullptr;}
 
+        const UNF_BuildRules* Rules = Build->GetRules();
         const UNF_SkillDataAsset* SkillData = Cast<UNF_SkillDataAsset>(Build->GetItemSource(ItemId));
 
         return SkillData->GetSkillIcon();
