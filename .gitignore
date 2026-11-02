@@ -673,7 +673,8 @@ Content/ProjectNF/Persnal/Myungwoo/
 Content/ProjectNF/Persnal/Jungjun/
 Content/ProjectNF/Persnal/GyeongHwan/
 Content/ProjectNF/Persnal/Yongjun/
-Content/ProjectNF/Dev/Player/MotionMatching/
+Content/ProjectNF/Dev/Player/MotionMatching/*
+!Content/ProjectNF/Dev/Player/MotionMatching/UpperBodyBlend/
 Content/ProjectNF/Dev/Resource/
 _개인 백업/
 
