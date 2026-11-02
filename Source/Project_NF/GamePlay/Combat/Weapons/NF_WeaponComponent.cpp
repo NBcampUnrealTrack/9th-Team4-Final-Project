@@ -3,6 +3,7 @@
 
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
+#include "GamePlay/Combat/Weapons/NF_CrosshairWidget.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -23,6 +24,23 @@ UNF_WeaponComponent::UNF_WeaponComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	SetIsReplicatedByDefault(true);
+}
+
+void UNF_WeaponComponent::ClientNotifyCrosshairShot_Implementation(ANF_WeaponBase* FiredWeapon)
+{
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (!OwnerPawn || !OwnerPawn->IsLocallyControlled() ||
+		!IsValid(FiredWeapon) || FiredWeapon != EquippedWeapon)
+	{
+		return;
+	}
+
+	// Ensure the widget exists, and discard delayed notifications for a previous weapon.
+	RefreshCrosshair();
+	if (UNF_CrosshairWidget* Crosshair = Cast<UNF_CrosshairWidget>(CrosshairWidget))
+	{
+		Crosshair->NotifyShotFired();
+	}
 }
 
 void UNF_WeaponComponent::BeginPlay()

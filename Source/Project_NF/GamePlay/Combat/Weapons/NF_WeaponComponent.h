@@ -56,6 +56,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void StopFire();
 
+	/** Notify only the owning player after a server-confirmed shot. */
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyCrosshairShot(ANF_WeaponBase* FiredWeapon);
+
 	/** Bind to Started only; do not bind button release to StopZoom. */
 	UFUNCTION(BlueprintCallable, Category="Weapon|Zoom")
 	void ToggleZoom();

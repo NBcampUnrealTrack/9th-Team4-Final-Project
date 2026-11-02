@@ -16,6 +16,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Crosshair")
 	void UpdateRadius(float InValue);
 
+	UFUNCTION(BlueprintCallable, Category="Crosshair")
+	void NotifyShotFired();
+
 protected:
 	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
@@ -41,6 +44,14 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crosshair", meta=(ClampMin="0.0", ClampMax="1.0", UIMin="0.0", UIMax="1.0"))
 	float Radius = 0.f;
+
+	/** Normalized spread added for each successful shot. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crosshair", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float SpreadPerShot = 0.35f;
+
+	/** Normalized spread recovered per second. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crosshair", meta=(ClampMin="0.01"))
+	float SpreadRecoverySpeed = 1.5f;
 
 private:
 	void UpdateCrosshairLayout();
