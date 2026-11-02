@@ -13,7 +13,7 @@ class UPoseSearchDatabase;
 class UMeshComponent;
 class ACharacter;
 
-// MotionMatchingUpperBody 플러그인이 생성한 파일 (템플릿 v0.0.2). 무기 하나의 상체 애니 (빈 칸 = 원래 모션매칭)
+// MotionMatchingUpperBody 플러그인이 생성한 파일 (템플릿 v0.0.2 + Project_NF 수동 갱신: 보이는 메시 왼손 IK, 함수 이름 v0.0.3 예정분). 무기 하나의 상체 애니 (빈 칸 = 원래 모션매칭)
 UCLASS(BlueprintType)
 class PROJECT_NF_API UUpperBodyLayer : public UDataAsset
 {
@@ -35,7 +35,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Combat (전투)", meta = (DisplayName = "Aim Offset (필수)"))
 	TObjectPtr<UBlendSpace> AimOffset;
 
-	// [권장] 공격(사격) 1회마다 재생할 반동 몽타주. 몽타주 슬롯을 UpperBodyGroup.UpperBody로, 루트 모션 끔. Additive 가능. NotifyUpperBodyFire가 재생
+	// [권장] 공격(사격) 1회마다 재생할 반동 몽타주. 몽타주 슬롯을 UpperBodyGroup.UpperBody로, 루트 모션 끔. Additive 가능. NotifyUpperBodyOnFire가 재생
 	// 비우면: 사격 반동 없음
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Combat (전투)", meta = (DisplayName = "Attack Montage (권장)"))
 	TObjectPtr<UAnimMontage> FireMontage;
@@ -104,7 +104,7 @@ public:
 
 	// ─ 3. Left Hand IK (두 손 무기) ─
 
-	// 두 손 무기면 켜기 → 왼손을 무기 메시 소켓에 붙임 (Set Upper Body Weapon Mesh로 무기 메시를 지정해야 동작). 추천: 권총은 끔
+	// 두 손 무기면 켜기 → 왼손을 무기 메시 소켓에 붙임 (Set Upper Body Two Hand IK Weapon으로 무기 메시를 지정해야 동작). 추천: 권총은 끔
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Left Hand IK (두 손 무기)", meta = (DisplayName = "Two Handed"))
 	bool bIsTwoHanded = false;
 
@@ -129,6 +129,11 @@ public:
 
 	// 사격 알림: 전투 태세로 전환·유지하고 FireMontage 재생. 반환값 = 지금 총구가 조준 방향을 향하고 있음
 	bool NotifyFire();
+
+	// [v0.0.3 예정분] 보이는 메시 왼손 IK(UUpperBodyLayerHandIKAnimInstance)가 읽는 값. 총이 어느 메시에 붙었는지와 상관없이 계산한 값
+	UMeshComponent* GetWeaponMesh() const { return WeaponMesh.Get(); }
+	FName GetLeftHandSocketName() const { return LeftHandSocketName; }
+	float GetLeftHandIKTargetAlpha() const { return LeftHandIKTargetAlpha; }
 
 protected:
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
@@ -282,6 +287,28 @@ private:
 	bool bIsZoomHeld = false;
 	bool bIsFireHeld = false;
 	float CombatTimeRemaining = 0.0f;
+	FName LeftHandSocketName = NAME_None;
+	float LeftHandIKTargetAlpha = 0.0f;
+};
+
+
+// [v0.0.3 예정분] 보이는 메시(VisualMesh 등) ABP의 부모. 총이 이 메시에 붙어 있으면 상체 레이어가 계산한 왼손 IK를 이 메시에 적용
+// 목표 위치 = 오른손(hand_r) 뼈 기준 상대 위치 → 이동·회전 중에도 왼손이 밀리지 않음
+// 그래프: (기존 포즈) → Local To Component → Two Bone IK(hand_l, Effector = Bone Space / hand_r, LeftHandIKOffset, LeftHandIKAlpha) → Component To Local
+UCLASS()
+class PROJECT_NF_API UUpperBodyLayerHandIKAnimInstance : public UAnimInstance
+{
+	GENERATED_BODY()
+
+protected:
+	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
+
+	// 오른손 뼈 공간 기준 왼손 목표 위치
+	UPROPERTY(BlueprintReadOnly, Category = "UpperBody|Runtime")
+	FVector LeftHandIKOffset = FVector::ZeroVector;
+
+	UPROPERTY(BlueprintReadOnly, Category = "UpperBody|Runtime")
+	float LeftHandIKAlpha = 0.0f;
 };
 
 
@@ -291,19 +318,19 @@ class PROJECT_NF_API UUpperBodyLayerLibrary : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
-	// 두 손 무기 왼손 IK용 무기 메시 지정 (무기를 바꿀 때 호출, 해제는 None)
+	// 두 손 무기 왼손 IK가 따라갈 무기 메시 지정 (무기를 바꿀 때 호출, 해제는 None). 모든 화면에서 호출
 	UFUNCTION(BlueprintCallable, Category = "UpperBody")
-	static void SetUpperBodyWeaponMesh(ACharacter* Character, UMeshComponent* WeaponMesh);
+	static void SetUpperBodyTwoHandIKWeapon(ACharacter* Character, UMeshComponent* WeaponMesh);
 
-	// 사격할 때 호출 (조종하는 쪽): 전투 태세로 전환·유지 + 무기 FireMontage 재생. 반환값 = 총구가 이미 조준 방향을 향함
+	// 1발마다 호출 (조종하는 쪽): 전투 태세로 전환·유지 + 무기 FireMontage 재생. 반환값 = 총구가 이미 조준 방향을 향함
 	UFUNCTION(BlueprintCallable, Category = "UpperBody")
-	static bool NotifyUpperBodyFire(ACharacter* Character);
+	static bool NotifyUpperBodyOnFire(ACharacter* Character);
 
-	// 줌(조준) 키 누름/뗌 (조종하는 쪽): 누르고 있는 동안 전투 태세 유지. 항상 조준 무기는 SetWantsToAim 대신 이 함수 사용
+	// 줌 시작/끝 (조종하는 쪽): 줌 중 전투 태세 유지
 	UFUNCTION(BlueprintCallable, Category = "UpperBody")
-	static void SetUpperBodyZoom(ACharacter* Character, bool bIsZoomHeld);
+	static void SetUpperBodyCombatStanceByZoom(ACharacter* Character, bool bIsZooming);
 
 	// 사격 키(방아쇠) 누름/뗌 (조종하는 쪽): 누르고 있는 동안 전투 태세. 떼면 CombatHoldTime 뒤 평상시
 	UFUNCTION(BlueprintCallable, Category = "UpperBody")
-	static void SetUpperBodyFireHeld(ACharacter* Character, bool bIsFireHeld);
+	static void SetUpperBodyCombatStanceByFire(ACharacter* Character, bool bIsFiring);
 };
