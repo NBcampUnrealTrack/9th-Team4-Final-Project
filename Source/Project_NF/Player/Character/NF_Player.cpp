@@ -501,6 +501,7 @@ void ANF_Player::GainExpToKiller()
 	}
 }
 
+
 void ANF_Player::OnEquippedWeaponChanged(ANF_WeaponBase* NewWeapon)
 {
 	UMeshComponent* NewWeaponMesh = nullptr;
@@ -518,7 +519,6 @@ void ANF_Player::OnEquippedWeaponChanged(ANF_WeaponBase* NewWeapon)
 
 		NF_WeaponType = NewWeapon->GetWeaponData()->WeaponType;
 	}
-
 }
 
 

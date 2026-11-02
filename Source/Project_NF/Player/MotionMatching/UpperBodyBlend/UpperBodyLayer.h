@@ -271,7 +271,7 @@ private:
 	bool IsSprintFeatureEnabled(const ACharacter* Character) const;
 	void UpdateTurnTwist(const ACharacter* Character);
 	void UpdatePoseAnimation(UAnimSequenceBase* TargetAnimation);
-	void UpdateLeftHandIK(const UUpperBodyLayer* DataAsset);
+	void UpdateLeftHandIK(const UUpperBodyLayer* DataAsset, float DeltaSeconds);
 	void UpdateAimLocomotion(const UUpperBodyLayer* DataAsset, int32 StateIndex, float DeltaSeconds, float AimBlendSpeed);
 	void UpdateAimOffset(const ACharacter* Character, const UUpperBodyLayer* DataAsset, float DeltaSeconds);
 
@@ -289,6 +289,9 @@ private:
 	float CombatTimeRemaining = 0.0f;
 	FName LeftHandSocketName = NAME_None;
 	float LeftHandIKTargetAlpha = 0.0f;
+
+	// 전신 동작(파쿠르 등) 전후로 왼손 IK를 서서히 끄고 켜는 배율 (0 = 해제, 1 = 적용)
+	float FullBodyActionIKScale = 1.0f;
 };
 
 
