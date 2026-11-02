@@ -472,10 +472,10 @@ void ANF_Player::OnOutOfHealthCpp()
 
 void ANF_Player::GainExpToKiller()
 {
-	auto* VictimPlayerState = GetPlayerState<ANF_PlayerState>();
-	if (IsValid(VictimPlayerState) == false) return;
+	auto* NF_VictimPlayerState = GetPlayerState<ANF_PlayerState>();
+	if (IsValid(NF_VictimPlayerState) == false) return;
 		
-	UAbilitySystemComponent* VictimASC = VictimPlayerState->GetAbilitySystemComponent();
+	UAbilitySystemComponent* VictimASC = NF_VictimPlayerState->GetAbilitySystemComponent();
 	if (IsValid(VictimASC) == false) return;
 		
 	auto* PlayerStatusAttribute = VictimASC->GetSet<UNF_PlayerStatusAttribute>();
@@ -485,9 +485,15 @@ void ANF_Player::GainExpToKiller()
 	if (IsValid(NF_KillerPlayerState) == true)
 	{
 		UAbilitySystemComponent* KillerASC = NF_KillerPlayerState->GetAbilitySystemComponent();
-		KillerASC->BP_ApplyGameplayEffectToSelf(NF_KillerPlayerState->NF_PlayerDataAsset->NF_SetDamage_GEClass, 
-			1.0f, KillerASC->MakeEffectContext());
 		
+		FGameplayEffectSpecHandle GainExpSpecHandle = KillerASC->MakeOutgoingSpec(
+			NF_KillerPlayerState->NF_PlayerDataAsset->NF_IncomingExp_GEClass, 1.0f, KillerASC->MakeEffectContext());
+		if (GainExpSpecHandle.IsValid() == false) return;
+		
+		GainExpSpecHandle.Data->SetSetByCallerMagnitude(
+			NFTag_Player::Data_InComingEXP, NF_KillerPlayerState->NF_PlayerDataAsset->PlayerKillExp);
+		
+		KillerASC->ApplyGameplayEffectSpecToSelf(*GainExpSpecHandle.Data.Get());
 		
 		//TODO 명우님 요청 사항으로 주석 된 내용
 		/*if (UWorld* World = GetWorld())
@@ -500,6 +506,7 @@ void ANF_Player::GainExpToKiller()
 		}*/
 	}
 }
+
 
 void ANF_Player::OnEquippedWeaponChanged(ANF_WeaponBase* NewWeapon)
 {
@@ -518,7 +525,6 @@ void ANF_Player::OnEquippedWeaponChanged(ANF_WeaponBase* NewWeapon)
 
 		NF_WeaponType = NewWeapon->GetWeaponData()->WeaponType;
 	}
-
 }
 
 

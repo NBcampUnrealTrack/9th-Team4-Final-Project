@@ -118,7 +118,7 @@ void UNF_PlayerStatusAttribute::BlockShieldRecovery(const FGameplayEffectModCall
 
 void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackData& Data)
 {
-	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute() || Data.EvaluatedData.Attribute == GetInComingDamageAttribute())
 	{
 		SetHealth(FMath::Clamp<float>(GetHealth(), 0.0f, GetMaxHealth()));
 		
@@ -130,9 +130,11 @@ void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackDa
 			LethalDamageInstigatorPlayerState = Cast<APlayerState>(Data.EffectSpec.GetContext().GetOriginalInstigator());
 			OnOutOfHealth.Broadcast();
 		}
-		else if (GetHealth() > 0.0f)
+		
+		if (GetHealth() > 0.0f && bIsOutOfHealth == true)
 		{
 			bIsOutOfHealth = false;
+			GetOwningAbilitySystemComponent()->RemoveLooseGameplayTag(NFTag_Player::Player_State_Death);
 			//TODO 체력이 바뀜에 대한 브로드캐스트?
 		}
 	}
@@ -152,7 +154,7 @@ void UNF_PlayerStatusAttribute::IsOutOfShield(const FGameplayEffectModCallbackDa
 		}
 		else if (GetShield() > 0.0f)
 		{
-			bIsOutOfHealth = false;
+			bIsOutOfShield = false;
 			//TODO 쉴드량이 바뀜에 대한 브로드캐스트?
 		}
 	}
@@ -175,6 +177,8 @@ void UNF_PlayerStatusAttribute::GetLifetimeReplicatedProps(TArray<class FLifetim
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Defence, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxShield, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Shield, COND_None, REPNOTIFY_Always);
+	
+	DOREPLIFETIME(ThisClass, bIsOutOfHealth);
 }
 
 
