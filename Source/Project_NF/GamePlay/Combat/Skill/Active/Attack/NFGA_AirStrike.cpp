@@ -10,11 +10,11 @@
 
 UNFGA_AirStrike::UNFGA_AirStrike()
 {
-	SkillType = ENF_SkillType::Active;
-	SkillCategory = ENF_SkillCategory::Attack;
-	SkillActivationMethod = ENF_SkillActivationMethod::Input;
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::Input;
 	SkillExecutionMode = ENF_SkillExecutionMode::Instant;
-	BuildCost = 4;
+	GetMutableSkillDefaults().BuildCost = 4;
 	bActivateOnInputRelease = true;
 	bRequiresConfirmedTargetData = true;
 	StrikeClass = ANF_AirStrike::StaticClass();

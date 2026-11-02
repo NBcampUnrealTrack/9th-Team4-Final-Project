@@ -1,6 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "GamePlay/Combat/Components/NF_TargetQueryTypes.h"
 #include "GamePlay/Combat/Skill/Execution/NF_CharacterPullActor.h"
 #include "NFGA_Grab.generated.h"
@@ -9,7 +9,7 @@ class UNFAbilityTask_PullCharacter;
 class ANF_GrabHook;
 
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_Grab : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_Grab : public UNFGA_ActiveSkillBase
 {
 	GENERATED_BODY()
 public:

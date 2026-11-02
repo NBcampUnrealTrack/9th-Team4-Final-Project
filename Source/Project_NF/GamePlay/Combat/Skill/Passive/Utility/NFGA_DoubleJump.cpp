@@ -8,10 +8,10 @@
 
 UNFGA_DoubleJump::UNFGA_DoubleJump()
 {
-	SkillType = ENF_SkillType::Passive;
-	SkillCategory = ENF_SkillCategory::Utility;
-	SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
-	BuildCost = 3;
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Utility;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+	GetMutableSkillDefaults().BuildCost = 3;
 	bActivatePassiveOnGrant = false;
 	// Actual jump success must call NotifyPassiveTriggered; granting the skill is not a jump.
 	ActivationCueTag = NFTag_Skill::GameplayCue_Skill_DoubleJump_Activate;
@@ -44,7 +44,7 @@ void UNFGA_DoubleJump::RefreshJumpRequest()
 	if (Character == JumpAvatar.Get() && JumpEffect.IsValid() && JumpRequest.IsValid()) { return; }
 	RemoveJumpRequest();
 	if (!IsValid(Character) || Character->IsActorBeingDestroyed()) { return; }
-	if (SkillType != ENF_SkillType::Passive || MaxJumpCount < 2 || MaxJumpCount > 32)
+	if (GetSkillType() != ENF_SkillType::Passive || MaxJumpCount < 2 || MaxJumpCount > 32)
 	{
 		UE_LOG(LogProject_NF, Warning, TEXT("[DoubleJump] Use Skill Type Passive and Max Jump Count 2..32: %s"), *GetName()); return;
 	}

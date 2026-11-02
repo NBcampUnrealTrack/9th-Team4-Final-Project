@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "GamePlay/Combat/Components/NF_TargetQueryTypes.h"
 #include "NFGA_Clairvoyance.generated.h"
 
@@ -11,7 +11,7 @@ class UNF_MinimapRevealRegistry;
 // @owner: 이정준 (구현: Codex) | 2026-10-15
 // 목적: 서버 범위 탐색을 공통 공개 목록에 연결하는 천리안 전용 GA. 추가 컴포넌트 없음.
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_Clairvoyance : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_Clairvoyance : public UNFGA_ActiveSkillBase
 {
 	GENERATED_BODY()
 public:

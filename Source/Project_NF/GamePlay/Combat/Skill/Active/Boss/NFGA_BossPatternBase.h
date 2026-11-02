@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "NFGA_BossPatternBase.generated.h"
 
 class ANF_BossBase;
@@ -11,14 +11,17 @@ class UMaterialInterface;
 
 /** Shared server-authoritative GAS helpers for boss pattern abilities. */
 UCLASS(Abstract, Blueprintable)
-class PROJECT_NF_API UNFGA_BossPatternBase : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_BossPatternBase : public UNFGA_ActiveSkillBase
 {
 	GENERATED_BODY()
 
 public:
 	UNFGA_BossPatternBase();
+	bool WasLastExecutionCancelled() const { return bLastExecutionCancelled; }
 
 protected:
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	ANF_BossBase* GetBoss() const;
 	FGameplayEffectSpecHandle MakeBossEffectSpec(TSubclassOf<UGameplayEffect> EffectClass,
 		FGameplayTag MagnitudeTag, float Magnitude) const;
@@ -33,4 +36,7 @@ protected:
 		const FVector& TargetGroundPoint, float Radius, float Speed,
 		const FGameplayEffectSpecHandle& DamageSpec, FGameplayTag ImpactCueTag) const;
 	void StartAbilityTimer(FTimerHandle& TimerHandle, float Delay, TFunction<void()> Callback);
+
+private:
+	bool bLastExecutionCancelled = false;
 };

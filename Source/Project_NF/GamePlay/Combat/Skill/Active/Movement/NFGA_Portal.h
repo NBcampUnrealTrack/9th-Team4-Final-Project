@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "NFGA_Portal.generated.h"
 
 class ANF_Portal;
@@ -9,7 +9,7 @@ class ANF_Portal;
 // @owner: 이정준 (구현: Codex) | 2026-10-15
 // 목적: 지면 목표 확정 후 입구·출구를 서버에서 준비/검증/생성하는 전용 GAS 스킬.
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_Portal : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_Portal : public UNFGA_ActiveSkillBase
 {
 	GENERATED_BODY()
 public:

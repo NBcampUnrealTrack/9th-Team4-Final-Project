@@ -1,6 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Passive/NFGA_PassiveSkillBase.h"
 #include "NFGA_DoubleJump.generated.h"
 
 class ANF_JumpCountEffect;
@@ -9,7 +9,7 @@ class ACharacter;
 // @Owner: 이정준 (구현: Codex) | 2026-10-21
 // Equipped by granting the ability; no input activation or player source changes required.
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_DoubleJump : public UNFGA_SkillBase
+class PROJECT_NF_API UNFGA_DoubleJump : public UNFGA_PassiveSkillBase
 {
 	GENERATED_BODY()
 public:

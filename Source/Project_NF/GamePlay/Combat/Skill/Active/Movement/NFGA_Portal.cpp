@@ -14,11 +14,11 @@
 // 목적: 기존 GA 비용/쿨다운/취소 규칙과 Deployable 수명을 재사용한다. 특정 PC에 의존하지 않는다.
 UNFGA_Portal::UNFGA_Portal()
 {
-	SkillCategory = ENF_SkillCategory::Movement;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Movement;
 	SkillExecutionMode = ENF_SkillExecutionMode::Instant;
 	bActivateOnInputRelease = true;
 	bRequiresConfirmedTargetData = true;
-	BuildCost = 5;
+	GetMutableSkillDefaults().BuildCost = 5;
 	PortalClass = ANF_Portal::StaticClass();
 }
 bool UNFGA_Portal::HasValidPortalSettings() const
@@ -55,7 +55,7 @@ bool UNFGA_Portal::BuildConfirmedTargetData_Implementation(FGameplayAbilityTarge
 bool UNFGA_Portal::ValidateConfirmedTargetData_Implementation(const FGameplayAbilityTargetDataHandle& Data) const
 {
 	const FNF_SkillTargetData* Target = FNF_SkillTargetData::Get(Data);
-	return HasValidPortalSettings() && UNFGA_SkillBase::ValidateConfirmedTargetData_Implementation(Data)
+	return HasValidPortalSettings() && UNFGA_ActiveSkillBase::ValidateConfirmedTargetData_Implementation(Data)
 		&& Target && Target->Kind == ENF_SkillTargetKind::GroundPoint
 		&& UNF_GroundTargetingComponent::ValidateGroundTarget(GetAvatarActorFromActorInfo(), Target->Location, PortalRange, GroundSearchDepth);
 }

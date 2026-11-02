@@ -8,8 +8,8 @@
 
 UNFGA_Movement::UNFGA_Movement()
 {
-	SkillCategory = ENF_SkillCategory::Movement;
-	BuildCost = 4;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Movement;
+	GetMutableSkillDefaults().BuildCost = 4;
 }
 
 void UNFGA_Movement::SetMovementTarget(AActor* Target)
@@ -22,7 +22,7 @@ bool UNFGA_Movement::HasValidMovementSettings() const
 {
 	return !ExecutionActorClass && !bRequiresConfirmedTargetData
 		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
-		&& SkillType == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Instant
+		&& GetSkillType() == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Instant
 		&& !DirectionAxis.ContainsNaN() && !DirectionAxis.IsNearlyZero()
 		&& FMath::IsFinite(MovementSpeed) && MovementSpeed > 0.0f
 		&& FMath::IsFinite(CastTime) && CastTime >= 0.0f

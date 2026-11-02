@@ -3,7 +3,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Pawn.h"
-#include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
+#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "GamePlay/Combat/Components/NF_GroundTargetingComponent.h"
 #include "GamePlay/Combat/Components/NF_AreaIndicatorComponent.h"
 #include "GamePlay/Combat/Projectiles/NF_ProjectileTrajectoryComponent.h"
@@ -52,7 +52,7 @@ UGameplayAbility* ANF_SkillPreviewActor::GetSourceAbility() const
 bool ANF_SkillPreviewActor::GetPreviewData(FNF_SkillPreviewData& OutData) const
 {
 	OutData = FNF_SkillPreviewData();
-	const UNFGA_SkillBase* Skill = Cast<UNFGA_SkillBase>(SourceAbility.Get());
+	const UNFGA_ActiveSkillBase* Skill = Cast<UNFGA_ActiveSkillBase>(SourceAbility.Get());
 	return Skill && Skill->GetSkillPreviewData(SourceAvatar.Get(), OutData);
 }
 

@@ -5,7 +5,7 @@
 
 UNFGA_AttackPower::UNFGA_AttackPower()
 {
-	BuildCost = 1;
+	GetMutableSkillDefaults().BuildCost = 1;
 	StatEffectClass = UNFGE_AttackDamageBonus::StaticClass();
 	MagnitudeTag = NFTag_Skill::Data_Weapon_AttackDamageBonus;
 }

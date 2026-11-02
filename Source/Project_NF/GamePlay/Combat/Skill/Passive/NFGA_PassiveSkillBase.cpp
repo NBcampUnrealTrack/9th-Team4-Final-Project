@@ -1,0 +1,167 @@
+#include "GamePlay/Combat/Skill/Passive/NFGA_PassiveSkillBase.h"
+#include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
+#include "GameFramework/Actor.h"
+#include "Project_NF.h"
+
+UNFGA_PassiveSkillBase::UNFGA_PassiveSkillBase()
+{
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+}
+
+
+// 패시브 전용 장착 효과, 이벤트, 연출 수명.
+namespace
+{
+	// @Owner: 스킬 담당 (구현: Codex) | 2026-10-13
+	// UE 5.7의 GetStackingType은 DLL export가 없어 프로젝트 모듈에서 링크할 수 없다.
+	// 공개 필드를 읽는 호환 처리를 이 함수로 한정한다. 엔진 소스는 수정하지 않는다.
+	bool HasSharedStacking(const UGameplayEffect& Effect)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const bool bHasSharedStacking = Effect.StackingType != EGameplayEffectStackingType::None;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return bHasSharedStacking;
+	}
+}
+
+void UNFGA_PassiveSkillBase::InitializePassive()
+{
+	const FGameplayAbilityActorInfo* Info = GetCurrentActorInfo();
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (GetSkillType() != ENF_SkillType::Passive || bPassiveInitialized || !Info || !Info->IsNetAuthority()
+		|| !ASC || !IsValid(Avatar)) { return; }
+	const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(CurrentSpecHandle);
+	if (!Spec || Spec->GetPrimaryInstance() != this) { return; }
+	bPassiveInitialized = true;
+	PassiveAvatar = Avatar;
+	PassiveASC = ASC;
+	RegisteredPassiveEventTags = PassiveEventTags;
+	if (!RegisteredPassiveEventTags.IsEmpty())
+	{
+		PassiveEventDelegate = ASC->AddGameplayEventTagContainerDelegate(RegisteredPassiveEventTags,
+			FGameplayEventTagMulticastDelegate::FDelegate::CreateUObject(this, &UNFGA_PassiveSkillBase::HandlePassiveGameplayEvent));
+	}
+	for (const TSubclassOf<UGameplayEffect>& Effect : PassiveEffects)
+	{
+		if (!bPassiveInitialized) { break; }
+		if (!Effect) { continue; }
+		const UGameplayEffect* Defaults = Effect->GetDefaultObject<UGameplayEffect>();
+		if (Defaults->DurationPolicy == EGameplayEffectDurationType::Instant || HasSharedStacking(*Defaults))
+		{
+			UE_LOG(LogProject_NF, Warning, TEXT("[Skill] Passive Effects require Duration/Infinite and Stacking Type None: %s"), *GetNameSafe(Effect.Get()));
+			continue;
+		}
+		const FGameplayEffectSpecHandle EffectSpec = MakeOutgoingGameplayEffectSpec(Effect, GetAbilityLevel());
+		if (EffectSpec.IsValid())
+		{
+			const FActiveGameplayEffectHandle Applied = ASC->ApplyGameplayEffectSpecToSelf(*EffectSpec.Data.Get());
+			if (bPassiveInitialized) { TrackPassiveEffect(Applied); }
+			else { ASC->RemoveActiveGameplayEffect(Applied); }
+		}
+	}
+	if (bPassiveInitialized) { PassiveEquipped(); }
+	if (bPassiveInitialized && bActivatePassiveOnGrant)
+	{
+		ASC->TryActivateAbility(CurrentSpecHandle, false);
+	}
+}
+
+void UNFGA_PassiveSkillBase::TrackPassiveEffect(FActiveGameplayEffectHandle EffectHandle)
+{
+	UAbilitySystemComponent* ASC = PassiveASC.Get();
+	const FActiveGameplayEffect* Effect = ASC ? ASC->GetActiveGameplayEffect(EffectHandle) : nullptr;
+	if (bPassiveInitialized && ASC && ASC->IsOwnerActorAuthoritative() && Effect && Effect->Spec.Def
+		&& !HasSharedStacking(*Effect->Spec.Def))
+	{
+		PassiveEffectHandles.AddUnique(EffectHandle);
+	}
+}
+
+void UNFGA_PassiveSkillBase::CleanupPassive()
+{
+	StopPassiveActiveCue();
+	if (!bPassiveInitialized) { return; }
+	bPassiveInitialized = false;
+	UAbilitySystemComponent* ASC = PassiveASC.Get();
+	if (ASC && PassiveEventDelegate.IsValid())
+	{
+		ASC->RemoveGameplayEventTagContainerDelegate(RegisteredPassiveEventTags, PassiveEventDelegate);
+	}
+	PassiveEventDelegate.Reset();
+	RegisteredPassiveEventTags.Reset();
+	TArray<FActiveGameplayEffectHandle> Handles = MoveTemp(PassiveEffectHandles);
+	if (ASC)
+	{
+		for (FActiveGameplayEffectHandle Handle : Handles) { ASC->RemoveActiveGameplayEffect(Handle); }
+	}
+	PassiveAvatar.Reset();
+	PassiveUnequipped();
+}
+
+void UNFGA_PassiveSkillBase::HandlePassiveGameplayEvent(FGameplayTag EventTag, const FGameplayEventData* Payload)
+{
+	if (bPassiveInitialized && Payload && CanContinueSkillExecution()) { PassiveGameplayEvent(EventTag, *Payload); }
+}
+
+void UNFGA_PassiveSkillBase::NotifyPassiveTriggered(AActor* AffectedActor, FVector Location, float Magnitude)
+{
+	const auto* Info = GetCurrentActorInfo();
+	auto* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!Info || !Info->IsNetAuthority() || !ASC || GetSkillType() != ENF_SkillType::Passive || !ActivationCueTag.IsValid()) { return; }
+	FGameplayCueParameters Parameters;
+	Parameters.EffectContext = ASC->MakeEffectContext();
+	Parameters.Instigator = GetAvatarActorFromActorInfo();
+	Parameters.EffectCauser = GetAvatarActorFromActorInfo();
+	Parameters.SourceObject = AffectedActor;
+	Parameters.Location = Location;
+	Parameters.RawMagnitude = Magnitude;
+	Parameters.AbilityLevel = GetAbilityLevel();
+	// Execute on the caster's ASC: cue target is the passive owner, SourceObject is the affected actor.
+	ASC->ExecuteGameplayCue(ActivationCueTag, Parameters);
+}
+
+void UNFGA_PassiveSkillBase::StartPassiveActiveCue()
+{
+	const auto* Info = GetCurrentActorInfo();
+	auto* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!Info || !Info->IsNetAuthority() || !ASC || GetSkillType() != ENF_SkillType::Passive || !ActiveCueTag.IsValid()) { return; }
+	if (PassiveCueASC.Get() == ASC && RegisteredActiveCueTag == ActiveCueTag) { return; }
+	StopPassiveActiveCue();
+	FGameplayCueParameters Parameters;
+	Parameters.EffectContext = ASC->MakeEffectContext();
+	Parameters.Instigator = GetAvatarActorFromActorInfo();
+	Parameters.EffectCauser = GetAvatarActorFromActorInfo();
+	if (const auto* Avatar = GetAvatarActorFromActorInfo()) { Parameters.Location = Avatar->GetActorLocation(); }
+	// Store ownership before invoking cue callbacks, which may synchronously unequip the passive.
+	PassiveCueASC = ASC; RegisteredActiveCueTag = ActiveCueTag;
+	ASC->AddGameplayCue(ActiveCueTag, Parameters);
+}
+
+void UNFGA_PassiveSkillBase::StopPassiveActiveCue()
+{
+	auto* ASC = PassiveCueASC.Get();
+	const auto Tag = RegisteredActiveCueTag;
+	PassiveCueASC.Reset(); RegisteredActiveCueTag = FGameplayTag();
+	if (ASC && Tag.IsValid()) { ASC->RemoveGameplayCue(Tag); }
+}
+
+
+void UNFGA_PassiveSkillBase::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	Super::OnGiveAbility(ActorInfo, Spec);
+	InitializePassive();
+}
+void UNFGA_PassiveSkillBase::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	if (bPassiveInitialized && PassiveAvatar.Get() != (ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr)) { CleanupPassive(); }
+	Super::OnAvatarSet(ActorInfo, Spec);
+	InitializePassive();
+}
+void UNFGA_PassiveSkillBase::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	CleanupPassive();
+	Super::OnRemoveAbility(ActorInfo, Spec);
+}
