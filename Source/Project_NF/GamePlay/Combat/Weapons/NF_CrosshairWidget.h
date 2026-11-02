@@ -4,32 +4,45 @@
 #include "Blueprint/UserWidget.h"
 #include "NF_CrosshairWidget.generated.h"
 
-UCLASS()
+UCLASS(Abstract, Blueprintable)
 class PROJECT_NF_API UNF_CrosshairWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+public:
+	UFUNCTION(BlueprintCallable, Category="Crosshair")
+	void SetMaxRadius(float InValue);
+
+	UFUNCTION(BlueprintCallable, Category="Crosshair")
+	void UpdateRadius(float InValue);
+
 protected:
-	virtual void NativeOnInitialized() override;
-	virtual int32 NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
-		const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
-		int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	virtual void NativePreConstruct() override;
+	virtual void NativeConstruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Crosshair")
-	FLinearColor CrosshairColor = FLinearColor::White;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Crosshair")
+	TObjectPtr<UWidget> CrosshairTop;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Crosshair")
-	FLinearColor OutlineColor = FLinearColor::Black;
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Crosshair")
+	TObjectPtr<UWidget> CrosshairBottom;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Crosshair", meta=(ClampMin="0.0"))
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Crosshair")
+	TObjectPtr<UWidget> CrosshairLeft;
+
+	UPROPERTY(BlueprintReadOnly, meta=(BindWidget), Category="Crosshair")
+	TObjectPtr<UWidget> CrosshairRight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crosshair", meta=(ClampMin="0.0", UIMin="0.0"))
 	float CenterGap = 4.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Crosshair", meta=(ClampMin="1.0"))
-	float ArmLength = 7.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crosshair", meta=(ClampMin="0.0", UIMin="0.0"))
+	float MaxRadius = 16.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Crosshair", meta=(ClampMin="1.0"))
-	float LineThickness = 2.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Crosshair", meta=(ClampMin="0.0", ClampMax="1.0", UIMin="0.0", UIMax="1.0"))
+	float Radius = 0.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Crosshair", meta=(ClampMin="0.0"))
-	float OutlineThickness = 1.f;
+private:
+	void UpdateCrosshairLayout();
+	void UpdateCrosshairVisibility();
 };
