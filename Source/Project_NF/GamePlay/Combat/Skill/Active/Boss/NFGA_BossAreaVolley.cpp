@@ -8,7 +8,6 @@
 #include "Engine/World.h"
 #include "GameplayCueInterface.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
-#include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
 #include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "GamePlay/Combat/Projectiles/NF_BossAreaProjectile.h"
 #include "GameplayEffect.h"
@@ -20,13 +19,7 @@
 
 UNFGA_BossAreaVolley::UNFGA_BossAreaVolley()
 {
-	GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
-	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
-	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
-	SkillExecutionMode = ENF_SkillExecutionMode::Timed;
 	ExecutionDuration = PatternDuration;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
-	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	ProjectileClass = ANF_BossAreaProjectile::StaticClass();
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
@@ -175,14 +168,7 @@ void UNFGA_BossAreaVolley::FinishTelegraph(FVector_NetQuantize TargetGroundPoint
 	if (DamageEffectClass && DamageMagnitudeTag.IsValid())
 	{
 		const float ConfiguredDamage = Boss->GetPatternDamage(ENF_BossPatternId::AreaVolley, Damage);
-		// This GA derives directly from SkillBase, not BossPatternBase.
-		const TSubclassOf<UGameplayEffect> ResolvedDamageClass = DamageEffectClass->IsChildOf(UNFGE_BossDamageToPlayer::StaticClass())
-			? TSubclassOf<UGameplayEffect>(UNFGE_CommonDamage::StaticClass()) : DamageEffectClass;
-		DamageSpec = MakeOutgoingGameplayEffectSpec(ResolvedDamageClass, GetAbilityLevel());
-		if (DamageSpec.IsValid())
-		{
-			DamageSpec.Data->SetSetByCallerMagnitude(DamageMagnitudeTag, FMath::Max(ConfiguredDamage, 0.0f));
-		}
+		DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag, ConfiguredDamage);
 	}
 	else if (!bWarnedMissingDamageConfig)
 	{
@@ -251,7 +237,6 @@ void UNFGA_BossAreaVolley::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
-	bLastExecutionCancelled = bWasCancelled;
 	AActor* AvatarActor = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
 	UWorld* World = IsValid(AvatarActor) ? AvatarActor->GetWorld() : nullptr;
 	if (World)
