@@ -172,8 +172,9 @@ bool UNF_GASFunctionLibrary::NF_RemoveLooseGameplayTagContainerFromActor(AActor*
 	return UAbilitySystemBlueprintLibrary::RemoveLooseGameplayTags(TargetActor, GameplayTagContainer, bShouldReplicate);
 }
 
+
 void UNF_GASFunctionLibrary::NF_PlayMontageAndWaitWithEndAbility(UGameplayAbility* OwningAbility,
-	UAnimMontage* MontageToPlay, FName StartSection)
+                                                                 UAnimMontage* MontageToPlay, FName StartSection)
 {
 	if (IsValid(OwningAbility) == false) return;
 
@@ -219,3 +220,38 @@ UAbilityTask_PlayMontageAndWait* UNF_GASFunctionLibrary::NF_PlayMontageAndWait(U
 }
 
 
+FActiveGameplayEffectHandle UNF_GASFunctionLibrary::NF_ApplyGameplayEffectToSelfWithSetByCaller(
+	UAbilitySystemComponent* AbilitySystemComponent,TSubclassOf<UGameplayEffect> GameplayEffectClass, float Magnitude, 
+		FGameplayTag DataTag, float Level)
+{
+	if (IsValid(AbilitySystemComponent) == false) return FActiveGameplayEffectHandle();
+	if (GameplayEffectClass == nullptr) return FActiveGameplayEffectHandle();
+
+	FGameplayEffectSpecHandle SpecHandle = AbilitySystemComponent->MakeOutgoingSpec(
+		GameplayEffectClass, Level, AbilitySystemComponent->MakeEffectContext());
+	if (SpecHandle.IsValid() == false) return FActiveGameplayEffectHandle();
+
+	SpecHandle.Data->SetSetByCallerMagnitude(DataTag, Magnitude);
+
+	return AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+}
+
+
+FActiveGameplayEffectHandle UNF_GASFunctionLibrary::NF_ApplyGameplayEffectToTargetWithSetByCaller(
+	UAbilitySystemComponent* SourceAbilitySystemComponent, AActor* TargetActor, 
+	TSubclassOf<UGameplayEffect> GameplayEffectClass, float Magnitude, FGameplayTag DataTag, float Level)
+{
+	if (IsValid(SourceAbilitySystemComponent) == false) return FActiveGameplayEffectHandle();
+	if (GameplayEffectClass == nullptr) return FActiveGameplayEffectHandle();
+
+	UAbilitySystemComponent* TargetAbilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(TargetActor);
+	if (IsValid(TargetAbilitySystemComponent) == false) return FActiveGameplayEffectHandle();
+
+	FGameplayEffectSpecHandle SpecHandle = SourceAbilitySystemComponent->MakeOutgoingSpec(
+		GameplayEffectClass, Level, SourceAbilitySystemComponent->MakeEffectContext());
+	if (SpecHandle.IsValid() == false) return FActiveGameplayEffectHandle();
+
+	SpecHandle.Data->SetSetByCallerMagnitude(DataTag, Magnitude);
+
+	return SourceAbilitySystemComponent->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetAbilitySystemComponent);
+}

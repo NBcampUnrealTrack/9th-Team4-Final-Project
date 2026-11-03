@@ -675,6 +675,9 @@ Content/ProjectNF/Persnal/GyeongHwan/
 Content/ProjectNF/Persnal/Yongjun/
 Content/ProjectNF/Dev/Player/MotionMatching/*
 !Content/ProjectNF/Dev/Player/MotionMatching/UpperBodyBlend/
+!Content/ProjectNF/Dev/Player/MotionMatching/Animation/
+Content/ProjectNF/Dev/Player/MotionMatching/Animation/*
+!Content/ProjectNF/Dev/Player/MotionMatching/Animation/ABP_SandboxCharacter.uasset
 Content/ProjectNF/Dev/Resource/
 _개인 백업/
 
