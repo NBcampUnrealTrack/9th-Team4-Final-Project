@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossPatternBase.h"
 #include "NFGA_BossAreaVolley.generated.h"
 
 class ANF_BossAreaProjectile;
@@ -9,13 +9,12 @@ class UGameplayEffect;
 
 /** Server-authoritative boss pattern: target snapshot, telegraph, then fixed-point volleys. */
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_BossAreaVolley : public UNFGA_ActiveSkillBase
+class PROJECT_NF_API UNFGA_BossAreaVolley : public UNFGA_BossPatternBase
 {
 	GENERATED_BODY()
 
 public:
 	UNFGA_BossAreaVolley();
-	bool WasLastExecutionCancelled() const { return bLastExecutionCancelled; }
 
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -78,7 +77,6 @@ protected:
 	FName ProjectileSpawnSocketName = TEXT("FirePoint");
 
 private:
-	bool bLastExecutionCancelled = false;
 	void StartVolley();
 	void FinishTelegraph(FVector_NetQuantize TargetGroundPoint);
 	bool FindGroundPoint(AActor* Target, FVector& OutGroundPoint) const;
