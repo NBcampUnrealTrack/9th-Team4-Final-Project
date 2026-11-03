@@ -1,10 +1,12 @@
 #include "GAS/Abilities/NFGA_WeaponFire.h"
 
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
+#include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GAS/Tags/NFTag_Player.h"
+#include "UpperBodyBlend/UpperBodyLayer.h"
 
 UNFGA_WeaponFire::UNFGA_WeaponFire()
 {
@@ -62,6 +64,14 @@ void UNFGA_WeaponFire::TryFire()
 		WaitForNextShot(Remaining);
 		return;
 	}
+	
+	// 조준 자세가 다 잡히기 전이면 0.02초 뒤 다시 시도
+	if (UUpperBodyLayerLibrary::IsUpperBodyAimReady(Cast<ACharacter>(GetAvatarActorFromActorInfo())) == false)
+	{
+		WaitForNextShot(0.02f);
+		return;
+	}
+
 	
 	if (Weapon->FireProjectile() == false)
 	{
