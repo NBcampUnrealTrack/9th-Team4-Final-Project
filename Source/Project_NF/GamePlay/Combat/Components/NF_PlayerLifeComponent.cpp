@@ -18,6 +18,8 @@
 #include "Player/Data/NF_PlayerLifeDataAsset.h"
 #include "GameFramework/PlayerController.h"
 #include "GAS/Abilities/NFGA_Revive.h"
+#include "GAS/Manager/NF_GEManagerSubsystem.h"
+#include "GAS/Data/NF_SurvivalGEDataAsset.h"
 
 UNF_PlayerLifeComponent::UNF_PlayerLifeComponent()
 {
@@ -115,8 +117,17 @@ bool UNF_PlayerLifeComponent::Revive()
 		return false;
 	}
 	
-	// LifeDataAsset과 소생 회복 GE가 설정되어 있는지
-	if (!IsValid(LifeDataAsset) || !LifeDataAsset->ReviveHealthEffectClass)
+	// LifeDataAsset은 소생 설정값에 계속 사용
+	if (!IsValid(LifeDataAsset))
+	{
+		return false;
+	}
+	
+	// GE Manager에서 소생 회복 GE 조회
+	const auto ReviveHealthGE = UNF_GEManagerSubsystem::FindEffect(
+		this, &UNF_SurvivalGEDataAsset::ReviveHealthEffectClass);
+	
+	if (!ReviveHealthGE)
 	{
 		return false;
 	}
@@ -139,7 +150,7 @@ bool UNF_PlayerLifeComponent::Revive()
 	// 회복 GE 실행 준비
 	FGameplayEffectSpecHandle HealSpec =
 		ASC->MakeOutgoingSpec(
-			LifeDataAsset->ReviveHealthEffectClass,
+			ReviveHealthGE,
 			1.0f,
 			ASC->MakeEffectContext());
 	
