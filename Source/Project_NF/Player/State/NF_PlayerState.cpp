@@ -108,7 +108,9 @@ void ANF_PlayerState::ConfigDataAsset()
 {
 	checkf(IsValid(NF_PlayerDataAsset) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]가  삽입되어있지않습니다."));
 	checkf(IsValid(NF_PlayerDataAsset->NF_SetDamage_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_SetDamage_GEClass]가  삽입되어있지않습니다."));
+	checkf(IsValid(NF_PlayerDataAsset->NF_IncomingExp_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_IncomingExp_GEClass]가  삽입되어있지않습니다."));
 	checkf(IsValid(NF_PlayerDataAsset->NF_ShieldRecovery_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_ShieldRecovery_GEClass]가  삽입되어있지않습니다."));
+	checkf(IsValid(NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_ShieldRecoveryBlocked_GEClass]가  삽입되어있지않습니다."));
 }
 
 void ANF_PlayerState::PlayerShieldRecovery()

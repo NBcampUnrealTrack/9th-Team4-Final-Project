@@ -103,17 +103,13 @@ void UNF_PlayerStatusAttribute::BlockShieldRecovery(const FGameplayEffectModCall
 	auto* PlayerState = Cast<ANF_PlayerState>(GetOwningActor());
 	if (IsValid(PlayerState) == false) return;
 	if (IsValid(PlayerState->NF_PlayerDataAsset) == false) return;
-	if (IsValid(PlayerState->NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass) == false) return;
 	
-	UAbilitySystemComponent& ASC = Data.Target;
-	const FGameplayEffectSpecHandle EffectSpecHandle = ASC.MakeOutgoingSpec(
-		PlayerState->NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass, 1.0f, ASC.MakeEffectContext());
-	if (EffectSpecHandle.IsValid() == false) return;
+	UAbilitySystemComponent* ASC = &Data.Target;
 	
-	EffectSpecHandle.Data->SetSetByCallerMagnitude(
-		NFTag_Player::Player_Data_ShieldRecoveryBlockedDuration, PlayerState->NF_PlayerDataAsset->ShieldRecoveryBlockedDuration);
-	
-	ASC.ApplyGameplayEffectSpecToSelf(*EffectSpecHandle.Data.Get());
+	UNF_GASFunctionLibrary::NF_ApplyGameplayEffectToSelfWithSetByCaller(
+		ASC, PlayerState->NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass,
+		PlayerState->NF_PlayerDataAsset->ShieldRecoveryBlockedDuration,
+		NFTag_Player::Player_Data_ShieldRecoveryBlockedDuration);
 }
 
 void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackData& Data)
