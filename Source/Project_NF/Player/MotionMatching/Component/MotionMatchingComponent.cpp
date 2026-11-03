@@ -517,6 +517,12 @@ void UMotionMatchingComponent::SetWantsToSprint(bool bIsWantsToSprint)
 {
 	if (bIsWantsToSprint == true && bIsSprintEnabled == false) return; // [추가] v0.0.6
 
+	ACharacter* OwnerCharacter = GetOwnerCharacter();
+	if (bIsWantsToSprint == true && IsValid(OwnerCharacter) == true && OwnerCharacter->bIsCrouched == true)
+	{
+		OwnerCharacter->UnCrouch();
+	}
+	
 	FMotionMatchingInputState NewCharacterInputState = CharacterInputState;
 	NewCharacterInputState.bIsWantsToSprint = bIsWantsToSprint;
 	NewCharacterInputState.bIsWantsToWalk = false;
