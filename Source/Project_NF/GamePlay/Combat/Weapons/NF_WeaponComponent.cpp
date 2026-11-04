@@ -3,7 +3,7 @@
 
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
-#include "GamePlay/Combat/Weapons/NF_CrosshairWidget.h"
+#include "UI/Widget/NF_CrosshairWidget.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"

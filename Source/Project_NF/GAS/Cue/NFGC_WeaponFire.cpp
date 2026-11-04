@@ -10,7 +10,7 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponCameraShakeBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
-#include "GamePlay/Combat/Weapons/NF_CrosshairWidget.h"
+#include "UI/Widget/NF_CrosshairWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystem.h"
 #include "Sound/SoundBase.h"

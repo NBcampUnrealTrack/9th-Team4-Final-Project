@@ -1,4 +1,4 @@
-#include "GamePlay/Combat/Weapons/NF_CrosshairWidget.h"
+#include "UI/Widget/NF_CrosshairWidget.h"
 
 #include "Components/Widget.h"
 #include "GameFramework/HUD.h"
