@@ -46,7 +46,7 @@ public:
 	bool CanFire() const;
 	float GetFireInterval() const;
 	float GetRemainingFireDelay() const;
-	class USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMeshComponent; }
+	class UStaticMeshComponent* GetWeaponMesh() const { return WeaponMeshComponent; }
 	FName GetMuzzleSocketName() const;
 	FName GetScopeSocketName() const;
 
@@ -61,7 +61,7 @@ protected:
 	FVector GetFireDirection(const FTransform& MuzzleTransform) const;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
-	TObjectPtr<class USkeletalMeshComponent> WeaponMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> WeaponMeshComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<class UNF_WeaponDataAsset> WeaponData;
