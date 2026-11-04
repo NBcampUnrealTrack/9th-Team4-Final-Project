@@ -13,7 +13,9 @@ UNFGA_Downed::UNFGA_Downed()
 	// 서버에서 기절 행동 처리
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
 	
-	AbilityTags.AddTag(NFTag_LifeState::Ability_Life_Downed);
+	FGameplayTagContainer AssetTags = GetAssetTags();
+	AssetTags.AddTag(NFTag_LifeState::Ability_Life_Downed);
+	SetAssetTags(AssetTags);
 }
 
 void UNFGA_Downed::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
