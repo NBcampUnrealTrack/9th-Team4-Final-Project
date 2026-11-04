@@ -1,7 +1,7 @@
 #include "GAS/Cue/NFGC_WeaponFire.h"
 
 #include "Camera/PlayerCameraManager.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Core/Audio/NF_AudioSubsystem.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -51,7 +51,7 @@ bool UNFGC_WeaponFire::OnExecute_Implementation(AActor* MyTarget, const FGamepla
 	if (IsValid(Data->MuzzleFlash))
 	{
 		const ANF_WeaponBase* Weapon = Cast<ANF_WeaponBase>(Parameters.EffectCauser.Get());
-		USkeletalMeshComponent* Mesh = IsValid(Weapon) ? Weapon->GetWeaponMesh() : nullptr;
+		UStaticMeshComponent* Mesh = IsValid(Weapon) ? Weapon->GetWeaponMesh() : nullptr;
 		if (IsValid(Mesh) && Mesh->DoesSocketExist(Data->MuzzleSocketName))
 		{
 			UGameplayStatics::SpawnEmitterAttached(Data->MuzzleFlash, Mesh, Data->MuzzleSocketName,

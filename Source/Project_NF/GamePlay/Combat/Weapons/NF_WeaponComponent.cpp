@@ -6,7 +6,7 @@
 #include "UI/Widget/NF_CrosshairWidget.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/MeshComponent.h"
 #include "Engine/World.h"
 #include "GAS/Abilities/NFGA_WeaponFire.h"
@@ -503,7 +503,7 @@ void UNF_WeaponComponent::UpdateScopeCameraAttachment(bool bAttach)
 	}
 
 	if (bScopeCameraAttached || !ZoomCamera.IsValid() || !IsValid(EquippedWeapon)) return;
-	USkeletalMeshComponent* Mesh = EquippedWeapon->GetWeaponMesh();
+	UStaticMeshComponent* Mesh = EquippedWeapon->GetWeaponMesh();
 	const FName Socket = EquippedWeapon->GetScopeSocketName();
 	if (!IsValid(Mesh) || !Mesh->DoesSocketExist(Socket)) return;
 

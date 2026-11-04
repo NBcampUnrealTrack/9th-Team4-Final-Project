@@ -109,7 +109,7 @@ public:
 	
 	// 지정하면 BP의 메시/머티리얼 대신 이 DA의 외형을 적용한다. None이면 기존 BP 설정 유지.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Appearance")
-	TObjectPtr<class USkeletalMesh> WeaponMesh;
+	TObjectPtr<class UStaticMesh> WeaponMesh;
 
 	// 배열 인덱스 = 메시의 머티리얼 슬롯 인덱스. None 또는 생략한 슬롯은 메시 기본값 사용.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Appearance",

@@ -4,7 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
 #include "Components/SceneComponent.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GamePlay/Combat/Projectiles/NF_WeaponProjectile.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
@@ -13,7 +13,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
-#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "DrawDebugHelpers.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -24,7 +24,7 @@ ANF_WeaponBase::ANF_WeaponBase()
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	WeaponMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
 	SetRootComponent(WeaponMeshComponent);
 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
@@ -49,7 +49,7 @@ void ANF_WeaponBase::ApplyWeaponAppearance()
 		return;
 	}
 
-	WeaponMeshComponent->SetSkeletalMesh(WeaponData->WeaponMesh);
+	WeaponMeshComponent->SetStaticMesh(WeaponData->WeaponMesh);
 	WeaponMeshComponent->EmptyOverrideMaterials();
 	const int32 SlotCount = FMath::Min(WeaponMeshComponent->GetNumMaterials(), WeaponData->WeaponMaterials.Num());
 	for (int32 SlotIndex = 0; SlotIndex < SlotCount; ++SlotIndex)
