@@ -678,7 +678,12 @@ Content/ProjectNF/Dev/Player/MotionMatching/*
 !Content/ProjectNF/Dev/Player/MotionMatching/Animation/
 Content/ProjectNF/Dev/Player/MotionMatching/Animation/*
 !Content/ProjectNF/Dev/Player/MotionMatching/Animation/ABP_SandboxCharacter.uasset
-Content/ProjectNF/Dev/Resource/
+Content/ProjectNF/Dev/Resource/*
+!Content/ProjectNF/Dev/Resource/Mesh/
+Content/ProjectNF/Dev/Resource/Mesh/*
+!Content/ProjectNF/Dev/Resource/Mesh/PlayerCharacter/
+Content/ProjectNF/Dev/Resource/Mesh/PlayerCharacter/*
+!Content/ProjectNF/Dev/Resource/Mesh/PlayerCharacter/Player/
 _개인 백업/
 
 # Ignore Myungwoo's personal content assets
