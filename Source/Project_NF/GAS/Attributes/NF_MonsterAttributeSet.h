@@ -5,6 +5,7 @@
 #include "AttributeSet.h"
 #include "NF_MonsterAttributeSet.generated.h"
 
+class APlayerState;
 struct FGameplayEffectModCallbackData;
 
 #define NF_ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
@@ -30,6 +31,8 @@ class PROJECT_NF_API UNF_MonsterAttributeSet : public UAttributeSet
 	
 public:
 	UNF_MonsterAttributeSet();
+	
+	APlayerState* GetLethalDamageInstigatorPlayerState() const;
 	
 	virtual void GetLifetimeReplicatedProps(
 	TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -78,6 +81,8 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FNFOnMonsterOutOfHealth OnMonsterOutOfHealth;
+	
+	TWeakObjectPtr<APlayerState> LethalDamageInstigatorPlayerState;
 	
 private:
 	bool bIsOutOfHealth = false;
