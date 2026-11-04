@@ -67,6 +67,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Combat (전투)", meta = (DisplayName = "Aim Blend Time", ClampMin = "0.0"))
 	float AimBlendTime = 0.15f;
 
+	// [추가] 전투 태세에서 평상시로 돌아올 때만 섞는 시간(초). 진입(첫 발)은 Aim Blend Time 그대로. 0이면 Aim Blend Time 사용. 추천: 0.25
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Combat (전투)", meta = (DisplayName = "Aim Blend Out Time", ClampMin = "0.0"))
+	float AimBlendOutTime = 0.25f;
+
 	// 조준 각도를 따라가는 속도 (클수록 빠름, 0 = 즉시). 추천: 15
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Combat (전투)", meta = (DisplayName = "Aim Follow Speed", ClampMin = "0.0"))
 	float AimInterpSpeed = 15.0f;

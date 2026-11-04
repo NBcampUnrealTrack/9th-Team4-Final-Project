@@ -45,6 +45,8 @@ private:
 	void ConfigDataAsset();
 	
 
+	
+
 #pragma region Input
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PlayerController|MatchSystem")

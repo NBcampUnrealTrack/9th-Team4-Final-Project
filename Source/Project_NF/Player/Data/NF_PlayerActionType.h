@@ -18,5 +18,9 @@ enum class ENF_PlayerActionType : uint8
 	UseItem UMETA(DisplayName = "UseItem"),
 	SkillA UMETA(DisplayName = "SkillA"),
 	SkillB UMETA(DisplayName = "SkillB"),
+	TestMeshSwap_Girl UMETA(DisplayName = "SkillB"),
+	TestMeshSwap_Boy UMETA(DisplayName = "SkillB"),
 	ToggleSettingButton UMETA(DisplayName = "ToggleSettingButton")
+	
+	
 };

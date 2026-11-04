@@ -141,10 +141,15 @@ void ANF_PlayerController::BindInputButton()
 	//Zoom
 	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomIn);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
+	
+	if (NF_PlayerControllerDataAsset->bIsTestMode == false)
+	{
+		EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Canceled, this, 
-		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
+		EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Canceled, this, 
+			&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
+	}
+	
 	
 	
 	//Skill
@@ -161,6 +166,11 @@ void ANF_PlayerController::BindInputButton()
 		&ThisClass::TryAction, ENF_PlayerActionType::UseItem);
 	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->OpenOptionButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::OpenOption);
+	
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Boy_Button, ETriggerEvent::Started, this,
+		&ThisClass::TryAction, ENF_PlayerActionType::TestMeshSwap_Boy);
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Girl_Button, ETriggerEvent::Started, this,
+		&ThisClass::TryAction, ENF_PlayerActionType::TestMeshSwap_Girl);
 }
 
 
@@ -261,6 +271,18 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 		}
 	
 		if (PlayerActionType == ENF_PlayerActionType::UseItem)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+	
+		if (PlayerActionType == ENF_PlayerActionType::TestMeshSwap_Boy)
+		{
+			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
+			return;
+		}
+	
+		if (PlayerActionType == ENF_PlayerActionType::TestMeshSwap_Girl)
 		{
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 			return;
