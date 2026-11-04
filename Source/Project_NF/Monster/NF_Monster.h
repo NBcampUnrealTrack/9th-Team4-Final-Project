@@ -86,6 +86,9 @@ public:
 
 	bool RequiresDamageToAggro() const { return bRequiresDamageToAggro; }
 
+	UFUNCTION(BlueprintPure, Category = "NF|Monster|Death")
+	bool IsDead() const { return bIsDead; }
+
 	UFUNCTION(BlueprintPure, Category = "NF|Monster|UI")
 	FText GetMonsterDisplayName() const { return MonsterDisplayName; }
 	
@@ -152,6 +155,9 @@ protected:
 	UFUNCTION()
 	void HandleMonsterOutOfHealth();
 
+	UFUNCTION()
+	void OnRep_IsDead();
+
 	UPROPERTY(EditDefaultsOnly, Category = "NF|Monster|Combat")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
@@ -174,6 +180,7 @@ protected:
 		Category = "NF|Monster|Reward")
 	FGameplayTag ExperienceRewardMagnitudeTag;
 	
+	UPROPERTY(ReplicatedUsing = OnRep_IsDead)
 	bool bIsDead = false;
 	
 	//몬스터 종류별 MoveSpeed
