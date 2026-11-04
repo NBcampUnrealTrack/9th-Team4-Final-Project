@@ -37,7 +37,7 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	VisualMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("VisualMesh"));
 	if (IsValid(GetMesh()) == true)
 	{
-		GetMesh()->SetHiddenInGame(false);
+		GetMesh()->SetHiddenInGame(true);
 		GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		VisualMesh->SetupAttachment(GetMesh());
 		VisualMesh->SetRelativeScale3D(FVector(1.0f, 1.0f, 1.0f));
