@@ -24,6 +24,7 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/ConsumableItems/NF_ConsumableComponent.h"
 #include "GAS/Abilities/NFGA_PlayerDeath.h"
+#include "Player/Data/NF_CustomVisualMeshDataAsset.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UpperBodyBlend/UpperBodyLayer.h"
@@ -36,10 +37,10 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	VisualMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("VisualMesh"));
 	if (IsValid(GetMesh()) == true)
 	{
-		GetMesh()->SetHiddenInGame(true);
+		GetMesh()->SetHiddenInGame(false);
 		GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		VisualMesh->SetupAttachment(GetMesh());
-		VisualMesh->SetRelativeScale3D(FVector(0.94f, 0.94f, 0.94f));
+		VisualMesh->SetRelativeScale3D(FVector(1.0f, 1.0f, 1.0f));
 		VisualMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		VisualMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		VisualMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
@@ -92,6 +93,7 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
+	ConfigCameraData();
 	ConfigBindDelegate();
 }
 
@@ -124,6 +126,9 @@ void ANF_Player::OnRep_PlayerState()
 }
 
 
+
+
+
 void ANF_Player::ConfigBindDelegate()
 {
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, OnTryAction);
@@ -148,6 +153,14 @@ void ANF_Player::ConfigData()
 	MeleeAttackSocket = NF_PlayerDataAsset->MeleeAttackSocket;
 	
 	MeleeAttackMeshComponent->AttachToComponent(VisualMesh, FAttachmentTransformRules::KeepRelativeTransform, MeleeAttackSocket);
+}
+
+void ANF_Player::ConfigCameraData()
+{
+	if (IsValid(SpringArmComponent) == true)
+	{
+		DefaultCameraArmLength = SpringArmComponent->TargetArmLength;
+	}
 }
 
 
@@ -213,6 +226,18 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 	if (ActionType == ENF_PlayerActionType::UseItem)
 	{
 		TryUseItem();
+		return;
+	}
+	
+	if (ActionType == ENF_PlayerActionType::TestMeshSwap_Boy)
+	{
+		TryChangeVisualMesh(ENF_CustomVisualMeshType::Boy_01);
+		return;
+	}
+	
+	if (ActionType == ENF_PlayerActionType::TestMeshSwap_Girl)
+	{
+		TryChangeVisualMesh(ENF_CustomVisualMeshType::Girl_01);
 		return;
 	}
 }	
@@ -336,7 +361,49 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 	
 		return TraceResult;
 	}
-	#pragma endregion 
+
+	void ANF_Player::TryChangeVisualMesh(ENF_CustomVisualMeshType VisualMeshType)
+	{
+		ServerRPC_TryChangeVisualMesh(VisualMeshType);
+	}
+
+	void ANF_Player::ServerRPC_TryChangeVisualMesh_Implementation(ENF_CustomVisualMeshType VisualMeshType)
+	{
+		auto* NF_PlayerState = GetPlayerState<ANF_PlayerState>();
+		if (IsValid(NF_PlayerState) == false) return;
+		auto& NF_PlayerDataAsset = NF_PlayerState->NF_PlayerDataAsset;
+		if (IsValid(NF_PlayerDataAsset) == false) return;
+	
+		if (NF_PlayerDataAsset->CustomVisualMeshMap.Contains(VisualMeshType) == false) return;
+		
+		CurrentVisualMeshType = VisualMeshType;	
+	
+		ApplyCustomVisualMesh();
+	}
+
+	void ANF_Player::OnRep_CurrentVisualMeshType()
+	{
+		ApplyCustomVisualMesh();
+	}
+
+	void ANF_Player::ApplyCustomVisualMesh()
+	{
+		auto* NF_PlayerState = GetPlayerState<ANF_PlayerState>();
+		if (IsValid(NF_PlayerState) == false) return;
+		auto& NF_PlayerDataAsset = NF_PlayerState->NF_PlayerDataAsset;
+		if (IsValid(NF_PlayerDataAsset) == false) return;
+	
+		UNF_CustomVisualMeshDataAsset* CustomVisualMeshDataAsset = NF_PlayerDataAsset->CustomVisualMeshMap.FindRef(CurrentVisualMeshType);
+		if (IsValid(CustomVisualMeshDataAsset) == false) return;
+		if (IsValid(VisualMesh) == false) return;
+		
+		VisualMesh->SetSkeletalMeshAsset(CustomVisualMeshDataAsset->VisualSkeletalMesh);
+		VisualMesh->SetAnimInstanceClass(CustomVisualMeshDataAsset->VisualAnimClass);
+		VisualMesh->SetRelativeScale3D(CustomVisualMeshDataAsset->VisualMeshScale);
+	}
+
+
+#pragma endregion 
 #pragma endregion 
 
 
@@ -416,6 +483,7 @@ void ANF_Player::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& Out
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
 	DOREPLIFETIME(ThisClass, NF_WeaponType);
+	DOREPLIFETIME(ThisClass, CurrentVisualMeshType);
 }
 
 

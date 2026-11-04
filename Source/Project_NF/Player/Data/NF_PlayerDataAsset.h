@@ -4,6 +4,8 @@
 #include "Engine/DataAsset.h"
 #include "NF_PlayerDataAsset.generated.h"
 
+enum class ENF_CustomVisualMeshType : uint8;
+class UNF_CustomVisualMeshDataAsset;
 class UGameplayAbility;
 class UGameplayEffect;
 class UAnimMontage; 
@@ -75,4 +77,10 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "PlayerState|Player_Level")
 	TObjectPtr<UDataTable> PlayerLevelDataTable;
+	
+	
+	UPROPERTY(EditAnywhere, Category = "VisualMesh")
+	TMap<ENF_CustomVisualMeshType, TObjectPtr<UNF_CustomVisualMeshDataAsset>> CustomVisualMeshMap;
+	
+	
 };
