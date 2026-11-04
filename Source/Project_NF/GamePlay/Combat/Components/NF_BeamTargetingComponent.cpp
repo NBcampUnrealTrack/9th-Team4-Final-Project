@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "UObject/ConstructorHelpers.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 
 UNF_BeamTargetingComponent::UNF_BeamTargetingComponent()
 {
@@ -32,7 +34,35 @@ bool UNF_BeamTargetingComponent::CalculateBeam(AActor* Avatar, FVector& Start, F
 
 void UNF_BeamTargetingComponent::ShowBeam(FVector Start, FVector End)
 {
-	if (GetNetMode() == NM_DedicatedServer || !VisualMesh || Start.ContainsNaN() || End.ContainsNaN()) { HideBeam(); return; }
+	if (GetNetMode() == NM_DedicatedServer || Start.ContainsNaN() || End.ContainsNaN()) { HideBeam(); return; }
+	if (VisualNiagara)
+	{
+		if (BeamMesh) { BeamMesh->SetVisibility(false); }
+		if (!BeamNiagara)
+		{
+			BeamNiagara = NewObject<UNiagaraComponent>(GetOwner());
+			BeamNiagara->SetAutoActivate(false);
+			BeamNiagara->SetAutoDestroy(false);
+			BeamNiagara->SetAsset(VisualNiagara);
+			BeamNiagara->RegisterComponent();
+		}
+		else if (BeamNiagara->GetAsset() != VisualNiagara)
+		{
+			BeamNiagara->DeactivateImmediate();
+			BeamNiagara->SetAsset(VisualNiagara);
+		}
+		const FQuat BeamRotation = (End - Start).Rotation().Quaternion();
+		const FQuat OffsetRotation = FRotator(VisualRotationOffset.Y, VisualRotationOffset.Z, VisualRotationOffset.X).Quaternion();
+		BeamNiagara->SetWorldLocationAndRotation(Start, BeamRotation * OffsetRotation);
+		if (!BeamStartParameter.IsNone()) { BeamNiagara->SetVariablePosition(BeamStartParameter, Start); }
+		if (!BeamEndParameter.IsNone()) { BeamNiagara->SetVariablePosition(BeamEndParameter, End); }
+		if (!BeamWidthParameter.IsNone()) { BeamNiagara->SetVariableFloat(BeamWidthParameter, HalfWidth * 2.0f); }
+		BeamNiagara->SetVisibility(true);
+		if (!BeamNiagara->IsActive()) { BeamNiagara->Activate(true); }
+		return;
+	}
+	if (BeamNiagara) { BeamNiagara->DeactivateImmediate(); BeamNiagara->SetVisibility(false); }
+	if (!VisualMesh) { HideBeam(); return; }
 	if (!BeamMesh)
 	{
 		BeamMesh = NewObject<UStaticMeshComponent>(GetOwner());
@@ -48,9 +78,14 @@ void UNF_BeamTargetingComponent::ShowBeam(FVector Start, FVector End)
 		FVector(Delta.Size() / 100.0f, HalfWidth * 0.02f, HalfWidth * 0.02f)));
 	BeamMesh->SetVisibility(true);
 }
-void UNF_BeamTargetingComponent::HideBeam() { if (BeamMesh) { BeamMesh->SetVisibility(false); } }
+void UNF_BeamTargetingComponent::HideBeam()
+{
+	if (BeamMesh) { BeamMesh->SetVisibility(false); }
+	if (BeamNiagara) { BeamNiagara->DeactivateImmediate(); BeamNiagara->SetVisibility(false); }
+}
 void UNF_BeamTargetingComponent::EndPlay(const EEndPlayReason::Type Reason)
 {
 	if (BeamMesh) { BeamMesh->DestroyComponent(); BeamMesh = nullptr; }
+	if (BeamNiagara) { BeamNiagara->DestroyComponent(); BeamNiagara = nullptr; }
 	Super::EndPlay(Reason);
 }

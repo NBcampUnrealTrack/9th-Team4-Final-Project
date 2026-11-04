@@ -8,14 +8,11 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "TimerManager.h"
-#include "UObject/ConstructorHelpers.h"
 
 UNFGA_Sonar::UNFGA_Sonar()
 {
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Search; GetMutableSkillDefaults().BuildCost = 2;
 	GetMutableActiveDefaults().ExecutionMode = ENF_SkillExecutionMode::Timed; GetMutableActiveDefaults().ExecutionDuration = 5.0f;
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Material(TEXT("/Game/ProjectNF/Skills/Sonar/M_PP_Sonar.M_PP_Sonar"));
-	if (Material.Succeeded()) { SilhouetteMaterial = Material.Object; }
 }
 
 bool UNFGA_Sonar::HasValidSettings() const

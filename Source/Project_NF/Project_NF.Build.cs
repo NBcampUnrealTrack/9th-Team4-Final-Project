@@ -41,7 +41,7 @@ public class Project_NF : ModuleRules
 			"AnimationWarpingRuntime"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] {"CoreOnline", "OnlineSubsystem", "OnlineSubsystemUtils", "EngineCameras" });
+		PrivateDependencyModuleNames.AddRange(new string[] {"CoreOnline", "OnlineSubsystem", "OnlineSubsystemUtils", "EngineCameras", "Niagara" });
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] { "StateTreeEditorModule", "PropertyBindingUtils", "UnrealEd", "AssetRegistry" });
