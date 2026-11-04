@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "AbilitySystemInterface.h"
 #include "GameFramework/Character.h"
+#include "GameplayTagContainer.h"
 #include "NF_Monster.generated.h"
 
 class UNF_AbilitySystemComponent;
@@ -158,6 +159,21 @@ protected:
 		meta = (ClampMin = "0.0"))
 	float CorpseLifeSpan = 5.0f;
 
+	// 몬스터 종류별로 BP에서 설정할 경험치 보상
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Reward", meta = (ClampMin = "0.0"))
+	float ExperienceReward = 30.0f;
+
+	// IncomingExp를 증가시키는 GE
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Reward")
+	TSubclassOf<UGameplayEffect> ExperienceRewardEffect;
+
+	// 경험치 GE의 SetByCaller Data Tag와 동일하게 설정
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Reward")
+	FGameplayTag ExperienceRewardMagnitudeTag;
+	
 	bool bIsDead = false;
 	
 	//몬스터 종류별 MoveSpeed
@@ -194,6 +210,7 @@ private:
 	FTimerHandle StatusVisibilityTimerHandle;
 	float StatusRevealedUntil = 0.0f;
 	
+	void GrantExperienceToKiller();
 	void SpawnMonsterDrops();
 	bool FindMonsterDropLocation(FVector& OutDropLocation) const;
 };

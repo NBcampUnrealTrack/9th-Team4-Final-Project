@@ -23,6 +23,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "UI/Widget/NF_MonsterStatusWidget.h"
+#include "Player/State/NF_PlayerState.h"
+#include "Player/Character/NF_PlayerLevelAttribute.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
@@ -499,6 +501,7 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 	
 	if (HasAuthority())
 	{
+		GrantExperienceToKiller();
 		SpawnMonsterDrops();
 	}
 	
@@ -805,3 +808,39 @@ void ANF_Monster::ApplyLandingDamage(
 	}
 }
 
+void ANF_Monster::GrantExperienceToKiller()
+{
+	if (!HasAuthority() || !IsValid(MonsterAttributeSet)) { return; }
+
+	if (!ExperienceRewardEffect
+		|| !ExperienceRewardMagnitudeTag.IsValid()
+		|| !FMath::IsFinite(ExperienceReward)
+		|| ExperienceReward <= 0.0f) {	return;	}
+
+	ANF_PlayerState* KillerPlayerState = Cast<ANF_PlayerState>(
+		MonsterAttributeSet->GetLethalDamageInstigatorPlayerState());
+
+	if (!IsValid(KillerPlayerState)) { return; }
+
+	UAbilitySystemComponent* KillerASC =
+		KillerPlayerState->GetAbilitySystemComponent();
+
+	if (!IsValid(KillerASC)
+		|| !KillerASC->GetSet<UNF_PlayerLevelAttribute>()) { return; }
+
+	FGameplayEffectContextHandle Context = KillerASC->MakeEffectContext();
+	Context.AddSourceObject(this);
+
+	FGameplayEffectSpecHandle Spec = KillerASC->MakeOutgoingSpec(
+		ExperienceRewardEffect,
+		1.0f,
+		Context);
+
+	if (!Spec.IsValid()) { return; }
+
+	Spec.Data->SetSetByCallerMagnitude(
+		ExperienceRewardMagnitudeTag,
+		ExperienceReward);
+
+	KillerASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+}
