@@ -24,10 +24,10 @@ void UNFGA_Grab::SetGrabTarget(AActor* Target)
 bool UNFGA_Grab::HasValidSettings() const
 {
 	return HookClass && HookClass->GetDefaultObject<ANF_GrabHook>()->HasValidSettings()
-		&& !ExecutionActorClass && !bRequiresConfirmedTargetData && GetSkillType() == ENF_SkillType::Active
-		&& SkillExecutionMode == ENF_SkillExecutionMode::Instant && NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
+		&& !GetActiveSettings().ExecutionActorClass && !GetActiveSettings().bRequiresConfirmedTargetData && GetSkillType() == ENF_SkillType::Active
+		&& GetSkillExecutionMode() == ENF_SkillExecutionMode::Instant && NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
 		&& FMath::IsFinite(GrabRange) && GrabRange > 0.0f && FMath::IsFinite(GrabRadius) && GrabRadius > 0.0f
-		&& FMath::IsFinite(StopDistance) && StopDistance > 0.0f && FMath::IsFinite(CastTime) && CastTime >= 0.0f && PullSettings.IsValid();
+		&& FMath::IsFinite(StopDistance) && StopDistance > 0.0f && FMath::IsFinite(GetCastTime()) && GetCastTime() >= 0.0f && PullSettings.IsValid();
 }
 
 bool UNFGA_Grab::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -104,7 +104,7 @@ void UNFGA_Grab::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 	ActiveTarget = Cast<ACharacter>(ExplicitTarget);
 	OriginalAvatar = GetAvatarActorFromActorInfo();
 	if (bUseExplicitAim && !ValidateTarget(ActiveTarget.Get())) { EndAbility(Handle, ActorInfo, ActivationInfo, true, true); return; }
-	if (CastTime > 0.0f) { GetWorld()->GetTimerManager().SetTimer(GrabCastTimer, this, &ThisClass::StartGrab, CastTime, false); }
+	if (GetCastTime() > 0.0f) { GetWorld()->GetTimerManager().SetTimer(GrabCastTimer, this, &ThisClass::StartGrab, GetCastTime(), false); }
 	else { StartGrab(); }
 }
 

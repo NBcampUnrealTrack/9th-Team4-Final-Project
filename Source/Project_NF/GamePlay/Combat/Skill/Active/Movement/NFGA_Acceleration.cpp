@@ -14,19 +14,19 @@
 UNFGA_Acceleration::UNFGA_Acceleration()
 {
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Movement;
-	SkillExecutionMode = ENF_SkillExecutionMode::Timed;
-	ExecutionDuration = 5.0f;
+	GetMutableActiveDefaults().ExecutionMode = ENF_SkillExecutionMode::Timed;
+	GetMutableActiveDefaults().ExecutionDuration = 5.0f;
 	GetMutableSkillDefaults().BuildCost = 4;
 }
 
 bool UNFGA_Acceleration::HasValidSettings() const
 {
-	return !ExecutionActorClass && !bRequiresConfirmedTargetData
-		&& GetSkillType() == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Timed
+	return !GetActiveSettings().ExecutionActorClass && !GetActiveSettings().bRequiresConfirmedTargetData
+		&& GetSkillType() == ENF_SkillType::Active && GetSkillExecutionMode() == ENF_SkillExecutionMode::Timed
 		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
 		&& FMath::IsFinite(SpeedMultiplier) && SpeedMultiplier >= 1.0f
-		&& FMath::IsFinite(CastTime) && CastTime >= 0.0f
-		&& FMath::IsFinite(ExecutionDuration) && ExecutionDuration > 0.0f;
+		&& FMath::IsFinite(GetCastTime()) && GetCastTime() >= 0.0f
+		&& FMath::IsFinite(GetExecutionDuration()) && GetExecutionDuration() > 0.0f;
 }
 
 bool UNFGA_Acceleration::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -58,7 +58,7 @@ void UNFGA_Acceleration::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 		UE_LOG(LogProject_NF, Warning, TEXT("[Acceleration] %s uses standard movement with an added MotionMatchingComponent. Remove the extra component: its tick overwrites MaxWalkSpeed."), *Avatar->GetName());
 	}
 	Avatar->OnDestroyed.AddDynamic(this, &ThisClass::HandleAvatarDestroyed);
-	if (CastTime > 0.0f) { GetWorld()->GetTimerManager().SetTimer(CastTimer, this, &ThisClass::StartAcceleration, CastTime, false); }
+	if (GetCastTime() > 0.0f) { GetWorld()->GetTimerManager().SetTimer(CastTimer, this, &ThisClass::StartAcceleration, GetCastTime(), false); }
 	else { StartAcceleration(); }
 }
 
@@ -108,7 +108,7 @@ void UNFGA_Acceleration::StartAcceleration()
 		}
 	}
 	Avatar->ForceNetUpdate();
-	EndsAt = GetWorld()->GetTimeSeconds() + ExecutionDuration;
+	EndsAt = GetWorld()->GetTimeSeconds() + GetExecutionDuration();
 	GetWorld()->GetTimerManager().SetTimer(LifetimeTimer, this, &ThisClass::CheckLifetime, 0.05f, true);
 }
 

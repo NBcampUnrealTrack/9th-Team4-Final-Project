@@ -15,8 +15,8 @@ UNFGA_Berserker::UNFGA_Berserker()
 {
 	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive; GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
 	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
-	bActivatePassiveOnGrant = false; GetMutableSkillDefaults().BuildCost = 4;
-	ActivationCueTag = NFTag_Skill::GameplayCue_Skill_Berserker_Activate;
+	GetMutablePassiveDefaults().bActivatePassiveOnGrant = false; GetMutableSkillDefaults().BuildCost = 4;
+	GetMutablePassiveDefaults().ActivationCueTag = NFTag_Skill::GameplayCue_Skill_Berserker_Activate;
 }
 void UNFGA_Berserker::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {

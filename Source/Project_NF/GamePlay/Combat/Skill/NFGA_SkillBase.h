@@ -66,24 +66,24 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Definition")
 	TObjectPtr<UNF_SkillDataAsset> SkillDefinition;
 	UNF_SkillDataAsset& GetMutableSkillDefaults();
-	bool UsesDefinitionStateRules() const;
+	void InitializeNativeSkillDefaults(UNF_SkillDataAsset* Data);
+	const UNF_SkillDataAsset* GetNativeSkillDefaults() const { return NativeSkillDefaults; }
+	const UNF_SkillDataAsset* ResolveSkillData(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo) const;
 	virtual void CollectStateRestrictionTags(FGameplayTagContainer& Tags) const {}
 	virtual void HandleStateRestrictionChanged(FGameplayTag Tag, int32 Count) {}
 private:
-	friend class UNF_SkillDataAsset;
 	friend class FNF_EMPTest;
 	friend class FNF_SkillDeathBlockTest;
-	void ConfigureFromSkillData(const FGameplayAbilitySpec& Spec);
+	void BindSkillDefinition(const FGameplayAbilitySpec& Spec);
 	bool HasBlockingStateRule(const UAbilitySystemComponent* ASC) const;
 	void BindCancellationTags();
 	void UnbindCancellationTags();
 	void OnCancellationTagChanged(FGameplayTag Tag, int32 NewCount);
 	// 네이티브 기본 분류도 GA scalar 대신 DA 객체에 보관한다. 외부 DA 미연결 시 사용.
-	UPROPERTY(Instanced)
+	UPROPERTY(Transient, Instanced)
 	TObjectPtr<UNF_SkillDataAsset> NativeSkillDefaults;
 	UPROPERTY(Transient)
 	TObjectPtr<UNF_SkillDataAsset> SkillData;
-	TArray<FNF_SkillStateRule> AdditionalStateRules;
 	TMap<FGameplayTag, FDelegateHandle> CancellationDelegates;
 	TWeakObjectPtr<UAbilitySystemComponent> RegisteredASC;
 	TWeakObjectPtr<AActor> RegisteredAvatar;

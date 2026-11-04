@@ -29,7 +29,7 @@ bool FNF_AccelerationTest::RunTest(const FString& Parameters)
 	auto* Movement = Avatar->GetCharacterMovement();
 	Movement->MaxWalkSpeed = 400.0f;
 	Movement->MaxWalkSpeedCrouched = 200.0f;
-	Skill->ExecutionDuration = 0.1f;
+	Skill->GetMutableActiveDefaults().ExecutionDuration = 0.1f;
 	TestTrue(TEXT("Acceleration activates"), ASC->TryActivateAbility(Handle));
 	TestTrue(TEXT("Standard TPS works without MotionMatching"), FMath::IsNearlyEqual(Movement->MaxWalkSpeed, 520.0f));
 	TestTrue(TEXT("Crouched speed is multiplied too"), FMath::IsNearlyEqual(Movement->MaxWalkSpeedCrouched, 260.0f));
@@ -37,7 +37,7 @@ bool FNF_AccelerationTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Duration ends the ability"), Skill->IsActive());
 	TestTrue(TEXT("Expiry restores walking speed"), FMath::IsNearlyEqual(Movement->MaxWalkSpeed, 400.0f));
 	TestTrue(TEXT("Expiry restores crouched speed"), FMath::IsNearlyEqual(Movement->MaxWalkSpeedCrouched, 200.0f));
-	Skill->ExecutionDuration = 5.0f;
+	Skill->GetMutableActiveDefaults().ExecutionDuration = 5.0f;
 	TestTrue(TEXT("Acceleration can activate again"), ASC->TryActivateAbility(Handle));
 	// A separately applied multiplicative slow must survive cancellation of this acceleration.
 	Movement->MaxWalkSpeed *= 0.5f;
@@ -50,7 +50,7 @@ bool FNF_AccelerationTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Repeated cleanup cannot divide twice"), FMath::IsNearlyEqual(Movement->MaxWalkSpeed, 200.0f));
 	TestFalse(TEXT("EMP blocks reactivation"), ASC->TryActivateAbility(Handle));
 	ASC->RemoveActiveGameplayEffect(EMP);
-	Skill->CastTime = 1.0f;
+	Skill->GetMutableActiveDefaults().CastTime = 1.0f;
 	TestTrue(TEXT("Cast delay starts"), ASC->TryActivateAbility(Handle));
 	TestTrue(TEXT("No boost during cast delay"), FMath::IsNearlyEqual(Movement->MaxWalkSpeed, 200.0f));
 	ASC->CancelAbilityHandle(Handle);
