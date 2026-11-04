@@ -255,7 +255,7 @@ void UNF_SkillSlotViewModel::RefreshSlot()
     // 액티브 스킬만 GAS InputID 1/2에 연결되어 있다.
     if (bActiveSlot &&!NewSkillId.IsNone() &&IsValid(Build) &&IsValid(ASC) &&ASC->AbilityActorInfo.IsValid())
     {
-        const int32 ExpectedInputId = SlotIndex + 1;
+        const int32 ExpectedInputId = SlotIndex;
 
         for (const FGameplayAbilitySpec& Spec :ASC->GetActivatableAbilities())
         {
