@@ -33,7 +33,7 @@ struct FNF_MonsterDropEntry
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 		Category = "NF|Monster|Drop")
-	TSubclassOf<ANF_MonsterItemDrop> DropActorClass;
+	TSubclassOf<AActor> DropActorClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 		Category = "NF|Monster|Drop",

@@ -26,6 +26,8 @@
 #include "Player/State/NF_PlayerState.h"
 #include "Player/Character/NF_PlayerLevelAttribute.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
+#include "GamePlay/ConsumableItems/NF_ConsumablePickup.h"
+#include "GamePlay/ConsumableItems/Data/NF_ConsumableItemDataAsset.h"
 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
@@ -665,16 +667,52 @@ void ANF_Monster::SpawnMonsterDrops()
 		SpawnParameters.SpawnCollisionHandlingOverride =
 			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 
-		ANF_MonsterItemDrop* SpawnedDrop = World->SpawnActor<ANF_MonsterItemDrop>(
-			DropEntry.DropActorClass,
-			DropLocation,
-			FRotator::ZeroRotator,
-			SpawnParameters);
+		AActor* SpawnedDrop = World->SpawnActor<AActor>(
+	DropEntry.DropActorClass,
+	DropLocation,
+	FRotator::ZeroRotator,
+	SpawnParameters);
 
-		if (IsValid(SpawnedDrop))
+		if (!IsValid(SpawnedDrop)) { continue; }
+
+		if (ANF_ConsumablePickup* Pickup =
+			Cast<ANF_ConsumablePickup>(SpawnedDrop))
 		{
-			SpawnedDrop->InitializeDrop(Quantity);
+			const bool bInitialized = Pickup->InitializePickup(
+				Pickup->GetItemData(),
+				Quantity);
+
+			if (!bInitialized)
+			{
+				UE_LOG(
+					LogTemp,
+					Warning,
+					TEXT("Monster pickup initialization failed: Monster=%s / Pickup=%s / ItemData=%s / Quantity=%d"),
+					*GetNameSafe(this),
+					*GetNameSafe(Pickup),
+					*GetNameSafe(Pickup->GetItemData()),
+					Quantity);
+
+				Pickup->Destroy();
+			}
+
+			continue;
 		}
+
+		if (ANF_MonsterItemDrop* MonsterDrop =
+			Cast<ANF_MonsterItemDrop>(SpawnedDrop))
+		{
+			MonsterDrop->InitializeDrop(Quantity);
+			continue;
+		}
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("Monster drop has unsupported class: %s"),
+			*GetNameSafe(SpawnedDrop));
+
+		SpawnedDrop->Destroy();
 	}
 }
 
