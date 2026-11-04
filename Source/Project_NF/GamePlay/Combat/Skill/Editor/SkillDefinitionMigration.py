@@ -24,6 +24,7 @@ PASSIVE = (
     "activate_passive_on_grant",
 )
 STRUCT_FIELDS = {
+	"NF_SkillStateRule": ("state_tag", "block_activation", "cancel_running", "force_cancel"),
     "GameplayTag": ("tag_name",),
     "GameplayTagContainer": ("gameplay_tags",),
     "Vector": ("x", "y", "z"),
@@ -83,7 +84,7 @@ def _unpack(value):
     raise TypeError(f"Unknown snapshot record: {value}")
 
 
-def export_snapshot(path=None, content_root="/Game/ProjectNF"):
+def export_snapshot(path=None, content_root="/Game/ProjectNF", allow_native_presets=False):
     """Run before rebuilding, while old GA properties are still loaded in Editor."""
     if path is None:
         path = Path(unreal.Paths.project_saved_dir()) / "SkillMigration" / "skill_defaults.json"
@@ -116,26 +117,74 @@ def export_snapshot(path=None, content_root="/Game/ProjectNF"):
         defaults = unreal.get_default_object(generated)
         if not isinstance(defaults, unreal.NFGA_SkillBase):
             continue
-        # Deliberately refuse to infer lost custom values after the ownership change.
+        # Support both the original scalar fields and the intermediate metadata getters.
         try:
-            identity = {key: _pack(defaults.get_editor_property(key)) for key in IDENTITY}
+            identity = {}
+            for key in IDENTITY:
+                try:
+                    value = defaults.get_editor_property(key)
+                except Exception:
+                    value = getattr(defaults, "get_" + key)()
+                identity[key] = _pack(value)
         except Exception as error:
             raise RuntimeError(
                 "Old identity properties are unavailable. Use an Editor with the pre-split "
                 "classes, or recover from the pre-migration asset backup. " + package
             ) from error
-        kind = defaults.get_editor_property("skill_type").name
+        kind = _unpack(identity["skill_type"]).name
         settings = ACTIVE if kind == "ACTIVE" else PASSIVE
+        values = {}
+        data = defaults.get_skill_data()
+        data_rules = None
+        kind_getter = "get_active_data" if kind == "ACTIVE" else "get_passive_data"
+        use_data_settings = hasattr(defaults, kind_getter)
+        if use_data_settings and data is not None and data.get_outer() == defaults and not allow_native_presets:
+            raise RuntimeError(
+                "Only a native preset is available after the field removal: " + package
+                + ". Export from the pre-migration Editor/assets, or explicitly opt into native presets."
+            )
+        if data is not None and not use_data_settings:
+            try:
+                use_data_settings = bool(data.get_editor_property(
+                    "override_active_settings" if kind == "ACTIVE" else "override_passive_settings"))
+            except Exception:
+                pass
+        # Old override policy=false means EMP/input settings still came from the GA.
+        if data is not None:
+            try:
+                direct_rules = data.get_editor_property("override_state_rules")
+            except Exception:
+                direct_rules = True
+            if direct_rules:
+                data_rules = _pack(data.get_editor_property("state_rules"))
+        for key in settings:
+            try:
+                if use_data_settings and data is not None and key not in ("affected_by_emp", "cancel_on_emp", "input_cancel_tags"):
+                    aliases = {"default_preview_data": "preview_data", "skill_execution_mode": "execution_mode"}
+                    values[key] = _pack(data.get_editor_property(aliases.get(key, key)))
+                    continue
+                value = defaults.get_editor_property(key)
+            except Exception:
+                if data is None:
+                    raise RuntimeError("No original setting or DA available for " + package + ": " + key)
+                if key in ("affected_by_emp", "cancel_on_emp", "input_cancel_tags"):
+                    # Raw DA StateRules are restored below; these are only legacy placeholders.
+                    value = unreal.GameplayTagContainer() if key == "input_cancel_tags" else False
+                else:
+                    aliases = {"default_preview_data": "preview_data", "skill_execution_mode": "execution_mode"}
+                    value = data.get_editor_property(aliases.get(key, key))
+            values[key] = _pack(value)
         rows.append({"blueprint": package, "class": _object_path(generated), "kind": kind,
                      "identity": identity,
+                     "state_rules": data_rules,
                      "source_data": sources.get(_object_path(generated), []),
-                     "settings": {key: _pack(defaults.get_editor_property(key)) for key in settings}})
+                     "settings": values})
     if not rows:
         raise RuntimeError("No skill BP defaults found; no snapshot was written")
     target.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation prevents overwriting a known-good export.
     with target.open("x", encoding="utf-8") as stream:
-        json.dump({"version": 1, "skills": rows}, stream, ensure_ascii=False, indent=2)
+        json.dump({"version": 2, "skills": rows}, stream, ensure_ascii=False, indent=2)
     unreal.log(f"[SkillMigration] Exported {len(rows)} skill BPs: {target}")
     return str(target)
 
@@ -152,7 +201,7 @@ def _state_rule(tag, block=True, cancel=True, force=False):
 def apply_snapshot(path, dry_run=True):
     """Default is a read-only plan. Stop PIE and back up assets before dry_run=False."""
     snapshot = json.loads(Path(path).read_text(encoding="utf-8"))
-    if snapshot.get("version") != 1:
+    if snapshot.get("version") not in (1, 2):
         raise ValueError("Unsupported snapshot version")
     plan = []
     # Validate every reference before creating or editing any asset.
@@ -203,10 +252,8 @@ def apply_snapshot(path, dry_run=True):
                 data.set_editor_property("ability_level", source_data[0]["ability_level"])
             else:
                 unreal.log_warning("Multiple existing DAs: reconcile tier/level/icon manually for " + row["blueprint"])
-        data.set_editor_property("override_identity", True)
         for key in ("skill_category", "skill_activation_method", "build_cost"):
             data.set_editor_property(key, identity[key])
-        data.set_editor_property("override_active_settings" if active else "override_passive_settings", True)
         if active:
             aliases = {"default_preview_data": "preview_data", "skill_execution_mode": "execution_mode"}
             for key, item in settings.items():
@@ -218,11 +265,12 @@ def apply_snapshot(path, dry_run=True):
                 tag = unreal.GameplayTag()
                 tag.set_editor_property("tag_name", unreal.Name("State.Debuff.EMP"))
                 rules.append(_state_rule(tag, cancel=settings["cancel_on_emp"], force=settings["cancel_on_emp"]))
-            data.set_editor_property("override_state_rules", True)
-            data.set_editor_property("state_rules", rules)
+            data.set_editor_property("state_rules", _unpack(row["state_rules"]) if row.get("state_rules") is not None else rules)
         else:
             for key, item in settings.items():
                 data.set_editor_property(key, item)
+            if row.get("state_rules") is not None:
+                data.set_editor_property("state_rules", _unpack(row["state_rules"]))
         defaults.set_editor_property("skill_definition", data)
         unreal.BlueprintEditorLibrary.compile_blueprint(bp)
         if "ERROR" in str(bp.get_editor_property("status")).upper():

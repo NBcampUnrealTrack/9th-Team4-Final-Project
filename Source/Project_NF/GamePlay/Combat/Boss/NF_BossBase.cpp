@@ -4,7 +4,6 @@
 #include "Abilities/GameplayAbility.h"
 #include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossPatternBase.h"
-#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossAreaVolley.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -318,11 +317,9 @@ namespace
 {
 	bool IsSupportedBossPatternClass(const UClass* AbilityClass)
 	{
-		// AreaVolley intentionally has its own implementation outside BossPatternBase.
-		// Accept both supported families (including BP children), not arbitrary player skills.
+		// All supported boss patterns, including AreaVolley and BP children, share this base.
 		return AbilityClass && !AbilityClass->HasAnyClassFlags(CLASS_Abstract)
-			&& (AbilityClass->IsChildOf(UNFGA_BossPatternBase::StaticClass())
-				|| AbilityClass->IsChildOf(UNFGA_BossAreaVolley::StaticClass()));
+			&& AbilityClass->IsChildOf(UNFGA_BossPatternBase::StaticClass());
 	}
 }
 
@@ -549,10 +546,6 @@ bool ANF_BossBase::WasPatternCancelled(const TSubclassOf<UGameplayAbility> Abili
 	if (const auto* Pattern = Cast<UNFGA_BossPatternBase>(Instance))
 	{
 		return Pattern->WasLastExecutionCancelled();
-	}
-	if (const auto* AreaVolley = Cast<UNFGA_BossAreaVolley>(Instance))
-	{
-		return AreaVolley->WasLastExecutionCancelled();
 	}
 	return false;
 }

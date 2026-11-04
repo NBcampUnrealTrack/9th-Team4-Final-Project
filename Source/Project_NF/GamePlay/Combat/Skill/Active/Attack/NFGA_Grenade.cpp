@@ -14,12 +14,12 @@ UNFGA_Grenade::UNFGA_Grenade()
 	GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
 	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::Input;
-	SkillExecutionMode = ENF_SkillExecutionMode::Instant;
+	GetMutableActiveDefaults().ExecutionMode = ENF_SkillExecutionMode::Instant;
 	GetMutableSkillDefaults().BuildCost = 2;
 	GrenadeClass = ANF_Grenade::StaticClass();
-	PreviewActorClass = ANF_GrenadePreviewActor::StaticClass();
-	bActivateOnInputRelease = true;
-	bRequiresConfirmedTargetData = true;
+	GetMutableActiveDefaults().PreviewActorClass = ANF_GrenadePreviewActor::StaticClass();
+	GetMutableActiveDefaults().bActivateOnInputRelease = true;
+	GetMutableActiveDefaults().bRequiresConfirmedTargetData = true;
 }
 
 bool UNFGA_Grenade::GetSkillPreviewData_Implementation(AActor* SourceAvatar, FNF_SkillPreviewData& OutData) const
@@ -60,9 +60,9 @@ void UNFGA_Grenade::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	}
 	ConfirmedAimDirection = Target->AimDirection;
 
-	if (CastTime > 0.0f)
+	if (GetCastTime() > 0.0f)
 	{
-		UAbilityTask_WaitDelay* Delay = UAbilityTask_WaitDelay::WaitDelay(this, CastTime);
+		UAbilityTask_WaitDelay* Delay = UAbilityTask_WaitDelay::WaitDelay(this, GetCastTime());
 		Delay->OnFinish.AddDynamic(this, &UNFGA_Grenade::ThrowGrenade);
 		Delay->ReadyForActivation();
 	}

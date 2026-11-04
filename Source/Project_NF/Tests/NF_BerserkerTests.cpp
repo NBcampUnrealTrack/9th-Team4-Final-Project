@@ -45,21 +45,21 @@ bool FNF_BerserkerTest::RunTest(const FString& Parameters)
 	}
 	Hit(UNF_PlayerStatusAttribute::GetShieldAttribute(), -20);
 	// Reuse a registered cue tag to test lifecycle without requiring a visual asset.
-	GA->ActiveCueTag = NFTag_Skill::GameplayCue_Skill_Berserker_Activate;
+	GA->GetMutablePassiveDefaults().ActiveCueTag = NFTag_Skill::GameplayCue_Skill_Berserker_Activate;
 	Hit(Health, 10);
 	ASC->SetNumericAttributeBase(Health, 90);
 	TestEqual(TEXT("Shield, healing and direct setter do not stack"), ASC->GetNumericAttribute(Bonus), 10.0f);
 	Hit(Health, -1);
 	TestEqual(TEXT("First health hit adds three alongside attack passive"), ASC->GetNumericAttribute(Bonus), 13.0f);
-	TestEqual(TEXT("First stack starts one persistent cue"), ASC->GetTagCount(GA->ActiveCueTag), 1);
+	TestEqual(TEXT("First stack starts one persistent cue"), ASC->GetTagCount(GA->GetMutablePassiveDefaults().ActiveCueTag), 1);
 	Hit(Health, -10);
 	TestEqual(TEXT("Different damage amount still adds one stack"), ASC->GetNumericAttribute(Bonus), 16.0f);
 	for (int32 Index = 0; Index < 6; ++Index) { Hit(Health, -1); }
 	TestEqual(TEXT("Five stack cap"), ASC->GetNumericAttribute(Bonus), 25.0f);
-	TestEqual(TEXT("Further stacks do not add duplicate persistent cues"), ASC->GetTagCount(GA->ActiveCueTag), 1);
+	TestEqual(TEXT("Further stacks do not add duplicate persistent cues"), ASC->GetTagCount(GA->GetMutablePassiveDefaults().ActiveCueTag), 1);
 	Hit(Health, -1000);
 	TestEqual(TEXT("Lethal hit clears stacks without removing other passive"), ASC->GetNumericAttribute(Bonus), 10.0f);
-	TestEqual(TEXT("Death removes persistent cue"), ASC->GetTagCount(GA->ActiveCueTag), 0);
+	TestEqual(TEXT("Death removes persistent cue"), ASC->GetTagCount(GA->GetMutablePassiveDefaults().ActiveCueTag), 0);
 	ASC->SetNumericAttributeBase(Health, 100);
 	GA->StackDuration = 1.0f;
 	Hit(Health, -1);
@@ -69,7 +69,7 @@ bool FNF_BerserkerTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("New hit refreshes entire duration"), ASC->GetNumericAttribute(Bonus), 16.0f);
 	World->Tick(LEVELTICK_TimeOnly, 0.6f);
 	TestEqual(TEXT("Timed stacks expire together"), ASC->GetNumericAttribute(Bonus), 10.0f);
-	TestEqual(TEXT("Expiry removes persistent cue"), ASC->GetTagCount(GA->ActiveCueTag), 0);
+	TestEqual(TEXT("Expiry removes persistent cue"), ASC->GetTagCount(GA->GetMutablePassiveDefaults().ActiveCueTag), 0);
 	Hit(Health, -1);
 	ASC->AddLooseGameplayTag(NFTag_Player::Player_State_Death);
 	TestEqual(TEXT("Death tag immediately resets stacks"), ASC->GetNumericAttribute(Bonus), 10.0f);

@@ -16,7 +16,7 @@ UNFGA_Indomitable::UNFGA_Indomitable()
 	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive;
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Utility;
 	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
-	bActivatePassiveOnGrant = false;
+	GetMutablePassiveDefaults().bActivatePassiveOnGrant = false;
 	GetMutableSkillDefaults().BuildCost = 4;
 }
 

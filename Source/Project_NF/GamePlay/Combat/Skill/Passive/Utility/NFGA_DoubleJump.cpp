@@ -12,10 +12,10 @@ UNFGA_DoubleJump::UNFGA_DoubleJump()
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Utility;
 	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
 	GetMutableSkillDefaults().BuildCost = 3;
-	bActivatePassiveOnGrant = false;
+	GetMutablePassiveDefaults().bActivatePassiveOnGrant = false;
 	// Actual jump success must call NotifyPassiveTriggered; granting the skill is not a jump.
-	ActivationCueTag = NFTag_Skill::GameplayCue_Skill_DoubleJump_Activate;
-	PassiveEffects.Add(UNFGE_DoubleJump::StaticClass());
+	GetMutablePassiveDefaults().ActivationCueTag = NFTag_Skill::GameplayCue_Skill_DoubleJump_Activate;
+	GetMutablePassiveDefaults().PassiveEffects.Add(UNFGE_DoubleJump::StaticClass());
 }
 
 void UNFGA_DoubleJump::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)

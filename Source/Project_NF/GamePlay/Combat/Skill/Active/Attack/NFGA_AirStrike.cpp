@@ -13,13 +13,13 @@ UNFGA_AirStrike::UNFGA_AirStrike()
 	GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
 	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::Input;
-	SkillExecutionMode = ENF_SkillExecutionMode::Instant;
+	GetMutableActiveDefaults().ExecutionMode = ENF_SkillExecutionMode::Instant;
 	GetMutableSkillDefaults().BuildCost = 4;
-	bActivateOnInputRelease = true;
-	bRequiresConfirmedTargetData = true;
+	GetMutableActiveDefaults().bActivateOnInputRelease = true;
+	GetMutableActiveDefaults().bRequiresConfirmedTargetData = true;
 	StrikeClass = ANF_AirStrike::StaticClass();
 	// 공통 NF_SkillPreviewActor를 부모로 만든 조합 BP를 클래스 기본값에서 지정한다.
-	PreviewActorClass = nullptr;
+	GetMutableActiveDefaults().PreviewActorClass = nullptr;
 }
 
 float UNFGA_AirStrike::GetStrikeRadius() const
@@ -80,9 +80,9 @@ void UNFGA_AirStrike::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	}
 	ConfirmedCenter = Target->Location;
 	ConfirmedDirection = FVector(Target->AimDirection).GetSafeNormal2D();
-	if (CastTime > 0.0f)
+	if (GetCastTime() > 0.0f)
 	{
-		UAbilityTask_WaitDelay* Delay = UAbilityTask_WaitDelay::WaitDelay(this, CastTime);
+		UAbilityTask_WaitDelay* Delay = UAbilityTask_WaitDelay::WaitDelay(this, GetCastTime());
 		Delay->OnFinish.AddDynamic(this, &UNFGA_AirStrike::StartStrike);
 		Delay->ReadyForActivation();
 	}

@@ -26,7 +26,7 @@ bool FNF_SkillDeathBlockTest::RunTest(const FString& Parameters)
 		GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return false;
 	}
 	TestTrue(TEXT("Constructor inherits death activation block"), Skill->ActivationBlockedTags.HasTag(NFTag_Player::Player_State_Death));
-	Skill->CastTime = 0.1f;
+	Skill->GetMutableActiveDefaults().CastTime = 0.1f;
 	ASC->AddLooseGameplayTag(NFTag_Player::Player_State_Death);
 	TestFalse(TEXT("Dead actor cannot activate"), ASC->TryActivateAbility(Handle));
 	TestFalse(TEXT("Dead actor cannot continue delayed execution"), Skill->CanContinueSkillExecution());

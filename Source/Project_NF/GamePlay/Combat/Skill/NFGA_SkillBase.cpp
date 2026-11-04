@@ -11,40 +11,42 @@ UNFGA_SkillBase::UNFGA_SkillBase()
 	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Death);
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
-	NativeSkillDefaults = CreateDefaultSubobject<UNF_SkillDataAsset>(TEXT("NativeSkillDefaults"));
 }
 
-const UNF_SkillDataAsset* UNFGA_SkillBase::GetSkillData() const { return SkillData ? SkillData.Get() : SkillDefinition.Get(); }
+const UNF_SkillDataAsset* UNFGA_SkillBase::GetSkillData() const
+{
+	return SkillData ? SkillData.Get() : (SkillDefinition ? SkillDefinition.Get() : NativeSkillDefaults.Get());
+}
 UNF_SkillDataAsset& UNFGA_SkillBase::GetMutableSkillDefaults() { check(NativeSkillDefaults); return *NativeSkillDefaults; }
-ENF_SkillType UNFGA_SkillBase::GetSkillType() const { return NativeSkillDefaults->SkillType; }
+ENF_SkillType UNFGA_SkillBase::GetSkillType() const { return NativeSkillDefaults ? NativeSkillDefaults->SkillType : ENF_SkillType::Active; }
 ENF_SkillCategory UNFGA_SkillBase::GetSkillCategory() const
 {
 	const auto* Data = GetSkillData();
-	return Data && Data->bOverrideIdentity ? Data->SkillCategory : NativeSkillDefaults->SkillCategory;
+	return Data ? Data->SkillCategory : ENF_SkillCategory::Utility;
 }
 int32 UNFGA_SkillBase::GetBuildCost() const
 {
 	const auto* Data = GetSkillData();
-	return Data && Data->bOverrideIdentity ? Data->BuildCost : NativeSkillDefaults->BuildCost;
+	return Data ? Data->BuildCost : -1;
 }
 ENF_SkillActivationMethod UNFGA_SkillBase::GetSkillActivationMethod() const
 {
 	const auto* Data = GetSkillData();
-	return Data && Data->bOverrideIdentity ? Data->SkillActivationMethod : NativeSkillDefaults->SkillActivationMethod;
+	return Data ? Data->SkillActivationMethod : ENF_SkillActivationMethod::Input;
 }
 
-void UNFGA_SkillBase::ConfigureFromSkillData(const FGameplayAbilitySpec& Spec)
+void UNFGA_SkillBase::BindSkillDefinition(const FGameplayAbilitySpec& Spec)
 {
 	SkillData = Cast<UNF_SkillDataAsset>(Spec.SourceObject.Get());
 	if (!SkillData) { SkillData = SkillDefinition; }
-	AdditionalStateRules.Reset();
-	if (SkillData) { SkillData->ConfigureInstance(*this); }
 }
 
 bool UNFGA_SkillBase::HasBlockingStateRule(const UAbilitySystemComponent* ASC) const
 {
 	if (!ASC) { return false; }
-	for (const auto& Rule : AdditionalStateRules)
+	const auto* Data = GetSkillData();
+	if (!Data) { return false; }
+	for (const auto& Rule : Data->StateRules)
 	{
 		if (Rule.bCancelRunning && (Rule.bForceCancel || CanBeCanceled()) && Rule.StateTag.IsValid()
 			&& ASC->HasMatchingGameplayTag(Rule.StateTag)) { return true; }
@@ -64,8 +66,8 @@ bool UNFGA_SkillBase::CanActivateAbility(FGameplayAbilitySpecHandle Handle, cons
 {
 	const auto* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
 	if (!ASC || ASC->HasMatchingGameplayTag(NFTag_Player::Player_State_Death)) { return false; }
-	const auto* Definition = Cast<UNF_SkillDataAsset>(GetSourceObject(Handle, ActorInfo));
-	if (!Definition) { Definition = GetSkillData(); }
+	const auto* Definition = ResolveSkillData(Handle, ActorInfo);
+	if (!Definition) { return false; }
 	if (Definition)
 	{
 		if (!Definition->HasValidSettings() || !IsA(Definition->AbilityClass.Get())) { return false; }
@@ -79,7 +81,7 @@ bool UNFGA_SkillBase::CanActivateAbility(FGameplayAbilitySpecHandle Handle, cons
 
 void UNFGA_SkillBase::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
-	ConfigureFromSkillData(Spec);
+	BindSkillDefinition(Spec);
 	Super::OnGiveAbility(ActorInfo, Spec);
 	BindCancellationTags();
 }
@@ -103,7 +105,6 @@ void UNFGA_SkillBase::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo
 	UnbindCancellationTags();
 	Super::OnRemoveAbility(ActorInfo, Spec);
 	SkillData = nullptr;
-	AdditionalStateRules.Reset();
 }
 
 void UNFGA_SkillBase::BindCancellationTags()
@@ -114,7 +115,10 @@ void UNFGA_SkillBase::BindCancellationTags()
 	if (!ASC) { return; }
 	FGameplayTagContainer Tags = ActivationBlockedTags;
 	Tags.AddTag(NFTag_Player::Player_State_Death);
-	for (const auto& Rule : AdditionalStateRules) { if (Rule.StateTag.IsValid()) { Tags.AddTag(Rule.StateTag); } }
+	if (const auto* Data = GetSkillData())
+	{
+		for (const auto& Rule : Data->StateRules) { if (Rule.StateTag.IsValid()) { Tags.AddTag(Rule.StateTag); } }
+	}
 	CollectStateRestrictionTags(Tags);
 	for (const auto& Tag : Tags)
 	{
@@ -139,7 +143,8 @@ void UNFGA_SkillBase::UnbindCancellationTags()
 void UNFGA_SkillBase::OnCancellationTagChanged(FGameplayTag Tag, int32 NewCount)
 {
 	if (NewCount <= 0) { return; }
-	const auto Rules = AdditionalStateRules;
+	const auto* Data = GetSkillData();
+	const auto Rules = Data ? Data->StateRules : TArray<FNF_SkillStateRule>();
 	for (const auto& Rule : Rules)
 	{
 		if (!Rule.StateTag.IsValid() || Rule.StateTag != Tag) { continue; }
@@ -163,10 +168,17 @@ bool UNFGA_SkillBase::ConfirmLocalInput(FGameplayAbilityTargetDataHandle& OutTar
 	OutTargetData.Clear(); return false;
 }
 
-bool UNFGA_SkillBase::UsesDefinitionStateRules() const
+void UNFGA_SkillBase::InitializeNativeSkillDefaults(UNF_SkillDataAsset* Data)
 {
-	const auto* Data = GetSkillData();
-	return Data && Data->bOverrideStateRules;
+	check(Data);
+	NativeSkillDefaults = Data;
+	Data->AbilityClass = GetClass();
+}
+
+const UNF_SkillDataAsset* UNFGA_SkillBase::ResolveSkillData(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo) const
+{
+	const auto* Source = ActorInfo ? Cast<UNF_SkillDataAsset>(GetSourceObject(Handle, ActorInfo)) : nullptr;
+	return Source ? Source : GetSkillData();
 }
 
 FGameplayAbilityTargetDataHandle UNFGA_SkillBase::MakeSkillTargetData(ENF_SkillTargetKind Kind,

@@ -13,16 +13,13 @@
 
 UNFGA_ActiveSkillBase::UNFGA_ActiveSkillBase()
 {
-	GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
-	DefaultPreviewData.DisplayRadius = 300.f;
+	InitializeNativeSkillDefaults(CreateDefaultSubobject<UNF_ActiveSkillDataAsset>(TEXT("NativeActiveSkillDefaults"), true));
 }
 
-
-// 액티브 전용 상태와 실행 로직.
 bool UNFGA_ActiveSkillBase::BeginLocalPreview()
 {
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-	if (!ActorInfo || !ActorInfo->IsLocallyControlled() || !PreviewActorClass
+	if (!ActorInfo || !ActorInfo->IsLocallyControlled() || !GetActiveSettings().PreviewActorClass
 		|| IsActive() || !CanActivateAbility(CurrentSpecHandle, ActorInfo))
 	{
 		return false;
@@ -37,7 +34,7 @@ bool UNFGA_ActiveSkillBase::BeginLocalPreview()
 	Params.Owner = Avatar;
 	Params.Instigator = Cast<APawn>(Avatar);
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	LocalPreviewActor = Avatar->GetWorld()->SpawnActor<ANF_SkillPreviewActor>(PreviewActorClass, FTransform::Identity, Params);
+	LocalPreviewActor = Avatar->GetWorld()->SpawnActor<ANF_SkillPreviewActor>(GetActiveSettings().PreviewActorClass, FTransform::Identity, Params);
 	if (!IsValid(LocalPreviewActor) || !LocalPreviewActor->InitializePreview(Avatar, this))
 	{
 		EndLocalPreview();
@@ -57,7 +54,7 @@ void UNFGA_ActiveSkillBase::CommitExecute(const FGameplayAbilitySpecHandle Handl
 
 void UNFGA_ActiveSkillBase::PlayCastMontage(const FGameplayAbilityActorInfo* ActorInfo)
 {
-	if (!CastMontage || bCastMontageRequested || !ActorInfo || !ActorInfo->IsNetAuthority()) { return; }
+	if (!GetActiveSettings().CastMontage || bCastMontageRequested || !ActorInfo || !ActorInfo->IsNetAuthority()) { return; }
 	bCastMontageRequested = true;
 	AActor* Avatar = ActorInfo->AvatarActor.Get();
 	// Dedicated servers need not initialize an AnimInstance to relay a cosmetic to clients.
@@ -67,8 +64,8 @@ void UNFGA_ActiveSkillBase::PlayCastMontage(const FGameplayAbilityActorInfo* Act
 		UE_LOG(LogProject_NF, Warning, TEXT("[SkillAnimation] 시전 모션 생략: ASC의 애니메이션 메시가 없습니다. GA=%s"), *GetName());
 		return;
 	}
-	ANF_SkillCastVisual::SpawnForCast(Avatar, Mesh->GetFName(), CastMontage, CastMontagePlayRate,
-		CastMontageStartSection, ActorInfo->AffectedAnimInstanceTag);
+	ANF_SkillCastVisual::SpawnForCast(Avatar, Mesh->GetFName(), GetActiveSettings().CastMontage, GetActiveSettings().CastMontagePlayRate,
+		GetActiveSettings().CastMontageStartSection, ActorInfo->AffectedAnimInstanceTag);
 }
 
 void UNFGA_ActiveSkillBase::EndLocalPreview()
@@ -82,8 +79,8 @@ void UNFGA_ActiveSkillBase::EndLocalPreview()
 
 bool UNFGA_ActiveSkillBase::GetSkillPreviewData_Implementation(AActor* SourceAvatar, FNF_SkillPreviewData& OutData) const
 {
-	if (UsesProjectileExecution()) { return ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->GetProjectilePreviewData(SourceAvatar, OutData); }
-	OutData = DefaultPreviewData;
+	if (UsesProjectileExecution()) { return GetActiveSettings().ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->GetProjectilePreviewData(SourceAvatar, OutData); }
+	OutData = GetActiveSettings().PreviewData;
 	return IsValid(SourceAvatar);
 }
 
@@ -91,7 +88,7 @@ void UNFGA_ActiveSkillBase::ActivateAbility(const FGameplayAbilitySpecHandle Han
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	if (!CanContinueSkillExecution() || ((bRequiresConfirmedTargetData || UsesProjectileExecution())
+	if (!CanContinueSkillExecution() || ((GetActiveSettings().bRequiresConfirmedTargetData || UsesProjectileExecution())
 		&& (!ActorInfo || !ActorInfo->IsNetAuthority()
 			|| !UNFGA_ActiveSkillBase::ValidateConfirmedTargetData_Implementation(ConfirmedTargetData)
 			|| !ValidateConfirmedTargetData(ConfirmedTargetData))))
@@ -99,10 +96,10 @@ void UNFGA_ActiveSkillBase::ActivateAbility(const FGameplayAbilitySpecHandle Han
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-	if (ExecutionActorClass)
+	if (GetActiveSettings().ExecutionActorClass)
 	{
 		if (!ActorInfo || !ActorInfo->IsNetAuthority()) { EndAbility(Handle, ActorInfo, ActivationInfo, true, true); return; }
-		if (CastTime > 0.0f) { GetWorld()->GetTimerManager().SetTimer(AutomaticCastTimer, this, &UNFGA_ActiveSkillBase::StartAutomaticExecution, CastTime, false); }
+		if (GetCastTime() > 0.0f) { GetWorld()->GetTimerManager().SetTimer(AutomaticCastTimer, this, &UNFGA_ActiveSkillBase::StartAutomaticExecution, GetCastTime(), false); }
 		else { StartAutomaticExecution(); }
 		return;
 	}
@@ -120,6 +117,7 @@ void UNFGA_ActiveSkillBase::EndAbility(const FGameplayAbilitySpecHandle Handle, 
 		return;
 	}
 	bCastMontageRequested = false;
+	RuntimeExecutionDuration = -1.f;
 	CancelLocalInput();
 	ClearConfirmedTargetData();
 	if (GetWorld())
@@ -169,7 +167,7 @@ bool UNFGA_ActiveSkillBase::BeginLocalInput()
 	bLocalInputHolding = true;
 	Avatar->GetWorld()->GetTimerManager().SetTimer(LocalInputTimer, this,
 		&UNFGA_ActiveSkillBase::CheckLocalInputValidity, 0.05f, true);
-	if (PreviewActorClass)
+	if (GetActiveSettings().PreviewActorClass)
 	{
 		BeginLocalPreview(); // 표시 실패는 입력 자체를 막지 않는다.
 	}
@@ -234,7 +232,7 @@ bool UNFGA_ActiveSkillBase::BuildConfirmedTargetData_Implementation(FGameplayAbi
 		OutTargetData = MakeSkillTargetData(ENF_SkillTargetKind::Direction, FVector::ZeroVector, Aim.Vector());
 		return true;
 	}
-	if (bRequiresConfirmedTargetData && ExecutionActorClass)
+	if (GetActiveSettings().bRequiresConfirmedTargetData && GetActiveSettings().ExecutionActorClass)
 	{
 		FNF_SkillPreviewData Data;
 		FHitResult Hit;
@@ -244,21 +242,21 @@ bool UNFGA_ActiveSkillBase::BuildConfirmedTargetData_Implementation(FGameplayAbi
 		OutTargetData = MakeSkillTargetData(ENF_SkillTargetKind::GroundPoint, Hit.ImpactPoint, Direction);
 		return true;
 	}
-	return !bRequiresConfirmedTargetData;
+	return !GetActiveSettings().bRequiresConfirmedTargetData;
 }
 
 bool UNFGA_ActiveSkillBase::ValidateConfirmedTargetData_Implementation(const FGameplayAbilityTargetDataHandle& TargetData) const
 {
-	if (TargetData.Num() == 0) { return !bRequiresConfirmedTargetData && !UsesProjectileExecution(); }
+	if (TargetData.Num() == 0) { return !GetActiveSettings().bRequiresConfirmedTargetData && !UsesProjectileExecution(); }
 	const FNF_SkillTargetData* Data = FNF_SkillTargetData::Get(TargetData);
 	if (!Data || Data->Location.ContainsNaN() || Data->AimDirection.ContainsNaN()
 		|| !FMath::IsNearlyEqual(Data->AimDirection.SizeSquared(), 1.0, 0.02)) { return false; }
 	if (UsesProjectileExecution())
 	{
 		return Data->Kind == ENF_SkillTargetKind::Direction
-			&& ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->ValidateProjectileDirection(GetAvatarActorFromActorInfo(), Data->AimDirection);
+			&& GetActiveSettings().ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->ValidateProjectileDirection(GetAvatarActorFromActorInfo(), Data->AimDirection);
 	}
-	if (ExecutionActorClass && bRequiresConfirmedTargetData)
+	if (GetActiveSettings().ExecutionActorClass && GetActiveSettings().bRequiresConfirmedTargetData)
 	{
 		FNF_SkillPreviewData Preview;
 		if (!Data || Data->Kind != ENF_SkillTargetKind::GroundPoint || !GetSkillPreviewData(GetAvatarActorFromActorInfo(), Preview)
@@ -271,7 +269,7 @@ bool UNFGA_ActiveSkillBase::ValidateConfirmedTargetData_Implementation(const FGa
 
 bool UNFGA_ActiveSkillBase::ShouldEndOnInputRelease() const
 {
-	return ExecutionActorClass && SkillExecutionMode == ENF_SkillExecutionMode::Continuous && !bActivateOnInputRelease;
+	return GetActiveSettings().ExecutionActorClass && GetSkillExecutionMode() == ENF_SkillExecutionMode::Continuous && !ShouldActivateOnInputRelease();
 }
 
 void UNFGA_ActiveSkillBase::ReleaseSkillInput()
@@ -288,9 +286,9 @@ void UNFGA_ActiveSkillBase::StartAutomaticExecution()
 	if (!IsActive()) { return; }
 	const FGameplayAbilityActorInfo* Info = GetCurrentActorInfo();
 	AActor* Avatar = GetAvatarActorFromActorInfo();
-	if (!Info || !Info->IsNetAuthority() || !IsValid(Avatar) || !ExecutionActorClass || !CanContinueSkillExecution()
-		|| !FMath::IsFinite(ExecutionDuration) || (SkillExecutionMode == ENF_SkillExecutionMode::Timed && ExecutionDuration <= 0.0f)
-		|| ((bRequiresConfirmedTargetData || UsesProjectileExecution()) && !ValidateConfirmedTargetData(ConfirmedTargetData)))
+	if (!Info || !Info->IsNetAuthority() || !IsValid(Avatar) || !GetActiveSettings().ExecutionActorClass || !CanContinueSkillExecution()
+		|| !FMath::IsFinite(GetExecutionDuration()) || (GetSkillExecutionMode() == ENF_SkillExecutionMode::Timed && GetExecutionDuration() <= 0.0f)
+		|| ((GetActiveSettings().bRequiresConfirmedTargetData || UsesProjectileExecution()) && !ValidateConfirmedTargetData(ConfirmedTargetData)))
 	{
 		EndAbility(CurrentSpecHandle, Info, CurrentActivationInfo, true, true); return;
 	}
@@ -299,14 +297,14 @@ void UNFGA_ActiveSkillBase::StartAutomaticExecution()
 	{
 		if (Target->Kind == ENF_SkillTargetKind::GroundPoint) { Transform = FTransform(FVector(Target->AimDirection).Rotation(), Target->Location); }
 	}
-	ANF_SkillExecutionActor* Actor = GetWorld()->SpawnActorDeferred<ANF_SkillExecutionActor>(ExecutionActorClass,
+	ANF_SkillExecutionActor* Actor = GetWorld()->SpawnActorDeferred<ANF_SkillExecutionActor>(GetActiveSettings().ExecutionActorClass,
 		Transform, Avatar, Cast<APawn>(Avatar), ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	if (!Actor) { EndAbility(CurrentSpecHandle, Info, CurrentActivationInfo, true, true); return; }
 	Actor->InitializeExecution(Avatar, this);
 	Actor->FinishSpawning(Transform);
 	// 조합 검증까지 마친 뒤 Commit한다. 설치/공격 시작은 그 이후다.
 	if (!IsValid(Actor) || !Actor->PrepareExecution()
-		|| (SkillExecutionMode == ENF_SkillExecutionMode::Instant && !Actor->CanRunIndependently())
+		|| (GetSkillExecutionMode() == ENF_SkillExecutionMode::Instant && !Actor->CanRunIndependently())
 		|| !CommitAbility(CurrentSpecHandle, Info, CurrentActivationInfo))
 	{
 		if (IsValid(Actor)) { Actor->Destroy(); }
@@ -326,16 +324,16 @@ void UNFGA_ActiveSkillBase::StartAutomaticExecution()
 		return;
 	}
 	if (!IsActive()) { return; }
-	if (SkillExecutionMode == ENF_SkillExecutionMode::Instant)
+	if (GetSkillExecutionMode() == ENF_SkillExecutionMode::Instant)
 	{
 		// 설치 액터는 생성 후 자신의 수명으로 유지된다.
 		Actor->OnExecutionEnded.RemoveAll(this);
 		ActiveExecutionActor = nullptr;
 		EndAbility(CurrentSpecHandle, Info, CurrentActivationInfo, true, false);
 	}
-	else if (SkillExecutionMode == ENF_SkillExecutionMode::Timed)
+	else if (GetSkillExecutionMode() == ENF_SkillExecutionMode::Timed)
 	{
-		GetWorld()->GetTimerManager().SetTimer(AutomaticEndTimer, this, &UNFGA_ActiveSkillBase::FinishAutomaticExecution, ExecutionDuration, false);
+		GetWorld()->GetTimerManager().SetTimer(AutomaticEndTimer, this, &UNFGA_ActiveSkillBase::FinishAutomaticExecution, GetExecutionDuration(), false);
 	}
 }
 
@@ -346,8 +344,8 @@ void UNFGA_ActiveSkillBase::FinishAutomaticExecution()
 
 bool UNFGA_ActiveSkillBase::UsesProjectileExecution() const
 {
-	return ExecutionActorClass && (ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->HasProjectileLaunch()
-		|| ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->HasGroundTravel());
+	return GetActiveSettings().ExecutionActorClass && (GetActiveSettings().ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->HasProjectileLaunch()
+		|| GetActiveSettings().ExecutionActorClass->GetDefaultObject<ANF_SkillExecutionActor>()->HasGroundTravel());
 }
 
 bool UNFGA_ActiveSkillBase::PrepareConfirmedTargetData(const FGameplayAbilityTargetDataHandle& TargetData)
@@ -370,11 +368,26 @@ void UNFGA_ActiveSkillBase::ClearConfirmedTargetData()
 }
 
 
+const UNF_ActiveSkillDataAsset* UNFGA_ActiveSkillBase::GetActiveData() const
+{
+	return Cast<UNF_ActiveSkillDataAsset>(GetSkillData());
+}
+const UNF_ActiveSkillDataAsset& UNFGA_ActiveSkillBase::GetActiveSettings() const
+{
+	const auto* Data = GetActiveData();
+	return Data ? *Data : *GetDefault<UNF_ActiveSkillDataAsset>();
+}
+UNF_ActiveSkillDataAsset& UNFGA_ActiveSkillBase::GetMutableActiveDefaults()
+{
+	return *CastChecked<UNF_ActiveSkillDataAsset>(&GetMutableSkillDefaults());
+}
+void UNFGA_ActiveSkillBase::SetRuntimeExecutionDuration(float Duration)
+{
+	RuntimeExecutionDuration = FMath::IsFinite(Duration) && Duration >= 0.f ? Duration : -1.f;
+}
 bool UNFGA_ActiveSkillBase::CanContinueSkillExecution() const
 {
-	const auto* ASC = GetAbilitySystemComponentFromActorInfo();
-	return Super::CanContinueSkillExecution() && ASC && (UsesDefinitionStateRules() || ((!bCancelOnEMP || !IsBlockedByEMP())
-		&& !ASC->HasAnyMatchingGameplayTags(InputCancelTags)));
+	return GetActiveData() && Super::CanContinueSkillExecution();
 }
 bool UNFGA_ActiveSkillBase::IsBlockedByEMP() const
 {
@@ -384,8 +397,8 @@ bool UNFGA_ActiveSkillBase::IsBlockedByEMP() const
 bool UNFGA_ActiveSkillBase::IsAffectedByEMP() const
 {
 	if (GetSkillType() != ENF_SkillType::Active) { return false; }
-	if (!UsesDefinitionStateRules()) { return bAffectedByEMP; }
-	const auto* Data = GetSkillData();
+	const auto* Data = GetActiveData();
+	if (!Data) { return false; }
 	for (const auto& Rule : Data->StateRules)
 	{
 		if (Rule.StateTag.MatchesTag(NFTag_Skill::State_Debuff_EMP) && (Rule.bBlockActivation || Rule.bCancelRunning)) { return true; }
@@ -396,45 +409,10 @@ bool UNFGA_ActiveSkillBase::CanActivateAbility(FGameplayAbilitySpecHandle Handle
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
 	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
 {
-	const auto* ASC = ActorInfo ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
-	if (ExecutionActorClass && (NetExecutionPolicy != EGameplayAbilityNetExecutionPolicy::ServerOnly
-		|| !FMath::IsFinite(CastTime) || CastTime < 0.f || !FMath::IsFinite(ExecutionDuration)
-		|| (SkillExecutionMode == ENF_SkillExecutionMode::Timed && ExecutionDuration <= 0.f))) { return false; }
-	return ASC && (UsesDefinitionStateRules() || ((!IsAffectedByEMP() || !ASC->HasMatchingGameplayTag(NFTag_Skill::State_Debuff_EMP))
-		&& !ASC->HasAnyMatchingGameplayTags(InputCancelTags)))
-		&& Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
-}
-void UNFGA_ActiveSkillBase::CollectStateRestrictionTags(FGameplayTagContainer& Tags) const
-{
-	if (UsesDefinitionStateRules()) { return; }
-	Tags.AppendTags(InputCancelTags);
-	if (IsAffectedByEMP()) { Tags.AddTag(NFTag_Skill::State_Debuff_EMP); }
-}
-void UNFGA_ActiveSkillBase::HandleStateRestrictionChanged(FGameplayTag Tag, int32 Count)
-{
-	if (Count <= 0 || UsesDefinitionStateRules()) { return; }
-	if (Tag == NFTag_Skill::State_Debuff_EMP && IsAffectedByEMP()) { InterruptForEMP(); return; }
-	if (InputCancelTags.HasTagExact(Tag))
-	{
-		CancelLocalInput();
-		if (IsActive() && CanBeCanceled()) { CancelAbility(CurrentSpecHandle, GetCurrentActorInfo(), CurrentActivationInfo, true); }
-	}
-}
-void UNFGA_ActiveSkillBase::InterruptForEMP()
-{
-	CancelLocalInput();
-	if (!IsActive() || bCancelOnEMP) { ClearConfirmedTargetData(); }
-	if (IsActive() && bCancelOnEMP) { EndAbility(CurrentSpecHandle, GetCurrentActorInfo(), CurrentActivationInfo, true, true); }
-}
-void UNFGA_ActiveSkillBase::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
-{
-	Super::OnGiveAbility(ActorInfo, Spec);
-	if (!UsesDefinitionStateRules() && IsBlockedByEMP()) { InterruptForEMP(); }
-}
-void UNFGA_ActiveSkillBase::OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
-{
-	Super::OnAvatarSet(ActorInfo, Spec);
-	if (!UsesDefinitionStateRules() && IsBlockedByEMP()) { InterruptForEMP(); }
+	const auto* Data = Cast<UNF_ActiveSkillDataAsset>(ResolveSkillData(Handle, ActorInfo));
+	if (!Data || !Data->HasValidSettings() || (Data->ExecutionActorClass
+		&& NetExecutionPolicy != EGameplayAbilityNetExecutionPolicy::ServerOnly)) { return false; }
+	return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
 void UNFGA_ActiveSkillBase::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {

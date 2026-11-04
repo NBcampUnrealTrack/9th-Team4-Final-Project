@@ -8,6 +8,7 @@
 #include "NFGA_MeleeAttack.h"
 #include "NF_PlayerLevelAttribute.h"
 #include "NF_PlayerStatusAttribute.h"
+#include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "Data/Interface/NF_InteractionInterface.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
@@ -472,29 +473,23 @@ void ANF_Player::OnOutOfHealthCpp()
 
 void ANF_Player::GainExpToKiller()
 {
-	auto* NF_VictimPlayerState = GetPlayerState<ANF_PlayerState>();
-	if (IsValid(NF_VictimPlayerState) == false) return;
+	auto* VictimPlayerStatusAttribute = GetAbilitySystemComponent()->GetSet<UNF_PlayerStatusAttribute>();
+	if (IsValid(VictimPlayerStatusAttribute) == false) return;
 		
-	UAbilitySystemComponent* VictimASC = NF_VictimPlayerState->GetAbilitySystemComponent();
-	if (IsValid(VictimASC) == false) return;
-		
-	auto* PlayerStatusAttribute = VictimASC->GetSet<UNF_PlayerStatusAttribute>();
-	if (IsValid(PlayerStatusAttribute) == false) return;
-		
-	auto* NF_KillerPlayerState = Cast<ANF_PlayerState>(PlayerStatusAttribute->GetLethalDamageInstigatorPlayerState());
+	auto* NF_KillerPlayerState = Cast<ANF_PlayerState>(VictimPlayerStatusAttribute->GetLethalDamageInstigatorPlayerState());
 	if (IsValid(NF_KillerPlayerState) == true)
 	{
-		UAbilitySystemComponent* KillerASC = NF_KillerPlayerState->GetAbilitySystemComponent();
+		if (IsValid(NF_KillerPlayerState->NF_PlayerDataAsset) == false) return;
 		
-		FGameplayEffectSpecHandle GainExpSpecHandle = KillerASC->MakeOutgoingSpec(
-			NF_KillerPlayerState->NF_PlayerDataAsset->NF_IncomingExp_GEClass, 1.0f, KillerASC->MakeEffectContext());
-		if (GainExpSpecHandle.IsValid() == false) return;
+		auto* NF_KillerPlayerASC = NF_KillerPlayerState->GetAbilitySystemComponent();
+		auto NF_IncomingExp_GEClass = NF_KillerPlayerState->NF_PlayerDataAsset->NF_IncomingExp_GEClass;
+		float PlayerKillExp = NF_KillerPlayerState->NF_PlayerDataAsset->PlayerKillExp;
 		
-		GainExpSpecHandle.Data->SetSetByCallerMagnitude(
-			NFTag_Player::Data_InComingEXP, NF_KillerPlayerState->NF_PlayerDataAsset->PlayerKillExp);
+		UNF_GASFunctionLibrary::NF_ApplyGameplayEffectToSelfWithSetByCaller(
+			NF_KillerPlayerASC, NF_IncomingExp_GEClass, PlayerKillExp,NFTag_Player::Data_InComingEXP);
 		
-		KillerASC->ApplyGameplayEffectSpecToSelf(*GainExpSpecHandle.Data.Get());
 		
+		#pragma region 명우님 요청으로 주석
 		//TODO 명우님 요청 사항으로 주석 된 내용
 		/*if (UWorld* World = GetWorld())
 		{
@@ -504,6 +499,7 @@ void ANF_Player::GainExpToKiller()
 					GetPlayerState<ANF_PlayerState>(), KillerPlayerState, GetActorLocation(), this);
 			}
 		}*/
+		#pragma endregion 
 	}
 }
 

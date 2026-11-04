@@ -51,7 +51,7 @@ bool FNF_SkillCastMontageTest::RunTest(const FString& Parameters)
 		GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return false;
 	}
 	Length->SetPropertyValue_InContainer(Montage, 1.f);
-	Skill->CastMontage = Montage;
+	Skill->GetMutableActiveDefaults().CastMontage = Montage;
 	ASC->AddLooseGameplayTag(NFTag_Player::Player_State_Death);
 	TestFalse(TEXT("Blocked skill does not commit"), ASC->TryActivateAbility(Handle));
 	TestEqual(TEXT("Blocked skill has no cast visual"), CountVisuals(), 0);

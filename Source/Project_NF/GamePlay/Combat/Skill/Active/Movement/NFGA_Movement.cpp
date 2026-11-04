@@ -20,12 +20,12 @@ void UNFGA_Movement::SetMovementTarget(AActor* Target)
 
 bool UNFGA_Movement::HasValidMovementSettings() const
 {
-	return !ExecutionActorClass && !bRequiresConfirmedTargetData
+	return !GetActiveSettings().ExecutionActorClass && !GetActiveSettings().bRequiresConfirmedTargetData
 		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
-		&& GetSkillType() == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Instant
+		&& GetSkillType() == ENF_SkillType::Active && GetSkillExecutionMode() == ENF_SkillExecutionMode::Instant
 		&& !DirectionAxis.ContainsNaN() && !DirectionAxis.IsNearlyZero()
 		&& FMath::IsFinite(MovementSpeed) && MovementSpeed > 0.0f
-		&& FMath::IsFinite(CastTime) && CastTime >= 0.0f
+		&& FMath::IsFinite(GetCastTime()) && GetCastTime() >= 0.0f
 		&& (MovementMethod == ENF_MovementMethod::Launch ||
 			(FMath::IsFinite(MovementDuration) && MovementDuration > 0.0f));
 }
@@ -75,7 +75,7 @@ void UNFGA_Movement::ActivateAbility(const FGameplayAbilitySpecHandle Handle, co
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true); return;
 	}
 	MovingCharacter = Character;
-	if (CastTime > 0.0f) { GetWorld()->GetTimerManager().SetTimer(MovementCastTimer, this, &ThisClass::StartMovement, CastTime, false); }
+	if (GetCastTime() > 0.0f) { GetWorld()->GetTimerManager().SetTimer(MovementCastTimer, this, &ThisClass::StartMovement, GetCastTime(), false); }
 	else { StartMovement(); }
 }
 

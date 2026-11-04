@@ -6,10 +6,8 @@
 
 UNFGA_PassiveSkillBase::UNFGA_PassiveSkillBase()
 {
-	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive;
-	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+	InitializeNativeSkillDefaults(CreateDefaultSubobject<UNF_PassiveSkillDataAsset>(TEXT("NativePassiveSkillDefaults"), true));
 }
-
 
 // 패시브 전용 장착 효과, 이벤트, 연출 수명.
 namespace
@@ -31,20 +29,20 @@ void UNFGA_PassiveSkillBase::InitializePassive()
 	const FGameplayAbilityActorInfo* Info = GetCurrentActorInfo();
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
 	AActor* Avatar = GetAvatarActorFromActorInfo();
-	if (GetSkillType() != ENF_SkillType::Passive || bPassiveInitialized || !Info || !Info->IsNetAuthority()
+	if (!GetPassiveData() || GetSkillType() != ENF_SkillType::Passive || bPassiveInitialized || !Info || !Info->IsNetAuthority()
 		|| !ASC || !IsValid(Avatar)) { return; }
 	const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromHandle(CurrentSpecHandle);
 	if (!Spec || Spec->GetPrimaryInstance() != this) { return; }
 	bPassiveInitialized = true;
 	PassiveAvatar = Avatar;
 	PassiveASC = ASC;
-	RegisteredPassiveEventTags = PassiveEventTags;
+	RegisteredPassiveEventTags = GetPassiveSettings().PassiveEventTags;
 	if (!RegisteredPassiveEventTags.IsEmpty())
 	{
 		PassiveEventDelegate = ASC->AddGameplayEventTagContainerDelegate(RegisteredPassiveEventTags,
 			FGameplayEventTagMulticastDelegate::FDelegate::CreateUObject(this, &UNFGA_PassiveSkillBase::HandlePassiveGameplayEvent));
 	}
-	for (const TSubclassOf<UGameplayEffect>& Effect : PassiveEffects)
+	for (const TSubclassOf<UGameplayEffect>& Effect : GetPassiveSettings().PassiveEffects)
 	{
 		if (!bPassiveInitialized) { break; }
 		if (!Effect) { continue; }
@@ -63,7 +61,7 @@ void UNFGA_PassiveSkillBase::InitializePassive()
 		}
 	}
 	if (bPassiveInitialized) { PassiveEquipped(); }
-	if (bPassiveInitialized && bActivatePassiveOnGrant)
+	if (bPassiveInitialized && GetPassiveSettings().bActivatePassiveOnGrant)
 	{
 		ASC->TryActivateAbility(CurrentSpecHandle, false);
 	}
@@ -110,7 +108,7 @@ void UNFGA_PassiveSkillBase::NotifyPassiveTriggered(AActor* AffectedActor, FVect
 {
 	const auto* Info = GetCurrentActorInfo();
 	auto* ASC = GetAbilitySystemComponentFromActorInfo();
-	if (!Info || !Info->IsNetAuthority() || !ASC || GetSkillType() != ENF_SkillType::Passive || !ActivationCueTag.IsValid()) { return; }
+	if (!Info || !Info->IsNetAuthority() || !ASC || GetSkillType() != ENF_SkillType::Passive || !GetPassiveSettings().ActivationCueTag.IsValid()) { return; }
 	FGameplayCueParameters Parameters;
 	Parameters.EffectContext = ASC->MakeEffectContext();
 	Parameters.Instigator = GetAvatarActorFromActorInfo();
@@ -120,15 +118,15 @@ void UNFGA_PassiveSkillBase::NotifyPassiveTriggered(AActor* AffectedActor, FVect
 	Parameters.RawMagnitude = Magnitude;
 	Parameters.AbilityLevel = GetAbilityLevel();
 	// Execute on the caster's ASC: cue target is the passive owner, SourceObject is the affected actor.
-	ASC->ExecuteGameplayCue(ActivationCueTag, Parameters);
+	ASC->ExecuteGameplayCue(GetPassiveSettings().ActivationCueTag, Parameters);
 }
 
 void UNFGA_PassiveSkillBase::StartPassiveActiveCue()
 {
 	const auto* Info = GetCurrentActorInfo();
 	auto* ASC = GetAbilitySystemComponentFromActorInfo();
-	if (!Info || !Info->IsNetAuthority() || !ASC || GetSkillType() != ENF_SkillType::Passive || !ActiveCueTag.IsValid()) { return; }
-	if (PassiveCueASC.Get() == ASC && RegisteredActiveCueTag == ActiveCueTag) { return; }
+	if (!Info || !Info->IsNetAuthority() || !ASC || GetSkillType() != ENF_SkillType::Passive || !GetPassiveSettings().ActiveCueTag.IsValid()) { return; }
+	if (PassiveCueASC.Get() == ASC && RegisteredActiveCueTag == GetPassiveSettings().ActiveCueTag) { return; }
 	StopPassiveActiveCue();
 	FGameplayCueParameters Parameters;
 	Parameters.EffectContext = ASC->MakeEffectContext();
@@ -136,8 +134,8 @@ void UNFGA_PassiveSkillBase::StartPassiveActiveCue()
 	Parameters.EffectCauser = GetAvatarActorFromActorInfo();
 	if (const auto* Avatar = GetAvatarActorFromActorInfo()) { Parameters.Location = Avatar->GetActorLocation(); }
 	// Store ownership before invoking cue callbacks, which may synchronously unequip the passive.
-	PassiveCueASC = ASC; RegisteredActiveCueTag = ActiveCueTag;
-	ASC->AddGameplayCue(ActiveCueTag, Parameters);
+	PassiveCueASC = ASC; RegisteredActiveCueTag = GetPassiveSettings().ActiveCueTag;
+	ASC->AddGameplayCue(GetPassiveSettings().ActiveCueTag, Parameters);
 }
 
 void UNFGA_PassiveSkillBase::StopPassiveActiveCue()
@@ -164,4 +162,30 @@ void UNFGA_PassiveSkillBase::OnRemoveAbility(const FGameplayAbilityActorInfo* Ac
 {
 	CleanupPassive();
 	Super::OnRemoveAbility(ActorInfo, Spec);
+}
+
+
+const UNF_PassiveSkillDataAsset* UNFGA_PassiveSkillBase::GetPassiveData() const
+{
+	return Cast<UNF_PassiveSkillDataAsset>(GetSkillData());
+}
+const UNF_PassiveSkillDataAsset& UNFGA_PassiveSkillBase::GetPassiveSettings() const
+{
+	const auto* Data = GetPassiveData();
+	return Data ? *Data : *GetDefault<UNF_PassiveSkillDataAsset>();
+}
+UNF_PassiveSkillDataAsset& UNFGA_PassiveSkillBase::GetMutablePassiveDefaults()
+{
+	return *CastChecked<UNF_PassiveSkillDataAsset>(&GetMutableSkillDefaults());
+}
+bool UNFGA_PassiveSkillBase::CanContinueSkillExecution() const
+{
+	return GetPassiveData() && Super::CanContinueSkillExecution();
+}
+bool UNFGA_PassiveSkillBase::CanActivateAbility(FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
+{
+	const auto* Data = Cast<UNF_PassiveSkillDataAsset>(ResolveSkillData(Handle, ActorInfo));
+	return Data && Data->HasValidSettings() && Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 }
