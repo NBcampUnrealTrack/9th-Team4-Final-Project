@@ -11,7 +11,6 @@
 #include "GamePlay/Combat/Armor/NF_ArmorBase.h"
 
 FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, int32 CostLimit,
-                                                 const TArray<FName>& AllowedItemIds,
                                                  const TArray<FNF_BuildSelection>& Selections,
                                                  TMap<FName, FNF_BuildItemData>* OutSelectedData,
                                                  const TArray<FNF_BuildSelection>* OwnedSelections)
@@ -106,11 +105,6 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 		if (!Found)
 		{
 			return Fail(ENF_BuildResult::UnknownItem,TEXT("상점 카탈로그에 없는 항목입니다."));
-		}
-
-		if (!AllowedItemIds.Contains(Selection.ItemId))
-		{
-			return Fail(ENF_BuildResult::ItemNotUnlocked,TEXT("아직 획득하지 않은 항목입니다."));
 		}
 
 		const FNF_BuildItemData& Data = *Found;
