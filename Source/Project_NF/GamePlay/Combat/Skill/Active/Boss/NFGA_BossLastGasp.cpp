@@ -12,7 +12,7 @@
 
 UNFGA_BossLastGasp::UNFGA_BossLastGasp()
 {
-	ExecutionDuration = TelegraphDuration;
+	GetMutableActiveDefaults().ExecutionDuration = TelegraphDuration;
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
 	StunEffectClass = UNFGE_BossStun::StaticClass();
@@ -22,6 +22,7 @@ void UNFGA_BossLastGasp::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	SetRuntimeExecutionDuration(TelegraphDuration);
 	ANF_BossBase* Boss = GetBoss();
 	if (!Boss || !ActorInfo || !ActorInfo->IsNetAuthority() || !Boss->IsDefeated()
 		|| !CommitAbility(Handle, ActorInfo, ActivationInfo))

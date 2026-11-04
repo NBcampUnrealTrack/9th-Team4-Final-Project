@@ -14,8 +14,8 @@ UNFGA_Thorns::UNFGA_Thorns()
 {
 	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive; GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Utility;
 	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted; GetMutableSkillDefaults().BuildCost = 3;
-	bActivatePassiveOnGrant = false; ReflectionEffectClass = UNFGE_ThornsDamage::StaticClass();
-	ActivationCueTag = NFTag_Skill::GameplayCue_Skill_Thorns_Activate;
+	GetMutablePassiveDefaults().bActivatePassiveOnGrant = false; ReflectionEffectClass = UNFGE_ThornsDamage::StaticClass();
+	GetMutablePassiveDefaults().ActivationCueTag = NFTag_Skill::GameplayCue_Skill_Thorns_Activate;
 }
 float UNFGA_Thorns::CalculateReflectedDamage(float OldHealth, float NewHealth, float Ratio)
 {

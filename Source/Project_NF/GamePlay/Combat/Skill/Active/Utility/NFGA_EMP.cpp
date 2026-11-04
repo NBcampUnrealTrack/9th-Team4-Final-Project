@@ -11,19 +11,19 @@
 UNFGA_EMP::UNFGA_EMP()
 {
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Utility; GetMutableSkillDefaults().BuildCost = 3;
-	SkillExecutionMode = ENF_SkillExecutionMode::Instant;
+	GetMutableActiveDefaults().ExecutionMode = ENF_SkillExecutionMode::Instant;
 	EMPEffectClass = UNFGE_EMP::StaticClass();
 }
 
 bool UNFGA_EMP::HasValidSettings() const
 {
-	return !ExecutionActorClass && !bRequiresConfirmedTargetData && EMPEffectClass
+	return !GetActiveSettings().ExecutionActorClass && !GetActiveSettings().bRequiresConfirmedTargetData && EMPEffectClass
 		&& EMPEffectClass->GetDefaultObject<UNFGE_EMP>()->DurationPolicy == EGameplayEffectDurationType::HasDuration
 		&& EMPEffectClass->GetDefaultObject<UNFGE_EMP>()->GetGrantedTags().HasTag(NFTag_Skill::State_Debuff_EMP)
-		&& GetSkillType() == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Instant
+		&& GetSkillType() == ENF_SkillType::Active && GetSkillExecutionMode() == ENF_SkillExecutionMode::Instant
 		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
 		&& FMath::IsFinite(Radius) && Radius > 0 && FMath::IsFinite(SealDuration) && SealDuration >= 0.05f
-		&& FMath::IsFinite(CastTime) && CastTime >= 0;
+		&& FMath::IsFinite(GetCastTime()) && GetCastTime() >= 0;
 }
 
 bool UNFGA_EMP::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -40,7 +40,7 @@ void UNFGA_EMP::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true); return;
 	}
 	OriginalAvatar = GetAvatarActorFromActorInfo();
-	if (CastTime > 0) { GetWorld()->GetTimerManager().SetTimer(CastTimer, this, &ThisClass::EmitPulse, CastTime, false); }
+	if (GetCastTime() > 0) { GetWorld()->GetTimerManager().SetTimer(CastTimer, this, &ThisClass::EmitPulse, GetCastTime(), false); }
 	else { EmitPulse(); }
 }
 

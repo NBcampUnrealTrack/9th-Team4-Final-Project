@@ -13,7 +13,7 @@
 
 UNFGA_BossCenterBlast::UNFGA_BossCenterBlast()
 {
-	ExecutionDuration = TelegraphDuration;
+	GetMutableActiveDefaults().ExecutionDuration = TelegraphDuration;
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
 	StunEffectClass = UNFGE_BossStun::StaticClass();
@@ -23,6 +23,7 @@ void UNFGA_BossCenterBlast::ActivateAbility(const FGameplayAbilitySpecHandle Han
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
+	SetRuntimeExecutionDuration(TelegraphDuration);
 	ANF_BossBase* Boss = GetBoss();
 	if (!Boss || !ActorInfo || !ActorInfo->IsNetAuthority() || !CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{

@@ -9,18 +9,7 @@ void NFRegisterSkillOwnershipRedirects()
 		const FString OldSkillOwner = TEXT("/Script/Project_NF.NFGA_SkillBase.");
 		const FString ActiveSkillOwner = TEXT("/Script/Project_NF.NFGA_ActiveSkillBase.");
 		const FString PassiveSkillOwner = TEXT("/Script/Project_NF.NFGA_PassiveSkillBase.");
-		for (const TCHAR* MovedSkillField : { TEXT("CastMontage"), TEXT("CastMontagePlayRate"), TEXT("CastMontageStartSection"),
-			TEXT("bAffectedByEMP"), TEXT("bCancelOnEMP"), TEXT("ExecutionActorClass"), TEXT("DefaultPreviewData"),
-			TEXT("InputCancelTags"), TEXT("bRequiresConfirmedTargetData"), TEXT("bActivateOnInputRelease"),
-			TEXT("PreviewActorClass"), TEXT("SkillExecutionMode"), TEXT("CastTime"), TEXT("ExecutionDuration") })
-		{
-			SkillOwnershipRedirects.Emplace(ECoreRedirectFlags::Type_Property, OldSkillOwner + MovedSkillField, ActiveSkillOwner + MovedSkillField);
-		}
-		for (const TCHAR* MovedSkillField : { TEXT("ActivationCueTag"), TEXT("ActiveCueTag"), TEXT("PassiveEffects"),
-			TEXT("PassiveEventTags"), TEXT("bActivatePassiveOnGrant") })
-		{
-			SkillOwnershipRedirects.Emplace(ECoreRedirectFlags::Type_Property, OldSkillOwner + MovedSkillField, PassiveSkillOwner + MovedSkillField);
-		}
+		// 설정 필드는 DA로 이전되어 Self 변수 노드를 자동 redirect하지 않는다.
 		for (const TCHAR* MovedSkillFunction : { TEXT("BeginLocalPreview"), TEXT("EndLocalPreview"), TEXT("GetSkillPreviewData"),
 			TEXT("BuildConfirmedTargetData"), TEXT("ValidateConfirmedTargetData"), TEXT("LocalInputCanceled") })
 		{

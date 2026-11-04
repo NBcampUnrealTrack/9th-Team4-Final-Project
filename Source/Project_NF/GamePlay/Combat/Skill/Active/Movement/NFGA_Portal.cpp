@@ -15,17 +15,17 @@
 UNFGA_Portal::UNFGA_Portal()
 {
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Movement;
-	SkillExecutionMode = ENF_SkillExecutionMode::Instant;
-	bActivateOnInputRelease = true;
-	bRequiresConfirmedTargetData = true;
+	GetMutableActiveDefaults().ExecutionMode = ENF_SkillExecutionMode::Instant;
+	GetMutableActiveDefaults().bActivateOnInputRelease = true;
+	GetMutableActiveDefaults().bRequiresConfirmedTargetData = true;
 	GetMutableSkillDefaults().BuildCost = 5;
 	PortalClass = ANF_Portal::StaticClass();
 }
 bool UNFGA_Portal::HasValidPortalSettings() const
 {
-	return PortalClass && PortalClass->GetDefaultObject<ANF_Portal>()->HasValidSettings() && !ExecutionActorClass
-		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly && bRequiresConfirmedTargetData
-		&& SkillExecutionMode == ENF_SkillExecutionMode::Instant && FMath::IsFinite(CastTime) && CastTime >= 0.0f
+	return PortalClass && PortalClass->GetDefaultObject<ANF_Portal>()->HasValidSettings() && !GetActiveSettings().ExecutionActorClass
+		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly && GetActiveSettings().bRequiresConfirmedTargetData
+		&& GetSkillExecutionMode() == ENF_SkillExecutionMode::Instant && FMath::IsFinite(GetCastTime()) && GetCastTime() >= 0.0f
 		&& FMath::IsFinite(PortalRange) && PortalRange >= 100.0f && FMath::IsFinite(GroundSearchDepth) && GroundSearchDepth >= 100.0f
 		&& FMath::IsFinite(EntranceForwardDistance) && EntranceForwardDistance >= 100.0f
 		&& FMath::IsFinite(MinimumSeparation) && MinimumSeparation >= 100.0f
@@ -69,7 +69,7 @@ void UNFGA_Portal::ActivateAbility(const FGameplayAbilitySpecHandle Handle, cons
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true); return;
 	}
 	PlacementAvatar = GetAvatarActorFromActorInfo();
-	if (CastTime > 0.0f) { GetWorld()->GetTimerManager().SetTimer(PlacementTimer, this, &ThisClass::CreatePortalPair, CastTime, false); }
+	if (GetCastTime() > 0.0f) { GetWorld()->GetTimerManager().SetTimer(PlacementTimer, this, &ThisClass::CreatePortalPair, GetCastTime(), false); }
 	else { CreatePortalPair(); }
 }
 void UNFGA_Portal::FailPlacement(const TCHAR* Reason)

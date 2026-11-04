@@ -19,6 +19,13 @@
 
 UNFGA_BossAreaVolley::UNFGA_BossAreaVolley()
 {
+	GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
+	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
+	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+	GetMutableActiveDefaults().ExecutionMode = ENF_SkillExecutionMode::Timed;
+	GetMutableActiveDefaults().ExecutionDuration = PatternDuration;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	ExecutionDuration = PatternDuration;
 	ProjectileClass = ANF_BossAreaProjectile::StaticClass();
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
@@ -41,7 +48,7 @@ void UNFGA_BossAreaVolley::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	const int32 PlannedVolleyCount = FMath::Max(MaxVolleysPerPattern, 1);
 	const float PlannedEndTime = FMath::Max(VolleyInterval, 0.1f) * (PlannedVolleyCount - 1)
 		+ FMath::Max(TelegraphDuration, 0.0f) + 0.1f;
-	ExecutionDuration = FMath::Min(FMath::Max(PatternDuration, 1.0f), PlannedEndTime);
+	SetRuntimeExecutionDuration(FMath::Min(FMath::Max(PatternDuration, 1.0f), PlannedEndTime));
 	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
 	UWorld* World = IsValid(AvatarActor) ? AvatarActor->GetWorld() : nullptr;
 	if (!World)

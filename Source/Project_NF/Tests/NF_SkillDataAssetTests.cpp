@@ -11,19 +11,21 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_SkillDataAssetTest, "NF.Skills.Data.SourceI
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FNF_SkillDataAssetTest::RunTest(const FString& Parameters)
 {
-	auto* Active = NewObject<UNF_SkillDataAsset>();
-	auto* Passive = NewObject<UNF_SkillDataAsset>();
+	auto* Active = NewObject<UNF_ActiveSkillDataAsset>();
+	auto* Passive = NewObject<UNF_PassiveSkillDataAsset>();
 	auto* ActiveIcon = NewObject<UTexture2D>();
 	auto* PassiveIcon = NewObject<UTexture2D>();
 	Active->AbilityClass = UNFGA_Acceleration::StaticClass();
 	Active->Icon = ActiveIcon;
+	Active->BuildCost = 7;
 	Passive->AbilityClass = UNFGA_MagicBullet::StaticClass();
 	Passive->Icon = PassiveIcon;
+	Passive->BuildCost = 3;
 	Passive->AbilityLevel = 2;
 	FNF_BuildItemData Data;
 	TestTrue(TEXT("Active source implements existing build interface"), INF_BuildItemSource::Execute_GetBuildItemData(Active, Data));
 	TestTrue(TEXT("Active item type derived from GA"), Data.ItemType == ENF_ItemType::ActiveSkill);
-	TestEqual(TEXT("Cost comes from GA, not a duplicate DA field"), Data.Cost, GetDefault<UNFGA_Acceleration>()->GetBuildCost());
+	TestEqual(TEXT("Cost comes directly from DA"), Data.Cost, 7);
 	TestTrue(TEXT("Active icon available via source getter"), Active->GetSkillIcon() == ActiveIcon);
 	TestTrue(TEXT("Passive source implements existing build interface"), INF_BuildItemSource::Execute_GetBuildItemData(Passive, Data));
 	TestTrue(TEXT("Passive type derived from GA"), Data.ItemType == ENF_ItemType::PassiveSkill);

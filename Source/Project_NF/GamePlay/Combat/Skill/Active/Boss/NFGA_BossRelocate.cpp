@@ -15,7 +15,7 @@
 
 UNFGA_BossRelocate::UNFGA_BossRelocate()
 {
-	ExecutionDuration = 7.45f;
+	GetMutableActiveDefaults().ExecutionDuration = 7.45f;
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
 	AirborneEffectClass = UNFGE_BossAirborne::StaticClass();
@@ -38,13 +38,13 @@ void UNFGA_BossRelocate::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 	StartingHoverHeight = FindGroundPoint(Boss, StartingGroundPoint)
 		? FMath::Max(StartingLocation.Z - StartingGroundPoint.Z, 0.0f)
 		: 0.0f;
-	ExecutionDuration = FMath::Max(DirtCueDuration, 0.0f)
+	SetRuntimeExecutionDuration(FMath::Max(DirtCueDuration, 0.0f)
 		+ FMath::Max(AscentDuration, 0.0f)
 		+ FMath::Max(HiddenDurationBeforeWarning, 0.0f)
 		+ FMath::Max(EmergenceWarningDuration, 0.0f)
 		+ FMath::Max(DiveDuration, 0.0f)
 		+ FMath::Max(AscentDuration, 0.0f)
-		+ 0.1f;
+		+ 0.1f);
 	ExecuteBossCue(NFGameplayCueTags::GameplayCue_Boss_TargetWarning,
 		Boss->GetActorLocation() + FVector(0.0f, 0.0f, 250.0f));
 	GetWorld()->GetTimerManager().SetTimer(TakeoffTimer, this, &UNFGA_BossRelocate::BeginTakeoff,
