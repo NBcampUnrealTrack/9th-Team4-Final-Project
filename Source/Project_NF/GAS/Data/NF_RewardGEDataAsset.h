@@ -23,4 +23,7 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gameplay Effects|Reward")
 	TSubclassOf<UGameplayEffect> ShieldClampEffectClass;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gameplay Effects|Reward")
+	TSubclassOf<UGameplayEffect> MonsterExperienceRewardEffectClass;
 };

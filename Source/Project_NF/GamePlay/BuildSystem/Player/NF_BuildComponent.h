@@ -102,7 +102,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|Draft")
 	bool RemoveDraftItem(FName ItemId);
 
-	/** 이번 방문에서 고른 항목을 취소한다. 그 칸에 장착돼 있던 항목이 있으면 되돌려 놓는다. */
+	/** 이번 방문에서 고른 항목을 취소한다. 칸 선택을 기다리는 액티브 스킬이면 대기만 취소한다. */
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|Draft")
 	bool RevertDraftItem(FName ItemId);
 
