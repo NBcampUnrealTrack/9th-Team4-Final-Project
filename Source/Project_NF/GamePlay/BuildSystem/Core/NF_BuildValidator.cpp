@@ -44,17 +44,30 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 	}
 
 	TMap<FName, FNF_BuildItemData> Catalog;
+	// 임시: 원본 연결이 깨진 항목 하나 때문에 전체 빌드(시작 무기 포함)가 막히지 않도록,
+	// 해석되지 않는 항목은 건너뛰고 해석되는 항목만 인식한다. 건너뛴 항목을 선택하면 InvalidRules로 거절한다.
+	TSet<FName> SkippedItemIds;
 	for (const UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
 	{
 		FNF_BuildItemData Data;
-		if (!IsValid(Definition) || Definition->ItemId.IsNone() || Catalog.Contains(Definition->ItemId) ||
-			!Rules->ResolveItemData(Definition->ItemId, Data) || Data.Cost < 0 ||
+		const FName ItemId = IsValid(Definition) ? Definition->ItemId : NAME_None;
+		if (ItemId.IsNone() || SkippedItemIds.Contains(ItemId) || Catalog.Contains(ItemId) ||
+			!Rules->ResolveItemData(ItemId, Data) || Data.Cost < 0 ||
 			static_cast<uint8>(Data.ItemType) > static_cast<uint8>(ENF_ItemType::PassiveSkill))
 		{
-			return Fail(ENF_BuildResult::InvalidRules,
-			            TEXT("카탈로그 ID·원본 연결·코스트·종류를 확인하세요. 중복 ID 또는 미연결 원본은 사용할 수 없습니다."));
+			// return Fail(ENF_BuildResult::InvalidRules,
+			//             TEXT("카탈로그 ID·원본 연결·코스트·종류를 확인하세요. 중복 ID 또는 미연결 원본은 사용할 수 없습니다."));
+			if (!ItemId.IsNone())
+			{
+				// 중복 ID는 어느 원본이 맞는지 알 수 없으므로 먼저 등록된 항목도 함께 제외한다.
+				Catalog.Remove(ItemId);
+				SkippedItemIds.Add(ItemId);
+			}
+			UE_LOG(LogTemp, Warning, TEXT("빌드 카탈로그 항목 제외: ItemId=%s. 원본 연결·코스트·종류·중복 ID를 확인하세요."),
+			       *ItemId.ToString());
+			continue;
 		}
-		Catalog.Add(Definition->ItemId, Data);
+		Catalog.Add(ItemId, Data);
 		if (Data.ItemType == ENF_ItemType::Armor && FNF_BuildItemSlots::GetDefaultSlotIndex(Data) == INDEX_NONE)
 		{
 			return Fail(ENF_BuildResult::InvalidRules, TEXT("방어구 항목의 머리/상의/하의 부위를 지정해야 합니다."));
@@ -83,6 +96,12 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
 		const FNF_BuildItemData* Found = Catalog.Find(Selection.ItemId);
+
+		if (SkippedItemIds.Contains(Selection.ItemId))
+		{
+			return Fail(ENF_BuildResult::InvalidRules,
+			            TEXT("선택한 항목의 카탈로그 ID·원본 연결·코스트·종류를 확인하세요. 중복 ID 또는 미연결 원본은 사용할 수 없습니다."));
+		}
 
 		if (!Found)
 		{
