@@ -26,7 +26,6 @@ UNFGA_BossAreaVolley::UNFGA_BossAreaVolley()
 	GetMutableActiveDefaults().ExecutionDuration = PatternDuration;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	ExecutionDuration = PatternDuration;
 	ProjectileClass = ANF_BossAreaProjectile::StaticClass();
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
