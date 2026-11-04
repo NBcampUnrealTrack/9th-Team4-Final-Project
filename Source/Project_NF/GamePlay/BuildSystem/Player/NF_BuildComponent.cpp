@@ -732,7 +732,7 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 		UNF_BuildItemDefinitionDataAsset* Definition = nullptr;
 		for (UNF_BuildItemDefinitionDataAsset* Candidate : Rules->Catalog)
 		{
-			if (Candidate->ItemId == Selection.ItemId)
+			if (IsValid(Candidate) && Candidate->ItemId == Selection.ItemId)
 			{
 				Definition = Candidate;
 				break;

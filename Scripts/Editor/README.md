@@ -15,4 +15,10 @@ Rules 설정은 플레이어 BuildComponent에서 제거되었다. 기존 Bluepr
 
 기본 빌드는 해당 팀 거점의 Rules에서 가져온다. 같은 팀의 거점 상점은 같은 Rules를 사용해야 한다. 스킬·장비 담당 원본과 공용 ASC/GE 구현은 그대로 사용한다.
 
+## 스킬 리팩토링 후 상점 스킬 복구
+
+`FixSkillShopLinks.py`를 Tools > Execute Python Script로 실행한다. 여러 번 실행해도 된다.
+`DA_NF_BuildRules_Prototype.ItemSources`에서 비어 있는 스킬 키에만 스킬 DA 경로를 연결한다. 이미 연결된 항목, GA 부모, 스킬 DA 내용은 수정하지 않는다.
+실행 후 해석에 실패한 카탈로그 항목을 Output Log에 출력한다. 이 항목은 상점에서 제외되고, 나머지 항목과 기본 무기는 정상 동작한다.
+
 사용자 컴파일 후 NF.Build 테스트와 Dedicated Server 클라이언트 2명으로 개인별 목록, 상점 전환, 세션 종료 후 HUD, 기본 빌드, 복제를 확인한다.
