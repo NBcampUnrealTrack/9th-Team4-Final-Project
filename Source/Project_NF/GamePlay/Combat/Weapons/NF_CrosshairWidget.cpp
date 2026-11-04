@@ -19,6 +19,11 @@ void UNF_CrosshairWidget::UpdateRadius(float InValue)
 	UpdateCrosshairLayout();
 }
 
+void UNF_CrosshairWidget::NotifyShotFired()
+{
+	UpdateRadius(Radius + FMath::Clamp(SpreadPerShot, 0.f, 1.f));
+}
+
 void UNF_CrosshairWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
@@ -36,6 +41,11 @@ void UNF_CrosshairWidget::NativeConstruct()
 void UNF_CrosshairWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (!IsDesignTime() && Radius > 0.f)
+	{
+		UpdateRadius(FMath::FInterpConstantTo(Radius, 0.f, InDeltaTime,
+			FMath::Max(0.01f, SpreadRecoverySpeed)));
+	}
 	UpdateCrosshairVisibility();
 }
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossPatternBase.h"
 #include "NFGA_BossAreaVolley.generated.h"
 
 class ANF_BossAreaProjectile;
@@ -9,7 +9,7 @@ class UGameplayEffect;
 
 /** Server-authoritative boss pattern: target snapshot, telegraph, then fixed-point volleys. */
 UCLASS(Blueprintable)
-class PROJECT_NF_API UNFGA_BossAreaVolley : public UNFGA_ActiveSkillBase
+class PROJECT_NF_API UNFGA_BossAreaVolley : public UNFGA_BossPatternBase
 {
 	GENERATED_BODY()
 

@@ -103,22 +103,18 @@ void UNF_PlayerStatusAttribute::BlockShieldRecovery(const FGameplayEffectModCall
 	auto* PlayerState = Cast<ANF_PlayerState>(GetOwningActor());
 	if (IsValid(PlayerState) == false) return;
 	if (IsValid(PlayerState->NF_PlayerDataAsset) == false) return;
-	if (IsValid(PlayerState->NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass) == false) return;
 	
-	UAbilitySystemComponent& ASC = Data.Target;
-	const FGameplayEffectSpecHandle EffectSpecHandle = ASC.MakeOutgoingSpec(
-		PlayerState->NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass, 1.0f, ASC.MakeEffectContext());
-	if (EffectSpecHandle.IsValid() == false) return;
+	UAbilitySystemComponent* ASC = &Data.Target;
 	
-	EffectSpecHandle.Data->SetSetByCallerMagnitude(
-		NFTag_Player::Player_Data_ShieldRecoveryBlockedDuration, PlayerState->NF_PlayerDataAsset->ShieldRecoveryBlockedDuration);
-	
-	ASC.ApplyGameplayEffectSpecToSelf(*EffectSpecHandle.Data.Get());
+	UNF_GASFunctionLibrary::NF_ApplyGameplayEffectToSelfWithSetByCaller(
+		ASC, PlayerState->NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass,
+		PlayerState->NF_PlayerDataAsset->ShieldRecoveryBlockedDuration,
+		NFTag_Player::Player_Data_ShieldRecoveryBlockedDuration);
 }
 
 void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackData& Data)
 {
-	if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	if (Data.EvaluatedData.Attribute == GetHealthAttribute() || Data.EvaluatedData.Attribute == GetInComingDamageAttribute())
 	{
 		SetHealth(FMath::Clamp<float>(GetHealth(), 0.0f, GetMaxHealth()));
 		
@@ -130,9 +126,11 @@ void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackDa
 			LethalDamageInstigatorPlayerState = Cast<APlayerState>(Data.EffectSpec.GetContext().GetOriginalInstigator());
 			OnOutOfHealth.Broadcast();
 		}
-		else if (GetHealth() > 0.0f)
+		
+		if (GetHealth() > 0.0f && bIsOutOfHealth == true)
 		{
 			bIsOutOfHealth = false;
+			GetOwningAbilitySystemComponent()->RemoveLooseGameplayTag(NFTag_Player::Player_State_Death);
 			//TODO 체력이 바뀜에 대한 브로드캐스트?
 		}
 	}
@@ -152,7 +150,7 @@ void UNF_PlayerStatusAttribute::IsOutOfShield(const FGameplayEffectModCallbackDa
 		}
 		else if (GetShield() > 0.0f)
 		{
-			bIsOutOfHealth = false;
+			bIsOutOfShield = false;
 			//TODO 쉴드량이 바뀜에 대한 브로드캐스트?
 		}
 	}
@@ -175,6 +173,8 @@ void UNF_PlayerStatusAttribute::GetLifetimeReplicatedProps(TArray<class FLifetim
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Defence, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxShield, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Shield, COND_None, REPNOTIFY_Always);
+	
+	DOREPLIFETIME(ThisClass, bIsOutOfHealth);
 }
 
 

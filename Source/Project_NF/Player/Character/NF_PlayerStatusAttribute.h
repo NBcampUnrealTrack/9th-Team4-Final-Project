@@ -80,6 +80,7 @@ protected:
 
 
 private:
+	UPROPERTY(Replicated)
 	bool bIsOutOfHealth = false;
 	bool bIsOutOfShield = false;
 	

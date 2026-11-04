@@ -39,4 +39,8 @@ namespace  NFTag_Player
 	// @Owner: 명현 | 2026-10-30
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_State_ShieldRecoveryBlocked, 
 		"Player.State.ShieldRecoveryBlocked", "플레이어가 쉴드 회복이 불가능한 상태")
+	
+	// @Owner: 명현 | 2026-10-30
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_InComingEXP, 
+		"Data.InComingEXP", "플레이어에게 경험치를 전달하는 태그")
 }

@@ -313,6 +313,16 @@ void ANF_BossBase::BeginPlay()
 	}
 }
 
+namespace
+{
+	bool IsSupportedBossPatternClass(const UClass* AbilityClass)
+	{
+		// All supported boss patterns, including AreaVolley and BP children, share this base.
+		return AbilityClass && !AbilityClass->HasAnyClassFlags(CLASS_Abstract)
+			&& AbilityClass->IsChildOf(UNFGA_BossPatternBase::StaticClass());
+	}
+}
+
 bool ANF_BossBase::GrantPatternAbilities()
 {
 	if (!HasAuthority() || !AbilitySystemComponent) return false;
@@ -327,7 +337,7 @@ bool ANF_BossBase::GrantPatternAbilities()
 		const UNF_ActiveSkillDataAsset* Data = Entry.Value;
 		if (!Entry.Key || !Classes.Contains(Entry.Key) || !IsValid(Data) ||
 			!Data->HasValidSettings() || Data->AbilityClass.Get() != Entry.Key.Get() ||
-			!Entry.Key->IsChildOf(UNFGA_BossPatternBase::StaticClass()) || Data->bOverrideActiveSettings)
+			!IsSupportedBossPatternClass(Entry.Key.Get()) || Data->bOverrideActiveSettings)
 		{
 			UE_LOG(LogTemp, Error, TEXT("[BossSkillData] Invalid definition for %s on %s. Use the exact configured boss GA and disable bOverrideActiveSettings; boss patterns own their timers."),
 				*GetNameSafe(Entry.Key.Get()), *GetName());
@@ -337,7 +347,7 @@ bool ANF_BossBase::GrantPatternAbilities()
 	for (const TSubclassOf<UGameplayAbility>& AbilityClass : Classes)
 	{
 		if (!AbilityClass) continue;
-		if (!AbilityClass->IsChildOf(UNFGA_BossPatternBase::StaticClass()) || AbilityClass->HasAnyClassFlags(CLASS_Abstract))
+		if (!IsSupportedBossPatternClass(AbilityClass.Get()))
 		{
 			UE_LOG(LogTemp, Error, TEXT("[BossSkillData] %s is not a concrete boss pattern."), *GetNameSafe(AbilityClass.Get()));
 			return false;
@@ -532,8 +542,12 @@ bool ANF_BossBase::WasPatternCancelled(const TSubclassOf<UGameplayAbility> Abili
 {
 	const FGameplayAbilitySpec* Spec = AbilitySystemComponent && AbilityClass
 		? AbilitySystemComponent->FindAbilitySpecFromClass(AbilityClass) : nullptr;
-	const auto* Pattern = Spec ? Cast<UNFGA_BossPatternBase>(Spec->GetPrimaryInstance()) : nullptr;
-	return Pattern && Pattern->WasLastExecutionCancelled();
+	const UGameplayAbility* Instance = Spec ? Spec->GetPrimaryInstance() : nullptr;
+	if (const auto* Pattern = Cast<UNFGA_BossPatternBase>(Instance))
+	{
+		return Pattern->WasLastExecutionCancelled();
+	}
+	return false;
 }
 
 ANF_Player* ANF_BossBase::GetHighestDamageTarget(const float MaxRange) const

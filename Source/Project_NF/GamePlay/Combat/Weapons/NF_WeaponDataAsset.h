@@ -62,6 +62,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects")
 	TSubclassOf<class UNF_WeaponCameraShakeBase> FireCameraShakeClass;
 
+	// 발사 시 반동 크기
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects", meta=(ClampMin="0.0"))
+	float RecoilPitch = 0.1f;
+
+	// 발사 시 반동 무작위 범위
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FireEffects", meta=(ClampMin="0.0"))
+	FVector2D RecoilPitchRandomRange = FVector2D(0.8f, 1.2f);
+
 	// 환경 명중 및 대상별 파티클이 None일 때 사용할 일회성 Cascade 파티클.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="ProjectileHitEffects")
 	TObjectPtr<class UParticleSystem> DefaultImpactParticle = nullptr;

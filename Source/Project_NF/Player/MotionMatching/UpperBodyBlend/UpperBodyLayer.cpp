@@ -26,6 +26,9 @@ namespace UpperBodyLayerTurnTwist
 
 namespace UpperBodyLayerHandIK
 {
+	// 전신 동작(파쿠르 등)이 시작·끝날 때 왼손 IK를 끄고 켜는 시간(초). 바로 켜면 아직 파쿠르 자세인 팔을 총까지 한 번에 당겨 어깨가 접힘
+	const float FullBodyActionIKBlendTime = 0.3f;
+
 	// 무기를 쥔 오른손 뼈 (보이는 메시 왼손 IK의 기준)
 	const FName RightHandBoneName = TEXT("hand_r");
 
@@ -153,7 +156,7 @@ void UUpperBodyLayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	UpdateRelaxedAimOffset(DataAsset, StateIndex, DeltaSeconds);
 	UpdateTurnTwist(Character);
 	UpdateAimOffset(Character, DataAsset, DeltaSeconds);
-	UpdateLeftHandIK(DataAsset);
+	UpdateLeftHandIK(DataAsset, DeltaSeconds);
 }
 
 
@@ -508,10 +511,20 @@ void UUpperBodyLayerAnimInstance::UpdatePoseAnimation(UAnimSequenceBase* TargetA
 
 
 // 두 손 무기 + 무기 메시 지정 + 소켓 있음일 때만 왼손을 소켓 위치로 (커브 DisableLeftHandIK = 1이면 해제)
-void UUpperBodyLayerAnimInstance::UpdateLeftHandIK(const UUpperBodyLayer* DataAsset)
+void UUpperBodyLayerAnimInstance::UpdateLeftHandIK(const UUpperBodyLayer* DataAsset, float DeltaSeconds)
 {
 	LeftHandIKAlpha = 0.0f;
 	LeftHandIKTargetAlpha = 0.0f;
+
+	// 파쿠르·구르기 등 루트 모션 몽타주(전신 동작) 중에는 왼손 IK를 끔. 시작·끝에서 FullBodyActionIKBlendTime 동안 서서히 (TargetAlpha에 곱하므로 VisualMesh 쪽 HandIK도 같이)
+	float TargetFullBodyActionIKScale = 1.0f;
+	if (IsFullBodyActionPlaying() == true)
+	{
+		TargetFullBodyActionIKScale = 0.0f;
+	}
+
+	FullBodyActionIKScale = FMath::FInterpConstantTo(FullBodyActionIKScale, TargetFullBodyActionIKScale, DeltaSeconds, 1.0f / UpperBodyLayerHandIK::FullBodyActionIKBlendTime);
+
 	if (IsValid(DataAsset) == false) return;
 	if (DataAsset->bIsTwoHanded == false) return;
 
@@ -529,7 +542,7 @@ void UUpperBodyLayerAnimInstance::UpdateLeftHandIK(const UUpperBodyLayer* DataAs
 		DisableCurveValue = FMath::Clamp(MeshComponent->GetAnimInstance()->GetCurveValue(TEXT("DisableLeftHandIK")), 0.0f, 1.0f);
 	}
 
-	LeftHandIKTargetAlpha = UpperBodyWeight * (1.0f - DisableCurveValue);
+	LeftHandIKTargetAlpha = UpperBodyWeight * (1.0f - DisableCurveValue) * FullBodyActionIKScale;
 
 	// 총이 다른 메시(보이는 메시 등)에 붙어 있으면 이 메시는 IK 하지 않음 → 그 메시의 UUpperBodyLayerHandIKAnimInstance가 적용
 	if (UpperBodyLayerHandIK::FindHoldingSkeletalMesh(CurrentWeaponMesh) != GetSkelMeshComponent()) return;
@@ -812,6 +825,39 @@ void UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByFire(ACharacter* Characte
 
 		UpperBodyInstance->SetFireHeld(bIsFiring);
 	});
+}
+
+
+// NotifyFire 반환과 같은 기준: 조준 자세로 다 섞였고 총구가 조준 방향에서 15° 안
+bool UUpperBodyLayerAnimInstance::IsAimPoseReady() const
+{
+	const UUpperBodyLayer* DataAsset = FindCurrentDataAsset(Cast<ACharacter>(TryGetPawnOwner()));
+	if (IsValid(DataAsset) == false) return true;
+	if (AimAlpha < 0.99f) return false;
+	if (FMath::Abs(AimResidualYawDegrees) > 15.0f) return false;
+
+	return true;
+}
+
+
+bool UUpperBodyLayerLibrary::IsUpperBodyAimReady(ACharacter* Character)
+{
+	if (IsValid(Character) == false) return true;
+
+	USkeletalMeshComponent* MeshComponent = Character->GetMesh();
+	if (IsValid(MeshComponent) == false) return true;
+
+	// 상체 레이어가 없는 캐릭터는 기다릴 자세가 없음
+	bool bIsReady = true;
+	MeshComponent->ForEachAnimInstance([&bIsReady](UAnimInstance* AnimInstance)
+	{
+		const auto* UpperBodyInstance = Cast<UUpperBodyLayerAnimInstance>(AnimInstance);
+		if (IsValid(UpperBodyInstance) == false) return;
+
+		bIsReady = UpperBodyInstance->IsAimPoseReady();
+	});
+
+	return bIsReady;
 }
 
 
