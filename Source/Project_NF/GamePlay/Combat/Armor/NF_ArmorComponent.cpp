@@ -8,7 +8,8 @@
 #include "Net/UnrealNetwork.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
-#include "GAS/Effects/NFGE_ArmorDefence.h"
+#include "GAS/Data/NF_EquipmentGEDataAsset.h"
+#include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "GAS/Tags/NFTag_Armor.h"
 #include "Player/Character/NF_PlayerStatusAttribute.h"
 
@@ -197,9 +198,13 @@ void UNF_ArmorComponent::RefreshArmorDefence()
 		return;
 	}
 
+	const auto ArmorDefenceGEClass = UNF_GEManagerSubsystem::FindEffect(
+		this, &UNF_EquipmentGEDataAsset::NFGE_ArmorDefence);
+	if (!ArmorDefenceGEClass) return;
+
 	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 	Context.AddSourceObject(this);
-	FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(UNFGE_ArmorDefence::StaticClass(), 1.f, Context);
+	FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(ArmorDefenceGEClass, 1.f, Context);
 	if (Spec.IsValid())
 	{
 		Spec.Data->SetSetByCallerMagnitude(NFTag_Armor::Data_Armor_BaseDefence, TotalDefence);
