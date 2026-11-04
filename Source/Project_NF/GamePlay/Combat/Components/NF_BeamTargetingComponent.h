@@ -6,6 +6,8 @@
 class UStaticMesh;
 class UMaterialInterface;
 class UStaticMeshComponent;
+class UNiagaraSystem;
+class UNiagaraComponent;
 
 // @Owner: 스킬 담당 (구현: Codex) | 2026-10-14
 // 목적: 서버 조준으로 빔의 시작/끝을 계산하고 복제된 결과를 클라이언트에서 표시한다.
@@ -31,12 +33,27 @@ protected:
 	// 관통 빔은 벽만 Block하는 채널을 지정한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Beam")
 	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Visibility;
+	// 지정하면 메시 대신 Niagara를 표시한다. 시작/끝은 월드 좌표 Position 파라미터다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Beam|Visual")
+	TObjectPtr<UNiagaraSystem> VisualNiagara;
+	// 발사 방향에 대한 Niagara 로컬 회전 보정(도). X=Roll, Y=Pitch, Z=Yaw.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Beam|Visual", meta = (Units = "deg"))
+	FVector VisualRotationOffset = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Beam|Visual")
+	FName BeamStartParameter = TEXT("User.BeamStart");
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Beam|Visual")
+	FName BeamEndParameter = TEXT("User.BeamEnd");
+	// Niagara에서 사용하는 전체 폭(cm). 공격 판정의 HalfWidth * 2를 전달한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Beam|Visual")
+	FName BeamWidthParameter = TEXT("User.BeamWidth");
 	// 100cm 크기, 로컬 X축 방향의 메시를 기준으로 늘린다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Beam|Visual")
 	TObjectPtr<UStaticMesh> VisualMesh;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF|Beam|Visual")
 	TObjectPtr<UMaterialInterface> VisualMaterial;
 private:
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraComponent> BeamNiagara;
 	UPROPERTY(Transient)
 	TObjectPtr<UStaticMeshComponent> BeamMesh;
 };
