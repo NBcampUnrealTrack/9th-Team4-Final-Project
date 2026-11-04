@@ -376,43 +376,15 @@ bool UNF_BuildComponent::RevertDraftItem(FName ItemId)
 		OnDraftChanged.Broadcast();
 		return true;
 	}
-	const FNF_BuildSelection* Picked = DraftBuild.FindByPredicate([ItemId](const FNF_BuildSelection& Selection)
+	const bool bRemoved = DraftBuild.RemoveAll([ItemId](const FNF_BuildSelection& Selection)
 	{
 		return Selection.ItemId == ItemId;
-	});
-	FNF_BuildItemData Data;
-	if (!Picked || !ResolveItemData(ItemId, Data))
+	}) > 0;
+	if (!bRemoved)
 	{
 		return false;
 	}
-	const int32 SlotIndex = Picked->SlotIndex;
-	DraftBuild.RemoveAll([ItemId](const FNF_BuildSelection& Selection)
-	{
-		return Selection.ItemId == ItemId;
-	});
 	PickedItemIds.Remove(ItemId);
-	// 장착돼 있던 항목을 원래 칸으로 되돌린다.
-	// 취소한 칸에 원래 있던 항목, 그리고 취소한 항목 자신이 장착 중이었다면 그 항목이 대상이다.
-	for (const FNF_BuildSelection& Equipped : CurrentBuild)
-	{
-		FNF_BuildItemData EquippedData;
-		if (!ResolveItemData(Equipped.ItemId, EquippedData) || EquippedData.ItemType != Data.ItemType ||
-			(Equipped.SlotIndex != SlotIndex && Equipped.ItemId != ItemId))
-		{
-			continue;
-		}
-		const bool bBlocked = DraftBuild.ContainsByPredicate([this, &Equipped, &Data](const FNF_BuildSelection& Selection)
-		{
-			FNF_BuildItemData Existing;
-			return Selection.ItemId == Equipped.ItemId ||
-				(ResolveItemData(Selection.ItemId, Existing) && Existing.ItemType == Data.ItemType &&
-					Selection.SlotIndex == Equipped.SlotIndex);
-		});
-		if (!bBlocked)
-		{
-			DraftBuild.Add(Equipped);
-		}
-	}
 	bDraftDirty = true;
 	OnDraftChanged.Broadcast();
 	return true;
@@ -434,7 +406,9 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 	const APawn* Pawn = Cast<APawn>(GetOwner());
 	if (Pawn && Pawn->IsLocallyControlled())
 	{
-		DraftBuild = CurrentBuild;
+		// 상점을 열 때마다 빈 빌드에서 시작한다. 적용하면 이번에 고른 항목만 남고 이전 빌드는 모두 빠진다.
+		// 적용하지 않고 닫으면 CurrentBuild는 그대로다.
+		DraftBuild.Reset();
 		PendingActiveSkill = NAME_None;
 		PickedItemIds.Reset();
 		bDraftDirty = false;
@@ -989,7 +963,8 @@ void UNF_BuildComponent::RevokeItem(const FNF_BuildGrantHandles& Handles)
 
 void UNF_BuildComponent::OnRep_CurrentBuild()
 {
-	if (CurrentShop && (!bDraftDirty || bAwaitingBuildResult))
+	// 적용 결과를 기다릴 때만 확정된 빌드로 맞춘다. 상점을 연 동안 이전 빌드가 다시 채워지면 안 된다.
+	if (CurrentShop && bAwaitingBuildResult)
 	{
 		DraftBuild = CurrentBuild;
 		OnDraftChanged.Broadcast();
