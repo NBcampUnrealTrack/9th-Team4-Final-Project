@@ -40,7 +40,7 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 		GetMesh()->SetHiddenInGame(true);
 		GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		VisualMesh->SetupAttachment(GetMesh());
-		VisualMesh->SetRelativeScale3D(FVector(1.0f, 1.0f, 1.0f));
+		VisualMesh->SetRelativeScale3D(FVector(0.94f, 0.94f, 0.94f));
 		VisualMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		VisualMesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		VisualMesh->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
