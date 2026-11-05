@@ -24,6 +24,9 @@ enum class EVisibilityBasedAnimTickOption : uint8;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnEquippedWeaponChanged, ANF_WeaponBase* /* NewWeapon, nullptr if unequipped */);
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnZoomActiveChanged, bool /* bZoomActive */);
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnLocalShotFired, ANF_WeaponBase* /* FiredWeapon */);
+
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FNF_OnShotFired, AActor* /* Shooter */,
 	ANF_WeaponBase* /* Weapon */, bool /* bLastRound */);
 
@@ -39,6 +42,12 @@ public:
 	UNF_WeaponComponent();
 	
 	FNF_OnEquippedWeaponChanged OnEquippedWeaponChanged;
+
+	// 서버의 줌 상태 변경 및 클라이언트의 복제 수신 시 발생한다.
+	FNF_OnZoomActiveChanged OnZoomActiveChanged;
+
+	// 로컬 플레이어의 현재 장착 무기에 대한 발사 Cue에서 발생한다.
+	FNF_OnLocalShotFired OnLocalShotFired;
 	
 	FNF_OnShotFired OnShotFired;
 	

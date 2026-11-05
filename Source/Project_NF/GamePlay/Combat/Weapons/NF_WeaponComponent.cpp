@@ -443,6 +443,7 @@ void UNF_WeaponComponent::OnRep_ZoomActive()
 	if (bZoomActive == false) UpdateScopedMeshes(false);
 	RefreshCrosshair();
 	SetComponentTickEnabled(true);
+	OnZoomActiveChanged.Broadcast(bZoomActive);
 }
 
 void UNF_WeaponComponent::UpdateScopedMeshes(bool bHide)

@@ -95,6 +95,8 @@ bool UNFGC_WeaponFire::OnExecute_Implementation(AActor* MyTarget, const FGamepla
 			{
 				Crosshair->NotifyShotFired();
 			}
+
+			Weapons->OnLocalShotFired.Broadcast(FiredWeapon);
 		}
 	}
 
