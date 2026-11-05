@@ -140,8 +140,12 @@ bool FNF_BuildArmorSlotsTest::RunTest(const FString& Parameters)
 	                                       }).Result,
 	          ENF_BuildResult::InvalidSlot);
 	SourceData(Rules, Head).ArmorSlot = ENF_ArmorSlot::None;
-	TestEqual(TEXT("방어구 부위 미지정 데이터를 거부한다"),
+	TestEqual(TEXT("부위 미지정 방어구가 있어도 다른 항목의 빌드는 막지 않는다"),
 	          FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules), {Select(TEXT("Rifle"))}).Result,
+	          ENF_BuildResult::Success);
+	TestEqual(TEXT("부위 미지정 방어구를 선택하면 거부한다"),
+	          FNF_BuildValidator::Validate(Rules, 12, MakeAllowedItemIds(Rules),
+	                                       {Select(TEXT("Rifle")), Select(TEXT("Helmet"), 0)}).Result,
 	          ENF_BuildResult::InvalidRules);
 	return true;
 }
