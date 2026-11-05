@@ -10,6 +10,23 @@
 #include "GamePlay/Combat/Armor/NF_ArmorDataAsset.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 
+TArray<FNF_BuildCatalogItem> UNF_BuildRules::ReadCatalog() const
+{
+	TArray<FNF_BuildCatalogItem> Items;
+	Items.Reserve(Catalog.Num());
+	for (UNF_BuildItemDefinitionDataAsset* Definition : Catalog)
+	{
+		FNF_BuildCatalogItem& Item = Items.AddDefaulted_GetRef();
+		Item.Definition = Definition;
+		if (IsValid(Definition))
+		{
+			Item.Source = ItemSources.FindRef(Definition->ItemId);
+			ResolveItemData(Definition->ItemId, Item.Data);
+		}
+	}
+	return Items;
+}
+
 bool UNF_BuildRules::ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) const
 {
 	OutData = FNF_BuildItemData();

@@ -8,6 +8,14 @@
 
 class UNF_BuildItemDefinitionDataAsset;
 
+// 한 번의 조회에서만 사용하는 원본 데이터. 해석 실패 시 Data.Cost는 -1이다.
+struct FNF_BuildCatalogItem
+{
+	UNF_BuildItemDefinitionDataAsset* Definition = nullptr;
+	FNF_BuildItemData Data;
+	UDataAsset* Source = nullptr;
+};
+
 UCLASS(BlueprintType)
 class PROJECT_NF_API UNF_BuildRules : public UDataAsset
 {
@@ -23,6 +31,8 @@ public:
 	TMap<FName, TObjectPtr<UDataAsset>> ItemSources;
 
 	UNF_BuildItemDefinitionDataAsset* FindItemDefinition(FName ItemId) const;
+
+	TArray<FNF_BuildCatalogItem> ReadCatalog() const;
 
 	bool ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) const;
 
