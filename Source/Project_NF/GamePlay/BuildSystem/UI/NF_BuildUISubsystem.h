@@ -34,7 +34,7 @@ private:
 	void UnbindController();
 
 	void HandlePawnChanged(APawn* NewPawn);
-	void UnbindBuild();
+	void SetObservedBuild(UNF_BuildComponent* NewBuild);
 
 	UFUNCTION()
 	void HandleShopStateChanged(ENF_BuildShopUIState State);
@@ -42,7 +42,6 @@ private:
 	void RefreshScreen();
 	void CloseScreen();
 	void HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
-	bool ConnectViewModel();
 	FDelegateHandle WorldCleanupHandle;
 	TWeakObjectPtr<UWorld> BoundWorld;
 

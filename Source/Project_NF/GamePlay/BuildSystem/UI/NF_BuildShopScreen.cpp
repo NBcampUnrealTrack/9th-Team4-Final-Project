@@ -1,6 +1,5 @@
 #include "GamePlay/BuildSystem/UI/NF_BuildShopScreen.h"
 
-#include "GamePlay/BuildSystem/UI/NF_BuildShopViewModelBridge.h"
 #include "UI/ViewModel/BuildShop/NF_BuildShopViewModel.h"
 #include "INotifyFieldValueChanged.h"
 #include "InputCoreTypes.h"
@@ -28,13 +27,10 @@ bool UNF_BuildShopScreen::SetShopViewModel(UNF_BuildShopViewModel* InViewModel)
 
 FReply UNF_BuildShopScreen::NativeOnPreviewKeyDown(const FGeometry& Geometry, const FKeyEvent& Event)
 {
-	if (Event.GetKey() == EKeys::Escape)
+	if (Event.GetKey() == EKeys::Escape && IsValid(ShopViewModel.Get()))
 	{
-		if (INF_BuildShopViewModelBridge* Bridge = Cast<INF_BuildShopViewModelBridge>(ShopViewModel.Get()))
-		{
-			Bridge->RequestClose();
-			return FReply::Handled();
-		}
+		ShopViewModel->RequestClose();
+		return FReply::Handled();
 	}
 	return Super::NativeOnPreviewKeyDown(Geometry, Event);
 }
