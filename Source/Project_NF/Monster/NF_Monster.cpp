@@ -570,7 +570,7 @@ void ANF_Monster::OnRep_IsDead()
 
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-	// 사망 상태를 수신한 각 클라이언트에서 연출을 재생한다.
+	// 사망 상태를 수신한 각 클라이언트에서 연출을 재생
 	if (GetNetMode() != NM_DedicatedServer && DeathMontage)
 	{
 		const float MontageDuration = PlayAnimMontage(DeathMontage);
@@ -579,6 +579,8 @@ void ANF_Monster::OnRep_IsDead()
 			UE_LOG(LogTemp, Warning, TEXT("Monster death montage failed: Monster=%s / Montage=%s"),
 				*GetNameSafe(this), *GetNameSafe(DeathMontage));
 		}
+		
+		StartCorpseRemovalVfx(CorpseLifeSpan);
 	}
 }
 

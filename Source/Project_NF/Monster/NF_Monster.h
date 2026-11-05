@@ -88,6 +88,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "NF|Monster|Death")
 	bool IsDead() const { return bIsDead; }
+	
+	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Monster|Death")
+	void StartCorpseRemovalVfx(float CorpseDuration);
 
 	UFUNCTION(BlueprintPure, Category = "NF|Monster|UI")
 	FText GetMonsterDisplayName() const { return MonsterDisplayName; }
