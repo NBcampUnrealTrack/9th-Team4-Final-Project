@@ -35,6 +35,7 @@ void ANF_PlayerController::OnRep_PlayerState()
 	RefreshViewModel();
 }
 
+
 void ANF_PlayerController::AcknowledgePossession(class APawn* P)
 {
 	Super::AcknowledgePossession(P);
@@ -45,6 +46,8 @@ void ANF_PlayerController::AcknowledgePossession(class APawn* P)
 		if (IsValid(BuildSubSystem) == false) return;
 		
 		BuildSubSystem->RefreshPawnBinding();
+		
+		RefreshViewModel();
 	}
 }
 
