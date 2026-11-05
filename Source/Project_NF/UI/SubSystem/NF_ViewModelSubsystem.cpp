@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossRegistrySubsystem.h"
+#include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -187,6 +188,12 @@ FNF_ViewModelContext UNF_ViewModelSubsystem::BuildViewModelContext() const
 
     NewContext.PlayerState = PlayerState;
     NewContext.Pawn = Pawn;
+
+    // 각 VM이 사용할 무기 컴포넌트를 현재 Pawn에서 공통으로 조회한다.
+    if (IsValid(Pawn))
+    {
+        NewContext.WeaponComponent = Pawn->FindComponentByClass<UNF_WeaponComponent>();
+    }
     
     if (IAbilitySystemInterface* AbilitySystemInterface = Cast<IAbilitySystemInterface>(PlayerState))
     {
