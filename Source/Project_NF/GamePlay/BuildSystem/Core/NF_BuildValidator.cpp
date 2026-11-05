@@ -15,6 +15,15 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
                                                  TMap<FName, FNF_BuildItemData>* OutSelectedData,
                                                  const TArray<FNF_BuildSelection>* OwnedSelections)
 {
+	return ValidateCatalog(Rules, IsValid(Rules) ? Rules->ReadCatalog() : TArray<FNF_BuildCatalogItem>{},
+	                       CostLimit, Selections, OutSelectedData, OwnedSelections);
+}
+
+FNF_BuildValidation FNF_BuildValidator::ValidateCatalog(
+	const UNF_BuildRules* Rules, const TArray<FNF_BuildCatalogItem>& Items, int32 CostLimit,
+	const TArray<FNF_BuildSelection>& Selections, TMap<FName, FNF_BuildItemData>* OutSelectedData,
+	const TArray<FNF_BuildSelection>* OwnedSelections)
+{
 	if (OutSelectedData) OutSelectedData->Reset();
 	FNF_BuildValidation Validation;
 	auto Fail = [&Validation](ENF_BuildResult Result, const TCHAR* Message)
@@ -39,18 +48,19 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 			TEXT("빌드 슬롯 수를 확인하세요."));
 	}
 
-	TMap<FName, FNF_BuildItemData> Catalog;
+	TMap<FName, const FNF_BuildItemData*> Catalog;
 	// 임시: 원본 연결이 깨진 항목 하나 때문에 전체 빌드(시작 무기 포함)가 막히지 않도록,
 	// 해석되지 않는 항목은 건너뛰고 해석되는 항목만 인식한다. 건너뛴 항목을 선택하면 InvalidRules로 거절한다.
 	TSet<FName> SkippedItemIds;
-	for (const UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
+	for (const FNF_BuildCatalogItem& Item : Items)
 	{
-		FNF_BuildItemData Data;
+		const UNF_BuildItemDefinitionDataAsset* Definition = Item.Definition;
+		const FNF_BuildItemData& Data = Item.Data;
 		const FName ItemId = IsValid(Definition) ? Definition->ItemId : NAME_None;
 		// @Owner: 황준현 | 2026-11-05. 부위 미지정 방어구도 다른 설정 오류처럼 해당 항목만 제외한다.
 		// 한 항목 때문에 상점 적용과 매치 시작 기본 빌드 전체가 막히지 않게 한다.
 		if (ItemId.IsNone() || SkippedItemIds.Contains(ItemId) || Catalog.Contains(ItemId) ||
-			!Rules->ResolveItemData(ItemId, Data) || Data.Cost < 0 ||
+			Data.Cost < 0 ||
 			static_cast<uint8>(Data.ItemType) > static_cast<uint8>(ENF_ItemType::PassiveSkill) ||
 			(Data.ItemType == ENF_ItemType::Armor && FNF_BuildItemSlots::GetDefaultSlotIndex(Data) == INDEX_NONE))
 		{
@@ -65,7 +75,7 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 			       *ItemId.ToString());
 			continue;
 		}
-		Catalog.Add(ItemId, Data);
+		Catalog.Add(ItemId, &Data);
 	}
 
 	if (Selections.Num() > Rules->WeaponSlots + Rules->ArmorSlots + Rules->ActiveSkillSlots + Rules->PassiveSkillSlots)
@@ -89,7 +99,7 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 	int32 LinkedWeaponCount = 0;
 	for (const FNF_BuildSelection& Selection : Selections)
 	{
-		const FNF_BuildItemData* Found = Catalog.Find(Selection.ItemId);
+		const FNF_BuildItemData* Found = Catalog.FindRef(Selection.ItemId);
 
 		if (SkippedItemIds.Contains(Selection.ItemId))
 		{
@@ -184,7 +194,7 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 	{
 		for (const FNF_BuildSelection& Selection : Selections)
 		{
-			OutSelectedData->Add(Selection.ItemId, Catalog.FindChecked(Selection.ItemId));
+			OutSelectedData->Add(Selection.ItemId, *Catalog.FindChecked(Selection.ItemId));
 		}
 	}
 	Validation.Message = FText::FromString(TEXT("적용 가능한 빌드입니다."));

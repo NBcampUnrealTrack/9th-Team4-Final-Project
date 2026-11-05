@@ -244,17 +244,14 @@ TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
 		return Result;
 	}
 
-	for (UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
+	for (const FNF_BuildCatalogItem& Item : Rules->ReadCatalog())
 	{
-		if (!IsValid(Definition)) { continue; }
-		// 획득하지 않은 아이템은 목록에서 제외한다.
-		FNF_BuildItemData Data;
-		if (!ResolveItemData(Definition->ItemId, Data) || Data.ItemType != ItemType) { continue; }
+		if (!IsValid(Item.Definition) || Item.Data.Cost < 0 || Item.Data.ItemType != ItemType) { continue; }
 		// 방어구는 지정한 부위만 표시한다. None이면 전체 부위.
 		if (ItemType == ENF_ItemType::Armor &&
 			ArmorPart != ENF_ArmorSlot::None &&
-			Data.ArmorSlot != ArmorPart) { continue; }
-		Result.Add(Definition);
+			Item.Data.ArmorSlot != ArmorPart) { continue; }
+		Result.Add(Item.Definition);
 	}
 
 	return Result;
@@ -481,6 +478,76 @@ FNF_BuildValidation UNF_BuildComponent::PreviewBuild(
 		Selections,
 		nullptr,
 		&FreeSelections);
+}
+
+FNF_BuildShopPreview UNF_BuildComponent::GetShopPreview() const
+{
+	FNF_BuildShopPreview Preview;
+	const UNF_BuildRules* Rules = GetRules();
+	const TArray<FNF_BuildCatalogItem> Items = IsValid(Rules) ? Rules->ReadCatalog() : TArray<FNF_BuildCatalogItem>{};
+	const TArray<FNF_BuildSelection> FreeSelections = GetFreeSelections(PickedItemIds.Array());
+	Preview.Validation = bEntitlementsInitialized
+		? FNF_BuildValidator::ValidateCatalog(Rules, Items, CostLimit, DraftBuild, nullptr, &FreeSelections)
+		: PreviewBuild(DraftBuild);
+
+	TMap<FName, const FNF_BuildCatalogItem*> ById;
+	for (const FNF_BuildCatalogItem& Item : Items)
+	{
+		if (IsValid(Item.Definition))
+		{
+			ById.FindOrAdd(Item.Definition->ItemId, &Item);
+		}
+	}
+
+	TSet<FName> FreeIds;
+	for (const FNF_BuildSelection& Selection : FreeSelections)
+	{
+		FreeIds.Add(Selection.ItemId);
+	}
+
+	int64 Total = 0;
+	for (const FNF_BuildSelection& Selection : DraftBuild)
+	{
+		FNF_BuildPreviewItem Row;
+		if (const FNF_BuildCatalogItem* const* Item = ById.Find(Selection.ItemId))
+		{
+			Row = FNF_BuildPreviewItem(**Item);
+		}
+		else
+		{
+			// 현재 상점에 없는 기존 장착품은 복제된 장착 스냅샷으로 표시한다.
+			Row.Definition = FindItemDefinition(Selection.ItemId);
+			ResolveItemData(Selection.ItemId, Row.Data);
+		}
+		if (!IsValid(Row.Definition) || Row.Data.Cost < 0) continue;
+		Row.SlotIndex = Selection.SlotIndex;
+		if (!FreeIds.Contains(Selection.ItemId)) Total += Row.Data.Cost;
+		Preview.Draft.Add(MoveTemp(Row));
+	}
+	// 검증이 중간에 실패해도 UI에는 전체 선택 금액을 표시한다.
+	Preview.DisplayCost = static_cast<int32>(FMath::Min<int64>(Total, MAX_int32));
+
+	if (!bEntitlementsInitialized) return Preview;
+	for (const FNF_BuildCatalogItem& Item : Items)
+	{
+		if (!IsValid(Item.Definition) || Item.Data.Cost < 0) continue;
+		FNF_BuildPreviewItem& Row = Preview.Catalog.Emplace_GetRef(Item);
+		if (Item.Data.ItemType == ENF_ItemType::ActiveSkill) continue;
+
+		Row.SlotIndex = FNF_BuildItemSlots::GetDefaultSlotIndex(Item.Data);
+		int64 CandidateCost = Total + Item.Data.Cost;
+		for (const FNF_BuildPreviewItem& Existing : Preview.Draft)
+		{
+			const bool bReplaced = Existing.Data.ItemType == Item.Data.ItemType && Existing.SlotIndex == Row.SlotIndex;
+			if ((bReplaced || Existing.Definition->ItemId == Item.Definition->ItemId) &&
+				!FreeIds.Contains(Existing.Definition->ItemId))
+			{
+				CandidateCost -= Existing.Data.Cost;
+			}
+		}
+		Row.CostAfterSelection = static_cast<int32>(FMath::Min<int64>(CandidateCost, MAX_int32));
+	}
+	return Preview;
 }
 
 TArray<FNF_BuildSelection> UNF_BuildComponent::GetFreeSelections(const TArray<FName>& PaidItemIds) const
@@ -1032,13 +1099,6 @@ void UNF_BuildComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CostLimit, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, bEntitlementsInitialized, COND_OwnerOnly);
-}
-
-bool UNF_BuildComponent::UpdateBuildEntitlements(
-	int32 NewCostLimit,
-	const TArray<FName>& NewUnlockedItemIds)
-{
-	return UpdateBuildCostLimit(NewCostLimit);
 }
 
 bool UNF_BuildComponent::UpdateBuildCostLimit(int32 NewCostLimit)
