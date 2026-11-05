@@ -126,35 +126,48 @@ void UNF_ViewModelSubsystem::HandleActiveBossChanged(ANF_BossBase* NewBoss)
 
 void UNF_ViewModelSubsystem::BindPlayerController(APlayerController* NewPlayerController)
 {
-    if (BoundPlayerController.Get() == NewPlayerController) return;
-
+	if (BoundPlayerController.Get() == NewPlayerController)
+	{
+		// 같은 컨트롤러라도 현재 Pawn 정보를 다시 읽는다.
+		RefreshViewModelContext();
+		return;
+	}
+	
     UnbindPlayerController();
 
     BoundPlayerController = NewPlayerController;
 
-    if (!BoundPlayerController.IsValid()) return;
+	if (IsValid(NewPlayerController))
+	{
+		NewPlayerController->OnPossessedPawnChanged.AddUniqueDynamic(this,&ThisClass::HandlePossessedPawnChanged);
+	}
 
-    PawnChangedDelegateHandle =
-        BoundPlayerController->GetOnNewPawnNotifier().AddUObject(this,&ThisClass::HandlePawnChanged);
+	// 구독 전에 이미 Pawn이 배정된 경우도 반영한다.
+	// 컨트롤러가 없으면 빈 Context를 전달한다.
+	RefreshViewModelContext();
 }
 
 void UNF_ViewModelSubsystem::UnbindPlayerController()
 {
-    if (BoundPlayerController.IsValid() && PawnChangedDelegateHandle.IsValid())
-    {
-        BoundPlayerController->GetOnNewPawnNotifier().Remove(PawnChangedDelegateHandle);
-    }
+	if (APlayerController* Controller = BoundPlayerController.Get())
+	{
+		Controller->OnPossessedPawnChanged.RemoveDynamic(this,&ThisClass::HandlePossessedPawnChanged);
+	}
 
-    PawnChangedDelegateHandle.Reset();
     BoundPlayerController.Reset();
 }
 
-void UNF_ViewModelSubsystem::HandlePawnChanged(APawn* NewPawn)
+void UNF_ViewModelSubsystem::HandlePossessedPawnChanged(APawn* OldPawn, APawn* NewPawn)
 {
-    // Pawn은 BuildViewModelContext()에서 다시 가져오므로
-    // 인자를 직접 저장할 필요는 없다.
-    RefreshViewModelContext();
+	RefreshViewModelContext();
 }
+
+// void UNF_ViewModelSubsystem::HandlePawnChanged(APawn* NewPawn)
+// {
+//     // Pawn은 BuildViewModelContext()에서 다시 가져오므로
+//     // 인자를 직접 저장할 필요는 없다.
+//     RefreshViewModelContext();
+// }
 
 FNF_ViewModelContext UNF_ViewModelSubsystem::BuildViewModelContext() const
 {
