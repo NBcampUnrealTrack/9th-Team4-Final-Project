@@ -12,7 +12,7 @@
 #include "UI/SubSystem/NF_UIManagerSubsystem.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 
-void UNF_BuildSubSystem::Initialize(FSubsystemCollectionBase& Collection)
+void UNF_BuildUISubSystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	Collection.InitializeDependency<UNF_UIManagerSubsystem>();
@@ -22,7 +22,7 @@ void UNF_BuildSubSystem::Initialize(FSubsystemCollectionBase& Collection)
 	WorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddUObject(this, &ThisClass::HandleWorldCleanup);
 }
 
-void UNF_BuildSubSystem::ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScreenClass)
+void UNF_BuildUISubSystem::ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScreenClass)
 {
 	if (ScreenClass != InScreenClass)
 	{
@@ -36,7 +36,7 @@ void UNF_BuildSubSystem::ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScre
 	BindController(Controller);
 }
 
-void UNF_BuildSubSystem::RefreshPawnBinding()
+void UNF_BuildUISubSystem::RefreshPawnBinding()
 {
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	if (!IsValid(LocalPlayer))
@@ -47,13 +47,13 @@ void UNF_BuildSubSystem::RefreshPawnBinding()
 	BindController(LocalPlayer->GetPlayerController(LocalPlayer->GetWorld()));
 }
 
-void UNF_BuildSubSystem::PlayerControllerChanged(APlayerController* NewPlayerController)
+void UNF_BuildUISubSystem::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
 	Super::PlayerControllerChanged(NewPlayerController);
 	BindController(NewPlayerController);
 }
 
-void UNF_BuildSubSystem::BindController(APlayerController* Controller)
+void UNF_BuildUISubSystem::BindController(APlayerController* Controller)
 {
 	if (BoundController.Get() == Controller)
 	{
@@ -80,7 +80,7 @@ void UNF_BuildSubSystem::BindController(APlayerController* Controller)
 
 }
 
-void UNF_BuildSubSystem::UnbindController()
+void UNF_BuildUISubSystem::UnbindController()
 {
 	if (APlayerController* Controller = BoundController.Get())
 	{
@@ -91,14 +91,14 @@ void UNF_BuildSubSystem::UnbindController()
 	BoundController.Reset();
 }
 
-void UNF_BuildSubSystem::HandlePawnChanged(APawn* NewPawn)
+void UNF_BuildUISubSystem::HandlePawnChanged(APawn* NewPawn)
 {
 	UNF_BuildComponent* NewBuild = IsValid(NewPawn) ? NewPawn->FindComponentByClass<UNF_BuildComponent>() : nullptr;
 	SetObservedBuild(NewBuild);
 	RefreshScreen();
 }
 
-void UNF_BuildSubSystem::SetObservedBuild(UNF_BuildComponent* NewBuild)
+void UNF_BuildUISubSystem::SetObservedBuild(UNF_BuildComponent* NewBuild)
 {
 	if (ObservedBuild.Get() == NewBuild && !ObservedBuild.IsStale())
 	{
@@ -122,7 +122,7 @@ void UNF_BuildSubSystem::SetObservedBuild(UNF_BuildComponent* NewBuild)
 	}
 }
 
-void UNF_BuildSubSystem::HandleShopStateChanged(ENF_BuildShopUIState State)
+void UNF_BuildUISubSystem::HandleShopStateChanged(ENF_BuildShopUIState State)
 {
 	if (State == ENF_BuildShopUIState::BuildClosed)
 	{
@@ -133,7 +133,7 @@ void UNF_BuildSubSystem::HandleShopStateChanged(ENF_BuildShopUIState State)
 	RefreshScreen();
 }
 
-void UNF_BuildSubSystem::RefreshScreen()
+void UNF_BuildUISubSystem::RefreshScreen()
 {
 	UNF_BuildComponent* Build = ObservedBuild.Get();
 
@@ -170,7 +170,7 @@ void UNF_BuildSubSystem::RefreshScreen()
 	}
 }
 
-void UNF_BuildSubSystem::CloseScreen()
+void UNF_BuildUISubSystem::CloseScreen()
 {
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	UNF_UIManagerSubsystem* UIManager = LocalPlayer
@@ -186,7 +186,7 @@ void UNF_BuildSubSystem::CloseScreen()
 	Screen = nullptr;
 }
 
-void UNF_BuildSubSystem::HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
+void UNF_BuildUISubSystem::HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
 {
 	if (World != BoundWorld.Get()) return;
 	CloseScreen();
@@ -195,7 +195,7 @@ void UNF_BuildSubSystem::HandleWorldCleanup(UWorld* World, bool bSessionEnded, b
 	BoundWorld.Reset();
 }
 
-void UNF_BuildSubSystem::Deinitialize()
+void UNF_BuildUISubSystem::Deinitialize()
 {
 	FWorldDelegates::OnWorldCleanup.Remove(WorldCleanupHandle);
 	WorldCleanupHandle.Reset();

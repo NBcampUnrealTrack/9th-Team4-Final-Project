@@ -13,7 +13,7 @@ class UNF_BuildShopViewModel;
 class UWorld;
 
 UCLASS()
-class PROJECT_NF_API UNF_BuildSubSystem : public ULocalPlayerSubsystem
+class PROJECT_NF_API UNF_BuildUISubSystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
 
