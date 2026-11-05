@@ -43,11 +43,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF_GASFunctionLibrary", meta = (AutoCreateRefTerm = "GameplayTagContainer"))
 	static bool NF_RemoveLooseGameplayTagContainerFromActor(AActor* TargetActor, const FGameplayTagContainer& GameplayTagContainer, bool bShouldReplicate = false);
 	
-	UFUNCTION(BlueprintCallable, Category = "NF|GAS")static FActiveGameplayEffectHandle NF_ApplyGameplayEffectToSelfWithSetByCaller(
+	UFUNCTION(BlueprintCallable, Category = "NF_GASFunctionLibrary")static FActiveGameplayEffectHandle NF_ApplyGameplayEffectToSelfWithSetByCaller(
 		UAbilitySystemComponent* AbilitySystemComponent,TSubclassOf<UGameplayEffect> GameplayEffectClass, float Magnitude, 
 		FGameplayTag DataTag, float Level = 1.0f);
 	
-	UFUNCTION(BlueprintCallable, Category = "NF|GAS")
+	UFUNCTION(BlueprintCallable, Category = "NF_GASFunctionLibrary")
 	static FActiveGameplayEffectHandle NF_ApplyGameplayEffectToTargetWithSetByCaller(UAbilitySystemComponent* SourceAbilitySystemComponent,
 		AActor* TargetActor, TSubclassOf<UGameplayEffect> GameplayEffectClass, float Magnitude, FGameplayTag DataTag, float Level = 1.0f);
 

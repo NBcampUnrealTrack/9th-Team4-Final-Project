@@ -10,7 +10,7 @@
 
 UNF_PlayerVisualMeshCustomizedComponent::UNF_PlayerVisualMeshCustomizedComponent()
 {
-	SetIsReplicated(true);
+	SetIsReplicatedByDefault(true);
 }
 
 void UNF_PlayerVisualMeshCustomizedComponent::TryChangeVisualMesh(int32 Index)

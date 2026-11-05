@@ -71,7 +71,12 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 {
 	Super::PostGameplayEffectExecute(Data);
 	
+	
 	if (GetIsDamagedByTeam(Data) == true) return;
+	if (Data.EvaluatedData.Attribute == GetInComingDamageAttribute())
+	{
+		UNF_GASFunctionLibrary::NF_SendGameplayEventTagToActorWithPayloadData(this,NFTag_Player::Player_Event_HitReact);
+	}
 	
 	SetShield(GetShield()-GetInComingDamage());
 	SetHealth(GetHealth()-(GetInComingDamage()-GetDefence()));

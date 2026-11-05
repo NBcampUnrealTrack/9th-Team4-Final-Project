@@ -532,7 +532,7 @@ void ANF_Player::GainExpToKiller()
 		auto* NF_KillerPlayerASC = NF_KillerPlayerState->GetAbilitySystemComponent();
 		const auto& NF_IncomingExp_GEClass = 
 			UNF_GEManagerSubsystem::FindEffect(this, &UNF_PlayerGEDataAsset::NF_IncomingExp_GEClass);
-		float PlayerKillExp = NF_KillerPlayerState->NF_PlayerDataAsset->PlayerKillExp;
+		float PlayerKillExp = NF_KillerPlayerState->NF_PlayerDataAsset->ExpByPlayerKill;
 		
 		UNF_GASFunctionLibrary::NF_ApplyGameplayEffectToSelfWithSetByCaller(
 			NF_KillerPlayerASC, NF_IncomingExp_GEClass, PlayerKillExp,NFTag_Player::Data_InComingEXP);
