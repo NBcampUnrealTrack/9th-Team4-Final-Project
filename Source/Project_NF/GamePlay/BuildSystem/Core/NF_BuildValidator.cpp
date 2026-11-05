@@ -32,10 +32,7 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 	}
 	Validation.CostLimit = CostLimit;
 
-	if (Rules->WeaponSlots != 1 ||
-		Rules->ArmorSlots != 3 ||
-		Rules->ActiveSkillSlots != 2 ||
-		Rules->PassiveSkillSlots != 1)
+	if (!Rules->HasFixedSlotCounts())
 	{
 		return Fail(
 			ENF_BuildResult::InvalidRules,
@@ -50,27 +47,25 @@ FNF_BuildValidation FNF_BuildValidator::Validate(const UNF_BuildRules* Rules, in
 	{
 		FNF_BuildItemData Data;
 		const FName ItemId = IsValid(Definition) ? Definition->ItemId : NAME_None;
+		// @Owner: 황준현 | 2026-11-05. 부위 미지정 방어구도 다른 설정 오류처럼 해당 항목만 제외한다.
+		// 한 항목 때문에 상점 적용과 매치 시작 기본 빌드 전체가 막히지 않게 한다.
 		if (ItemId.IsNone() || SkippedItemIds.Contains(ItemId) || Catalog.Contains(ItemId) ||
 			!Rules->ResolveItemData(ItemId, Data) || Data.Cost < 0 ||
-			static_cast<uint8>(Data.ItemType) > static_cast<uint8>(ENF_ItemType::PassiveSkill))
+			static_cast<uint8>(Data.ItemType) > static_cast<uint8>(ENF_ItemType::PassiveSkill) ||
+			(Data.ItemType == ENF_ItemType::Armor && FNF_BuildItemSlots::GetDefaultSlotIndex(Data) == INDEX_NONE))
 		{
-			// return Fail(ENF_BuildResult::InvalidRules,
-			//             TEXT("카탈로그 ID·원본 연결·코스트·종류를 확인하세요. 중복 ID 또는 미연결 원본은 사용할 수 없습니다."));
 			if (!ItemId.IsNone())
 			{
 				// 중복 ID는 어느 원본이 맞는지 알 수 없으므로 먼저 등록된 항목도 함께 제외한다.
 				Catalog.Remove(ItemId);
 				SkippedItemIds.Add(ItemId);
 			}
-			UE_LOG(LogTemp, Warning, TEXT("빌드 카탈로그 항목 제외: ItemId=%s. 원본 연결·코스트·종류·중복 ID를 확인하세요."),
+			UE_LOG(LogTemp, Warning,
+			       TEXT("빌드 카탈로그 항목 제외: ItemId=%s. 원본 연결·코스트·종류·방어구 부위·중복 ID를 확인하세요."),
 			       *ItemId.ToString());
 			continue;
 		}
 		Catalog.Add(ItemId, Data);
-		if (Data.ItemType == ENF_ItemType::Armor && FNF_BuildItemSlots::GetDefaultSlotIndex(Data) == INDEX_NONE)
-		{
-			return Fail(ENF_BuildResult::InvalidRules, TEXT("방어구 항목의 머리/상의/하의 부위를 지정해야 합니다."));
-		}
 	}
 
 	if (Selections.Num() > Rules->WeaponSlots + Rules->ArmorSlots + Rules->ActiveSkillSlots + Rules->PassiveSkillSlots)
