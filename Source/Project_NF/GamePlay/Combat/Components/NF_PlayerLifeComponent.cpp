@@ -20,6 +20,7 @@
 #include "GAS/Abilities/NFGA_Revive.h"
 #include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "GAS/Data/NF_SurvivalGEDataAsset.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 UNF_PlayerLifeComponent::UNF_PlayerLifeComponent()
 {
@@ -252,13 +253,25 @@ void UNF_PlayerLifeComponent::NF_Interaction(const APlayerController* Interacted
 			return;
 		}
 		
-		if (!ReviverASC->TryActivateAbility(AbilitySpec.Handle))
+		const bool bActivated =
+		ReviverASC->TryActivateAbility(AbilitySpec.Handle);
+
+		if (!bActivated)
 		{
 			ReviveAbility->ClearPendingReviveTarget();
 		}
-		
+
 		return;
 	}
+}
+
+// 소생 진행 상황을 PIE에 출력
+void UNF_PlayerLifeComponent::MulticastDebugReviveProgress_Implementation(int32 Seconds, bool bCompleted)
+{
+	const FString Message = bCompleted ? TEXT("[소생] 소생 완료") : FString::Printf(TEXT("[소생] 진행 중 - %d초 / 5초"), Seconds);
+	
+	UKismetSystemLibrary::PrintString(this, Message, true, true, 
+		bCompleted ? FLinearColor::Green : FLinearColor::Yellow, 1.5f);
 }
 
 bool UNF_PlayerLifeComponent::CanReviveFrom(APawn* ReviverPawn) const

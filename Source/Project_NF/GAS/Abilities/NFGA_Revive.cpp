@@ -105,6 +105,11 @@ void UNFGA_Revive::ActivateAbility(const FGameplayAbilitySpecHandle Handle, cons
 	
 	World->GetTimerManager().SetTimer(
 		ReviveValidationTimerHandle, this, &UNFGA_Revive::CheckReviveProgress, 0.1f, true);
+	
+	// 소생 시작 시 0초 출력
+	LastPrintedReviveSecond = 0;
+	
+	TargetLifeComponent->MulticastDebugReviveProgress(0, false);
 }
 
 void UNFGA_Revive::CompleteRevive()
@@ -137,6 +142,12 @@ void UNFGA_Revive::CompleteRevive()
 	
 	const bool bReviveSucceeded = TargetLifeComponent->Revive();
 	
+	// 소생 성공 시 완료 메시지
+	if (bReviveSucceeded)
+	{
+		TargetLifeComponent->MulticastDebugReviveProgress(5, true);
+	}
+	
 	EndAbility(GetCurrentAbilitySpecHandle(), ActorInfo, GetCurrentActivationInfo(), true, !bReviveSucceeded);
 }
 
@@ -160,6 +171,27 @@ void UNFGA_Revive::CheckReviveProgress()
 		|| !TargetLifeComponent->CanReviveFrom(ReviverPawn))
 	{
 		EndAbility(GetCurrentAbilitySpecHandle(), ActorInfo, GetCurrentActivationInfo(), true, true);
+	
+		return;
+	}
+	
+	// 소생 진행 시간 확인
+	if (UWorld* World = GetWorld())
+	{
+		FTimerManager& TimerManager = World->GetTimerManager();
+		
+		if (TimerManager.IsTimerActive(ReviveTimerHandle))
+		{
+			const int32 ElapsedSecond = FMath::FloorToInt(TimerManager.GetTimerElapsed(ReviveTimerHandle));
+			
+			// 1~4초마다 한 번만 출력
+			if (ElapsedSecond >= 1 && ElapsedSecond <= 4 && ElapsedSecond > LastPrintedReviveSecond)
+			{
+				LastPrintedReviveSecond = ElapsedSecond;
+				
+				TargetLifeComponent->MulticastDebugReviveProgress(ElapsedSecond, false);
+			}
+		}
 	}
 }
 

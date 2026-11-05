@@ -40,6 +40,9 @@ private:
 	FTimerHandle ReviveTimerHandle;
 	FTimerHandle ReviveValidationTimerHandle;
 	
+	// 마지막으로 출력한 진행 시간
+	int32 LastPrintedReviveSecond = 0;
+	
 	// 소생 진행 시간 임시값 (5초)
 	UPROPERTY(EditAnywhere, Category = "Life|Revive", meta = (ClampMin = "0.1"))
 	float ReviveDurationSeconds = 5.0f;
