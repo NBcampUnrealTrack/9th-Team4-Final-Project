@@ -167,10 +167,10 @@ void ANF_PlayerController::BindInputButton()
 	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->OpenOptionButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::OpenOption);
 	
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Boy_Button, ETriggerEvent::Started, this,
-		&ThisClass::TryAction, ENF_PlayerActionType::TestMeshSwap_Boy);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Girl_Button, ETriggerEvent::Started, this,
-		&ThisClass::TryAction, ENF_PlayerActionType::TestMeshSwap_Girl);
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Next_Button, ETriggerEvent::Started, this,
+		&ThisClass::TryAction, ENF_PlayerActionType::TestMeshSwap_Next);
+	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Pre_Button, ETriggerEvent::Started, this,
+		&ThisClass::TryAction, ENF_PlayerActionType::TestMeshSwap_Pre);
 }
 
 
@@ -276,13 +276,13 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 			return;
 		}
 	
-		if (PlayerActionType == ENF_PlayerActionType::TestMeshSwap_Boy)
+		if (PlayerActionType == ENF_PlayerActionType::TestMeshSwap_Next)
 		{
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 			return;
 		}
 	
-		if (PlayerActionType == ENF_PlayerActionType::TestMeshSwap_Girl)
+		if (PlayerActionType == ENF_PlayerActionType::TestMeshSwap_Pre)
 		{
 			NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 			return;

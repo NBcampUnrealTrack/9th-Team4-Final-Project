@@ -6,6 +6,7 @@
 #include "AttributeSet.h"
 #include "NF_PlayerStatusAttribute.generated.h"
 
+class ANF_PlayerState;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnOutOfHealth);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnOutOfShield);
 
@@ -86,6 +87,8 @@ private:
 	
 	//킬러를 의미
 	TWeakObjectPtr<APlayerState> LethalDamageInstigatorPlayerState;
+	
+	bool GetIsDamagedByTeam(const FGameplayEffectModCallbackData& Data);
 	
 	void BlockShieldRecovery(const FGameplayEffectModCallbackData& Data);
 	

@@ -24,6 +24,7 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/ConsumableItems/NF_ConsumableComponent.h"
 #include "GAS/Abilities/NFGA_PlayerDeath.h"
+#include "Player/Component/NF_AvatarCustomizedComponent.h"
 #include "Player/Data/NF_CustomVisualMeshDataAsset.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
@@ -33,6 +34,9 @@
 ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UNF_CharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
+	bReplicates = true;
+	bAlwaysRelevant = true;
+	
 	//VisualMesh
 	VisualMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("VisualMesh"));
 	if (IsValid(GetMesh()) == true)
@@ -87,6 +91,9 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	
 	//Consumable
 	NF_ConsumableComponent = CreateDefaultSubobject<UNF_ConsumableComponent>(TEXT("NF_ConsumableComponent"));
+	
+	//Customized
+	NF_PlayerVisualMeshCustomizedComponent = CreateDefaultSubobject<UNF_PlayerVisualMeshCustomizedComponent>(TEXT("NF_PlayerVisualMeshCustomizedComponent"));
 }
 
 
@@ -229,15 +236,19 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 		return;
 	}
 	
-	if (ActionType == ENF_PlayerActionType::TestMeshSwap_Boy)
+	if (ActionType == ENF_PlayerActionType::TestMeshSwap_Pre)
 	{
-		TryChangeVisualMesh(ENF_CustomVisualMeshType::Boy_01);
+		++TestCustomizedIndex;
+		TestCustomizedIndex = FMath::Clamp(TestCustomizedIndex, 0, 7);
+		TryChangeVisualMesh(TestCustomizedIndex);
 		return;
 	}
 	
-	if (ActionType == ENF_PlayerActionType::TestMeshSwap_Girl)
+	if (ActionType == ENF_PlayerActionType::TestMeshSwap_Next)
 	{
-		TryChangeVisualMesh(ENF_CustomVisualMeshType::Girl_01);
+		--TestCustomizedIndex;
+		TestCustomizedIndex = FMath::Clamp(TestCustomizedIndex, 0, 7);
+		TryChangeVisualMesh(TestCustomizedIndex);
 		return;
 	}
 }	
@@ -362,45 +373,12 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 		return TraceResult;
 	}
 
-	void ANF_Player::TryChangeVisualMesh(ENF_CustomVisualMeshType VisualMeshType)
+	void ANF_Player::TryChangeVisualMesh(int32 Index)
 	{
-		ServerRPC_TryChangeVisualMesh(VisualMeshType);
+		NF_PlayerVisualMeshCustomizedComponent->TryChangeVisualMesh(Index);
 	}
 
-	void ANF_Player::ServerRPC_TryChangeVisualMesh_Implementation(ENF_CustomVisualMeshType VisualMeshType)
-	{
-		auto* NF_PlayerState = GetPlayerState<ANF_PlayerState>();
-		if (IsValid(NF_PlayerState) == false) return;
-		auto& NF_PlayerDataAsset = NF_PlayerState->NF_PlayerDataAsset;
-		if (IsValid(NF_PlayerDataAsset) == false) return;
 	
-		if (NF_PlayerDataAsset->CustomVisualMeshMap.Contains(VisualMeshType) == false) return;
-		
-		CurrentVisualMeshType = VisualMeshType;	
-	
-		ApplyCustomVisualMesh();
-	}
-
-	void ANF_Player::OnRep_CurrentVisualMeshType()
-	{
-		ApplyCustomVisualMesh();
-	}
-
-	void ANF_Player::ApplyCustomVisualMesh()
-	{
-		auto* NF_PlayerState = GetPlayerState<ANF_PlayerState>();
-		if (IsValid(NF_PlayerState) == false) return;
-		auto& NF_PlayerDataAsset = NF_PlayerState->NF_PlayerDataAsset;
-		if (IsValid(NF_PlayerDataAsset) == false) return;
-	
-		UNF_CustomVisualMeshDataAsset* CustomVisualMeshDataAsset = NF_PlayerDataAsset->CustomVisualMeshMap.FindRef(CurrentVisualMeshType);
-		if (IsValid(CustomVisualMeshDataAsset) == false) return;
-		if (IsValid(VisualMesh) == false) return;
-		
-		VisualMesh->SetSkeletalMeshAsset(CustomVisualMeshDataAsset->VisualSkeletalMesh);
-		VisualMesh->SetAnimInstanceClass(CustomVisualMeshDataAsset->VisualAnimClass);
-		VisualMesh->SetRelativeScale3D(CustomVisualMeshDataAsset->VisualMeshScale);
-	}
 
 
 #pragma endregion 
@@ -483,7 +461,6 @@ void ANF_Player::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& Out
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	
 	DOREPLIFETIME(ThisClass, NF_WeaponType);
-	DOREPLIFETIME(ThisClass, CurrentVisualMeshType);
 }
 
 

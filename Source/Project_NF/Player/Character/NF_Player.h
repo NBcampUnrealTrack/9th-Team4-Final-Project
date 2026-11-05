@@ -9,6 +9,7 @@
 #include "Player/Data/NF_PlayerActionType.h"
 #include "NF_Player.generated.h"
 
+class UNF_PlayerVisualMeshCustomizedComponent;
 enum class ENF_CustomVisualMeshType : uint8;
 class UNF_ConsumableComponent;
 class UNF_PlayerDataAsset;
@@ -47,9 +48,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentVisualMeshType)
-	ENF_CustomVisualMeshType CurrentVisualMeshType = ENF_CustomVisualMeshType::None;
-	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
+	TObjectPtr<UNF_PlayerVisualMeshCustomizedComponent> NF_PlayerVisualMeshCustomizedComponent;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<UStaticMeshComponent> MeleeAttackMeshComponent;
@@ -96,15 +96,9 @@ protected:
 	
 	
 private:
-	UFUNCTION(Server, Reliable)
-	void ServerRPC_TryChangeVisualMesh(ENF_CustomVisualMeshType VisualMeshType);
+	int32 TestCustomizedIndex = 0;
 	
-	UFUNCTION()
-	void OnRep_CurrentVisualMeshType();
-	
-	void TryChangeVisualMesh(ENF_CustomVisualMeshType VisualMeshType);
-	void ApplyCustomVisualMesh();
-	
+	void TryChangeVisualMesh(int32 Index);
 	
 	void ConfigBindDelegate();
 	void ConfigData();
