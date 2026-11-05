@@ -1,5 +1,6 @@
 #include "GAS/Abilities/Monster/NFGA_MonsterLeapAttack.h"
 
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -203,8 +204,10 @@ void UNFGA_MonsterLeapAttack::HandlePreparationFinished()
 	const FVector ClampedOffset =
 		ToTarget.GetClampedToMaxSize(SafeMaxLeapDistance);
 
-	const float SafeFlightTime =
-		FMath::Max(FlightTime, 0.2f);
+	// 같은 중력에서 도약 높이는 체공 시간의 제곱에 비례한다.
+	const float SafeFlightTime = FMath::Max(
+		FMath::Max(FlightTime, 0.2f) * FMath::Sqrt(FMath::Max(LeapHeightMultiplier, 0.01f)),
+		0.2f);
 
 	FVector LaunchVelocity = ClampedOffset / SafeFlightTime;
 
@@ -225,7 +228,7 @@ void UNFGA_MonsterLeapAttack::HandlePreparationFinished()
 		LandingTimeoutHandle,
 		this,
 		&UNFGA_MonsterLeapAttack::HandleLandingTimeout,
-		FMath::Max(LandingTimeout, 0.1f),
+		FMath::Max(LandingTimeout, SafeFlightTime + 0.1f),
 		false);
 
 	UE_LOG(
@@ -240,6 +243,15 @@ void UNFGA_MonsterLeapAttack::HandlePreparationFinished()
 		LaunchVelocity,
 		true,
 		true);
+
+	if (LeapMontage)
+	{
+		// 몽타주 길이와 별개로 실제 착지 이벤트에서 피해와 후딜 처리
+		UAbilityTask_PlayMontageAndWait* MontageTask =
+			UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+				this, NAME_None, LeapMontage);
+		MontageTask->ReadyForActivation();
+	}
 }
 
 void UNFGA_MonsterLeapAttack::HandleMonsterLanded(

@@ -23,8 +23,19 @@ struct FNF_SkillExecutionFrame
 	FVector Start = FVector::ZeroVector;
 	UPROPERTY()
 	FVector End = FVector::ZeroVector;
+	// 고정된 표면에 대한 빔 충돌. 위치는 End를 사용한다.
+	UPROPERTY()
+	bool bBeamSurfaceHit = false;
+	UPROPERTY()
+	FVector BeamImpactNormal = FVector::ZeroVector;
 	UPROPERTY()
 	float DisplayRadius = 0.0f;
+	UPROPERTY()
+	bool bCosmeticOnly = false;
+	UPROPERTY()
+	bool bShowCosmeticRadius = false;
+	UPROPERTY()
+	float CosmeticDuration = 0.0f;
 };
 DECLARE_MULTICAST_DELEGATE(FNF_SkillExecutionEnded);
 
@@ -47,6 +58,10 @@ public:
 	bool GetProjectilePreviewData(AActor* Avatar, FNF_SkillPreviewData& Data) const;
 	bool ValidateProjectileDirection(AActor* Avatar, FVector Direction) const;
 	bool StartExecution();
+	// EMP 등 GA가 직접 판정하는 스킬의 표시 전용 실행. 피해/타기팅 컴포넌트는 실행하지 않는다.
+	bool StartCosmeticExecution(AActor* Avatar, float Duration, float Radius, bool bShowRadius);
+	UFUNCTION(BlueprintPure, Category = "NF|Skill Execution|Visual")
+	float GetDisplayRadius() const { return Frame.DisplayRadius; }
 	void StopExecution();
 	FNF_SkillExecutionEnded OnExecutionEnded;
 	virtual void Tick(float DeltaSeconds) override;
@@ -93,6 +108,7 @@ private:
 	void OnRep_Frame();
 	bool UpdateTarget();
 	void UpdateVisuals();
+	void NotifyCosmeticStarted();
 	UPROPERTY(Replicated)
 	TObjectPtr<AActor> SourceAvatar;
 	UPROPERTY(ReplicatedUsing = OnRep_Frame)
