@@ -13,8 +13,6 @@ class UNFGA_WeaponFire;
 class UNFGA_WeaponZoom;
 class UNFGA_WeaponReload;
 class UCameraComponent;
-class UUserWidget;
-class UNF_CrosshairWidget;
 class APawn;
 class AController;
 class UMeshComponent;
@@ -97,8 +95,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Weapon")
 	ANF_WeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
-	
-	UNF_CrosshairWidget* GetCrosshairForWeapon(ANF_WeaponBase* FiredWeapon);
 
 	void RefreshWeaponDataPresentation(ANF_WeaponBase* ChangedWeapon);
 
@@ -145,17 +141,11 @@ private:
 	UFUNCTION(Server, Reliable)
 	void ServerStopZoom();
 
-	void RefreshCrosshair();
-	void RemoveCrosshair();
-
 	UFUNCTION()
 	void OnRep_EquippedWeapon();
 
 	UFUNCTION()
 	void OnPawnControllerChanged(APawn* Pawn, AController* OldController, AController* NewController);
-
-	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> CrosshairWidget;
 
 	ANF_WeaponBase* UnequipWeaponInternal();
 	bool bChangingWeapon = false;

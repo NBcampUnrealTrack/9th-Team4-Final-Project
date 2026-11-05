@@ -10,7 +10,6 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponCameraShakeBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
-#include "UI/Widget/NF_CrosshairWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystem.h"
 #include "Sound/SoundBase.h"
@@ -90,11 +89,6 @@ bool UNFGC_WeaponFire::OnExecute_Implementation(AActor* MyTarget, const FGamepla
 			const float PitchInput = FMath::Max(0.f, Data->RecoilPitch)
 				* FMath::FRandRange(MinMultiplier, MaxMultiplier);
 			Shooter->AddControllerPitchInput(-PitchInput);
-
-			if (UNF_CrosshairWidget* Crosshair = Weapons->GetCrosshairForWeapon(FiredWeapon))
-			{
-				Crosshair->NotifyShotFired();
-			}
 
 			Weapons->OnLocalShotFired.Broadcast(FiredWeapon);
 		}
