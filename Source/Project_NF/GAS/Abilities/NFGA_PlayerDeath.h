@@ -1,11 +1,12 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "NFGA_MultiPurposeBase.h"
 #include "Abilities/GameplayAbility.h"
 #include "NFGA_PlayerDeath.generated.h"
 
 UCLASS()
-class PROJECT_NF_API UNFGA_PlayerDeath : public UGameplayAbility
+class PROJECT_NF_API UNFGA_PlayerDeath : public UNFGA_MultiPurposeBase
 {
 	GENERATED_BODY()
 
@@ -21,9 +22,6 @@ protected:
 	                        bool bWasCancelled) override;
 	
 private:
-	UFUNCTION()
-	void OnFailedMontage();
-	
 	UFUNCTION()
 	void OnCompleteMontage(FGameplayEventData EventData);
 	
