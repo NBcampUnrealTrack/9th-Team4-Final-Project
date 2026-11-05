@@ -3,7 +3,6 @@
 
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
-#include "UI/Widget/NF_CrosshairWidget.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -14,7 +13,6 @@
 #include "GAS/Abilities/NFGA_WeaponReload.h"
 #include "Camera/CameraComponent.h"
 #include "Net/UnrealNetwork.h"
-#include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
 #include "Player/Character/NF_Player.h"
@@ -37,7 +35,6 @@ void UNF_WeaponComponent::BeginPlay()
 	{
 		OwnerPawn->ReceiveControllerChangedDelegate.AddDynamic(this, &ThisClass::OnPawnControllerChanged);
 	}
-	RefreshCrosshair();
 
 	if (GetOwner()->HasAuthority() == false)
 		return;
@@ -99,7 +96,6 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 	EquippedWeapon->SetInstigator(OwnerCharacter);
 	EquippedWeapon->ForceNetUpdate();
 	OwnerCharacter->ForceNetUpdate();
-	RefreshCrosshair();
 	OnEquippedWeaponChanged.Broadcast(EquippedWeapon.Get());
 
 	return true;
@@ -135,7 +131,6 @@ ANF_WeaponBase* UNF_WeaponComponent::UnequipWeaponInternal()
 	}
 	
 	EquippedWeapon = nullptr;
-	RemoveCrosshair();
 	
 	if (OldWeapon)
 	{
@@ -149,81 +144,17 @@ ANF_WeaponBase* UNF_WeaponComponent::UnequipWeaponInternal()
 	return OldWeapon;
 }
 
-void UNF_WeaponComponent::RemoveCrosshair()
-{
-	if (CrosshairWidget)
-	{
-		CrosshairWidget->RemoveFromParent();
-		CrosshairWidget = nullptr;
-	}
-}
-
-void UNF_WeaponComponent::RefreshCrosshair()
-{
-	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
-	
-	if (IsValid(OwnerPawn) == false || IsValid(EquippedWeapon) == false)
-	{
-		RemoveCrosshair();
-		return;
-	}
-
-	APlayerController* Controller = Cast<APlayerController>(OwnerPawn->GetController());
-	
-	if (IsValid(Controller) == false || Controller->IsLocalController() == false || Controller->GetLocalPlayer() == nullptr)
-	{
-		RemoveCrosshair();
-		return;
-	}
-	
-	const UNF_WeaponDataAsset* Data = EquippedWeapon->GetWeaponData();
-	
-	if (IsValid(Data) == false)
-	{
-		RemoveCrosshair();
-		return;
-	}
-
-	const bool bShowScope = bZoomActive && Data->ZoomMode == ENF_ZoomMode::Scope && Data->ScopeWidgetClass != nullptr;
-	const TSubclassOf<UUserWidget> WidgetClass = bShowScope ? Data->ScopeWidgetClass : Data->CrosshairWidgetClass;
-	if (WidgetClass == nullptr)
-	{
-		RemoveCrosshair();
-		return;
-	}
-
-	if (CrosshairWidget && CrosshairWidget->GetOwningPlayer() == Controller &&
-		CrosshairWidget->GetClass() == WidgetClass.Get())
-	{
-		return;
-	}
-
-	RemoveCrosshair();
-	CrosshairWidget = CreateWidget<UUserWidget>(Controller, WidgetClass);
-	
-	if (CrosshairWidget)
-	{
-		CrosshairWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
-		if (CrosshairWidget->AddToPlayerScreen() == false)
-		{
-			RemoveCrosshair();
-		}
-	}
-}
-
 void UNF_WeaponComponent::RefreshWeaponDataPresentation(ANF_WeaponBase* ChangedWeapon)
 {
 	if (!IsValid(ChangedWeapon) || EquippedWeapon != ChangedWeapon) return;
 	RestoreZoomCamera();
 	SetComponentTickEnabled(bZoomActive);
-	RefreshCrosshair();
 }
 
 void UNF_WeaponComponent::OnRep_EquippedWeapon()
 {
 	RestoreZoomCamera();
 	SetComponentTickEnabled(bZoomActive);
-	RefreshCrosshair();
 	OnEquippedWeaponChanged.Broadcast(EquippedWeapon.Get());
 }
 
@@ -232,7 +163,6 @@ void UNF_WeaponComponent::OnPawnControllerChanged(APawn* Pawn, AController* OldC
 	if (GetOwner()->HasAuthority()) StopZoom();
 	RestoreZoomCamera();
 	SetComponentTickEnabled(bZoomActive);
-	RefreshCrosshair();
 }
 
 void UNF_WeaponComponent::StartFire()
@@ -268,19 +198,6 @@ void UNF_WeaponComponent::StopFire()
 	{
 		FireASC->CancelAbilityHandle(FireAbilityHandle);
 	}
-}
-
-UNF_CrosshairWidget* UNF_WeaponComponent::GetCrosshairForWeapon(ANF_WeaponBase* FiredWeapon)
-{
-	APawn* OwnerPawn = Cast<APawn>(GetOwner());
-	if (!OwnerPawn || !OwnerPawn->IsLocallyControlled() ||
-		!IsValid(FiredWeapon) || FiredWeapon != EquippedWeapon)
-	{
-		return nullptr;
-	}
-
-	RefreshCrosshair();
-	return Cast<UNF_CrosshairWidget>(CrosshairWidget);
 }
 
 void UNF_WeaponComponent::Reload()
@@ -449,7 +366,6 @@ void UNF_WeaponComponent::OnRep_ZoomActive()
 {
 	if (!bZoomActive) UpdateScopeCameraAttachment(false);
 	if (bZoomActive == false) UpdateScopedMeshes(false);
-	RefreshCrosshair();
 	SetComponentTickEnabled(true);
 	OnZoomActiveChanged.Broadcast(bZoomActive);
 }
@@ -558,9 +474,7 @@ void UNF_WeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	
 	if (GetOwner()->HasAuthority() && bZoomActive && !CanZoom())
 		StopZoom();
-	
-	RefreshCrosshair();
-	
+
 	const APawn* Pawn = Cast<APawn>(GetOwner());
 	
 	if (Pawn == nullptr || Pawn->IsLocallyControlled() == false)
@@ -620,7 +534,6 @@ void UNF_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		OwnerPawn->ReceiveControllerChangedDelegate.RemoveDynamic(this, &ThisClass::OnPawnControllerChanged);
 	}
-	RemoveCrosshair();
 
 	if (GetOwner()->HasAuthority())
 	{
@@ -637,7 +550,6 @@ void UNF_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		if (FireAbilityHandle.IsValid()) FireASC->ClearAbility(FireAbilityHandle);
 	}
 	
-	RemoveCrosshair();
 	Super::EndPlay(EndPlayReason);
 }
 
