@@ -592,23 +592,48 @@ bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop
 	{
 		return false;
 	}
-	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다.
-	if (!CurrentBuild.IsEmpty() && bEntitlementsInitialized &&
-		FNF_BuildValidator::Validate(Rules, CostLimit, CurrentBuild, nullptr, &CurrentBuild).Result ==
-		ENF_BuildResult::Success
-		&&
+	// @Owner: 황준현 | 2026-11-05. 외부 진행 시스템이 아직 코스트를 주지 않았으면 초기 설정 DA로 먼저 채운다.
+	// 그래도 준비되지 않으면 무기 없이 출격하지 않도록 원인을 남긴다.
+	if (!bEntitlementsInitialized)
+	{
+		InitializeDefaultBuildEntitlements();
+	}
+	if (!bEntitlementsInitialized)
+	{
+		UE_LOG(LogTemp, Error,
+		       TEXT("기본 빌드 적용 실패: %s의 코스트 상한이 초기화되지 않았습니다. 빌드 컴포넌트의 InitialSettings DA를 지정하세요."),
+		       *GetNameSafe(GetOwner()));
+		return false;
+	}
+	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다. 장착 항목도 무료로 보지 않고 전체 코스트로 판정한다.
+	if (!CurrentBuild.IsEmpty() &&
+		FNF_BuildValidator::Validate(Rules, CostLimit, CurrentBuild).Result == ENF_BuildResult::Success &&
 		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
 	{
 		return true;
 	}
 	// 적용 중 콜백으로 원본 구성이 바뀌지 않도록 복사한다.
 	const TArray<FNF_BuildSelection> Selections = Rules->FallbackBuild;
-	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections, Rules, {});
+	// 기본 빌드는 모든 항목을 유료로 계산한다. 기존 장착 항목이 겹쳐도 상한 검사를 건너뛰지 않는다.
+	TArray<FName> PaidItemIds;
+	for (const FNF_BuildSelection& Selection : Selections)
+	{
+		PaidItemIds.Add(Selection.ItemId);
+	}
+	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections, Rules, PaidItemIds);
 	const bool bSucceeded = Validation.Result == ENF_BuildResult::Success &&
 		IsValid(AbilitySystem) && AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready);
 	if (bSucceeded)
 	{
 		CloseBuildSession();
+	}
+	else
+	{
+		// 잠금 상태 등 정상적인 거절도 이 경로를 지나므로 경고로 남긴다.
+		UE_LOG(LogTemp, Warning,
+		       TEXT("기본 빌드 적용 실패: %s, Rules=%s, 결과=%d, 코스트 %d / %d, 사유: %s"),
+		       *GetNameSafe(GetOwner()), *GetNameSafe(Rules), static_cast<int32>(Validation.Result),
+		       Validation.TotalCost, CostLimit, *Validation.Message.ToString());
 	}
 	return bSucceeded;
 }
