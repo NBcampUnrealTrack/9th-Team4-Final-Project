@@ -6,6 +6,13 @@
 
 // @owner : 조민웅 | 2026-10-29
 // 목적: PIE 콘솔 명령을 테스트 컨트롤러의 서버 요청으로 전달한다.
+
+/*
+EnableCheats
+NF_PrintMatchState
+NF_TestEscape
+ */
+ 
 UCLASS()
 class PROJECT_NF_API UNF_CheatManager : public UCheatManager
 {
