@@ -100,6 +100,8 @@ public:
 	
 	UNF_CrosshairWidget* GetCrosshairForWeapon(ANF_WeaponBase* FiredWeapon);
 
+	void RefreshWeaponDataPresentation(ANF_WeaponBase* ChangedWeapon);
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<UNF_WeaponComponentConfigDataAsset> Config;
