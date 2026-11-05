@@ -7,6 +7,7 @@ class APlayerController;
 class APlayerState;
 class APawn;
 class UAbilitySystemComponent;
+class UNF_WeaponComponent;
 
 struct FNF_ViewModelContext
 {
@@ -16,6 +17,8 @@ struct FNF_ViewModelContext
 	TWeakObjectPtr<APlayerState> PlayerState;
 	TWeakObjectPtr<APawn> Pawn;
 	TWeakObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+	// 현재 Pawn의 무기 컴포넌트
+	TWeakObjectPtr<UNF_WeaponComponent> WeaponComponent;
 
 	bool HasValidLocalPlayer() const
 	{
@@ -29,5 +32,6 @@ struct FNF_ViewModelContext
 		PlayerState.Reset();
 		Pawn.Reset();
 		AbilitySystemComponent.Reset();
+		WeaponComponent.Reset();
 	}
 };

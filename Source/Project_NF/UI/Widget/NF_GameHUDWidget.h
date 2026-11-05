@@ -14,9 +14,11 @@ class UNF_SkillSlotWidget;
 class UNF_MinimapWidget;
 class UNF_TeamPanelWidget;
 class UNF_WeaponStatusWidget;
+class UNF_CrosshairPanelWidget;
 
 class UNF_TeamPanelViewModel;
 class UNF_WeaponStatusViewModel;
+class UNF_CrosshairViewModel;
 
 // 인게임 HUD 구성과 자식 위젯의 ViewModel 연결을 담당
 UCLASS(Abstract, Blueprintable)
@@ -68,12 +70,18 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UNF_WeaponStatusWidget> WeaponStatusWidget;
 
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UNF_CrosshairPanelWidget> CrosshairPanelWidget;
+
 private:
 	void InitializeHUDViewModels();
 	void ReleaseHUDViewModels();
 	void RegisterOwnedViewModel(UNF_ViewModelBase* ViewModel);
 	bool AssignViewModel(UUserWidget* TargetWidget, UMVVMViewModelBase* ViewModel);
 	void ClearChildViewModels();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNF_CrosshairViewModel> CrosshairVM;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNF_TeamPanelViewModel> TeamPanelVM;
