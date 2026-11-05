@@ -19,7 +19,7 @@ class PROJECT_NF_API UNF_CrosshairViewModel : public UNF_ViewModelBase
 public:
 	TSubclassOf<UUserWidget> GetActiveCrosshairClass() const {return ActiveCrosshairClass;}
 
-	// HUD가 구독하고 현재 표시 중인 위젯에 연출을 전달한다.
+	// 크로스헤어 패널이 구독하고 현재 표시 중인 위젯에 연출을 전달한다.
 	FNF_OnCrosshairShotFeedbackRequested OnShotFeedbackRequested;
 
 protected:
