@@ -32,6 +32,12 @@ protected:
 	FNF_TargetFilterSettings TargetFilter;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|EMP")
 	bool bRequireLineOfSight = true;
+	// 실행 액터는 EMP의 외형만 담당한다. Timeline 길이 이상으로 설정한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|EMP|Visual", meta = (ClampMin = "0.1", Units = "s"))
+	float CosmeticDuration = 2.0f;
+	// 실제 판정 Radius를 청록색 디버그 구체로 표시한다. Shipping에서는 표시되지 않는다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|EMP|Visual")
+	bool bShowRadius = true;
 private:
 	bool HasValidSettings() const;
 	void EmitPulse();

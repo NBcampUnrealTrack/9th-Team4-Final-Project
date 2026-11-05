@@ -16,12 +16,14 @@
 #include "GamePlay/Combat/Components/NF_HitEffectComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "GamePlay/Combat/Skill/NFGA_SkillBase.h"
 #include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
 #include "Project_NF.h"
+#include "DrawDebugHelpers.h"
 #include "GamePlay/Combat/Skill/NF_SkillComposition.h"
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -181,6 +183,37 @@ bool ANF_SkillExecutionActor::PrepareExecution()
 	return true;
 }
 
+bool ANF_SkillExecutionActor::StartCosmeticExecution(AActor* Avatar, float Duration, float Radius, bool bShowRadius)
+{
+	if (!HasAuthority() || Frame.bActive || bStopping || !IsValid(Avatar)
+		|| !FMath::IsFinite(Duration) || Duration <= 0.0f || !FMath::IsFinite(Radius) || Radius <= 0.0f) { return false; }
+	SourceAvatar = Avatar;
+	Frame.bCosmeticOnly = true;
+	Frame.bActive = true;
+	Frame.bHasTarget = true;
+	Frame.Start = GetActorLocation();
+	Frame.End = Frame.Start;
+	Frame.DisplayRadius = Radius;
+	Frame.bShowCosmeticRadius = bShowRadius;
+	Frame.CosmeticDuration = Duration;
+	// GA의 즉시 종료와 독립적으로 유지하고 복제 및 Timeline 완료에 여유를 둔다.
+	SetLifeSpan(Duration + 0.5f);
+	ForceNetUpdate();
+	NotifyCosmeticStarted();
+	return !IsActorBeingDestroyed();
+}
+
+void ANF_SkillExecutionActor::NotifyCosmeticStarted()
+{
+	if (bStartedNotified || GetNetMode() == NM_DedicatedServer) { return; }
+	bStartedNotified = true;
+	if (Frame.bShowCosmeticRadius)
+	{
+		DrawDebugSphere(GetWorld(), Frame.Start, Frame.DisplayRadius, 48, FColor::Cyan, false, Frame.CosmeticDuration, 0, 2.0f);
+	}
+	ExecutionStarted();
+}
+
 bool ANF_SkillExecutionActor::StartExecution()
 {
 	if (!HasAuthority() || bStopping || Frame.bActive || (!bPrepared && !PrepareExecution())) { return false; }
@@ -246,6 +279,8 @@ bool ANF_SkillExecutionActor::StartExecution()
 
 bool ANF_SkillExecutionActor::UpdateTarget()
 {
+	Frame.bBeamSurfaceHit = false;
+	Frame.BeamImpactNormal = FVector::ZeroVector;
 	if (FindComponentByClass<UNF_ProjectileLaunchComponent>() || FindComponentByClass<UNF_GroundTravelComponent>())
 	{
 		Frame.Start = GetActorLocation(); Frame.End = Frame.Start; Frame.bHasTarget = true; return true;
@@ -253,7 +288,12 @@ bool ANF_SkillExecutionActor::UpdateTarget()
 	if (!IsValid(SourceAvatar)) { Frame.bHasTarget = false; return false; }
 	if (auto* Beam = FindComponentByClass<UNF_BeamTargetingComponent>())
 	{
-		Frame.bHasTarget = Beam->CalculateBeam(SourceAvatar, Frame.Start, Frame.End);
+		FHitResult BeamHit;
+		Frame.bHasTarget = Beam->CalculateBeam(SourceAvatar, Frame.Start, Frame.End, &BeamHit);
+		const UPrimitiveComponent* HitComponent = BeamHit.GetComponent();
+		Frame.bBeamSurfaceHit = Frame.bHasTarget && BeamHit.bBlockingHit && !BeamHit.bStartPenetrating
+			&& IsValid(HitComponent) && HitComponent->GetMobility() == EComponentMobility::Static;
+		if (Frame.bBeamSurfaceHit) { Frame.BeamImpactNormal = BeamHit.ImpactNormal; }
 	}
 	else
 	{
@@ -281,7 +321,7 @@ bool ANF_SkillExecutionActor::UpdateTarget()
 
 void ANF_SkillExecutionActor::ApplyAttack(int32 Index)
 {
-	if (!HasAuthority() || !Frame.bActive || bStopping || !UpdateTarget()) { return; }
+	if (!HasAuthority() || !Frame.bActive || Frame.bCosmeticOnly || bStopping || !UpdateTarget()) { return; }
 	auto* Apply = FindComponentByClass<UNF_ApplyEffectComponent>();
 	auto* Query = FindComponentByClass<UNF_TargetQueryComponent>();
 	auto* Area = FindComponentByClass<UNF_AreaDamageComponent>();
@@ -313,7 +353,7 @@ void ANF_SkillExecutionActor::ApplyAttack(int32 Index)
 void ANF_SkillExecutionActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	if (HasAuthority() && Frame.bActive)
+	if (HasAuthority() && Frame.bActive && !Frame.bCosmeticOnly)
 	{
 		// 이미 발사된 투사체는 시전자 제거 이후에도 자신의 폭발 시점까지 유지한다.
 		if (!FindComponentByClass<UNF_ProjectileLaunchComponent>() && !FindComponentByClass<UNF_GroundTravelComponent>()
@@ -325,10 +365,14 @@ void ANF_SkillExecutionActor::Tick(float DeltaSeconds)
 
 void ANF_SkillExecutionActor::UpdateVisuals()
 {
-	if (GetNetMode() == NM_DedicatedServer) { return; }
+	if (GetNetMode() == NM_DedicatedServer || Frame.bCosmeticOnly) { return; }
 	if (auto* Beam = FindComponentByClass<UNF_BeamTargetingComponent>())
 	{
-		if (Frame.bActive && Frame.bHasTarget) { Beam->ShowBeam(Frame.Start, Frame.End); }
+		if (Frame.bActive && Frame.bHasTarget)
+		{
+			Beam->ShowBeam(Frame.Start, Frame.End);
+			Beam->UpdateImpactDecal(Frame.bBeamSurfaceHit, Frame.End, Frame.BeamImpactNormal);
+		}
 		else { Beam->HideBeam(); }
 	}
 	TArray<UNF_AreaIndicatorComponent*> Indicators;
@@ -358,6 +402,14 @@ void ANF_SkillExecutionActor::StopExecution()
 	if (!HasAuthority() || bStopping) { return; }
 	bStopping = true;
 	Frame.bActive = false;
+	if (Frame.bCosmeticOnly)
+	{
+		ForceNetUpdate();
+		if (GetNetMode() != NM_DedicatedServer) { ExecutionStopped(); }
+		if (!bEndedNotified) { bEndedNotified = true; OnExecutionEnded.Broadcast(); }
+		if (!IsActorBeingDestroyed()) { SetLifeSpan(0.5f); }
+		return;
+	}
 	if (auto* Hit = FindComponentByClass<UNF_HitEffectComponent>()) { Hit->StopListening(); }
 	if (auto* Apply = FindComponentByClass<UNF_ApplyEffectComponent>()) { Apply->StopEffects(); }
 	if (auto* Detonation = FindComponentByClass<UNF_DetonationComponent>()) { Detonation->Disarm(); }
@@ -385,7 +437,11 @@ void ANF_SkillExecutionActor::OnRep_Frame()
 {
 	if (!HasActorBegunPlay()) { return; }
 	UpdateVisuals();
-	if (Frame.bActive && !bStartedNotified) { bStartedNotified = true; ExecutionStarted(); }
+	if (Frame.bActive && !bStartedNotified)
+	{
+		if (Frame.bCosmeticOnly) { NotifyCosmeticStarted(); }
+		else { bStartedNotified = true; ExecutionStarted(); }
+	}
 	if (!Frame.bActive && bStartedNotified && !bEndedNotified) { bEndedNotified = true; ExecutionStopped(); }
 }
 void ANF_SkillExecutionActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
