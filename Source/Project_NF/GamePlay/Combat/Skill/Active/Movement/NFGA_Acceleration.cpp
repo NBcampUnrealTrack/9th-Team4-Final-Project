@@ -107,6 +107,12 @@ void UNFGA_Acceleration::StartAcceleration()
 			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true); return;
 		}
 	}
+	if (AfterimageSettings.IsValid())
+	{
+		FActorSpawnParameters Params; Params.Owner = Avatar;
+		AfterimageEffect = GetWorld()->SpawnActor<ANF_AccelerationAfterimage>(Params);
+		if (IsValid(AfterimageEffect)) { AfterimageEffect->Initialize(Character, AfterimageSettings); }
+	}
 	Avatar->ForceNetUpdate();
 	EndsAt = GetWorld()->GetTimeSeconds() + GetExecutionDuration();
 	GetWorld()->GetTimerManager().SetTimer(LifetimeTimer, this, &ThisClass::CheckLifetime, 0.05f, true);
@@ -141,6 +147,8 @@ void UNFGA_Acceleration::EndAbility(const FGameplayAbilitySpecHandle Handle, con
 	}
 	if (IsValid(StandardMovementEffect)) { StandardMovementEffect->StopEffect(); }
 	StandardMovementEffect = nullptr;
+	if (IsValid(AfterimageEffect)) { AfterimageEffect->StopAfterimages(); }
+	AfterimageEffect = nullptr;
 	if (bMultiplierApplied)
 	{
 		bMultiplierApplied = false; // Remove our factor only once, including reentrant cancellation.
