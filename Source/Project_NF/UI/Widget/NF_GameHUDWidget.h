@@ -17,6 +17,7 @@ class UNF_WeaponStatusWidget;
 
 class UNF_TeamPanelViewModel;
 class UNF_WeaponStatusViewModel;
+class UNF_CrosshairViewModel;
 
 // 인게임 HUD 구성과 자식 위젯의 ViewModel 연결을 담당
 UCLASS(Abstract, Blueprintable)
@@ -74,6 +75,15 @@ private:
 	void RegisterOwnedViewModel(UNF_ViewModelBase* ViewModel);
 	bool AssignViewModel(UUserWidget* TargetWidget, UMVVMViewModelBase* ViewModel);
 	void ClearChildViewModels();
+	void HandleCrosshairShotFeedback();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNF_CrosshairViewModel> CrosshairVM;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> ActiveCrosshairWidget;
+
+	FDelegateHandle CrosshairShotFeedbackHandle;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNF_TeamPanelViewModel> TeamPanelVM;

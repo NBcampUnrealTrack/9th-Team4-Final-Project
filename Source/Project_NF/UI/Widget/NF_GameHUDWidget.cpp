@@ -12,8 +12,10 @@
 #include "UI/Widget/NF_SkillSlotWidget.h"
 #include "UI/Widget/NF_TeamPanelWidget.h"
 #include "UI/Widget/NF_WeaponStatusWidget.h"
+#include "UI/Widget/NF_CrosshairWidget.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "UI/ViewModel/GamePlay/NF_GameFlowViewModel.h"
+#include "UI/ViewModel/GamePlay/NF_CrosshairViewModel.h"
 #include "UI/ViewModel/GamePlay/NF_MinimapViewModel.h"
 #include "UI/ViewModel/Slots/NF_SkillSlotViewModel.h"
 #include "UI/ViewModel/Status/NF_BuffDebuffViewModel.h"
@@ -82,6 +84,11 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 
 	WeaponStatusVM = NewObject<UNF_WeaponStatusViewModel>(this);
 	RegisterOwnedViewModel(WeaponStatusVM.Get());
+
+	CrosshairVM = NewObject<UNF_CrosshairViewModel>(this);
+	CrosshairShotFeedbackHandle = CrosshairVM->OnShotFeedbackRequested.AddUObject(
+		this, &ThisClass::HandleCrosshairShotFeedback);
+	RegisterOwnedViewModel(CrosshairVM.Get());
 	
 	// 각 자식 WBP에 이름이 ViewModel인 Manual MVVM 슬롯 필요
 	bool bAllAssigned = true;
@@ -179,6 +186,18 @@ void UNF_GameHUDWidget::ClearChildViewModels()
 
 void UNF_GameHUDWidget::ReleaseHUDViewModels()
 {
+	if (IsValid(CrosshairVM.Get()))
+	{
+		CrosshairVM->OnShotFeedbackRequested.Remove(CrosshairShotFeedbackHandle);
+	}
+	CrosshairShotFeedbackHandle.Reset();
+
+	if (IsValid(ActiveCrosshairWidget.Get()))
+	{
+		ActiveCrosshairWidget->RemoveFromParent();
+	}
+	ActiveCrosshairWidget = nullptr;
+
 	if (!OwnedViewModels.IsEmpty())
 	{
 		ClearChildViewModels();
@@ -202,6 +221,7 @@ void UNF_GameHUDWidget::ReleaseHUDViewModels()
 	OwnedViewModels.Reset();
 	TeamPanelVM = nullptr;
 	WeaponStatusVM = nullptr;
+	CrosshairVM = nullptr;
 	ViewModelSubsystem.Reset();
 	bViewModelsInitialized = false;
 }
@@ -209,6 +229,15 @@ void UNF_GameHUDWidget::ReleaseHUDViewModels()
 UNF_TeamPanelViewModel* UNF_GameHUDWidget::GetTeamPanelViewModel() const
 {
 	return TeamPanelVM.Get();
+}
+
+void UNF_GameHUDWidget::HandleCrosshairShotFeedback()
+{
+	UNF_CrosshairWidget* Crosshair = Cast<UNF_CrosshairWidget>(ActiveCrosshairWidget.Get());
+	if (IsValid(Crosshair))
+	{
+		Crosshair->NotifyShotFired();
+	}
 }
 
 UNF_WeaponStatusViewModel* UNF_GameHUDWidget::GetWeaponStatusViewModel() const
