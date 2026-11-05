@@ -101,7 +101,7 @@ void UNFGA_MeleeHitCheck::OnHitCheckValidData(const FGameplayAbilityTargetDataHa
 		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(GameplayEffectClass_CallBack, 1.0f);
 
 		UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle,
-			FGameplayTag::RequestGameplayTag(TEXT("Data.Damage")), PayloadMagnitude_CallBack);
+			NFTag_Player::Data_Damage, PayloadMagnitude_CallBack);
 
 		K2_ApplyGameplayEffectSpecToTarget(SpecHandle, Data);
 	}

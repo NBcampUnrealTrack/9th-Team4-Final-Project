@@ -19,6 +19,8 @@ public:
 protected:
 	virtual void Tick(float DeltaTime) override;
 	
+	bool bIsDebugDraw = false;
+	
 #pragma region TestTrace
 	/*UFUNCTION(BlueprintCallable)
 	FHitResult GetTestTraceResult(AActor* InSourceActor);*/

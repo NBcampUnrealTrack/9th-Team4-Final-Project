@@ -156,7 +156,7 @@ TArray<FHitResult> ANF_TargetActorTrace::GetMeleeTraceResults(AActor* InSourceAc
 	}
 
 	EDrawDebugTrace::Type DebugDrawType = EDrawDebugTrace::None;
-	if (bDebug == true)
+	if (bIsDebugDraw == true)
 	{
 		DebugDrawType = EDrawDebugTrace::ForDuration;
 	}
@@ -186,7 +186,7 @@ TArray<FHitResult> ANF_TargetActorTrace::GetMeleeTraceResults(AActor* InSourceAc
 			true,
 			FColor::Red,
 			FColor::Green,
-			5.0f);
+			1.0f);
 
 		for (const FHitResult& HitResult : StepHitResults)
 		{
