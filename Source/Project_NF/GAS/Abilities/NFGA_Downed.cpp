@@ -1,9 +1,13 @@
 #include "NFGA_Downed.h"
+
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GamePlay/Combat/Components/NF_PlayerLifeComponent.h"
 #include "GAS/Tags/NFTag_LifeState.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Player/Data/NF_PlayerDataAsset.h"
 
 UNFGA_Downed::UNFGA_Downed()
 {
@@ -22,32 +26,23 @@ void UNFGA_Downed::ActivateAbility(const FGameplayAbilitySpecHandle Handle, cons
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	
-	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-	
 	const bool bIsServer = ActorInfo && ActorInfo->IsNetAuthority();
 	
-	UKismetSystemLibrary::PrintString(Character,FString::Printf(TEXT("[Downed] GA 실행 - %s"),
+	UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("[Downed] GA 실행 - %s"),
 		bIsServer ? TEXT("SERVER") : TEXT("CLIENT")), true, true,
 		bIsServer ? FColor::Green : FColor::Magenta, 5.0f);
 	
-	if (!IsValid(Character))
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
+	auto* NF_PlayerDataAsset = Cast<UNF_PlayerDataAsset>(GetCurrentSourceObject());
+	if (IsValid(NF_PlayerDataAsset) == false) return EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 	
-	UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
+	auto* MontageTask = UNF_GASFunctionLibrary::NF_PlayMontageAndWait(this, NF_PlayerDataAsset->DownedMontage);
+	if (MontageTask == nullptr) return EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+	MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnTaskEnd);
+	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnTaskEnd);
+	MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnTaskEnd);
+	MontageTask->ReadyForActivation();
 	
-	if (!IsValid(Movement))
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
-	}
-	
-	// 기절하면 현재 움직임을 멈춤
-	Movement->StopMovementImmediately();
-	// 기절 상태에서는 이동x (임시)
-	Movement->DisableMovement();
+	OnPlayerDisableMovement();
 }
 
 void UNFGA_Downed::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)

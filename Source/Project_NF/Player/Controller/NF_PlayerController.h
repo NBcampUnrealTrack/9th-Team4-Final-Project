@@ -84,6 +84,8 @@ public:
 	
 private:
 	void OpenOption(ENF_PlayerActionType PlayerActionType);
+	
+	
 #pragma endregion 
 
 	

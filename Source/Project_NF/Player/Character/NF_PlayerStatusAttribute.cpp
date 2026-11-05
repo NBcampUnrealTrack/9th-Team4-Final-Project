@@ -24,6 +24,8 @@ void UNF_PlayerStatusAttribute::PreAttributeChange(const FGameplayAttribute& Att
 {
 	Super::PreAttributeChange(Attribute, NewValue);
 	
+	
+	
 	if (Attribute == GetMaxHealthAttribute())
 	{
 		NewValue = FMath::Max<float>(1.0f, NewValue);
@@ -67,13 +69,10 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 {
 	Super::PostGameplayEffectExecute(Data);
 	
-	/*UKismetSystemLibrary::PrintString(GetOwningActor(),
-		FString::Printf(TEXT("데미지 = %.2f 남은 체력 = %.2f 남은 쉴드 = %.2f"),
-		Data.EvaluatedData.Magnitude, GetHealth(), GetShield()),
-		true, true, FLinearColor::Black, 5.0f);*/
+	if (GetIsDamagedByTeam(Data) == true) return;
 	
 	SetShield(GetShield()-GetInComingDamage());
-	SetHealth(GetHealth()-GetInComingDamage());
+	SetHealth(GetHealth()-(GetInComingDamage()-GetDefence()));
 	SetInComingDamage(0.0f);
 	
 	IsOutOfHealth(Data);
@@ -82,6 +81,21 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 	BlockShieldRecovery(Data);
 }
 
+
+bool UNF_PlayerStatusAttribute::GetIsDamagedByTeam(const FGameplayEffectModCallbackData& Data)
+{
+	auto* AttackerPlayerState = Cast<ANF_PlayerState>(Data.EffectSpec.GetContext().GetOriginalInstigator());
+	auto* VictimPlayerState = Cast<ANF_PlayerState>(GetOwningActor());
+	if (AttackerPlayerState == nullptr || VictimPlayerState == nullptr) return false;
+	
+	if (AttackerPlayerState->GetNFTeamID() == VictimPlayerState->GetNFTeamID())
+	{
+		SetInComingDamage(0.0f);
+		return  true;
+	}
+	
+	return false;
+}
 
 void UNF_PlayerStatusAttribute::BlockShieldRecovery(const FGameplayEffectModCallbackData& Data)
 {
