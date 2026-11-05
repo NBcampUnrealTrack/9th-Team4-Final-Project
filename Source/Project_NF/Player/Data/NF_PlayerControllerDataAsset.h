@@ -57,10 +57,10 @@ public:
 	TObjectPtr<UInputAction> ZoomToggleSettingButton;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
-	TObjectPtr<UInputAction> TestVisualMesh_Boy_Button;
+	TObjectPtr<UInputAction> TestVisualMesh_Next_Button;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
-	TObjectPtr<UInputAction> TestVisualMesh_Girl_Button;
+	TObjectPtr<UInputAction> TestVisualMesh_Pre_Button;
 	
 
 };

@@ -2,10 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
+#include "NFGA_MultiPurposeBase.h"
 #include "NFGA_Downed.generated.h"
 
 UCLASS()
-class PROJECT_NF_API UNFGA_Downed : public UGameplayAbility
+class PROJECT_NF_API UNFGA_Downed : public UNFGA_MultiPurposeBase
 {
 	GENERATED_BODY()
 	
