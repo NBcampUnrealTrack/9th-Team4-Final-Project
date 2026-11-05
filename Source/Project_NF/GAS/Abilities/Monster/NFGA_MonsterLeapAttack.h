@@ -6,6 +6,7 @@
 #include "NFGA_MonsterLeapAttack.generated.h"
 
 class ANF_Monster;
+class UAnimMontage;
 
 UCLASS()
 class PROJECT_NF_API UNFGA_MonsterLeapAttack : public UGameplayAbility
@@ -48,11 +49,21 @@ protected:
 		meta = (ClampMin = "0.01"))
 	float PreparationTime = 0.7f;
 
-	// 평지 기준으로 목표 지점까지 도달하는 데 사용할 예상 시간
+	// 도약하는 순간 재생할 선택 몽타주
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|Leap")
+	TObjectPtr<UAnimMontage> LeapMontage;
+
+	// 높이 배율을 적용하기 전의 평지 기준 체공 시간
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 		Category = "NF|Monster|Leap",
 		meta = (ClampMin = "0.2"))
 	float FlightTime = 1.0f;
+
+	// 평지에서 도약 최고점의 높이에 적용할 배율
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
+		Category = "NF|Monster|Leap",
+		meta = (ClampMin = "0.01"))
+	float LeapHeightMultiplier = 1.5f;
 
 	// 도약 목표 지점까지의 최대 수평 거리
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
