@@ -35,9 +35,7 @@ ANF_PortalView::ANF_PortalView()
 	Capture->bEnableClipPlane = true;
 	Capture->CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Plane(TEXT("/Engine/BasicShapes/Plane.Plane"));
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Material(TEXT("/Game/ProjectNF/Skills/Portal/M_PortalView.M_PortalView"));
 	if (Plane.Succeeded()) { Surface->SetStaticMesh(Plane.Object); }
-	if (Material.Succeeded()) { SurfaceMaterial = Material.Object; }
 }
 
 void ANF_PortalView::Initialize(ANF_Portal* Portal, APlayerController* Viewer)
