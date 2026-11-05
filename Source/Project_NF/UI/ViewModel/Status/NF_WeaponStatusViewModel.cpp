@@ -1,6 +1,5 @@
 #include "UI/ViewModel/Status/NF_WeaponStatusViewModel.h"
 
-#include "GameFramework/Pawn.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
@@ -36,7 +35,6 @@ void UNF_WeaponStatusViewModel::OnInitializeViewModel()
 void UNF_WeaponStatusViewModel::OnViewModelContextChanged()
 {
 	Super::OnViewModelContextChanged();
-	UnbindWeaponComponent();
 	BindWeaponComponent();
 }
 
@@ -48,24 +46,25 @@ void UNF_WeaponStatusViewModel::OnDeinitializeViewModel()
 
 void UNF_WeaponStatusViewModel::BindWeaponComponent()
 {
-	APawn* Pawn = GetViewModelContext().Pawn.Get();
-	if (!IsValid(Pawn))
+	UNF_WeaponComponent* NewComponent = GetViewModelContext().WeaponComponent.Get();
+
+	// 같은 유효한 컴포넌트면 기존 구독을 유지한다.
+	if (IsValid(NewComponent) && BoundWeaponComponent.Get() == NewComponent)
 	{
-		ClearWeapon();
 		return;
 	}
 
-	UNF_WeaponComponent* Component = Pawn->FindComponentByClass<UNF_WeaponComponent>();
-	if (!IsValid(Component))
+	// 이전 컴포넌트와 무기의 구독을 해제하고 표시 정보를 비운다.
+	UnbindWeaponComponent();
+	if (!IsValid(NewComponent))
 	{
-		ClearWeapon();
 		return;
 	}
 
-	BoundWeaponComponent = Component;
-	Component->OnEquippedWeaponChanged.AddUObject(this, &ThisClass::HandleEquippedWeaponChanged);
+	BoundWeaponComponent = NewComponent;
+	NewComponent->OnEquippedWeaponChanged.AddUObject(this, &ThisClass::HandleEquippedWeaponChanged);
 	// HUD 생성 전에 이미 장착된 무기도 현재값으로 복원한다.
-	SetObservedWeapon(Component->GetEquippedWeapon());
+	SetObservedWeapon(NewComponent->GetEquippedWeapon());
 }
 
 void UNF_WeaponStatusViewModel::UnbindWeaponComponent()

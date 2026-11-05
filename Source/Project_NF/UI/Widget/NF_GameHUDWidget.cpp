@@ -12,8 +12,10 @@
 #include "UI/Widget/NF_SkillSlotWidget.h"
 #include "UI/Widget/NF_TeamPanelWidget.h"
 #include "UI/Widget/NF_WeaponStatusWidget.h"
+#include "UI/Widget/NF_CrosshairPanelWidget.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "UI/ViewModel/GamePlay/NF_GameFlowViewModel.h"
+#include "UI/ViewModel/GamePlay/NF_CrosshairViewModel.h"
 #include "UI/ViewModel/GamePlay/NF_MinimapViewModel.h"
 #include "UI/ViewModel/Slots/NF_SkillSlotViewModel.h"
 #include "UI/ViewModel/Status/NF_BuffDebuffViewModel.h"
@@ -82,6 +84,9 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 
 	WeaponStatusVM = NewObject<UNF_WeaponStatusViewModel>(this);
 	RegisterOwnedViewModel(WeaponStatusVM.Get());
+
+	CrosshairVM = NewObject<UNF_CrosshairViewModel>(this);
+	RegisterOwnedViewModel(CrosshairVM.Get());
 	
 	// 각 자식 WBP에 이름이 ViewModel인 Manual MVVM 슬롯 필요
 	bool bAllAssigned = true;
@@ -92,7 +97,8 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 	if (!AssignViewModel(PassiveSkillSlot.Get(), PassiveSkillVM)){bAllAssigned = false;}
 	if (!AssignViewModel(MatchStatusWidget.Get(), GameFlowVM)){bAllAssigned = false;}
 	if (!AssignViewModel(MinimapWidget.Get(), MinimapVM)){bAllAssigned = false;}
-	//if (!AssignViewModel(TeamPanelWidget.Get(), TeamPanelVM.Get())){bAllAssigned = false;}
+	if (!AssignViewModel(TeamPanelWidget.Get(), TeamPanelVM.Get())){bAllAssigned = false;}
+	if (!AssignViewModel(CrosshairPanelWidget.Get(), CrosshairVM.Get())){bAllAssigned = false;}
 	if (!AssignViewModel(WeaponStatusWidget.Get(), WeaponStatusVM.Get())){bAllAssigned = false;}
 	if (!AssignViewModel(BuffDebuffWidget.Get(), BuffVM)){bAllAssigned = false;}
 	
@@ -103,7 +109,7 @@ void UNF_GameHUDWidget::InitializeHUDViewModels()
 		return;
 	}
 
-	TeamPanelWidget->SetTeamPanelViewModel(TeamPanelVM.Get());
+	CrosshairPanelWidget->SetCrosshairViewModel(CrosshairVM.Get());
 	bViewModelsInitialized = true;
 }
 
@@ -162,7 +168,11 @@ void UNF_GameHUDWidget::ClearChildViewModels()
 {
 	if (IsValid(TeamPanelWidget.Get()))
 	{
-		TeamPanelWidget->SetTeamPanelViewModel(nullptr);
+		TeamPanelWidget->SetMembers(TArray<UNF_TeamMemberViewModel*>());
+	}
+	if (IsValid(CrosshairPanelWidget.Get()))
+	{
+		CrosshairPanelWidget->SetCrosshairViewModel(nullptr);
 	}
 
 	AssignViewModel(PlayerStatusWidget.Get(), nullptr);
@@ -172,7 +182,8 @@ void UNF_GameHUDWidget::ClearChildViewModels()
 	AssignViewModel(PassiveSkillSlot.Get(), nullptr);
 	AssignViewModel(MatchStatusWidget.Get(), nullptr);
 	AssignViewModel(MinimapWidget.Get(), nullptr);
-	//AssignViewModel(TeamPanelWidget.Get(), nullptr);
+	AssignViewModel(TeamPanelWidget.Get(), nullptr);
+	AssignViewModel(CrosshairPanelWidget.Get(), nullptr);
 	AssignViewModel(WeaponStatusWidget.Get(), nullptr);
 	AssignViewModel(BuffDebuffWidget.Get(), nullptr);
 }
@@ -202,6 +213,7 @@ void UNF_GameHUDWidget::ReleaseHUDViewModels()
 	OwnedViewModels.Reset();
 	TeamPanelVM = nullptr;
 	WeaponStatusVM = nullptr;
+	CrosshairVM = nullptr;
 	ViewModelSubsystem.Reset();
 	bViewModelsInitialized = false;
 }

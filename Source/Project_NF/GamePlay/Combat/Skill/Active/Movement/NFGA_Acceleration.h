@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
+#include "GamePlay/Combat/Skill/Execution/NF_AccelerationAfterimage.h"
 #include "NFGA_Acceleration.generated.h"
 
 class UMotionMatchingComponent;
@@ -25,6 +26,9 @@ protected:
 		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Acceleration", meta = (ClampMin = "1.0", ToolTip = "1.3 = 30% faster. Applied after Cast Time for Execution Duration."))
 	float SpeedMultiplier = 1.3f;
+	// Material이 비어 있으면 잔상을 생성하지 않는다. 이동 효과에는 영향을 주지 않는다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Acceleration|Afterimage")
+	FNF_AccelerationAfterimageSettings AfterimageSettings;
 private:
 	friend class FNF_AccelerationTest;
 	bool HasValidSettings() const;
@@ -36,6 +40,8 @@ private:
 	TWeakObjectPtr<UMotionMatchingComponent> MovementComponent;
 	UPROPERTY(Transient)
 	TObjectPtr<ANF_AccelerationEffect> StandardMovementEffect;
+	UPROPERTY(Transient)
+	TObjectPtr<ANF_AccelerationAfterimage> AfterimageEffect;
 	FTimerHandle CastTimer;
 	FTimerHandle LifetimeTimer;
 	double EndsAt = 0.0;
