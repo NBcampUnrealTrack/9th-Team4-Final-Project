@@ -2,20 +2,25 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildWeaponDataReceiver.h"
 #include "NF_WeaponBase.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnCurrentAmmoChanged, int32 /* CurrentAmmo */);
+DECLARE_MULTICAST_DELEGATE(FNF_OnWeaponDataChanged);
 
 UCLASS()
-class PROJECT_NF_API ANF_WeaponBase : public AActor
+class PROJECT_NF_API ANF_WeaponBase : public AActor, public INF_BuildWeaponDataReceiver
 {
 	GENERATED_BODY()
 	
 public:	
 	ANF_WeaponBase();
-
-	/** Server mutations and client replication. Subscribe, then read GetCurrentAmmo(). */
+	
 	FNF_OnCurrentAmmoChanged OnCurrentAmmoChanged;
+	FNF_OnWeaponDataChanged OnWeaponDataChanged;
+	
+	virtual bool ApplyBuildWeaponData(UNF_WeaponDataAsset* NewData) override;
+	virtual void OnRep_Owner() override;
 	
 	virtual void OnConstruction(const FTransform& Transform) override;	// 에디터에서 적용
 	virtual void PostInitializeComponents() override;					// 게임 실행 시 적용
@@ -31,8 +36,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Reload();
-
-	/** Cancel without refilling ammo or resetting the fire interval. Safe to call repeatedly. */
+	
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Weapon")
 	void CancelReload();
 
@@ -63,7 +67,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<class UStaticMeshComponent> WeaponMeshComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	UPROPERTY(EditDefaultsOnly, ReplicatedUsing=OnRep_WeaponData, BlueprintReadOnly, Category="Weapon")
 	TObjectPtr<class UNF_WeaponDataAsset> WeaponData;
 	
 	UPROPERTY(ReplicatedUsing=OnRep_CurrentAmmo, VisibleInstanceOnly, BlueprintReadOnly, Category="Weapon")
@@ -77,6 +81,9 @@ private:
 	friend class UNFGA_WeaponReload;
 	void ApplyWeaponAppearance();
 	void SetCurrentAmmo(int32 NewAmmo);
+	void RefreshEquippedPresentation();
+	UFUNCTION()
+	void OnRep_WeaponData();
 
 	UFUNCTION()
 	void OnRep_CurrentAmmo();
