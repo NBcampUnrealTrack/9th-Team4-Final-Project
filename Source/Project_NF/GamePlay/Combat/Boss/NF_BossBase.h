@@ -34,6 +34,7 @@ class PROJECT_NF_API ANF_BossBase : public AActor, public IAbilitySystemInterfac
 	friend class FNF_BossSkillDefinitionTest;
 
 public:
+	TSubclassOf<UGameplayAbility> GetLineStrikeAbilityClass() const;
 	ANF_BossBase();
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	USkeletalMeshComponent* GetBossSkeletalMesh() const;

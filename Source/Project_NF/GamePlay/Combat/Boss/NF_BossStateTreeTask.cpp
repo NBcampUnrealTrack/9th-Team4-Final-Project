@@ -1,6 +1,9 @@
 #include "GamePlay/Combat/Boss/NF_BossStateTreeTask.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossLineStrike.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossGroundDamageZone.h"
 
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
+#include "AbilitySystemComponent.h"
 #include "StateTreeExecutionContext.h"
 
 static ANF_BossBase* GetBossFromStateTreeContext(FStateTreeExecutionContext& Context)
@@ -17,7 +20,9 @@ FNF_BossAbilityTask::FNF_BossAbilityTask()
 EStateTreeRunStatus FNF_BossAbilityTask::EnterState(FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
-	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	InstanceData.RunningAbilityClass = InstanceData.AbilityClass;
+	InstanceData.bStartedLineStrike = false;
 	ANF_BossBase* Boss = GetBossFromStateTreeContext(Context);
 	if (!Boss)
 	{
@@ -48,7 +53,7 @@ EStateTreeRunStatus FNF_BossAbilityTask::EnterState(FStateTreeExecutionContext& 
 
 EStateTreeRunStatus FNF_BossAbilityTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
-	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	ANF_BossBase* Boss = GetBossFromStateTreeContext(Context);
 	if (!Boss)
 	{
@@ -59,20 +64,39 @@ EStateTreeRunStatus FNF_BossAbilityTask::Tick(FStateTreeExecutionContext& Contex
 		// Leave the state running so its high-priority OnTick transition can enter LastGasp.
 		return EStateTreeRunStatus::Running;
 	}
-	if (Boss->IsAbilityClassActive(InstanceData.AbilityClass))
+	if (Boss->IsAbilityClassActive(InstanceData.RunningAbilityClass))
 	{
 		return EStateTreeRunStatus::Running;
 	}
-	// Existing OnStateCompleted transitions advance on success or failure; custom
-	// trees can now distinguish an interrupted pattern with OnStateFailed.
-	if (Boss->WasPatternCancelled(InstanceData.AbilityClass))
+	if (Boss->WasPatternCancelled(InstanceData.RunningAbilityClass))
 	{
 		return EStateTreeRunStatus::Failed;
 	}
-
+	if (InstanceData.bAppendLineStrikeAfterGroundZone && !InstanceData.bStartedLineStrike
+		&& InstanceData.AbilityClass && InstanceData.AbilityClass->IsChildOf(UNFGA_BossGroundDamageZone::StaticClass()))
+	{
+		InstanceData.bStartedLineStrike = true;
+		InstanceData.RunningAbilityClass = Boss->GetLineStrikeAbilityClass();
+		return Boss->ActivateAbilityClass(InstanceData.RunningAbilityClass)
+			? EStateTreeRunStatus::Running : EStateTreeRunStatus::Failed;
+	}
 	UE_LOG(LogTemp, Display, TEXT("[BossStateTreeDiag] Pattern GA finished; completing state Boss=%s Ability=%s"),
 		*Boss->GetName(), *GetNameSafe(InstanceData.AbilityClass.Get()));
 	return EStateTreeRunStatus::Succeeded;
+}
+
+void FNF_BossAbilityTask::ExitState(FStateTreeExecutionContext& Context,
+	const FStateTreeTransitionResult& Transition) const
+{
+	const FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	ANF_BossBase* Boss = GetBossFromStateTreeContext(Context);
+	if (!Boss || !InstanceData.RunningAbilityClass
+		|| !InstanceData.RunningAbilityClass->IsChildOf(UNFGA_BossLineStrike::StaticClass())) return;
+	if (UAbilitySystemComponent* ASC = Boss->GetAbilitySystemComponent())
+	{
+		if (FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromClass(InstanceData.RunningAbilityClass))
+			ASC->CancelAbilityHandle(Spec->Handle);
+	}
 }
 
 bool FNF_BossDefeatedCondition::TestCondition(FStateTreeExecutionContext& Context) const

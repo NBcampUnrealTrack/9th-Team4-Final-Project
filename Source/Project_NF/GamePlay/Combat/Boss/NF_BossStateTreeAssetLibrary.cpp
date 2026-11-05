@@ -1,4 +1,5 @@
 #include "GamePlay/Combat/Boss/NF_BossStateTreeAssetLibrary.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossLineStrike.h"
 
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatData.h"
@@ -7,7 +8,7 @@
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossCenterBlast.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossGroundDamageZone.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossLastGasp.h"
-#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossRelocate.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossHomingVolley.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossThreatVolley.h"
 #include "Abilities/GameplayAbility.h"
 #include "Engine/DataTable.h"
@@ -130,7 +131,8 @@ bool UNF_BossStateTreeAssetLibrary::AssignBossPatternCycleToTestBoss(UStateTree*
 		FixedVolleyClass,
 		UNFGA_BossThreatVolley::StaticClass(),
 		GroundDamageZoneClass,
-		UNFGA_BossRelocate::StaticClass(),
+		UNFGA_BossLineStrike::StaticClass(),
+		UNFGA_BossHomingVolley::StaticClass(),
 		UNFGA_BossCenterBlast::StaticClass()
 	};
 	BossDefaults->LastGaspAbility = UNFGA_BossLastGasp::StaticClass();
@@ -210,7 +212,8 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	UStateTreeState& FixedVolley = Root.AddChildState(TEXT("FixedPointVolley"));
 	UStateTreeState& ThreatVolley = Root.AddChildState(TEXT("RandomTargetVolley"));
 	UStateTreeState& GroundDamageZone = Root.AddChildState(TEXT("GroundDamageZones"));
-	UStateTreeState& Relocate = Root.AddChildState(TEXT("RelocateAndEmerge"));
+	UStateTreeState& LineStrike = Root.AddChildState(TEXT("LineStrike"));
+	UStateTreeState& Relocate = Root.AddChildState(TEXT("HomingVolley"));
 	UStateTreeState& CenterBlast = Root.AddChildState(TEXT("CenterBlast"));
 	UStateTreeState& LastGasp = Root.AddChildState(TEXT("LastGasp"));
 	Dormant.Description = TEXT("The boss remains idle until WakeBoss is called on the server.");
@@ -222,6 +225,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 		auto& TaskNode = State.AddTask<FNF_BossAbilityTask>();
 		FNF_BossAbilityTaskInstanceData& InstanceData = TaskNode.GetInstanceData();
 		InstanceData.AbilityClass = AbilityClass;
+		InstanceData.bAppendLineStrikeAfterGroundZone = false;
 		InstanceData.bAllowWhenBossDefeated = bAllowWhenDefeated;
 	};
 
@@ -236,14 +240,16 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	AddAbilityTask(FixedVolley, FixedVolleyClass, false);
 	AddAbilityTask(ThreatVolley, UNFGA_BossThreatVolley::StaticClass(), false);
 	AddAbilityTask(GroundDamageZone, GroundDamageZoneClass, false);
-	AddAbilityTask(Relocate, UNFGA_BossRelocate::StaticClass(), false);
+	AddAbilityTask(LineStrike, UNFGA_BossLineStrike::StaticClass(), false);
+	AddAbilityTask(Relocate, UNFGA_BossHomingVolley::StaticClass(), false);
 	AddAbilityTask(CenterBlast, UNFGA_BossCenterBlast::StaticClass(), false);
 	AddAbilityTask(LastGasp, UNFGA_BossLastGasp::StaticClass(), true);
 
 	FixedVolley.Description = TEXT("Fire four fixed-point volleys, then finish after the last warning resolves.");
 	ThreatVolley.Description = TEXT("Select a random player in range and fire a rotating aimed volley.");
 	GroundDamageZone.Description = TEXT("Mark up to three players, then create two-second zones that pulse damage every 0.25 seconds.");
-	Relocate.Description = TEXT("Take off, telegraph the landing area, then dive and launch nearby players.");
+	LineStrike.Description = TEXT("Snapshot up to three random player locations, warn rectangles for two seconds, then strike once.");
+	Relocate.Description = TEXT("Launch up to three ground-born X/Z homing missiles. Explode on proximity or after four seconds and apply one-second airborne.");
 	CenterBlast.Description = TEXT("Telegraph the boss-centered blast, then damage, knock back, and stun nearby players.");
 	LastGasp.Description = TEXT("On boss defeat, mark each player's location and detonate after four seconds.");
 
@@ -251,6 +257,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	Dormant.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	ThreatVolley.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	GroundDamageZone.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
+	LineStrike.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	Relocate.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);
 	CenterBlast.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::GotoState, &FixedVolley);
 	LastGasp.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::Succeeded);
@@ -259,6 +266,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	AddDefeatedTransition(Dormant);
 	AddDefeatedTransition(ThreatVolley);
 	AddDefeatedTransition(GroundDamageZone);
+	AddDefeatedTransition(LineStrike);
 	AddDefeatedTransition(Relocate);
 	AddDefeatedTransition(CenterBlast);
 

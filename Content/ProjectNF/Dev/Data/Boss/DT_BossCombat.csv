@@ -1,2 +1,2 @@
-Name,MaxHealth,AreaVolleyDamage,ThreatVolleyDamage,GroundDamageZoneDamagePerTick,RelocateDamage,CenterBlastDamage,LastGaspDamage
-DefaultBoss,10000,50,25,5,40,60,100
+Name,MaxHealth,AreaVolleyDamage,ThreatVolleyDamage,GroundDamageZoneDamagePerTick,RelocateDamage,CenterBlastDamage,LastGaspDamage,LineStrikeDamage
+DefaultBoss,10000,50,25,5,40,60,100,40

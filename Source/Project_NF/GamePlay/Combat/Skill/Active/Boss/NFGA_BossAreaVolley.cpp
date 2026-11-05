@@ -1,6 +1,8 @@
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossAreaVolley.h"
 
 #include "AbilitySystemComponent.h"
+#include "Animation/AnimMontage.h"
+#include "NiagaraSystem.h"
 #include "Abilities/GameplayAbility.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
@@ -8,6 +10,8 @@
 #include "Engine/World.h"
 #include "GameplayCueInterface.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
+#include "GamePlay/Combat/GameplayCue/NF_BossNiagaraBurst.h"
+#include "GamePlay/Combat/Skill/Execution/NF_SkillCastVisual.h"
 #include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "GamePlay/Combat/Projectiles/NF_BossAreaProjectile.h"
 #include "GameplayEffect.h"
@@ -40,8 +44,10 @@ void UNFGA_BossAreaVolley::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	bWarnedMissingDamageConfig = false;
 	const int32 PlannedVolleyCount = FMath::Max(MaxVolleysPerPattern, 1);
 	const float PlannedEndTime = FMath::Max(VolleyInterval, 0.1f) * (PlannedVolleyCount - 1)
-		+ FMath::Max(TelegraphDuration, 0.0f) + 0.1f;
-	ExecutionDuration = FMath::Min(FMath::Max(PatternDuration, 1.0f), PlannedEndTime);
+		+ FMath::Max(TelegraphDuration, 0.0f) + FMath::Max(ProjectileLaunchDelay, 0.f) + 0.1f;
+	const float LatestEndTime = FMath::Max(PatternDuration, 1.0f)
+		+ FMath::Max(TelegraphDuration, 0.f) + FMath::Max(ProjectileLaunchDelay, 0.f) + 0.1f;
+	ExecutionDuration = FMath::Min(LatestEndTime, PlannedEndTime);
 	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
 	UWorld* World = IsValid(AvatarActor) ? AvatarActor->GetWorld() : nullptr;
 	if (!World)
@@ -53,7 +59,7 @@ void UNFGA_BossAreaVolley::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	World->GetTimerManager().SetTimer(VolleyTimer, this, &UNFGA_BossAreaVolley::StartVolley,
 		FMath::Max(VolleyInterval, 0.1f), true);
 	World->GetTimerManager().SetTimer(EndTimer, this, &UNFGA_BossAreaVolley::EndPattern,
-		FMath::Max(PatternDuration, 1.0f), false);
+		LatestEndTime, false);
 	StartVolley();
 }
 
@@ -76,7 +82,7 @@ void UNFGA_BossAreaVolley::StartVolley()
 	{
 		return;
 	}
-	bLaunchEventTriggeredForVolley = false;
+
 
 	TArray<AActor*> EligibleTargets;
 	for (TActorIterator<ANF_Player> It(World); It; ++It)
@@ -95,7 +101,7 @@ void UNFGA_BossAreaVolley::StartVolley()
 
 	const int32 TargetCount = FMath::Min(FMath::Clamp(MaxTargetsPerVolley, 1, 5), EligibleTargets.Num());
 	UAbilitySystemComponent* BossASC = GetAbilitySystemComponentFromActorInfo();
-	int32 TelegraphCount = 0;
+	TArray<FVector> VolleyTargets;
 	for (int32 Index = 0; Index < TargetCount; ++Index)
 	{
 		FVector GroundPoint;
@@ -114,23 +120,30 @@ void UNFGA_BossAreaVolley::StartVolley()
 			FGameplayCueParameters CueParameters;
 			CueParameters.Location = GroundPoint;
 			CueParameters.RawMagnitude = ImpactRadius;
-			CueParameters.AbilityLevel = FMath::CeilToInt(TelegraphDuration);
+			CueParameters.AbilityLevel = FMath::CeilToInt(FMath::Max(TelegraphDuration, 0.f) + FMath::Max(ProjectileLaunchDelay, 0.f));
 			CueParameters.EffectCauser = Boss;
 			BossASC->ExecuteGameplayCue(NFGameplayCueTags::GameplayCue_Boss_Telegraph, CueParameters);
 		}
 
-		FTimerHandle TelegraphTimer;
-		const FTimerDelegate SpawnDelegate = FTimerDelegate::CreateUObject(this,
-			&UNFGA_BossAreaVolley::FinishTelegraph, FVector_NetQuantize(GroundPoint));
-		World->GetTimerManager().SetTimer(TelegraphTimer, SpawnDelegate,
-			FMath::Max(TelegraphDuration, 0.0f), false);
-		TelegraphTimers.Add(TelegraphTimer);
-		++TelegraphCount;
+		VolleyTargets.Add(GroundPoint);
 	}
 
-	if (TelegraphCount > 0)
+	if (!VolleyTargets.IsEmpty())
 	{
-		OnVolleyTelegraphStarted(TelegraphCount);
+		OnVolleyTelegraphStarted(VolleyTargets.Num());
+		if (!IsActive()) return;
+		if (TelegraphDuration > 0.f)
+		{
+			FTimerHandle Timer;
+			World->GetTimerManager().SetTimer(Timer,
+				FTimerDelegate::CreateUObject(this, &ThisClass::BeginVolleyWindup, VolleyTargets), TelegraphDuration, false);
+			TelegraphTimers.Add(Timer);
+		}
+		else
+		{
+			BeginVolleyWindup(VolleyTargets);
+			if (!IsActive()) return;
+		}
 	}
 
 	++StartedVolleyCount;
@@ -140,13 +153,13 @@ void UNFGA_BossAreaVolley::StartVolley()
 		World->GetTimerManager().ClearTimer(VolleyTimer);
 		// Let the final volley finish its warning and spawn its projectiles before ending the ability.
 		World->GetTimerManager().SetTimer(EndTimer, this, &UNFGA_BossAreaVolley::EndPattern,
-			FMath::Max(TelegraphDuration, 0.0f) + 0.1f, false);
+			FMath::Max(TelegraphDuration, 0.0f) + FMath::Max(ProjectileLaunchDelay, 0.f) + 0.1f, false);
 	}
 }
 
 void UNFGA_BossAreaVolley::FinishTelegraph(FVector_NetQuantize TargetGroundPoint)
 {
-	// The 2 second warning delay is tracked per marked location.
+	// Spawn at the current socket transform after the volley wind-up completes.
 	if (!IsActive())
 	{
 		return;
@@ -158,11 +171,6 @@ void UNFGA_BossAreaVolley::FinishTelegraph(FVector_NetQuantize TargetGroundPoint
 		return;
 	}
 
-	if (!bLaunchEventTriggeredForVolley)
-	{
-		bLaunchEventTriggeredForVolley = true;
-		OnVolleyProjectileLaunch();
-	}
 
 	FGameplayEffectSpecHandle DamageSpec;
 	if (DamageEffectClass && DamageMagnitudeTag.IsValid())
@@ -203,6 +211,61 @@ void UNFGA_BossAreaVolley::FinishTelegraph(FVector_NetQuantize TargetGroundPoint
 	Projectile->InitializeProjectile(Destination, ImpactRadius, ProjectileSpeed, DamageSpec,
 		NFGameplayCueTags::GameplayCue_Boss_ProjectileImpact);
 	Projectile->FinishSpawning(SpawnTransform);
+}
+
+void UNFGA_BossAreaVolley::BeginVolleyWindup(TArray<FVector> Targets)
+{
+	ANF_BossBase* Boss = GetBoss();
+	if (!IsActive() || !IsValid(Boss) || Boss->IsDefeated() || !Boss->HasAuthority()) return;
+	USkeletalMeshComponent* Mesh = Boss->GetBossSkeletalMesh();
+	if (IsValid(Mesh) && ShotMontage)
+	{
+		ANF_SkillCastVisual::SpawnForCast(Boss, Mesh->GetFName(), ShotMontage,
+			FMath::Max(ShotMontagePlayRate, 0.01f), ShotMontageStartSection);
+	}
+	if (ProjectileLaunchDelay > 0.f)
+	{
+		FTimerHandle Timer;
+		GetWorld()->GetTimerManager().SetTimer(Timer,
+			FTimerDelegate::CreateUObject(this, &ThisClass::LaunchVolley, Targets), ProjectileLaunchDelay, false);
+		TelegraphTimers.Add(Timer);
+	}
+	else LaunchVolley(Targets);
+}
+
+void UNFGA_BossAreaVolley::LaunchVolley(TArray<FVector> Targets)
+{
+	ANF_BossBase* Boss = GetBoss();
+	if (!IsActive() || !IsValid(Boss) || Boss->IsDefeated() || !Boss->HasAuthority()) return;
+	OnVolleyProjectileLaunch();
+	if (!IsActive() || !IsValid(Boss) || Boss->IsDefeated()) return;
+	PlayVolleyLaunchCosmetics();
+	for (const FVector& Target : Targets)
+	{
+		if (!IsActive()) return;
+		FinishTelegraph(FVector_NetQuantize(Target));
+	}
+}
+
+void UNFGA_BossAreaVolley::PlayVolleyLaunchCosmetics()
+{
+	ANF_BossBase* Boss = GetBoss();
+	USkeletalMeshComponent* Mesh = Boss ? Boss->GetBossSkeletalMesh() : nullptr;
+	if (!Boss || !Boss->HasAuthority() || !IsValid(Mesh)) return;
+	if (!LaunchNiagaraSystem) return;
+	for (const FName Socket : {LeftMuzzleSocket, RightMuzzleSocket})
+	{
+		if (Socket.IsNone() || !Mesh->DoesSocketExist(Socket))
+		{
+			UE_LOG(LogProject_NF, Warning, TEXT("[BossAreaVolley] Launch VFX socket '%s' is missing on %s."),
+				*Socket.ToString(), *GetNameSafe(Boss));
+			continue;
+		}
+		const FTransform SocketTransform = Mesh->GetSocketTransform(Socket);
+		const FQuat Rotation = SocketTransform.GetRotation() * LaunchEffectLocalRotation.Quaternion();
+		ANF_BossNiagaraBurst::SpawnBurst(Boss, LaunchNiagaraSystem,
+			SocketTransform.TransformPosition(LaunchEffectLocalOffset), Rotation.Rotator(), LaunchNiagaraScale);
+	}
 }
 
 bool UNFGA_BossAreaVolley::FindGroundPoint(AActor* Target, FVector& OutGroundPoint) const

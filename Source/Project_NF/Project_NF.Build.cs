@@ -41,6 +41,7 @@ public class Project_NF : ModuleRules
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {"CoreOnline", "OnlineSubsystem", "OnlineSubsystemUtils", "EngineCameras" });
+		PrivateDependencyModuleNames.Add("Niagara");
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] { "StateTreeEditorModule", "PropertyBindingUtils", "UnrealEd", "AssetRegistry" });

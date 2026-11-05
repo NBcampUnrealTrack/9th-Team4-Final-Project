@@ -95,11 +95,21 @@ void ANF_SkillCastVisual::TryPlay()
 		? FMath::Max(0.0, GameState->GetServerWorldTimeSeconds() - ServerStartTime) : 0.0;
 	const float Position = StartPosition + static_cast<float>(Elapsed) * PlayRate;
 	// An old cast becoming relevant must not restart from its first frame.
-	if (Position >= Montage->GetPlayLength()) { return; }
+	if (Position >= Montage->GetPlayLength())
+	{
+		UE_LOG(LogProject_NF, Display, TEXT("[SkillAnimation] Skipped expired montage Avatar=%s Montage=%s Position=%.2f"),
+			*GetNameSafe(Avatar), *GetNameSafe(Montage), Position);
+		return;
+	}
 	if (AnimInstance->Montage_Play(Montage, PlayRate, EMontagePlayReturnType::MontageLength, Position) <= 0.f)
 	{
 		UE_LOG(LogProject_NF, Warning, TEXT("[SkillAnimation] 몽타주 재생 실패: 스켈레톤/슬롯 설정 확인. 캐릭터=%s | 몽타주=%s"),
 			*GetNameSafe(Avatar), *GetNameSafe(Montage));
+	}
+	else
+	{
+		UE_LOG(LogProject_NF, Display, TEXT("[SkillAnimation] Montage_Play succeeded Avatar=%s Montage=%s Mesh=%s NetMode=%d Position=%.2f Rate=%.2f"),
+			*GetNameSafe(Avatar), *GetNameSafe(Montage), *GetNameSafe(Mesh), static_cast<int32>(GetNetMode()), Position, PlayRate);
 	}
 }
 

@@ -12,7 +12,8 @@ enum class ENF_BossPatternId : uint8
 	GroundDamageZone,
 	Relocate,
 	CenterBlast,
-	LastGasp
+	LastGasp,
+	LineStrike
 };
 
 /** One row in the boss combat tuning DataTable. Damage values are per hit/tick. */
@@ -41,4 +42,7 @@ struct PROJECT_NF_API FNF_BossCombatDataRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|Combat|Damage")
 	float LastGaspDamage = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|Combat|Damage")
+	float LineStrikeDamage = 40.0f;
 };

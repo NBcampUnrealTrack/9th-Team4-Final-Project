@@ -6,6 +6,8 @@
 
 class ANF_BossAreaProjectile;
 class UGameplayEffect;
+class UAnimMontage;
+class UNiagaraSystem;
 
 /** Server-authoritative boss pattern: target snapshot, telegraph, then fixed-point volleys. */
 UCLASS(Blueprintable)
@@ -38,7 +40,7 @@ protected:
 	float PatternDuration = 60.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (ClampMin = "0.1"))
-	float VolleyInterval = 5.0f;
+	float VolleyInterval = 2.5f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (ClampMin = "1"))
 	int32 MaxVolleysPerPattern = 4;
@@ -76,7 +78,45 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Projectile")
 	FName ProjectileSpawnSocketName = TEXT("FirePoint");
 
+	/** Played once per simultaneous volley, independently of the ability's lifetime. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch Animation")
+	TObjectPtr<UAnimMontage> ShotMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch Animation", meta = (ClampMin = "0.01"))
+	float ShotMontagePlayRate = 1.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch Animation")
+	FName ShotMontageStartSection;
+
+	/** Seconds after montage start before muzzle flashes and all projectiles launch together.
+	 * Measured in game seconds, not montage time; adjust when changing montage play rate.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch Animation", meta = (ClampMin = "0.0", Units = "s"))
+	float ProjectileLaunchDelay = 0.f;
+
+	/** Non-looping muzzle flash, played at both socket transforms at launch time. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch VFX")
+	TObjectPtr<UNiagaraSystem> LaunchNiagaraSystem;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch VFX")
+	FName LeftMuzzleSocket;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch VFX")
+	FName RightMuzzleSocket;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch VFX")
+	FVector LaunchEffectLocalOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch VFX")
+	FRotator LaunchEffectLocalRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Launch VFX")
+	FVector LaunchNiagaraScale = FVector::OneVector;
+
 private:
+	void PlayVolleyLaunchCosmetics();
+	void BeginVolleyWindup(TArray<FVector> Targets);
+	void LaunchVolley(TArray<FVector> Targets);
 	void StartVolley();
 	void FinishTelegraph(FVector_NetQuantize TargetGroundPoint);
 	bool FindGroundPoint(AActor* Target, FVector& OutGroundPoint) const;
@@ -88,5 +128,5 @@ private:
 	float ElapsedPatternTime = 0.0f;
 	int32 StartedVolleyCount = 0;
 	bool bWarnedMissingDamageConfig = false;
-	bool bLaunchEventTriggeredForVolley = false;
+
 };

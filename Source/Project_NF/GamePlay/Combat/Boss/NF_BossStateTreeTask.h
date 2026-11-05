@@ -17,6 +17,16 @@ struct FNF_BossAbilityTaskInstanceData
 	/** Enable this for the terminal last-gasp state, which runs after the boss is defeated. */
 	UPROPERTY(EditAnywhere, Category = "Ability")
 	bool bAllowWhenBossDefeated = false;
+
+	/** Compatibility for saved trees without a separate LineStrike state. Disable when adding that state. */
+	UPROPERTY(EditAnywhere, Category = "Ability")
+	bool bAppendLineStrikeAfterGroundZone = true;
+
+	UPROPERTY(Transient)
+	TSubclassOf<UGameplayAbility> RunningAbilityClass;
+
+	UPROPERTY(Transient)
+	bool bStartedLineStrike = false;
 };
 
 /** StateTree task that starts one server-authoritative GAS pattern and waits for it to end. */
@@ -32,6 +42,8 @@ struct PROJECT_NF_API FNF_BossAbilityTask : public FStateTreeTaskCommonBase
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
 		const FStateTreeTransitionResult& Transition) const override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context,
+		const FStateTreeTransitionResult& Transition) const override;
 };
 
 /** Keeps the encounter idle until the server calls ANF_BossBase::WakeBoss(). */

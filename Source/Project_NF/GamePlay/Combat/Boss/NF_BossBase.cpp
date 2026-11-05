@@ -1,4 +1,7 @@
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossLineStrike.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossGroundDamageZone.h"
+#include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossHomingVolley.h"
 
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
@@ -273,6 +276,16 @@ void ANF_BossBase::BeginPlay()
 	{
 		CombatPatternAbilities.Insert(InitialPatternAbility, 0);
 	}
+	// Upgrade old boss defaults while preserving any configured LineStrike subclass.
+	if (!GetLineStrikeAbilityClass())
+	{
+		const int32 GroundIndex = CombatPatternAbilities.IndexOfByPredicate([](const auto& Class)
+		{
+			return Class && Class->IsChildOf(UNFGA_BossGroundDamageZone::StaticClass());
+		});
+		if (GroundIndex != INDEX_NONE)
+			CombatPatternAbilities.Insert(UNFGA_BossLineStrike::StaticClass(), GroundIndex + 1);
+	}
 	bPatternAbilitiesReady = GrantPatternAbilities();
 	if (!bPatternAbilitiesReady) return;
 
@@ -329,6 +342,20 @@ bool ANF_BossBase::GrantPatternAbilities()
 	TArray<TSubclassOf<UGameplayAbility>> Classes = CombatPatternAbilities;
 	if (InitialPatternAbility) Classes.AddUnique(InitialPatternAbility);
 	if (LastGaspAbility) Classes.AddUnique(LastGaspAbility);
+
+	// Saved bosses may still grant Relocate (now a HomingVolley subclass), while
+	// the updated StateTree requests the exact native HomingVolley class.
+	// Grant that class too without adding a second entry to the fallback pattern cycle.
+	const bool bHasHomingPattern = Classes.ContainsByPredicate([](const auto& Class)
+	{
+		return Class && Class->IsChildOf(UNFGA_BossHomingVolley::StaticClass());
+	});
+	if (bHasHomingPattern && !Classes.Contains(UNFGA_BossHomingVolley::StaticClass()))
+	{
+		Classes.Add(UNFGA_BossHomingVolley::StaticClass());
+		UE_LOG(LogTemp, Display, TEXT("[BossSkillData] Adding native HomingVolley grant for StateTree compatibility on %s."),
+			*GetName());
+	}
 
 	// Validate all authored definitions before granting anything. Classes are the
 	// StateTree contract: a definition cannot silently substitute another GA.
@@ -597,6 +624,9 @@ float ANF_BossBase::GetPatternDamage(const ENF_BossPatternId PatternId, const fl
 	case ENF_BossPatternId::CenterBlast:
 		ConfiguredDamage = ActiveCombatData.CenterBlastDamage;
 		break;
+	case ENF_BossPatternId::LineStrike:
+		ConfiguredDamage = ActiveCombatData.LineStrikeDamage;
+		break;
 	case ENF_BossPatternId::LastGasp:
 		ConfiguredDamage = ActiveCombatData.LastGaspDamage;
 		break;
@@ -776,4 +806,11 @@ void ANF_BossBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	DOREPLIFETIME(ANF_BossBase, bIsDefeated);
 	DOREPLIFETIME(ANF_BossBase, bIsSubmerged);
 	DOREPLIFETIME(ANF_BossBase, bIsFlying);
+}
+
+TSubclassOf<UGameplayAbility> ANF_BossBase::GetLineStrikeAbilityClass() const
+{
+	for (const auto& Class : CombatPatternAbilities)
+		if (Class && Class->IsChildOf(UNFGA_BossLineStrike::StaticClass())) return Class;
+	return nullptr;
 }
