@@ -308,7 +308,6 @@ bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 		Selection.SlotIndex = TargetSlotIndex;
 		DraftBuild.Add(Selection);
 		PickedItemIds.Add(ItemId);
-		bDraftDirty = true;
 	}
 	OnDraftChanged.Broadcast();
 	return true;
@@ -337,7 +336,6 @@ bool UNF_BuildComponent::AssignSelectedActiveSkill(int32 SlotIndex)
 	DraftBuild.Add(Selection);
 	PickedItemIds.Add(PendingActiveSkill);
 	PendingActiveSkill = NAME_None;
-	bDraftDirty = true;
 	OnDraftChanged.Broadcast();
 	return true;
 }
@@ -355,7 +353,6 @@ bool UNF_BuildComponent::RemoveDraftItem(FName ItemId)
 	if (bRemoved)
 	{
 		PickedItemIds.Remove(ItemId);
-		bDraftDirty = true;
 		OnDraftChanged.Broadcast();
 	}
 	return bRemoved;
@@ -383,7 +380,6 @@ bool UNF_BuildComponent::RevertDraftItem(FName ItemId)
 		return false;
 	}
 	PickedItemIds.Remove(ItemId);
-	bDraftDirty = true;
 	OnDraftChanged.Broadcast();
 	return true;
 }
@@ -409,7 +405,6 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 		DraftBuild.Reset();
 		PendingActiveSkill = NAME_None;
 		PickedItemIds.Reset();
-		bDraftDirty = false;
 
 		OnDraftChanged.Broadcast();
 	}
@@ -599,7 +594,6 @@ void UNF_BuildComponent::CompleteLocalBuildRequest(const FNF_BuildValidation& Va
 	bAwaitingBuildResult = false;
 	if (Validation.Result == ENF_BuildResult::Success)
 	{
-		bDraftDirty = false;
 	}
 	OnDraftChanged.Broadcast();
 	OnBuildRequestCompleted.Broadcast(Validation);
