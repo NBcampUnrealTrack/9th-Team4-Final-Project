@@ -24,6 +24,8 @@
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/ConsumableItems/NF_ConsumableComponent.h"
 #include "GAS/Abilities/NFGA_PlayerDeath.h"
+#include "GAS/Data/NF_PlayerGEDataAsset.h"
+#include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "Player/Component/NF_AvatarCustomizedComponent.h"
 #include "Player/Data/NF_CustomVisualMeshDataAsset.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
@@ -528,7 +530,8 @@ void ANF_Player::GainExpToKiller()
 		if (IsValid(NF_KillerPlayerState->NF_PlayerDataAsset) == false) return;
 		
 		auto* NF_KillerPlayerASC = NF_KillerPlayerState->GetAbilitySystemComponent();
-		auto NF_IncomingExp_GEClass = NF_KillerPlayerState->NF_PlayerDataAsset->NF_IncomingExp_GEClass;
+		const auto& NF_IncomingExp_GEClass = 
+			UNF_GEManagerSubsystem::FindEffect(this, &UNF_PlayerGEDataAsset::NF_IncomingExp_GEClass);
 		float PlayerKillExp = NF_KillerPlayerState->NF_PlayerDataAsset->PlayerKillExp;
 		
 		UNF_GASFunctionLibrary::NF_ApplyGameplayEffectToSelfWithSetByCaller(

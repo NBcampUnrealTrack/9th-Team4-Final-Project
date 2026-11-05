@@ -3,7 +3,9 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitTargetData.h"
+#include "GAS/Data/NF_PlayerGEDataAsset.h"
 #include "GAS/Foundation/NF_TargetActorTrace.h"
+#include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
 
@@ -31,7 +33,9 @@ void UNFGA_MeleeHitCheck::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	auto* NF_PlayerDataAsset = Cast<UNF_PlayerDataAsset>(GetCurrentSourceObject());
 	if (IsValid(NF_PlayerDataAsset) == false) return EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 	
-	HitCheck(NF_PlayerDataAsset->NF_SetDamage_GEClass, NF_PlayerDataAsset->MeleeAttackDamage);
+	const auto& NF_SetDamage_GEClass = UNF_GEManagerSubsystem::FindEffect(this, &UNF_PlayerGEDataAsset::NF_SetDamage_GEClass);
+	
+	HitCheck(NF_SetDamage_GEClass, NF_PlayerDataAsset->MeleeAttackDamage);
 	
 	UAbilityTask_WaitGameplayEvent* WaitGameplayEvent = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 		this, NFTag_Player::Player_Event_HitCheckEnd, nullptr, false, true);

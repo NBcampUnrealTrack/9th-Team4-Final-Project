@@ -63,21 +63,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "PlayerState|GA_Class", DisplayName = "GameplayAbility (Play 전 적용 될 GA_Class)")
 	TArray<TSubclassOf<UGameplayAbility>> NF_GameplayAbility_Array;
 	
-	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
-	TSubclassOf<UGameplayEffect> NF_SetDamage_GEClass;
-	
-	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
-	TSubclassOf<UGameplayEffect> NF_IncomingExp_GEClass;
-	
-	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
-	TSubclassOf<UGameplayEffect> NF_ShieldRecovery_GEClass;
-	
-	UPROPERTY(EditAnywhere, Category = "PlayerState|GE_Class")
-	TSubclassOf<UGameplayEffect> NF_ShieldRecoveryBlocked_GEClass;
-	
 	UPROPERTY(EditAnywhere, Category = "PlayerState|Player_Level")
 	TObjectPtr<UDataTable> PlayerLevelDataTable;
-	
 	
 	UPROPERTY(EditAnywhere, Category = "VisualMesh")
 	TMap<ENF_CustomVisualMeshType, TObjectPtr<UNF_CustomVisualMeshDataAsset>> CustomVisualMeshMap;
