@@ -211,6 +211,14 @@ void UNF_WeaponComponent::RefreshCrosshair()
 	}
 }
 
+void UNF_WeaponComponent::RefreshWeaponDataPresentation(ANF_WeaponBase* ChangedWeapon)
+{
+	if (!IsValid(ChangedWeapon) || EquippedWeapon != ChangedWeapon) return;
+	RestoreZoomCamera();
+	SetComponentTickEnabled(bZoomActive);
+	RefreshCrosshair();
+}
+
 void UNF_WeaponComponent::OnRep_EquippedWeapon()
 {
 	RestoreZoomCamera();
