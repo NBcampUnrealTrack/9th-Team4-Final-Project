@@ -57,7 +57,6 @@ void UNF_BuildShopViewModel::SetBuildSource(UNF_BuildComponent* InBuild)
 	{
 		Source->OnDraftChanged.AddUniqueDynamic(this, &ThisClass::RefreshFromModel);
 		Source->OnBuildChanged.AddUniqueDynamic(this, &ThisClass::RefreshFromModel);
-		Source->OnBuildEntitlementsChanged.AddUniqueDynamic(this, &ThisClass::RefreshFromModel);
 		Source->OnBuildShopStateChanged.AddUniqueDynamic(this, &ThisClass::HandleShopStateChanged);
 		Source->OnBuildRequestCompleted.AddUniqueDynamic(this, &ThisClass::HandleBuildResult);
 	}
@@ -70,7 +69,6 @@ void UNF_BuildShopViewModel::UnbindBuild()
 	{
 		Source->OnDraftChanged.RemoveDynamic(this, &ThisClass::RefreshFromModel);
 		Source->OnBuildChanged.RemoveDynamic(this, &ThisClass::RefreshFromModel);
-		Source->OnBuildEntitlementsChanged.RemoveDynamic(this, &ThisClass::RefreshFromModel);
 		Source->OnBuildShopStateChanged.RemoveDynamic(this, &ThisClass::HandleShopStateChanged);
 		Source->OnBuildRequestCompleted.RemoveDynamic(this, &ThisClass::HandleBuildResult);
 	}
@@ -101,7 +99,6 @@ void UNF_BuildShopViewModel::HandleBuildResult(const FNF_BuildValidation& Valida
 		return;
 	}
 	UE_MVVM_SET_PROPERTY_VALUE(ApplyResultMessage, Validation.Message);
-	RefreshFromModel();
 }
 
 void UNF_BuildShopViewModel::RequestClose()
