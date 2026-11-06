@@ -9,19 +9,17 @@
 #include "AbilitySystemComponent.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
-#include "GAS/Tags/NFTag_BossCombat.h"
+#include "GAS/Tags/NFTag_Player.h"
 #include "GAS/Tags/NFTag_AttackType.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
-#include "GAS/Data/NF_BossGEDataAsset.h"
+#include "GAS/Data/NF_PlayerGEDataAsset.h"
 #include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
 #include "GamePlay/Combat/Armor/NF_ArmorBase.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "GAS/Effects/NF_CommonDamageEffects.h"
 #include "GamePlay/Combat/Damage/NF_DamageLibrary.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "Player/Character/NF_Player.h"
-#include "Player/State/NF_PlayerState.h"
 #include "GameplayEffect.h"
 #include "Monster/NF_Monster.h"
 
@@ -150,16 +148,9 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 		}
 	}
 
-	const ANF_Player* HitPlayer = Cast<ANF_Player>(OtherActor);
-	const APawn* AttackerPawn = Cast<APawn>(Attacker);
-	const ANF_PlayerState* AttackerState = AttackerPawn ? AttackerPawn->GetPlayerState<ANF_PlayerState>() : nullptr;
-	const ANF_PlayerState* HitPlayerState = HitPlayer ? HitPlayer->GetPlayerState<ANF_PlayerState>() : nullptr;
-	const bool bSameTeam = IsValid(AttackerState) && IsValid(HitPlayerState)
-		&& AttackerState->NF_TeamID > 0 && HitPlayerState->NF_TeamID > 0
-		&& AttackerState->NF_TeamID == HitPlayerState->NF_TeamID;
-
-	const bool bCombatTarget = HitPlayer || OtherActor->IsA<ANF_BossBase>() || OtherActor->IsA<ANF_Monster>();
-	if (bCombatTarget && !bSameTeam && !OtherActor->IsActorBeingDestroyed() && IsValid(Attacker)
+	// 피해 대상은 구체적인 캐릭터 클래스가 아니라 ASC 존재 여부로 판단한다.
+	if (!IsActorBeingDestroyed() && IsValid(OtherActor) && !OtherActor->IsActorBeingDestroyed()
+		&& IsValid(Attacker)
 		&& IsValid(UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Attacker))
 		&& IsValid(UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor)))
 	{
@@ -175,122 +166,44 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 		return;
 	}
 
-	if (ANF_BossBase* Boss = Cast<ANF_BossBase>(OtherActor))
+	// 팀 판정과 실제 피해 계산은 대상의 Attribute에서 처리한다.
+	// 패시브 콜백 이후 적용 직전에 ASC를 다시 조회한다.
+	UAbilitySystemComponent* SourceASC = IsValid(Attacker)
+		? UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Attacker) : nullptr;
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OtherActor);
+	if (IsValid(SourceASC) && IsValid(TargetASC) && FMath::IsFinite(ImpactDamage) && ImpactDamage > 0.f)
 	{
-		UAbilitySystemComponent* BossASC = Boss->GetAbilitySystemComponent();
-		AActor* DamageSource = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
-		UAbilitySystemComponent* SourceASC =
-			UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(DamageSource);
-
-		if (IsValid(SourceASC) && IsValid(BossASC) && ImpactDamage > 0.f)
-		{
-			const auto PlayerDamageToBossGEClass = UNF_GEManagerSubsystem::FindEffect(
-				this, &UNF_BossGEDataAsset::PlayerDamageToBossEffectClass);
-			if (!PlayerDamageToBossGEClass)
-			{
-				UE_LOG(LogTemp, Error,
-					TEXT("[WeaponProjectile] PlayerDamageToBossEffectClass is not set in DA_NF_BossGE; boss damage skipped."));
-			}
-			else
-			{
-				FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
-				EffectContext.AddSourceObject(this);
-				FGameplayEffectSpecHandle DamageSpec = SourceASC->MakeOutgoingSpec(
-					PlayerDamageToBossGEClass, 1.f, EffectContext);
-
-				if (DamageSpec.IsValid())
-				{
-					DamageSpec.Data->SetSetByCallerMagnitude(NFTag_BossCombat::Data_Damage, ImpactDamage);
-					BossASC->ApplyGameplayEffectSpecToSelf(*DamageSpec.Data.Get());
-				}
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning,
-				TEXT("[WeaponProjectile] Boss hit but damage was not applied. SourceASC=%s BossASC=%s Damage=%.2f"),
-				*GetNameSafe(SourceASC), *GetNameSafe(BossASC), ImpactDamage);
-		}
-	}
-
-	else if (ANF_Monster* Monster = Cast<ANF_Monster>(OtherActor))
-	{
-		AActor* DamageSource = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
-		UAbilitySystemComponent* SourceASC =
-			UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(DamageSource);
-		UAbilitySystemComponent* MonsterASC =
-			UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Monster);
-
-		if (IsValid(SourceASC) && IsValid(MonsterASC) && MonsterDamageEffectClass
-			&& FMath::IsFinite(ImpactDamage) && ImpactDamage > 0.f)
+		const auto& NF_IncomingDamage_GEClass = UNF_GEManagerSubsystem::FindEffect(
+			this, &UNF_PlayerGEDataAsset::NF_IncomingDamage_GEClass);
+		if (NF_IncomingDamage_GEClass)
 		{
 			FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
 			EffectContext.AddSourceObject(this);
 			EffectContext.AddHitResult(Hit);
-
 			FGameplayEffectSpecHandle DamageSpec = SourceASC->MakeOutgoingSpec(
-				MonsterDamageEffectClass, 1.f, EffectContext);
-
+				NF_IncomingDamage_GEClass, 1.f, EffectContext);
 			if (DamageSpec.IsValid())
 			{
-				DamageSpec.Data->SetSetByCallerMagnitude(NFTag_BossCombat::Data_Damage, ImpactDamage);
-				MonsterASC->ApplyGameplayEffectSpecToSelf(*DamageSpec.Data.Get());
+				DamageSpec.Data->SetSetByCallerMagnitude(NFTag_Player::Data_Damage, ImpactDamage);
+				UNF_DamageLibrary::SubmitDamageSpec(this, OtherActor, DamageSpec, GetActorLocation(), Hit);
 			}
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning,
-				TEXT("[WeaponProjectile] Monster hit but damage was not applied. SourceASC=%s MonsterASC=%s EffectClass=%s Damage=%.2f"),
-				*GetNameSafe(SourceASC), *GetNameSafe(MonsterASC), *GetNameSafe(MonsterDamageEffectClass.Get()), ImpactDamage);
+			UE_LOG(LogTemp, Warning, TEXT("[WeaponProjectile] NF_IncomingDamage_GEClass is not configured; damage skipped."));
 		}
 	}
 
-	else if (ANF_Player* TargetPlayer = Cast<ANF_Player>(OtherActor))
+	// GE 실행 중 사망/파괴된 대상을 디버그 출력에서 다시 참조하지 않는다.
+	if (IsActorBeingDestroyed() || !IsValid(OtherActor) || OtherActor->IsActorBeingDestroyed())
 	{
-		AActor* DamageSource = IsValid(GetInstigator()) ? GetInstigator() : GetOwner();
-
-		if (!bSameTeam && FMath::IsFinite(ImpactDamage) && ImpactDamage > 0.f)
-		{
-			UAbilitySystemComponent* SourceASC =
-				UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(DamageSource);
-			if (IsValid(SourceASC))
-			{
-				FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
-				EffectContext.AddSourceObject(this);
-				FGameplayEffectSpecHandle DamageSpec = SourceASC->MakeOutgoingSpec(
-					UNFGE_CommonDamage::StaticClass(), 1.f, EffectContext);
-				if (DamageSpec.IsValid())
-				{
-					float AdditionalDefence = 0.f;
-					const UNF_ArmorComponent* ArmorComponent = TargetPlayer->FindComponentByClass<UNF_ArmorComponent>();
-					const USkeletalMeshComponent* HitMesh = Cast<USkeletalMeshComponent>(OtherComponent);
-					if (ArmorComponent && IsValid(HitMesh)
-						&& HitMesh == ArmorComponent->GetHitMesh() && HitMesh->GetPhysicsAsset())
-					{
-						const ENF_ArmorSlot Slot = ArmorComponent->ResolveHitRegion(Hit.BoneName);
-						const float SlotDefence = ArmorComponent->GetAdditionalDefenseForSlot(Slot);
-						if (FMath::IsFinite(SlotDefence))
-						{
-							AdditionalDefence = FMath::Max(0.f, SlotDefence);
-						}
-					}
-
-					const float AdjustedDamage = FMath::Max(ImpactDamage - AdditionalDefence, 0.f);
-					DamageSpec.Data->SetSetByCallerMagnitude(NFTag_BossCombat::Data_Damage, AdjustedDamage);
-					UNF_DamageLibrary::SubmitDamageSpec(this, TargetPlayer, DamageSpec, GetActorLocation(), Hit);
-				}
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[WeaponProjectile] Player hit but source ASC is missing. Source=%s Target=%s"),
-					*GetNameSafe(DamageSource), *GetNameSafe(TargetPlayer));
-			}
-		}
+		Destroy();
+		return;
 	}
 
 	// 부위 피격 디버그 로그
 	const UNF_ArmorComponent* ArmorComponent = OtherActor->FindComponentByClass<UNF_ArmorComponent>();
-	const USkeletalMeshComponent* HitMesh = Cast<USkeletalMeshComponent>(OtherComponent);
+	const USkeletalMeshComponent* HitMesh = IsValid(OtherComponent) ? Cast<USkeletalMeshComponent>(OtherComponent) : nullptr;
 	const bool bValidBodyHit = ArmorComponent && HitMesh && HitMesh == ArmorComponent->GetHitMesh() && HitMesh->GetPhysicsAsset();
 	const FName BoneName = bValidBodyHit ? Hit.BoneName : NAME_None;
 	const ENF_ArmorSlot Slot = ArmorComponent ? ArmorComponent->ResolveHitRegion(BoneName) : ENF_ArmorSlot::Unknown;
