@@ -11,6 +11,7 @@ UNF_BossAttributeSet::UNF_BossAttributeSet()
 {
 	InitMaxHealth(10000.0f);
 	InitHealth(GetMaxHealth());
+	InitIncomingDamage(0.0f);
 }
 
 void UNF_BossAttributeSet::InitializeForBoss(const float InMaxHealth)
@@ -30,6 +31,10 @@ void UNF_BossAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribut
 	else if (Attribute == GetHealthAttribute())
 	{
 		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxHealth());
+	}
+	else if (Attribute == GetIncomingDamageAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 }
 
@@ -53,6 +58,24 @@ bool UNF_BossAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackDa
 void UNF_BossAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
+
+	// Standard damage path (same as monsters/players): positive IncomingDamage is subtracted from Health.
+	if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
+	{
+		const float Damage = GetIncomingDamage();
+		SetIncomingDamage(0.0f);
+		if (!FMath::IsFinite(Damage) || Damage <= 0.0f)
+		{
+			return;
+		}
+		const float HealthBefore = GetHealth();
+		const float HealthAfter = FMath::Clamp(HealthBefore - Damage, 0.0f, GetMaxHealth());
+		SetHealth(HealthAfter);
+		NotifyBossHealthChanged(Data, HealthBefore, HealthAfter);
+		return;
+	}
+
+	// Legacy path kept for effects that still modify Health directly with a negative magnitude (e.g. Thorns).
 	if (Data.EvaluatedData.Attribute != GetHealthAttribute())
 	{
 		return;
@@ -63,6 +86,12 @@ void UNF_BossAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCal
 		? HealthBeforeGameplayEffect : HealthAfterGameplayEffect;
 	bHasHealthBeforeGameplayEffect = false;
 	SetHealth(HealthAfterGameplayEffect);
+	NotifyBossHealthChanged(Data, HealthBeforeGameplayEffectValue, HealthAfterGameplayEffect);
+}
+
+void UNF_BossAttributeSet::NotifyBossHealthChanged(const FGameplayEffectModCallbackData& Data,
+	const float HealthBeforeGameplayEffectValue, const float HealthAfterGameplayEffect)
+{
 	ANF_BossBase* Boss = Cast<ANF_BossBase>(GetOwningActor());
 	if (!Boss || !Boss->HasAuthority())
 	{

@@ -42,8 +42,9 @@ void UNFExecCalc_PlayerDamageToBoss::Execute_Implementation(
 		NFTag_BossCombat::Data_Damage, false, 0.0f), 0.0f);
 	if (Damage > 0.0f)
 	{
+		// Positive damage into the boss meta attribute; UNF_BossAttributeSet subtracts it from Health.
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(
-			UNF_BossAttributeSet::GetHealthAttribute(), EGameplayModOp::Additive, -Damage));
+			UNF_BossAttributeSet::GetIncomingDamageAttribute(), EGameplayModOp::Additive, Damage));
 	}
 }
 
