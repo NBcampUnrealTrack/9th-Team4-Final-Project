@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "GameplayTagContainer.h"
+#include "NF_WeaponTypes.h"
 #include "NF_WeaponComponent.generated.h"
 
 class ANF_WeaponBase;
@@ -18,6 +19,7 @@ class AController;
 class UMeshComponent;
 class USceneComponent;
 class USkeletalMeshComponent;
+class UStaticMeshComponent;
 enum class EVisibilityBasedAnimTickOption : uint8;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnEquippedWeaponChanged, ANF_WeaponBase* /* NewWeapon, nullptr if unequipped */);
@@ -95,6 +97,18 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Weapon")
 	ANF_WeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
+
+	// 현재 착용 중인 무기의 타입. 무기 또는 데이터가 없으면 None.
+	UFUNCTION(BlueprintPure, Category="Weapon")
+	ENF_WeaponType GetEquippedWeaponType() const;
+
+	// 현재 착용 중인 무기가 실제로 부착된 소켓 이름. 미장착 시 NAME_None.
+	UFUNCTION(BlueprintPure, Category="Weapon")
+	FName GetEquippedWeaponSocketName() const;
+
+	// 현재 착용 중인 무기의 메시 컴포넌트. 미장착 시 nullptr.
+	UFUNCTION(BlueprintPure, Category="Weapon")
+	UStaticMeshComponent* GetEquippedWeaponMesh() const;
 
 	void RefreshWeaponDataPresentation(ANF_WeaponBase* ChangedWeapon);
 
