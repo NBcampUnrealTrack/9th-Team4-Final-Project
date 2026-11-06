@@ -124,10 +124,11 @@ class PROJECT_NF_API UNF_BuildShopViewModel : public UNF_ViewModelBase//, public
     GENERATED_BODY()
 
 public:
-    virtual void SetBuildSource(UNF_BuildComponent* InBuild); //override;
-
+    //virtual 
+    void SetBuildSource(UNF_BuildComponent* InBuild); //override;
+    //virtual
     UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
-    virtual void RequestClose(); //override;
+    void RequestClose(); //override;
     UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
     void SelectCatalogItem(FName ItemId);
     UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
