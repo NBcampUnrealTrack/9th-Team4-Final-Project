@@ -6,6 +6,10 @@
 
 UNFGA_WeaponReload::UNFGA_WeaponReload()
 {
+	FGameplayTagContainer AssetTagContainer;
+	AssetTagContainer.AddTag(NFTag_Player::Player_Ability_Reload);
+	SetAssetTags(AssetTagContainer);
+	
 	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Death);
 	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Death);
 	

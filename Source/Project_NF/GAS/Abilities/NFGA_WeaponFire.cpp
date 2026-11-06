@@ -10,6 +10,10 @@
 
 UNFGA_WeaponFire::UNFGA_WeaponFire()
 {
+	FGameplayTagContainer AssetTagContainer;
+	AssetTagContainer.AddTag(NFTag_Player::Player_Ability_Attack);
+	SetAssetTags(AssetTagContainer);
+	
 	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Death);
 	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Death);
 	

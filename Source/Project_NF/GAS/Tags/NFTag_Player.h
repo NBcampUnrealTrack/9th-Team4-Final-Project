@@ -10,6 +10,11 @@ namespace NFTag_Player
 
 	// @Owner: 명현 | 2026-10-14
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Ability_Death);
+	// @Owner: 명현 | 2026-11-06
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Ability_Attack);
+	// @Owner: 명현 | 2026-11-06
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Ability_Reload);
+	
 	// @Owner: 명현 | 2026-10-19
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_State_Traversal);
 	
