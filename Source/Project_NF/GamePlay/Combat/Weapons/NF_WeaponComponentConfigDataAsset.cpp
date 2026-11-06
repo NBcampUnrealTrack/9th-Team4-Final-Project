@@ -6,6 +6,12 @@
 
 UNF_WeaponComponentConfigDataAsset::UNF_WeaponComponentConfigDataAsset()
 {
+	ARSocketName = TEXT("AR_Socket");
+	PistolSocketName = TEXT("Pistol_Socket");
+	SGSocketName = TEXT("SG_Socket");
+	SMGSocketName = TEXT("SMG_Socket");
+	SRSocketName = TEXT("SR_Socket");
+
 	FireAbilityClass = UNFGA_WeaponFire::StaticClass();
 	ZoomAbilityClass = UNFGA_WeaponZoom::StaticClass();
 	ReloadAbilityClass = UNFGA_WeaponReload::StaticClass();

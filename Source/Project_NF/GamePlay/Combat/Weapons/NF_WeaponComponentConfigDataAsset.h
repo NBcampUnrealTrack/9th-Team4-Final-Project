@@ -15,6 +15,21 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	TSubclassOf<class ANF_WeaponBase> DefaultWeaponClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	FName ARSocketName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	FName PistolSocketName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	FName SGSocketName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	FName SMGSocketName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
+	FName SRSocketName;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Abilities")
 	TSubclassOf<class UNFGA_WeaponFire> FireAbilityClass;
 

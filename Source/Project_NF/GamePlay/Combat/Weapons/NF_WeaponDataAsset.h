@@ -46,10 +46,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	ENF_FireMode FireMode = ENF_FireMode::None;
 
-	// 캐릭터 메시에서 이 무기를 장착할 소켓.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
-	FName WeaponSocketName = TEXT("WeaponKeepSocket");
-
 	// 무기 메시에서 투사체가 발사되는 소켓.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	FName MuzzleSocketName = TEXT("Muzzle");
