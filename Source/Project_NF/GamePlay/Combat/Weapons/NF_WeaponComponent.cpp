@@ -24,6 +24,23 @@ UNF_WeaponComponent::UNF_WeaponComponent()
 	SetIsReplicatedByDefault(true);
 }
 
+ENF_WeaponType UNF_WeaponComponent::GetEquippedWeaponType() const
+{
+	const UNF_WeaponDataAsset* WeaponData = IsValid(EquippedWeapon) ? EquippedWeapon->GetWeaponData() : nullptr;
+	return IsValid(WeaponData) ? WeaponData->WeaponType : ENF_WeaponType::None;
+}
+
+FName UNF_WeaponComponent::GetEquippedWeaponSocketName() const
+{
+	const USceneComponent* WeaponRoot = IsValid(EquippedWeapon) ? EquippedWeapon->GetRootComponent() : nullptr;
+	return IsValid(WeaponRoot) ? WeaponRoot->GetAttachSocketName() : NAME_None;
+}
+
+UStaticMeshComponent* UNF_WeaponComponent::GetEquippedWeaponMesh() const
+{
+	return IsValid(EquippedWeapon) ? EquippedWeapon->GetWeaponMesh() : nullptr;
+}
+
 void UNF_WeaponComponent::BeginPlay()
 {
 	Super::BeginPlay();
