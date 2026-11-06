@@ -79,7 +79,7 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 	}
 	
 	SetShield(GetShield()-GetInComingDamage());
-	SetHealth(GetHealth()-(GetInComingDamage()-GetDefence()));
+	SetHealth(GetHealth()-(GetInComingDamage()-GetTotalDefence()));
 	SetInComingDamage(0.0f);
 	
 	IsOutOfHealth(Data);
@@ -194,7 +194,11 @@ void UNF_PlayerStatusAttribute::GetLifetimeReplicatedProps(TArray<class FLifetim
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxHealth, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, InComingDamage, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Defence, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, TotalDefence, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AdditionalDefence, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AdditionalDefence_Head, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AdditionalDefence_Body, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AdditionalDefence_Leg, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxShield, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Shield, COND_None, REPNOTIFY_Always);
 	
@@ -219,9 +223,29 @@ void UNF_PlayerStatusAttribute::OnRep_InComingDamage(const FGameplayAttributeDat
 }
 
 
-void UNF_PlayerStatusAttribute::OnRep_Defence(const FGameplayAttributeData& OldDefence)
+void UNF_PlayerStatusAttribute::OnRep_TotalDefence(const FGameplayAttributeData& OldDefence)
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, Defence, OldDefence);
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, TotalDefence, OldDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_AdditionalDefence(const FGameplayAttributeData& OldDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, AdditionalDefence, OldDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_AdditionalDefence_Head(const FGameplayAttributeData& OldDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, AdditionalDefence_Head, OldDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_AdditionalDefence_Body(const FGameplayAttributeData& OldDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, AdditionalDefence_Body, OldDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_AdditionalDefence_Leg(const FGameplayAttributeData& OldDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, AdditionalDefence_Leg, OldDefence);
 }
 
 
