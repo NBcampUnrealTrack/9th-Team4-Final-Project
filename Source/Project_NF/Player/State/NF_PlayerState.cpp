@@ -3,7 +3,9 @@
 
 #include "AbilitySystemComponent.h"
 #include "GAS/Attributes/NF_KeyHolderAttributeSet.h"
+#include "GAS/Data/NF_PlayerGEDataAsset.h"
 #include "GAS/Foundation/NF_AbilitySystemComponent.h"
+#include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Player/Data/NF_PlayerDataAsset.h" 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
@@ -51,6 +53,7 @@ void ANF_PlayerState::GiveDefaultAbility()
 {
 	if (HasAuthority() == false) return;
 	if (bIsGiveAbility == true) return;
+	if (IsValid(NF_PlayerDataAsset) == false) return;
 
 	for (const auto& EachAbility : NF_PlayerDataAsset->NF_GameplayAbility_Array)
 	{
@@ -107,10 +110,10 @@ void ANF_PlayerState::BeginPlay()
 void ANF_PlayerState::ConfigDataAsset()
 {
 	checkf(IsValid(NF_PlayerDataAsset) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]가  삽입되어있지않습니다."));
-	checkf(IsValid(NF_PlayerDataAsset->NF_SetDamage_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_SetDamage_GEClass]가  삽입되어있지않습니다."));
+	/*checkf(IsValid(NF_PlayerDataAsset->NF_IncomingDamage_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_IncomingDamage_GEClass]가  삽입되어있지않습니다."));
 	checkf(IsValid(NF_PlayerDataAsset->NF_IncomingExp_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_IncomingExp_GEClass]가  삽입되어있지않습니다."));
 	checkf(IsValid(NF_PlayerDataAsset->NF_ShieldRecovery_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_ShieldRecovery_GEClass]가  삽입되어있지않습니다."));
-	checkf(IsValid(NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_ShieldRecoveryBlocked_GEClass]가  삽입되어있지않습니다."));
+	checkf(IsValid(NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass) == true, TEXT("[NF_PlayerState]의 [NF_PlayerDataAsset]의 [NF_ShieldRecoveryBlocked_GEClass]가  삽입되어있지않습니다."));*/
 }
 
 void ANF_PlayerState::PlayerShieldRecovery()
@@ -119,11 +122,11 @@ void ANF_PlayerState::PlayerShieldRecovery()
 	{
 		if (bIsApplyShieldRecovery == true) return;
 		
-		if (IsValid(NF_PlayerDataAsset) == false) return;
-		if (IsValid(NF_PlayerDataAsset->NF_ShieldRecovery_GEClass) == false) return;
+		auto NF_ShieldRecovery_GEClass = UNF_GEManagerSubsystem::FindEffect(this, &UNF_PlayerGEDataAsset::NF_ShieldRecovery_GEClass);
+		if (IsValid(NF_ShieldRecovery_GEClass) == false) return;
 		
 		const FGameplayEffectSpecHandle EffectSpecHandle = 
-			PlayerASC->MakeOutgoingSpec(NF_PlayerDataAsset->NF_ShieldRecovery_GEClass, 1.0f, PlayerASC->MakeEffectContext());
+			PlayerASC->MakeOutgoingSpec(NF_ShieldRecovery_GEClass, 1.0f, PlayerASC->MakeEffectContext());
 		if (EffectSpecHandle.IsValid() == false) return;
 		
 		EffectSpecHandle.Data->SetSetByCallerMagnitude(NFTag_Player::Player_Data_ShieldRecoveryAmount, NF_PlayerDataAsset->ShieldRecoveryAmount);

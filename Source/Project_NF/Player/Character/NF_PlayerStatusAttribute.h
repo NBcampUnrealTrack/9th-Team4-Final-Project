@@ -25,6 +25,11 @@ public:
 	
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, Defence);
 	
+	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, AdditionalDefence);
+	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, AdditionalDefence_Head);
+	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, AdditionalDefence_Body);
+	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, AdditionalDefence_Leg);
+	
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, MaxShield);
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, Shield);
 	
@@ -55,6 +60,21 @@ protected:
 	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_Defence, Category = "Player|Attribute")
 	FGameplayAttributeData Defence = 0.0f;
 	
+	
+	//방어구 담당이 만질 어트리뷰트 단락
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_AdditionalDefence, Category = "Player|Attribute")
+	FGameplayAttributeData AdditionalDefence = 0.0f;
+	
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_AdditionalDefence_Head, Category = "Player|Attribute")
+	FGameplayAttributeData AdditionalDefence_Head = 0.0f;
+	
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_AdditionalDefence_Body, Category = "Player|Attribute")
+	FGameplayAttributeData AdditionalDefence_Body = 0.0f;
+	
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_AdditionalDefence_Leg, Category = "Player|Attribute")
+	FGameplayAttributeData AdditionalDefence_Leg = 0.0f;
+	
+	
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxShield, Category = "Player|Attribute")
 	FGameplayAttributeData MaxShield = 100.0f;	
 	
@@ -72,6 +92,17 @@ protected:
 	
 	UFUNCTION()
 	void OnRep_Defence(const FGameplayAttributeData& OldDefence);
+	
+	
+	UFUNCTION()
+	void OnRep_AdditionalDefence(const FGameplayAttributeData& OldDefence);
+	UFUNCTION()
+	void OnRep_AdditionalDefence_Head(const FGameplayAttributeData& OldDefence);
+	UFUNCTION()
+	void OnRep_AdditionalDefence_Body(const FGameplayAttributeData& OldDefence);
+	UFUNCTION()
+	void OnRep_AdditionalDefence_Leg(const FGameplayAttributeData& OldDefence);
+	
 	
 	UFUNCTION()
 	void OnRep_MaxShield(const FGameplayAttributeData& OldMaxShield);

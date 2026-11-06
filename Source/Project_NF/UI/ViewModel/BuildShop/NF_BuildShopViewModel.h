@@ -6,9 +6,10 @@
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "UI/ViewModel/Base/NF_ViewModelBase.h"
 #include "Data/Enum/NF_ItemTypes.h"
-#include "GamePlay/BuildSystem/UI/NF_BuildShopViewModelBridge.h"
+//#include "GamePlay/BuildSystem/UI/NF_BuildShopViewModelBridge.h"
 #include "NF_BuildShopViewModel.generated.h"
 
+class UNF_BuildComponent;
 class UTexture2D;
 
 USTRUCT(BlueprintType)
@@ -118,15 +119,16 @@ struct FNF_BuildShopViewData
 };
 
 UCLASS(BlueprintType)
-class PROJECT_NF_API UNF_BuildShopViewModel : public UNF_ViewModelBase, public INF_BuildShopViewModelBridge
+class PROJECT_NF_API UNF_BuildShopViewModel : public UNF_ViewModelBase//, public INF_BuildShopViewModelBridge
 {
     GENERATED_BODY()
 
 public:
-    virtual void SetBuildSource(UNF_BuildComponent* InBuild) override;
-
+    //virtual 
+    void SetBuildSource(UNF_BuildComponent* InBuild); //override;
+    //virtual
     UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
-    virtual void RequestClose() override;
+    void RequestClose(); //override;
     UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")
     void SelectCatalogItem(FName ItemId);
     UFUNCTION(BlueprintCallable, Category = "NF|Build|UI")

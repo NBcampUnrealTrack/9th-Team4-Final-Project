@@ -37,6 +37,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Damage")
 	float Damage = 100.0f;
 
+	/** Optional override. Empty uses BossStunEffectClass from DA_NF_BossGE (GE Manager). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Damage")
 	TSubclassOf<UGameplayEffect> StunEffectClass;
 

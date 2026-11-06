@@ -55,7 +55,10 @@ private:
 
 	void UnbindPlayerController();
 
-	void HandlePawnChanged(APawn* NewPawn);
+	//void HandlePawnChanged(APawn* NewPawn);
+	UFUNCTION()
+	void HandlePossessedPawnChanged(APawn* OldPawn, APawn* NewPawn);
+	
 	void BindBossRegistry(UWorld* World);
 	void UnbindBossRegistry();
 	void HandleActiveBossChanged(ANF_BossBase* NewBoss);
@@ -67,7 +70,7 @@ private:
 
 	TWeakObjectPtr<APlayerController> BoundPlayerController;
 
-	FDelegateHandle PawnChangedDelegateHandle;
+	//FDelegateHandle PawnChangedDelegateHandle;
 	
 	//UPROPERTY 등록 시 viewmodel이 GC처리 되지 않음
 	UPROPERTY(Transient)

@@ -72,6 +72,58 @@ void ANF_WeaponBase::BeginPlay()
 	}
 }
 
+bool ANF_WeaponBase::ApplyBuildWeaponData(UNF_WeaponDataAsset* NewData)
+{
+	if (!HasAuthority() || !IsValid(NewData) || NewData->ItemType != ENF_ItemType::Weapon ||
+		!NewData->WeaponClass || !IsA(NewData->WeaponClass.Get()) ||
+		NewData->WeaponType == ENF_WeaponType::None) return false;
+	if (IsValid(WeaponData) && WeaponData->WeaponType != ENF_WeaponType::None &&
+		WeaponData->WeaponType != NewData->WeaponType) return false;
+	// 같은 데이터 애셋 재적용 시 탄창을 채우지 않음.
+	if (WeaponData == NewData) return true;
+
+	if (AActor* WeaponOwner = GetOwner())
+	{
+		if (auto* Weapons = WeaponOwner->FindComponentByClass<UNF_WeaponComponent>())
+		{
+			if (Weapons->GetEquippedWeapon() == this)
+			{
+				Weapons->StopFire();
+				Weapons->StopZoom();
+			}
+		}
+	}
+	CancelReload();
+	WeaponData = NewData;
+	LastFireTime = -1.e30;
+	SetCurrentAmmo(FMath::Max(0, NewData->MagazineSize));
+	OnRep_WeaponData();
+	ForceNetUpdate();
+	return true;
+}
+
+void ANF_WeaponBase::RefreshEquippedPresentation()
+{
+	if (AActor* WeaponOwner = GetOwner())
+	{
+		if (auto* Weapons = WeaponOwner->FindComponentByClass<UNF_WeaponComponent>())
+			Weapons->RefreshWeaponDataPresentation(this);
+	}
+}
+
+void ANF_WeaponBase::OnRep_WeaponData()
+{
+	ApplyWeaponAppearance();
+	RefreshEquippedPresentation();
+	OnWeaponDataChanged.Broadcast();
+}
+
+void ANF_WeaponBase::OnRep_Owner()
+{
+	Super::OnRep_Owner();
+	RefreshEquippedPresentation();
+}
+
 void ANF_WeaponBase::StartFire()
 {
 	if (GetOwner())
@@ -398,5 +450,6 @@ void ANF_WeaponBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ANF_WeaponBase, CurrentAmmo);
+	DOREPLIFETIME(ANF_WeaponBase, WeaponData);
 	DOREPLIFETIME(ANF_WeaponBase, bIsReloading);
 }

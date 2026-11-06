@@ -55,6 +55,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Damage")
 	float Damage = 40.0f;
 
+	/** Optional override. Empty uses BossAirborneEffectClass from DA_NF_BossGE (GE Manager). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Damage")
 	TSubclassOf<UGameplayEffect> AirborneEffectClass;
 

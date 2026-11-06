@@ -3,6 +3,55 @@
 #include "GAS/Data/NF_GERootDataAsset.h"
 #include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/DataAsset.h"
+#include "GameplayEffect.h"
+#include "UObject/UnrealType.h"
+
+namespace
+{
+	void ValidateGEDataAssets(const UNF_GERootDataAsset* RootDA)
+	{
+		checkf(IsValid(RootDA), TEXT("[GEManager] Root GE DataAsset이 유효하지 않습니다."));
+		
+		for (TFieldIterator<FProperty> RootIt(RootDA->GetClass(), 
+			EFieldIteratorFlags::ExcludeSuper);
+			RootIt; ++RootIt)
+		{
+			const FObjectPropertyBase* CategoryProperty = CastField<FObjectPropertyBase>(*RootIt);
+			
+			if (!CategoryProperty || !CategoryProperty->PropertyClass || 
+				!CategoryProperty->PropertyClass->IsChildOf(UDataAsset::StaticClass()))
+			{
+				continue;
+			}
+			
+			const UObject* CategoryDA = CategoryProperty->GetObjectPropertyValue_InContainer(RootDA);
+			
+			checkf(IsValid(CategoryDA), TEXT("[GEManager] RootDA = %s / 카테고리 DA 누락: %s"),
+				*GetNameSafe(RootDA), *CategoryProperty->GetName());
+			
+			for (TFieldIterator<FProperty> EffectIt(CategoryDA->GetClass(), 
+				EFieldIteratorFlags::ExcludeSuper);
+				EffectIt; ++EffectIt)
+			{
+				const FClassProperty* EffectProperty = CastField<FClassProperty>(*EffectIt);
+				
+				if (!EffectProperty || !EffectProperty->MetaClass || !EffectProperty->MetaClass->IsChildOf(
+				UGameplayEffect::StaticClass()))
+				{
+					continue;
+				}
+				
+				const UObject* EffectClass = EffectProperty->GetObjectPropertyValue_InContainer(CategoryDA);
+				
+				checkf(IsValid(EffectClass), TEXT("[GEManager] DA = %s / GE 클래스 누락: %s"),
+					*GetNameSafe(CategoryDA), *EffectProperty->GetName());
+			}
+		}
+		
+		UE_LOG(LogTemp, Log, TEXT("[GEManager] 등록 누락 검사 완료 - 누락 없음"));
+	}
+}
 
 void UNF_GEManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -10,21 +59,16 @@ void UNF_GEManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	
 	const UNF_GEManagerSettings* Settings = GetDefault<UNF_GEManagerSettings>();
 	
-	if (!IsValid(Settings) || Settings->RootGEDataAsset.IsNull())
-	{
-		UE_LOG(LogTemp, Error, TEXT("[GEManager] Root GE DataAsset이 설정되지 않았습니다"));
-		return;
-	}
+	checkf(IsValid(Settings), TEXT("[GEManager] GE Manager Settings가 유효하지 않습니다."));
+	checkf(!Settings->RootGEDataAsset.IsNull(), TEXT("[GEManager] Root GE DataAsset이 설정되지 않았습니다."));
 	
 	LoadedRootGEDataAsset = Settings->RootGEDataAsset.LoadSynchronous();
 	
-	if (!IsValid(LoadedRootGEDataAsset))
-	{
-		UE_LOG(LogTemp, Error, TEXT("[GEManager] Root GE DataAsset 로드에 실패했습니다"));
-		return;
-	}
+	checkf(IsValid(LoadedRootGEDataAsset), TEXT("[GEManager] Root GE DataAsset 로드에 실패했습니다."));
 	
 	UE_LOG(LogTemp, Log, TEXT("[GEManager] Root GE DataAsset 로드: %s"), *GetNameSafe(LoadedRootGEDataAsset));
+	
+	ValidateGEDataAssets(LoadedRootGEDataAsset.Get());
 }
 
 void UNF_GEManagerSubsystem::Deinitialize()

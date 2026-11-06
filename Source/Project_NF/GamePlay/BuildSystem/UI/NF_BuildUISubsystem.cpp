@@ -3,7 +3,6 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Subsystems/SubsystemCollection.h"
-#include "GamePlay/BuildSystem/UI/NF_BuildShopViewModelBridge.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UI/ViewModel/BuildShop/NF_BuildShopViewModel.h"
 #include "GameFramework/PlayerController.h"
@@ -13,32 +12,17 @@
 #include "UI/SubSystem/NF_UIManagerSubsystem.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
 
-void UNF_BuildSubSystem::Initialize(FSubsystemCollectionBase& Collection)
+void UNF_BuildUISubSystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	Collection.InitializeDependency<UNF_UIManagerSubsystem>();
 	Collection.InitializeDependency<UNF_ViewModelSubsystem>();
 	ShopViewModel = NewObject<UNF_BuildShopViewModel>(this);
-	if (Cast<INF_BuildShopViewModelBridge>(ShopViewModel.Get()))
-	{
-		GetLocalPlayer()->GetSubsystem<UNF_ViewModelSubsystem>()->RegisterViewModel(ShopViewModel);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("BuildShop integration pending: NF_BuildShopViewModel must implement NF_BuildShopViewModelBridge. See BuildShop_ViewModel_Handoff.md."));
-	}
+	GetLocalPlayer()->GetSubsystem<UNF_ViewModelSubsystem>()->RegisterViewModel(ShopViewModel);
 	WorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddUObject(this, &ThisClass::HandleWorldCleanup);
 }
 
-bool UNF_BuildSubSystem::ConnectViewModel()
-{
-	INF_BuildShopViewModelBridge* Bridge = Cast<INF_BuildShopViewModelBridge>(ShopViewModel.Get());
-	if (!Bridge) return false;
-	Bridge->SetBuildSource(ObservedBuild.Get());
-	return true;
-}
-
-void UNF_BuildSubSystem::ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScreenClass)
+void UNF_BuildUISubSystem::ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScreenClass)
 {
 	if (ScreenClass != InScreenClass)
 	{
@@ -50,11 +34,9 @@ void UNF_BuildSubSystem::ConfigureScreen(TSubclassOf<UNF_BuildShopScreen> InScre
 	APlayerController* Controller = LocalPlayer ? LocalPlayer->GetPlayerController(LocalPlayer->GetWorld()) : nullptr;
 
 	BindController(Controller);
-
-	RefreshScreen();
 }
 
-void UNF_BuildSubSystem::RefreshPawnBinding()
+void UNF_BuildUISubSystem::RefreshPawnBinding()
 {
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	if (!IsValid(LocalPlayer))
@@ -65,13 +47,13 @@ void UNF_BuildSubSystem::RefreshPawnBinding()
 	BindController(LocalPlayer->GetPlayerController(LocalPlayer->GetWorld()));
 }
 
-void UNF_BuildSubSystem::PlayerControllerChanged(APlayerController* NewPlayerController)
+void UNF_BuildUISubSystem::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
 	Super::PlayerControllerChanged(NewPlayerController);
 	BindController(NewPlayerController);
 }
 
-void UNF_BuildSubSystem::BindController(APlayerController* Controller)
+void UNF_BuildUISubSystem::BindController(APlayerController* Controller)
 {
 	if (BoundController.Get() == Controller)
 	{
@@ -81,7 +63,6 @@ void UNF_BuildSubSystem::BindController(APlayerController* Controller)
 
 	UnbindController();
 	CloseScreen();
-	UnbindBuild();
 
 	BoundController = Controller;
 	BoundWorld = IsValid(Controller) ? Controller->GetWorld() : nullptr;
@@ -99,7 +80,7 @@ void UNF_BuildSubSystem::BindController(APlayerController* Controller)
 
 }
 
-void UNF_BuildSubSystem::UnbindController()
+void UNF_BuildUISubSystem::UnbindController()
 {
 	if (APlayerController* Controller = BoundController.Get())
 	{
@@ -110,44 +91,38 @@ void UNF_BuildSubSystem::UnbindController()
 	BoundController.Reset();
 }
 
-void UNF_BuildSubSystem::HandlePawnChanged(APawn* NewPawn)
+void UNF_BuildUISubSystem::HandlePawnChanged(APawn* NewPawn)
 {
-	UNF_BuildComponent* NewBuild = IsValid(NewPawn) ? NewPawn-> FindComponentByClass<UNF_BuildComponent>() : nullptr;
+	UNF_BuildComponent* NewBuild = IsValid(NewPawn) ? NewPawn->FindComponentByClass<UNF_BuildComponent>() : nullptr;
+	SetObservedBuild(NewBuild);
+	RefreshScreen();
+}
 
-	if (ObservedBuild.Get() == NewBuild)
+void UNF_BuildUISubSystem::SetObservedBuild(UNF_BuildComponent* NewBuild)
+{
+	if (ObservedBuild.Get() == NewBuild && !ObservedBuild.IsStale())
 	{
-		ConnectViewModel();
-		RefreshScreen();
 		return;
 	}
 
 	CloseScreen();
-	UnbindBuild();
+	if (UNF_BuildComponent* PreviousBuild = ObservedBuild.Get())
+	{
+		PreviousBuild->OnBuildShopStateChanged.RemoveDynamic(this, &ThisClass::HandleShopStateChanged);
+	}
 
 	ObservedBuild = NewBuild;
-	ConnectViewModel();
-
-	if (IsValid(NewBuild))
+	if (IsValid(ShopViewModel.Get()))
+	{
+		ShopViewModel->SetBuildSource(NewBuild);
+	}
+	if (NewBuild)
 	{
 		NewBuild->OnBuildShopStateChanged.AddUniqueDynamic(this, &ThisClass::HandleShopStateChanged);
 	}
-
-	RefreshScreen();
-
 }
 
-void UNF_BuildSubSystem::UnbindBuild()
-{
-	if (UNF_BuildComponent* Build = ObservedBuild.Get())
-	{
-		Build->OnBuildShopStateChanged.RemoveDynamic(this, &ThisClass::HandleShopStateChanged);
-	}
-
-	ObservedBuild.Reset();
-	ConnectViewModel();
-}
-
-void UNF_BuildSubSystem::HandleShopStateChanged(ENF_BuildShopUIState State)
+void UNF_BuildUISubSystem::HandleShopStateChanged(ENF_BuildShopUIState State)
 {
 	if (State == ENF_BuildShopUIState::BuildClosed)
 	{
@@ -158,7 +133,7 @@ void UNF_BuildSubSystem::HandleShopStateChanged(ENF_BuildShopUIState State)
 	RefreshScreen();
 }
 
-void UNF_BuildSubSystem::RefreshScreen()
+void UNF_BuildUISubSystem::RefreshScreen()
 {
 	UNF_BuildComponent* Build = ObservedBuild.Get();
 
@@ -168,7 +143,7 @@ void UNF_BuildSubSystem::RefreshScreen()
 		return;
 	}
 
-	if (!ScreenClass || !ConnectViewModel())
+	if (!ScreenClass || !IsValid(ShopViewModel.Get()))
 	{
 		return;
 	}
@@ -195,7 +170,7 @@ void UNF_BuildSubSystem::RefreshScreen()
 	}
 }
 
-void UNF_BuildSubSystem::CloseScreen()
+void UNF_BuildUISubSystem::CloseScreen()
 {
 	ULocalPlayer* LocalPlayer = GetLocalPlayer();
 	UNF_UIManagerSubsystem* UIManager = LocalPlayer
@@ -211,22 +186,22 @@ void UNF_BuildSubSystem::CloseScreen()
 	Screen = nullptr;
 }
 
-void UNF_BuildSubSystem::HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
+void UNF_BuildUISubSystem::HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
 {
 	if (World != BoundWorld.Get()) return;
 	CloseScreen();
-	UnbindBuild();
+	SetObservedBuild(nullptr);
 	UnbindController();
 	BoundWorld.Reset();
 }
 
-void UNF_BuildSubSystem::Deinitialize()
+void UNF_BuildUISubSystem::Deinitialize()
 {
 	FWorldDelegates::OnWorldCleanup.Remove(WorldCleanupHandle);
 	WorldCleanupHandle.Reset();
 	CloseScreen();
 	UnbindController();
-	UnbindBuild();
+	SetObservedBuild(nullptr);
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 	{
 		if (UNF_ViewModelSubsystem* Models = LocalPlayer->GetSubsystem<UNF_ViewModelSubsystem>())

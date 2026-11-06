@@ -13,8 +13,6 @@ class UNFGA_WeaponFire;
 class UNFGA_WeaponZoom;
 class UNFGA_WeaponReload;
 class UCameraComponent;
-class UUserWidget;
-class UNF_CrosshairWidget;
 class APawn;
 class AController;
 class UMeshComponent;
@@ -23,6 +21,9 @@ class USkeletalMeshComponent;
 enum class EVisibilityBasedAnimTickOption : uint8;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnEquippedWeaponChanged, ANF_WeaponBase* /* NewWeapon, nullptr if unequipped */);
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnZoomActiveChanged, bool /* bZoomActive */);
+DECLARE_MULTICAST_DELEGATE_OneParam(FNF_OnLocalShotFired, ANF_WeaponBase* /* FiredWeapon */);
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FNF_OnShotFired, AActor* /* Shooter */,
 	ANF_WeaponBase* /* Weapon */, bool /* bLastRound */);
@@ -39,6 +40,12 @@ public:
 	UNF_WeaponComponent();
 	
 	FNF_OnEquippedWeaponChanged OnEquippedWeaponChanged;
+
+	// 서버의 줌 상태 변경 및 클라이언트의 복제 수신 시 발생한다.
+	FNF_OnZoomActiveChanged OnZoomActiveChanged;
+
+	// 로컬 플레이어의 현재 장착 무기에 대한 발사 Cue에서 발생한다.
+	FNF_OnLocalShotFired OnLocalShotFired;
 	
 	FNF_OnShotFired OnShotFired;
 	
@@ -88,8 +95,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Weapon")
 	ANF_WeaponBase* GetEquippedWeapon() const { return EquippedWeapon; }
-	
-	UNF_CrosshairWidget* GetCrosshairForWeapon(ANF_WeaponBase* FiredWeapon);
+
+	void RefreshWeaponDataPresentation(ANF_WeaponBase* ChangedWeapon);
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
@@ -134,17 +141,11 @@ private:
 	UFUNCTION(Server, Reliable)
 	void ServerStopZoom();
 
-	void RefreshCrosshair();
-	void RemoveCrosshair();
-
 	UFUNCTION()
 	void OnRep_EquippedWeapon();
 
 	UFUNCTION()
 	void OnPawnControllerChanged(APawn* Pawn, AController* OldController, AController* NewController);
-
-	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> CrosshairWidget;
 
 	ANF_WeaponBase* UnequipWeaponInternal();
 	bool bChangingWeapon = false;

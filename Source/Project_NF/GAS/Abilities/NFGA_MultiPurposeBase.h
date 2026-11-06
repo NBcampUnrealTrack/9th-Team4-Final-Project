@@ -18,5 +18,7 @@ protected:
 	
 	UFUNCTION()
 	void OnPlayerDisableMovement();
+	
+	void AttachWeaponToSocket(UStaticMeshComponent* WeaponMeshComponent, FName WeaponSocketNameToUsed = "WeaponKeepSocket");
 
 };

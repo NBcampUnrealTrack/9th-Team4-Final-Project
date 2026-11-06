@@ -12,8 +12,15 @@ class PROJECT_NF_API UNF_PlayerGEDataAsset : public UDataAsset
 	GENERATED_BODY()
 	
 public:
-	/* 아래 형식으로 GE 클래스 참조해 주시면 됩니다
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gameplay Effects|Player")
-	TSubclassOf<UGameplayEffect> @@@EffectClass;
-	 */
+	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffects|Player")
+	TSubclassOf<UGameplayEffect> NF_IncomingDamage_GEClass;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffects|Player")
+	TSubclassOf<UGameplayEffect> NF_IncomingExp_GEClass;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffects|Player")
+	TSubclassOf<UGameplayEffect> NF_ShieldRecovery_GEClass;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffects|Player")
+	TSubclassOf<UGameplayEffect> NF_ShieldRecoveryBlocked_GEClass;
 };

@@ -4,6 +4,7 @@
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
 #include "GAS/Effects/NF_CommonDamageEffects.h"
+#include "GAS/Data/NF_BossGEDataAsset.h"
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
@@ -16,7 +17,6 @@ UNFGA_BossCenterBlast::UNFGA_BossCenterBlast()
 	GetMutableActiveDefaults().ExecutionDuration = TelegraphDuration;
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
-	StunEffectClass = UNFGE_BossStun::StaticClass();
 }
 
 void UNFGA_BossCenterBlast::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -91,7 +91,9 @@ void UNFGA_BossCenterBlast::Detonate()
 
 	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag,
 		Boss->GetPatternDamage(ENF_BossPatternId::CenterBlast, Damage));
-	const FGameplayEffectSpecHandle StunSpec = MakeBossEffectSpec(StunEffectClass, FGameplayTag(), 0.0f);
+	const FGameplayEffectSpecHandle StunSpec = MakeBossEffectSpec(
+		ResolveBossEffect(StunEffectClass, &UNF_BossGEDataAsset::BossStunEffectClass, TEXT("BossStunEffectClass")),
+		FGameplayTag(), 0.0f);
 	for (ANF_Player* Player : FindPlayersInRange(Center, BlastRadius))
 	{
 		ApplyEffectToActor(Player, DamageSpec);

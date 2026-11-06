@@ -8,6 +8,7 @@ class ANF_BossBase;
 class ANF_BossAreaProjectile;
 class UGameplayEffect;
 class UMaterialInterface;
+class UNF_BossGEDataAsset;
 
 /** Shared server-authoritative GAS helpers for boss pattern abilities. */
 UCLASS(Abstract, Blueprintable)
@@ -23,6 +24,10 @@ protected:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	ANF_BossBase* GetBoss() const;
+	/** Returns Override when set; otherwise the GE registered in DA_NF_BossGE through the GE Manager.
+	 * Logs an error when neither is available. Call at runtime only (the GE Manager needs a GameInstance). */
+	TSubclassOf<UGameplayEffect> ResolveBossEffect(TSubclassOf<UGameplayEffect> Override,
+		TSubclassOf<UGameplayEffect> UNF_BossGEDataAsset::* Member, const TCHAR* DebugName) const;
 	FGameplayEffectSpecHandle MakeBossEffectSpec(TSubclassOf<UGameplayEffect> EffectClass,
 		FGameplayTag MagnitudeTag, float Magnitude) const;
 	void ApplyEffectToActor(AActor* Target, const FGameplayEffectSpecHandle& Spec) const;

@@ -13,7 +13,7 @@ class UNF_BuildShopViewModel;
 class UWorld;
 
 UCLASS()
-class PROJECT_NF_API UNF_BuildSubSystem : public ULocalPlayerSubsystem
+class PROJECT_NF_API UNF_BuildUISubSystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
 
@@ -34,7 +34,7 @@ private:
 	void UnbindController();
 
 	void HandlePawnChanged(APawn* NewPawn);
-	void UnbindBuild();
+	void SetObservedBuild(UNF_BuildComponent* NewBuild);
 
 	UFUNCTION()
 	void HandleShopStateChanged(ENF_BuildShopUIState State);
@@ -42,7 +42,6 @@ private:
 	void RefreshScreen();
 	void CloseScreen();
 	void HandleWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
-	bool ConnectViewModel();
 	FDelegateHandle WorldCleanupHandle;
 	TWeakObjectPtr<UWorld> BoundWorld;
 

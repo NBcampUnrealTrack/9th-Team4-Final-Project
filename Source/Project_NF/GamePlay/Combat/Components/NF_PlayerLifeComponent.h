@@ -51,6 +51,10 @@ public:
 	
 	virtual void NF_Interaction(const APlayerController* InteractedController) override;
 	
+	// 클라 화면에 소생 진행 상황 출력
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastDebugReviveProgress(int32 Seconds, bool bCompleted);
+	
 	// 현재 상태 가져오기
 	UFUNCTION(BlueprintPure, Category = "Life")
 	ENFPlayerLifeState GetLifeState() const;

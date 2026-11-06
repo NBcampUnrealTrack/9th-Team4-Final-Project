@@ -244,17 +244,14 @@ TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
 		return Result;
 	}
 
-	for (UNF_BuildItemDefinitionDataAsset* Definition : Rules->Catalog)
+	for (const FNF_BuildCatalogItem& Item : Rules->ReadCatalog())
 	{
-		if (!IsValid(Definition)) { continue; }
-		// 획득하지 않은 아이템은 목록에서 제외한다.
-		FNF_BuildItemData Data;
-		if (!ResolveItemData(Definition->ItemId, Data) || Data.ItemType != ItemType) { continue; }
+		if (!IsValid(Item.Definition) || Item.Data.Cost < 0 || Item.Data.ItemType != ItemType) { continue; }
 		// 방어구는 지정한 부위만 표시한다. None이면 전체 부위.
 		if (ItemType == ENF_ItemType::Armor &&
 			ArmorPart != ENF_ArmorSlot::None &&
-			Data.ArmorSlot != ArmorPart) { continue; }
-		Result.Add(Definition);
+			Item.Data.ArmorSlot != ArmorPart) { continue; }
+		Result.Add(Item.Definition);
 	}
 
 	return Result;
@@ -311,7 +308,6 @@ bool UNF_BuildComponent::SelectDraftItem(FName ItemId)
 		Selection.SlotIndex = TargetSlotIndex;
 		DraftBuild.Add(Selection);
 		PickedItemIds.Add(ItemId);
-		bDraftDirty = true;
 	}
 	OnDraftChanged.Broadcast();
 	return true;
@@ -340,7 +336,6 @@ bool UNF_BuildComponent::AssignSelectedActiveSkill(int32 SlotIndex)
 	DraftBuild.Add(Selection);
 	PickedItemIds.Add(PendingActiveSkill);
 	PendingActiveSkill = NAME_None;
-	bDraftDirty = true;
 	OnDraftChanged.Broadcast();
 	return true;
 }
@@ -358,7 +353,6 @@ bool UNF_BuildComponent::RemoveDraftItem(FName ItemId)
 	if (bRemoved)
 	{
 		PickedItemIds.Remove(ItemId);
-		bDraftDirty = true;
 		OnDraftChanged.Broadcast();
 	}
 	return bRemoved;
@@ -386,7 +380,6 @@ bool UNF_BuildComponent::RevertDraftItem(FName ItemId)
 		return false;
 	}
 	PickedItemIds.Remove(ItemId);
-	bDraftDirty = true;
 	OnDraftChanged.Broadcast();
 	return true;
 }
@@ -412,7 +405,6 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 		DraftBuild.Reset();
 		PendingActiveSkill = NAME_None;
 		PickedItemIds.Reset();
-		bDraftDirty = false;
 
 		OnDraftChanged.Broadcast();
 	}
@@ -483,6 +475,76 @@ FNF_BuildValidation UNF_BuildComponent::PreviewBuild(
 		&FreeSelections);
 }
 
+FNF_BuildShopPreview UNF_BuildComponent::GetShopPreview() const
+{
+	FNF_BuildShopPreview Preview;
+	const UNF_BuildRules* Rules = GetRules();
+	const TArray<FNF_BuildCatalogItem> Items = IsValid(Rules) ? Rules->ReadCatalog() : TArray<FNF_BuildCatalogItem>{};
+	const TArray<FNF_BuildSelection> FreeSelections = GetFreeSelections(PickedItemIds.Array());
+	Preview.Validation = bEntitlementsInitialized
+		? FNF_BuildValidator::ValidateCatalog(Rules, Items, CostLimit, DraftBuild, nullptr, &FreeSelections)
+		: PreviewBuild(DraftBuild);
+
+	TMap<FName, const FNF_BuildCatalogItem*> ById;
+	for (const FNF_BuildCatalogItem& Item : Items)
+	{
+		if (IsValid(Item.Definition))
+		{
+			ById.FindOrAdd(Item.Definition->ItemId, &Item);
+		}
+	}
+
+	TSet<FName> FreeIds;
+	for (const FNF_BuildSelection& Selection : FreeSelections)
+	{
+		FreeIds.Add(Selection.ItemId);
+	}
+
+	int64 Total = 0;
+	for (const FNF_BuildSelection& Selection : DraftBuild)
+	{
+		FNF_BuildPreviewItem Row;
+		if (const FNF_BuildCatalogItem* const* Item = ById.Find(Selection.ItemId))
+		{
+			Row = FNF_BuildPreviewItem(**Item);
+		}
+		else
+		{
+			// 현재 상점에 없는 기존 장착품은 복제된 장착 스냅샷으로 표시한다.
+			Row.Definition = FindItemDefinition(Selection.ItemId);
+			ResolveItemData(Selection.ItemId, Row.Data);
+		}
+		if (!IsValid(Row.Definition) || Row.Data.Cost < 0) continue;
+		Row.SlotIndex = Selection.SlotIndex;
+		if (!FreeIds.Contains(Selection.ItemId)) Total += Row.Data.Cost;
+		Preview.Draft.Add(MoveTemp(Row));
+	}
+	// 검증이 중간에 실패해도 UI에는 전체 선택 금액을 표시한다.
+	Preview.DisplayCost = static_cast<int32>(FMath::Min<int64>(Total, MAX_int32));
+
+	if (!bEntitlementsInitialized) return Preview;
+	for (const FNF_BuildCatalogItem& Item : Items)
+	{
+		if (!IsValid(Item.Definition) || Item.Data.Cost < 0) continue;
+		FNF_BuildPreviewItem& Row = Preview.Catalog.Emplace_GetRef(Item);
+		if (Item.Data.ItemType == ENF_ItemType::ActiveSkill) continue;
+
+		Row.SlotIndex = FNF_BuildItemSlots::GetDefaultSlotIndex(Item.Data);
+		int64 CandidateCost = Total + Item.Data.Cost;
+		for (const FNF_BuildPreviewItem& Existing : Preview.Draft)
+		{
+			const bool bReplaced = Existing.Data.ItemType == Item.Data.ItemType && Existing.SlotIndex == Row.SlotIndex;
+			if ((bReplaced || Existing.Definition->ItemId == Item.Definition->ItemId) &&
+				!FreeIds.Contains(Existing.Definition->ItemId))
+			{
+				CandidateCost -= Existing.Data.Cost;
+			}
+		}
+		Row.CostAfterSelection = static_cast<int32>(FMath::Min<int64>(CandidateCost, MAX_int32));
+	}
+	return Preview;
+}
+
 TArray<FNF_BuildSelection> UNF_BuildComponent::GetFreeSelections(const TArray<FName>& PaidItemIds) const
 {
 	TArray<FNF_BuildSelection> FreeSelections;
@@ -532,7 +594,6 @@ void UNF_BuildComponent::CompleteLocalBuildRequest(const FNF_BuildValidation& Va
 	bAwaitingBuildResult = false;
 	if (Validation.Result == ENF_BuildResult::Success)
 	{
-		bDraftDirty = false;
 	}
 	OnDraftChanged.Broadcast();
 	OnBuildRequestCompleted.Broadcast(Validation);
@@ -592,23 +653,48 @@ bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop
 	{
 		return false;
 	}
-	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다.
-	if (!CurrentBuild.IsEmpty() && bEntitlementsInitialized &&
-		FNF_BuildValidator::Validate(Rules, CostLimit, CurrentBuild, nullptr, &CurrentBuild).Result ==
-		ENF_BuildResult::Success
-		&&
+	// @Owner: 황준현 | 2026-11-05. 외부 진행 시스템이 아직 코스트를 주지 않았으면 초기 설정 DA로 먼저 채운다.
+	// 그래도 준비되지 않으면 무기 없이 출격하지 않도록 원인을 남긴다.
+	if (!bEntitlementsInitialized)
+	{
+		InitializeDefaultBuildEntitlements();
+	}
+	if (!bEntitlementsInitialized)
+	{
+		UE_LOG(LogTemp, Error,
+		       TEXT("기본 빌드 적용 실패: %s의 코스트 상한이 초기화되지 않았습니다. 빌드 컴포넌트의 InitialSettings DA를 지정하세요."),
+		       *GetNameSafe(GetOwner()));
+		return false;
+	}
+	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다. 장착 항목도 무료로 보지 않고 전체 코스트로 판정한다.
+	if (!CurrentBuild.IsEmpty() &&
+		FNF_BuildValidator::Validate(Rules, CostLimit, CurrentBuild).Result == ENF_BuildResult::Success &&
 		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
 	{
 		return true;
 	}
 	// 적용 중 콜백으로 원본 구성이 바뀌지 않도록 복사한다.
 	const TArray<FNF_BuildSelection> Selections = Rules->FallbackBuild;
-	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections, Rules, {});
+	// 기본 빌드는 모든 항목을 유료로 계산한다. 기존 장착 항목이 겹쳐도 상한 검사를 건너뛰지 않는다.
+	TArray<FName> PaidItemIds;
+	for (const FNF_BuildSelection& Selection : Selections)
+	{
+		PaidItemIds.Add(Selection.ItemId);
+	}
+	const FNF_BuildValidation Validation = CommitBuildOnServer(Selections, Rules, PaidItemIds);
 	const bool bSucceeded = Validation.Result == ENF_BuildResult::Success &&
 		IsValid(AbilitySystem) && AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready);
 	if (bSucceeded)
 	{
 		CloseBuildSession();
+	}
+	else
+	{
+		// 잠금 상태 등 정상적인 거절도 이 경로를 지나므로 경고로 남긴다.
+		UE_LOG(LogTemp, Warning,
+		       TEXT("기본 빌드 적용 실패: %s, Rules=%s, 결과=%d, 코스트 %d / %d, 사유: %s"),
+		       *GetNameSafe(GetOwner()), *GetNameSafe(Rules), static_cast<int32>(Validation.Result),
+		       Validation.TotalCost, CostLimit, *Validation.Message.ToString());
 	}
 	return bSucceeded;
 }
@@ -1007,13 +1093,6 @@ void UNF_BuildComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CostLimit, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, bEntitlementsInitialized, COND_OwnerOnly);
-}
-
-bool UNF_BuildComponent::UpdateBuildEntitlements(
-	int32 NewCostLimit,
-	const TArray<FName>& NewUnlockedItemIds)
-{
-	return UpdateBuildCostLimit(NewCostLimit);
 }
 
 bool UNF_BuildComponent::UpdateBuildCostLimit(int32 NewCostLimit)

@@ -16,4 +16,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gameplay Effects|Boss")
 	TSubclassOf<UGameplayEffect> @@@EffectClass;
 	 */
+
+	// 플레이어 무기 투사체가 보스에 피해를 줄 때 사용 (보스 IncomingDamage에 양수 Data.Damage)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gameplay Effects|Boss")
+	TSubclassOf<UGameplayEffect> PlayerDamageToBossEffectClass;
+
+	// 보스 패턴(CenterBlast, LastGasp)이 플레이어를 기절시킬 때 사용
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gameplay Effects|Boss")
+	TSubclassOf<UGameplayEffect> BossStunEffectClass;
+
+	// 보스 패턴(Relocate)이 플레이어를 공중에 띄울 때 사용
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gameplay Effects|Boss")
+	TSubclassOf<UGameplayEffect> BossAirborneEffectClass;
 };

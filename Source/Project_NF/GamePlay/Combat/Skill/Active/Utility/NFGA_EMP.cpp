@@ -17,13 +17,14 @@ UNFGA_EMP::UNFGA_EMP()
 
 bool UNFGA_EMP::HasValidSettings() const
 {
-	return !GetActiveSettings().ExecutionActorClass && !GetActiveSettings().bRequiresConfirmedTargetData && EMPEffectClass
+	return !GetActiveSettings().bRequiresConfirmedTargetData && EMPEffectClass
 		&& EMPEffectClass->GetDefaultObject<UNFGE_EMP>()->DurationPolicy == EGameplayEffectDurationType::HasDuration
 		&& EMPEffectClass->GetDefaultObject<UNFGE_EMP>()->GetGrantedTags().HasTag(NFTag_Skill::State_Debuff_EMP)
 		&& GetSkillType() == ENF_SkillType::Active && GetSkillExecutionMode() == ENF_SkillExecutionMode::Instant
 		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
 		&& FMath::IsFinite(Radius) && Radius > 0 && FMath::IsFinite(SealDuration) && SealDuration >= 0.05f
-		&& FMath::IsFinite(GetCastTime()) && GetCastTime() >= 0;
+		&& FMath::IsFinite(GetCastTime()) && GetCastTime() >= 0
+		&& FMath::IsFinite(CosmeticDuration) && CosmeticDuration >= 0.1f;
 }
 
 bool UNFGA_EMP::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -69,6 +70,21 @@ void UNFGA_EMP::EmitPulse()
 	TArray<FNF_TargetQueryResult> Results;
 	UNF_TargetQueryComponent::Query(GetWorld(), Avatar, Avatar, FTransform(Avatar->GetActorLocation()), Settings, FNF_AreaDamageTargetFilter(), Results);
 	const FVector Origin = Avatar->GetActorLocation();
+	// BP 실행 액터는 연출만 담당한다. EMP 효과 적용과 GA 수명은 기존 경로를 유지한다.
+	if (GetActiveSettings().ExecutionActorClass || bShowRadius)
+	{
+		TSubclassOf<ANF_SkillExecutionActor> VisualClass = GetActiveSettings().ExecutionActorClass;
+		if (!VisualClass) { VisualClass = ANF_SkillExecutionActor::StaticClass(); }
+		FActorSpawnParameters Params;
+		Params.Owner = Avatar;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		ANF_SkillExecutionActor* Visual = GetWorld()->SpawnActor<ANF_SkillExecutionActor>(VisualClass, Origin, FRotator::ZeroRotator, Params);
+		if (IsValid(Visual))
+		{
+			if (!Visual->StartCosmeticExecution(Avatar, CosmeticDuration, Radius, bShowRadius)) { Visual->Destroy(); }
+		}
+		else { UE_LOG(LogTemp, Warning, TEXT("[EMP] Failed to spawn cosmetic execution actor; EMP gameplay remains enabled.")); }
+	}
 	for (const auto& Result : Results)
 	{
 		if (!IsActive()) { break; }

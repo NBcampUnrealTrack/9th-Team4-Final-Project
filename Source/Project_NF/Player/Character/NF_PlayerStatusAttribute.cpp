@@ -6,6 +6,8 @@
 #include "GameplayEffectExtension.h"
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
 #include "GameFramework/PlayerState.h"
+#include "GAS/Data/NF_PlayerGEDataAsset.h"
+#include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
@@ -69,7 +71,12 @@ void UNF_PlayerStatusAttribute::PostGameplayEffectExecute(const FGameplayEffectM
 {
 	Super::PostGameplayEffectExecute(Data);
 	
+	
 	if (GetIsDamagedByTeam(Data) == true) return;
+	if (Data.EvaluatedData.Attribute == GetInComingDamageAttribute())
+	{
+		UNF_GASFunctionLibrary::NF_SendGameplayEventTagToActorWithPayloadData(this,NFTag_Player::Player_Event_HitReact);
+	}
 	
 	SetShield(GetShield()-GetInComingDamage());
 	SetHealth(GetHealth()-(GetInComingDamage()-GetDefence()));
@@ -120,10 +127,13 @@ void UNF_PlayerStatusAttribute::BlockShieldRecovery(const FGameplayEffectModCall
 	
 	UAbilitySystemComponent* ASC = &Data.Target;
 	
-	UNF_GASFunctionLibrary::NF_ApplyGameplayEffectToSelfWithSetByCaller(
-		ASC, PlayerState->NF_PlayerDataAsset->NF_ShieldRecoveryBlocked_GEClass,
-		PlayerState->NF_PlayerDataAsset->ShieldRecoveryBlockedDuration,
-		NFTag_Player::Player_Data_ShieldRecoveryBlockedDuration);
+	float ShieldRecoveryBlockedDuration = PlayerState->NF_PlayerDataAsset->ShieldRecoveryBlockedDuration;
+	
+	const auto& NF_ShieldRecoveryBlocked_GEClass = UNF_GEManagerSubsystem::FindEffect(this, &UNF_PlayerGEDataAsset::NF_ShieldRecoveryBlocked_GEClass);
+	if (IsValid(NF_ShieldRecoveryBlocked_GEClass) == false) return;
+	
+	UNF_GASFunctionLibrary::NF_ApplyGameplayEffectToSelfWithSetByCaller(ASC, 
+		NF_ShieldRecoveryBlocked_GEClass,ShieldRecoveryBlockedDuration,NFTag_Player::Player_Data_ShieldRecoveryBlockedDuration);
 }
 
 void UNF_PlayerStatusAttribute::IsOutOfHealth(const FGameplayEffectModCallbackData& Data)
@@ -185,6 +195,10 @@ void UNF_PlayerStatusAttribute::GetLifetimeReplicatedProps(TArray<class FLifetim
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, InComingDamage, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Defence, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AdditionalDefence, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AdditionalDefence_Head, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AdditionalDefence_Body, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, AdditionalDefence_Leg, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, MaxShield, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(ThisClass, Shield, COND_None, REPNOTIFY_Always);
 	
@@ -212,6 +226,26 @@ void UNF_PlayerStatusAttribute::OnRep_InComingDamage(const FGameplayAttributeDat
 void UNF_PlayerStatusAttribute::OnRep_Defence(const FGameplayAttributeData& OldDefence)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, Defence, OldDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_AdditionalDefence(const FGameplayAttributeData& OldDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, AdditionalDefence, OldDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_AdditionalDefence_Head(const FGameplayAttributeData& OldDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, AdditionalDefence_Head, OldDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_AdditionalDefence_Body(const FGameplayAttributeData& OldDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, AdditionalDefence_Body, OldDefence);
+}
+
+void UNF_PlayerStatusAttribute::OnRep_AdditionalDefence_Leg(const FGameplayAttributeData& OldDefence)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(ThisClass, AdditionalDefence_Leg, OldDefence);
 }
 
 

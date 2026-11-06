@@ -6,86 +6,27 @@
 #include "View/MVVMView.h"
 #include "UI/Widget/NF_TeamMemberWidget.h"
 #include "UI/ViewModel/Status/NF_TeamMemberViewModel.h"
-#include "UI/ViewModel/Status/NF_TeamPanelViewModel.h"
 
 namespace
 {
     const FName MemberViewModelSlotName(TEXT("ViewModel"));
-    const FName MembersFieldName(TEXT("Members"));
 }
 
-void UNF_TeamPanelWidget::SetTeamPanelViewModel(UNF_TeamPanelViewModel* NewViewModel)
+void UNF_TeamPanelWidget::SetMembers(const TArray<UNF_TeamMemberViewModel*>& InMembers)
 {
-    if (TeamPanelViewModel.Get() == NewViewModel)
-    {
-        SynchronizeMembers();
-        return;
-    }
-
-    UnbindViewModel();
-    ClearMemberWidgets();
-    TeamPanelViewModel = NewViewModel;
-
-    if (!IsValid(TeamPanelViewModel.Get())) return;
-
-    MembersFieldId = TeamPanelViewModel->GetFieldNotificationDescriptor().GetField(
-        TeamPanelViewModel->GetClass(), MembersFieldName);
-    if (!MembersFieldId.IsValid())
-    {
-        UE_LOG(LogTemp, Error, TEXT("[NF Team UI] Members FieldNotify를 찾지 못했습니다."));
-        TeamPanelViewModel = nullptr;
-        return;
-    }
-
-    MembersChangedHandle = TeamPanelViewModel->AddFieldValueChangedDelegate(
-        MembersFieldId,
-        INotifyFieldValueChanged::FFieldValueChangedDelegate::CreateUObject(
-            this, &ThisClass::HandleMembersChanged));
-
-    // 구독 전에 생성된 팀원 목록도 즉시 표시한다.
-    SynchronizeMembers();
-}
-
-void UNF_TeamPanelWidget::UnbindViewModel()
-{
-    if (IsValid(TeamPanelViewModel.Get()))
-    {
-        if (MembersChangedHandle.IsValid())
-        {
-            TeamPanelViewModel->RemoveFieldValueChangedDelegate(MembersFieldId, MembersChangedHandle);
-        }
-    }
-
-    MembersChangedHandle.Reset();
-    MembersFieldId = UE::FieldNotification::FFieldId();
-    TeamPanelViewModel = nullptr;
-}
-
-void UNF_TeamPanelWidget::HandleMembersChanged(UObject* Object, UE::FieldNotification::FFieldId FieldId)
-{
-    if (Object != TeamPanelViewModel.Get())return;
-    
-    if (FieldId != MembersFieldId) return;
-
-    SynchronizeMembers();
-}
-
-void UNF_TeamPanelWidget::SynchronizeMembers()
-{
-    if (!IsValid(TeamPanelViewModel.Get()))
+    if (InMembers.IsEmpty())
     {
         ClearMemberWidgets();
         return;
     }
     if (!VB_Members) return;
 
-    const TArray<TObjectPtr<UNF_TeamMemberViewModel>>& Members = TeamPanelViewModel->GetMembers();
     TSet<UNF_TeamMemberViewModel*> CurrentMembers;
-    for (const TObjectPtr<UNF_TeamMemberViewModel>& MemberVM : Members)
+    for (UNF_TeamMemberViewModel* MemberVM : InMembers)
     {
-        if (IsValid(MemberVM.Get()))
+        if (IsValid(MemberVM))
         {
-            CurrentMembers.Add(MemberVM.Get());
+            CurrentMembers.Add(MemberVM);
         }
     }
 
@@ -106,13 +47,13 @@ void UNF_TeamPanelWidget::SynchronizeMembers()
     }
 
     // 기존 행은 유지하고 새 팀원만 마지막에 추가한다.
-    for (const TObjectPtr<UNF_TeamMemberViewModel>& MemberVM : Members)
+    for (UNF_TeamMemberViewModel* MemberVM : InMembers)
     {
-        if (!IsValid(MemberVM.Get()))continue;
+        if (!IsValid(MemberVM))continue;
         
         if (MemberWidgets.Contains(MemberVM))continue;
         
-        CreateMemberWidget(MemberVM.Get());
+        CreateMemberWidget(MemberVM);
     }
 }
 
@@ -186,7 +127,6 @@ void UNF_TeamPanelWidget::ClearMemberWidgets()
 
 void UNF_TeamPanelWidget::NativeDestruct()
 {
-    UnbindViewModel();
     ClearMemberWidgets();
     Super::NativeDestruct();
 }
