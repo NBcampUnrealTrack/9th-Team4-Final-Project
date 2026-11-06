@@ -102,13 +102,32 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 	TGuardValue<bool> ChangeGuard(bChangingWeapon, true);
 	const UNF_WeaponDataAsset* WeaponData = NewWeapon->GetWeaponData();
 	
-	if (IsValid(WeaponData) == false)
+	const ENF_WeaponType WeaponType = IsValid(WeaponData) ? WeaponData->WeaponType : ENF_WeaponType::None;
+	// 전용 소켓이 없는 무기 종류는 기존 기본 소켓을 사용한다.
+	FName WeaponSocketName = TEXT("WeaponKeepSocket");
+	switch (WeaponType)
 	{
-		WeaponData = GetDefault<UNF_WeaponDataAsset>();
+	case ENF_WeaponType::AR:
+		WeaponSocketName = Config->ARSocketName;
+		break;
+	case ENF_WeaponType::Pistol:
+		WeaponSocketName = Config->PistolSocketName;
+		break;
+	case ENF_WeaponType::SG:
+		WeaponSocketName = Config->SGSocketName;
+		break;
+	case ENF_WeaponType::SMG:
+		WeaponSocketName = Config->SMGSocketName;
+		break;
+	case ENF_WeaponType::SR:
+		WeaponSocketName = Config->SRSocketName;
+		break;
+	default:
+		break;
 	}
 	
 	if (NewWeapon->AttachToComponent(OwnerCharacter->VisualMesh,
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponData->WeaponSocketName) == false)
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocketName) == false)
 		return false;
 
 	UnequipWeaponInternal();
