@@ -43,6 +43,8 @@ void UNFGA_Downed::ActivateAbility(const FGameplayAbilitySpecHandle Handle, cons
 	MontageTask->ReadyForActivation();
 	
 	OnPlayerDisableMovement();
+	
+	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 }
 
 void UNFGA_Downed::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
