@@ -1,8 +1,5 @@
 ﻿#include "NF_CharacterMovementComponent.h"
 #include "GameFramework/Character.h"
-#include "AbilitySystemBlueprintLibrary.h"
-#include "AbilitySystemComponent.h"
-#include "GAS/Tags/NFTag_Player.h"
 
 
 UNF_CharacterMovementComponent::UNF_CharacterMovementComponent()
@@ -54,19 +51,4 @@ FVector UNF_CharacterMovementComponent::GetBestDirectionOffActor(AActor* BaseAct
 	if (AwayFromBase.IsNearlyZero() == true) return Super::GetBestDirectionOffActor(BaseActor);
 
 	return AwayFromBase.GetSafeNormal();
-}
-
-
-// Player.State.Attack 태그가 있는 동안 캐릭터가 카메라 Yaw를 바라보게 한다
-// 클라(예측)와 서버의 이동 계산 양쪽에서 실행되고, 컨트롤러가 없는 SimulatedProxy에서는 엔진 기본 동작
-FRotator UNF_CharacterMovementComponent::ComputeOrientToMovementRotation(const FRotator& CurrentRotation, float DeltaTime, FRotator& DeltaRotation) const
-{
-	if (IsValid(CharacterOwner) == false) return Super::ComputeOrientToMovementRotation(CurrentRotation, DeltaTime, DeltaRotation);
-	if (IsValid(CharacterOwner->GetController()) == false) return Super::ComputeOrientToMovementRotation(CurrentRotation, DeltaTime, DeltaRotation);
-
-	const UAbilitySystemComponent* AbilitySystemComponent = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(CharacterOwner);
-	if (IsValid(AbilitySystemComponent) == false) return Super::ComputeOrientToMovementRotation(CurrentRotation, DeltaTime, DeltaRotation);
-	if (AbilitySystemComponent->HasMatchingGameplayTag(NFTag_Player::Player_State_Attack) == false) return Super::ComputeOrientToMovementRotation(CurrentRotation, DeltaTime, DeltaRotation);
-
-	return FRotator(0.0f, CharacterOwner->GetControlRotation().Yaw, 0.0f);
 }

@@ -1,4 +1,4 @@
-#include "Component/MotionMatchingComponent.h"
+﻿#include "Component/MotionMatchingComponent.h"
 #include "Component/MotionMatchingCharacterMovementComponent.h" // [추가] A-2
 #include "Animation/MotionMatchingAnimInstance.h" // [추가] A-5
 #include "Actor/MotionMatchingTraversableBlock.h"
@@ -525,7 +525,11 @@ void UMotionMatchingComponent::SetWantsToSprint(bool bIsWantsToSprint)
 	
 	FMotionMatchingInputState NewCharacterInputState = CharacterInputState;
 	NewCharacterInputState.bIsWantsToSprint = bIsWantsToSprint;
-	NewCharacterInputState.bIsWantsToWalk = false;
+	// [변경] 걷기 강제 중에는 질주 입력이 걷기를 끄지 않음
+	if (bIsForceWalking == false)
+	{
+		NewCharacterInputState.bIsWantsToWalk = false;
+	}
 	UpdateCharacterInputState(NewCharacterInputState);
 }
 
@@ -534,9 +538,31 @@ void UMotionMatchingComponent::ToggleWantsToWalk()
 {
 	if (bIsWalkToggleEnabled == false) return; // [추가] v0.0.6
 	if (CharacterInputState.bIsWantsToSprint == true) return;
+	if (bIsForceWalking == true) return; // [추가] 걷기 강제 중(줌 등)에는 걷기 토글 무시
 
 	FMotionMatchingInputState NewCharacterInputState = CharacterInputState;
 	NewCharacterInputState.bIsWantsToWalk = (CharacterInputState.bIsWantsToWalk == false);
+	UpdateCharacterInputState(NewCharacterInputState);
+}
+
+
+// [추가] 걷기 강제: 켤 때 원래 걷기 상태를 기억하고, 끌 때 그 상태로 복원. 걷기는 이동 패킷 플래그로 예측 전송됨
+void UMotionMatchingComponent::SetForceWalk(bool bIsForceWalk)
+{
+	if (bIsForceWalk == bIsForceWalking) return;
+
+	FMotionMatchingInputState NewCharacterInputState = CharacterInputState;
+	if (bIsForceWalk == true)
+	{
+		bIsWalkingBeforeForce = CharacterInputState.bIsWantsToWalk;
+		NewCharacterInputState.bIsWantsToWalk = true;
+	}
+	else
+	{
+		NewCharacterInputState.bIsWantsToWalk = bIsWalkingBeforeForce;
+	}
+
+	bIsForceWalking = bIsForceWalk;
 	UpdateCharacterInputState(NewCharacterInputState);
 }
 
@@ -589,6 +615,12 @@ void UMotionMatchingComponent::StartJumpInput()
 
 	ACharacter* OwnerCharacter = GetOwnerCharacter();
 	if (IsValid(OwnerCharacter) == false) return;
+
+	// [추가] 앉아 있으면 먼저 일어남 (질주와 같은 방식, 일어난 다음 이동 업데이트에서 점프 실행)
+	if (OwnerCharacter->bIsCrouched == true)
+	{
+		OwnerCharacter->UnCrouch();
+	}
 
 	OwnerCharacter->Jump();
 }

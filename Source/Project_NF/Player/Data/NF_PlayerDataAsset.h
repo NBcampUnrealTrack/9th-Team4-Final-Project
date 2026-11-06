@@ -21,6 +21,29 @@ class PROJECT_NF_API UNF_PlayerDataAsset : public UDataAsset
 public:
 	UNF_PlayerDataAsset();
 	
+	UPROPERTY(EditAnywhere, Category = "Test")
+	bool bIsTest = false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Interact" , DisplayName = "InteractionRange (상호작용 범위)")
+	float InteractionRange = 300.0f;
+	
+	
+	UPROPERTY(EditAnywhere, Category = "Weapon|Spec", DisplayName = "MeleeTraceRadius (근접공격 폭 범위)")
+	float MeleeTraceRadius = 20.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Socket")
+	FName WeaponKeepSocket = "WeaponKeepSocket";
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Socket")
+	FName MeleeAttackSocket = "MeleeAttackSocket";
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Socket")
+	FName MeleeSocket_Start = "MeleeSocket_Start";
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Socket")
+	FName MeleeSocket_End = "MeleeSocket_End";
+	
+	
 	UPROPERTY(EditAnywhere, Category = "GAS|GA_Montage")
 	TObjectPtr<UAnimMontage> MeleeAttackMontage;
 	
@@ -36,15 +59,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "GAS|GA_Montage")
 	TObjectPtr<UAnimMontage> HitReact_02;
 	
-	UPROPERTY(EditAnywhere, Category = "GAS|MeleeAttack", DisplayName = "MeleeTraceRadius (근접공격 폭 범위)")
-	float MeleeTraceRadius = 20.0f;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|MeleeAttack")
-	FName MeleeSocket_Start = "MeleeSocket_Start";
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|MeleeAttack")
-	FName MeleeSocket_End = "MeleeSocket_End";
-	
 	
 	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "MeleeAttackDamage(양수)")
 	float MeleeAttackDamage = 10.0f;
@@ -59,13 +73,6 @@ public:
 	float ShieldRecoveryBlockedDuration = 3.0f;
 	
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Interact" , DisplayName = "InteractionRange (상호작용 범위)")
-	float InteractionRange = 300.0f;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Socket")
-	FName MeleeAttackSocket = "MeleeAttackSocket";
-	
-	
 	UPROPERTY(EditDefaultsOnly, Category = "PlayerState|GA_Class", DisplayName = "GameplayAbility (Play 전 적용 될 GA_Class)")
 	TArray<TSubclassOf<UGameplayAbility>> NF_GameplayAbility_Array;
 	
@@ -74,6 +81,4 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "VisualMesh")
 	TMap<ENF_CustomVisualMeshType, TObjectPtr<UNF_CustomVisualMeshDataAsset>> CustomVisualMeshMap;
-	
-	
 };

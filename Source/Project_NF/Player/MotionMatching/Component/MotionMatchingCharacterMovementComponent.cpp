@@ -1,4 +1,4 @@
-#include "Component/MotionMatchingCharacterMovementComponent.h"
+﻿#include "Component/MotionMatchingCharacterMovementComponent.h"
 #include "Component/MotionMatchingComponent.h"
 #include "GameFramework/Character.h"
 
@@ -228,6 +228,7 @@ void FSavedMove_MotionMatching::PrepMoveFor(ACharacter* C)
 	MovementComponent->MovementInputState.bIsWantsToStrafe = bIsSavedWantsToStrafe;
 	MovementComponent->MovementInputState.bIsWantsToAim = bIsSavedWantsToAim;
 }
+
 #pragma endregion
 
 

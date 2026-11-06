@@ -294,6 +294,10 @@ private:
 	bool bIsZoomHeld = false;
 	bool bIsFireHeld = false;
 	float CombatTimeRemaining = 0.0f;
+
+	// [추가] 조준을 시작한 순간의 DA. 조준 중 DA가 바뀌면(근접공격 종료 직후 무기 이넘 복원 등) 조준이 끝날 때까지 새 DA의 AimIdle을 쓰지 않음
+	TWeakObjectPtr<const UUpperBodyLayer> AimStartDataAsset;
+
 	FName LeftHandSocketName = NAME_None;
 	float LeftHandIKTargetAlpha = 0.0f;
 

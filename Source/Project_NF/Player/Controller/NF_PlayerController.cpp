@@ -154,7 +154,6 @@ void ANF_PlayerController::BindInputButton()
 	}
 	
 	
-	
 	//Skill
 	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillA);
