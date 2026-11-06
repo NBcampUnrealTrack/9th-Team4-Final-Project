@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "NF_BuildComponent.generated.h"
 
@@ -14,8 +15,24 @@ class APlayerController;
 class UAbilitySystemComponent;
 class UDataAsset;
 class UNF_BuildItemDefinitionDataAsset;
-class UNF_BuildRules;
 class UNF_BuildInitialSettings;
+
+struct FNF_BuildPreviewItem : FNF_BuildCatalogItem
+{
+	FNF_BuildPreviewItem() = default;
+	explicit FNF_BuildPreviewItem(const FNF_BuildCatalogItem& Item) : FNF_BuildCatalogItem(Item) {}
+
+	int32 SlotIndex = INDEX_NONE;
+	int32 CostAfterSelection = INDEX_NONE;
+};
+
+struct FNF_BuildShopPreview
+{
+	FNF_BuildValidation Validation;
+	int32 DisplayCost = 0;
+	TArray<FNF_BuildPreviewItem> Draft;
+	TArray<FNF_BuildPreviewItem> Catalog;
+};
 
 /** @Owner: 황준현 | 2026-11-01. 장착 항목만 소유 클라이언트에 전달하는 확정 데이터. */
 USTRUCT()
@@ -78,11 +95,6 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build")
 	bool UpdateBuildCostLimit(int32 NewCostLimit);
 
-	/** 기존 C++ 호출 호환용. NewUnlockedItemIds는 더 이상 사용하지 않는다. */
-	bool UpdateBuildEntitlements(int32 NewCostLimit, const TArray<FName>& NewUnlockedItemIds);
-	
-	
-
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
 	FNF_OnBuildShopStateChanged OnBuildShopStateChanged;
 
@@ -127,6 +139,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "NF|Build|Draft")
 	bool IsAwaitingBuildResult() const { return bAwaitingBuildResult; }
+
+	FNF_BuildShopPreview GetShopPreview() const;
 
 	UFUNCTION(BlueprintPure, Category = "NF|Build")
 	UNF_BuildItemDefinitionDataAsset* FindItemDefinition(FName ItemId) const;

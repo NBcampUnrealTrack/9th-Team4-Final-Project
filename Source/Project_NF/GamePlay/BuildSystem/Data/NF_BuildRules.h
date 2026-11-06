@@ -8,6 +8,14 @@
 
 class UNF_BuildItemDefinitionDataAsset;
 
+// 한 번의 조회에서만 사용하는 원본 데이터. 해석 실패 시 Data.Cost는 -1이다.
+struct FNF_BuildCatalogItem
+{
+	UNF_BuildItemDefinitionDataAsset* Definition = nullptr;
+	FNF_BuildItemData Data;
+	UDataAsset* Source = nullptr;
+};
+
 UCLASS(BlueprintType)
 class PROJECT_NF_API UNF_BuildRules : public UDataAsset
 {
@@ -24,23 +32,34 @@ public:
 
 	UNF_BuildItemDefinitionDataAsset* FindItemDefinition(FName ItemId) const;
 
+	TArray<FNF_BuildCatalogItem> ReadCatalog() const;
+
 	bool ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) const;
 
 	/** Index 0 = level 1. Missing levels fail closed; no invented balance curve. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build")
 	TArray<int32> CostLimitsByLevel;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build", meta = (ClampMin = "1", ClampMax = "8"))
-	int32 WeaponSlots = 1;
+	// @Owner: 황준현 | 2026-11-05. 슬롯 구성은 무기·방어구·입력 코드가 전제하는 고정값이다.
+	// 에디터에서 바꿀 수 없게 표시만 하고, 이전에 다른 값으로 저장된 에셋은 PostLoad에서 고정값으로 되돌린다.
+	static constexpr int32 FixedWeaponSlots = 1;
+	static constexpr int32 FixedArmorSlots = 3;
+	static constexpr int32 FixedActiveSkillSlots = 2;
+	static constexpr int32 FixedPassiveSkillSlots = 1;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build", meta = (ClampMin = "0", ClampMax = "8"))
-	int32 ArmorSlots = 3;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Build|Slots")
+	int32 WeaponSlots = FixedWeaponSlots;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build", meta = (ClampMin = "0", ClampMax = "8"))
-	int32 ActiveSkillSlots = 2;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Build|Slots")
+	int32 ArmorSlots = FixedArmorSlots;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build", meta = (ClampMin = "0", ClampMax = "8"))
-	int32 PassiveSkillSlots = 1;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Build|Slots")
+	int32 ActiveSkillSlots = FixedActiveSkillSlots;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF|Build|Slots")
+	int32 PassiveSkillSlots = FixedPassiveSkillSlots;
+
+	bool HasFixedSlotCounts() const;
 
 	int32 GetSlotCount(ENF_ItemType ItemType) const;
 	bool TryGetCostLimit(int32 PlayerLevel, int32& OutCostLimit) const;
@@ -49,4 +68,11 @@ public:
 	// 빌드 제한시간 종료 시 미준비 플레이어에게 적용할 기본 구성.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build|Fallback")
 	TArray<FNF_BuildSelection> FallbackBuild;
+
+	virtual void PostLoad() override;
+
+#if WITH_EDITOR
+	/** 저장·데이터 검증 시 카탈로그와 기본 빌드 설정 오류를 알린다. */
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+#endif
 };
