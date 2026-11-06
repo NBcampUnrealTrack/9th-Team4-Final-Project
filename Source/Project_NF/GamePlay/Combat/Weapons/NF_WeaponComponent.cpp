@@ -83,9 +83,15 @@ bool UNF_WeaponComponent::EquipWeapon(ANF_WeaponBase* NewWeapon)
 		return true;
 
 	TGuardValue<bool> ChangeGuard(bChangingWeapon, true);
+	const UNF_WeaponDataAsset* WeaponData = NewWeapon->GetWeaponData();
+	
+	if (IsValid(WeaponData) == false)
+	{
+		WeaponData = GetDefault<UNF_WeaponDataAsset>();
+	}
 	
 	if (NewWeapon->AttachToComponent(OwnerCharacter->VisualMesh,
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale, Config->WeaponSocketName) == false)
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponData->WeaponSocketName) == false)
 		return false;
 
 	UnequipWeaponInternal();
