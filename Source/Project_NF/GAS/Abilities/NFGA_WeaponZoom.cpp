@@ -5,6 +5,10 @@
 
 UNFGA_WeaponZoom::UNFGA_WeaponZoom()
 {
+	FGameplayTagContainer AssetTagContainer;
+	AssetTagContainer.AddTag(NFTag_Player::Player_Ability_Zoom);
+	SetAssetTags(AssetTagContainer);
+	
 	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Death);
 	ActivationBlockedTags.AddTag(NFTag_Player::Player_State_Death);
 	

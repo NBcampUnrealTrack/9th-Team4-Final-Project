@@ -11,7 +11,7 @@
 UNFGA_WeaponFire::UNFGA_WeaponFire()
 {
 	FGameplayTagContainer AssetTagContainer;
-	AssetTagContainer.AddTag(NFTag_Player::Player_Ability_Attack);
+	AssetTagContainer.AddTag(NFTag_Player::Player_Ability_Fire);
 	SetAssetTags(AssetTagContainer);
 	
 	CancelAbilitiesWithTag.AddTag(NFTag_Player::Player_State_Death);
