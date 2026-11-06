@@ -11,6 +11,8 @@ enum class ENF_WeaponType : uint8
 	Pistol	UMETA(DisplayName = "Pistol"),
 	SG		UMETA(DisplayName = "Shotgun"),
 	SMG		UMETA(DisplayName = "Submachine Gun"),
-	SR		UMETA(DisplayName = "Sniper Rifle")
+	SR		UMETA(DisplayName = "Sniper Rifle"),
+	Dagger	UMETA(DisplayName = "Dagger"),
+	Sword	UMETA(DisplayName = "Sword")
 };
 
