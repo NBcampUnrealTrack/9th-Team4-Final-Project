@@ -15,9 +15,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
 	TSubclassOf<class ANF_WeaponBase> DefaultWeaponClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Weapon")
-	FName WeaponSocketName = TEXT("WeaponSocket_R");
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Abilities")
 	TSubclassOf<class UNFGA_WeaponFire> FireAbilityClass;
 
