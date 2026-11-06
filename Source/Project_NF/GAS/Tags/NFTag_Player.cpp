@@ -19,6 +19,8 @@ namespace  NFTag_Player
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Event_Destroy, "Player.Event.Destroy", "해당 Event가 Send 되면 액터 삭제")
 	// @Owner: 명현 | 2026-10-23
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Event_DamagedCheck, "Player.Event.DamagedCheck", "해당 Event가 Send 되면 현재 받을 데미지 전송")
+	// @Owner: 명현 | 2026-10-23
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Event_HitReact, "Player.Event.HitReact", "해당 Event가 Send 되면 히트 리액션 발동")
 	
 	// @Owner: 명현 | 2026-10-21
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_State_Death, "Player.State.Death", "죽음 상태를 의미하며, 다른 GA들의 사용을 막음")
@@ -37,10 +39,11 @@ namespace  NFTag_Player
 		"Player.Data.ShieldRecoveryBlockedDuration", "플레이어의 쉴드 회복 불가 상태의 지속 시간 데이터 전송용")
 	
 	// @Owner: 명현 | 2026-10-30
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_State_ShieldRecoveryBlocked, 
-		"Player.State.ShieldRecoveryBlocked", "플레이어가 쉴드 회복이 불가능한 상태")
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_State_ShieldRecoveryBlocked, "Player.State.ShieldRecoveryBlocked", "플레이어가 쉴드 회복이 불가능한 상태")
 	
 	// @Owner: 명현 | 2026-10-30
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_InComingEXP, 
-		"Data.InComingEXP", "플레이어에게 경험치를 전달하는 태그")
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_InComingEXP, "Data.InComingEXP", "플레이어에게 경험치를 전달하는 태그")
+	
+	// @Owner: 명현 | 2026-11-05
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Data_Damage, "Data.Damage", "플레이어에게 경험치를 전달하는 태그")
 }

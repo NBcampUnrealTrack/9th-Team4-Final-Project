@@ -3,6 +3,7 @@
 #include "NFGA_MeleeAttack.h"
 
 #include "Data/HelperFunction/NF_GASFunctionLibrary.h"
+#include "GameFramework/Character.h"
 #include "GAS/Tags/NFTag_Player.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
 

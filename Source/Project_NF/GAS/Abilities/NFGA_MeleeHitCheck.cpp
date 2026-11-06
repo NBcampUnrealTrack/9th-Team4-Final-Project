@@ -33,7 +33,7 @@ void UNFGA_MeleeHitCheck::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	auto* NF_PlayerDataAsset = Cast<UNF_PlayerDataAsset>(GetCurrentSourceObject());
 	if (IsValid(NF_PlayerDataAsset) == false) return EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 	
-	const auto& NF_SetDamage_GEClass = UNF_GEManagerSubsystem::FindEffect(this, &UNF_PlayerGEDataAsset::NF_SetDamage_GEClass);
+	const auto& NF_SetDamage_GEClass = UNF_GEManagerSubsystem::FindEffect(this, &UNF_PlayerGEDataAsset::NF_IncomingDamage_GEClass);
 	
 	HitCheck(NF_SetDamage_GEClass, NF_PlayerDataAsset->MeleeAttackDamage);
 	
@@ -101,7 +101,7 @@ void UNFGA_MeleeHitCheck::OnHitCheckValidData(const FGameplayAbilityTargetDataHa
 		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(GameplayEffectClass_CallBack, 1.0f);
 
 		UAbilitySystemBlueprintLibrary::AssignTagSetByCallerMagnitude(SpecHandle,
-			FGameplayTag::RequestGameplayTag(TEXT("Data.Damage")), PayloadMagnitude_CallBack);
+			NFTag_Player::Data_Damage, PayloadMagnitude_CallBack);
 
 		K2_ApplyGameplayEffectSpecToTarget(SpecHandle, Data);
 	}

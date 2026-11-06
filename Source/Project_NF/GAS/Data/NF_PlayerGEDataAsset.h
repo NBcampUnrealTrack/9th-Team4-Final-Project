@@ -13,7 +13,7 @@ class PROJECT_NF_API UNF_PlayerGEDataAsset : public UDataAsset
 	
 public:
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffects|Player")
-	TSubclassOf<UGameplayEffect> NF_SetDamage_GEClass;
+	TSubclassOf<UGameplayEffect> NF_IncomingDamage_GEClass;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayEffects|Player")
 	TSubclassOf<UGameplayEffect> NF_IncomingExp_GEClass;

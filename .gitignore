@@ -685,6 +685,9 @@ Content/ProjectNF/Dev/Resource/Mesh/*
 Content/ProjectNF/Dev/Resource/Mesh/PlayerCharacter/*
 !Content/ProjectNF/Dev/Resource/Mesh/PlayerCharacter/Player/
 !Content/ProjectNF/Dev/Resource/Mesh/Weapon/
+!Content/ProjectNF/Dev/Resource/Anim/
+Content/ProjectNF/Dev/Resource/Anim/*
+!Content/ProjectNF/Dev/Resource/Anim/PlayerCharacter/
 _개인 백업/
 
 # Ignore Myungwoo's personal content assets

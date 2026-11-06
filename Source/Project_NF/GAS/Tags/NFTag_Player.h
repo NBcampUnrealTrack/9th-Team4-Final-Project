@@ -21,6 +21,8 @@ namespace NFTag_Player
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Event_Destroy);
 	// @Owner: 명현 | 2026-10-23
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Event_DamagedCheck);
+	// @Owner: 명현 | 2026-11-05
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Event_HitReact);
 	
 	// @Owner: 명현 | 2026-10-21
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_State_Death);
@@ -42,4 +44,7 @@ namespace NFTag_Player
 	
 	// @Owner: 명현 | 2026-11-02
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_InComingEXP);
+	
+	// @Owner: 명현 | 2026-11-05
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_Damage);
 };

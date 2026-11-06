@@ -30,7 +30,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "GAS|GA_Montage")
 	TObjectPtr<UAnimMontage> DownedMontage;
 	
-	UPROPERTY(EditAnywhere, Category = "GAS|MeleeAttack", DisplayName = "MeleeTraceRadius (근접공격 범위)")
+	UPROPERTY(EditAnywhere, Category = "GAS|GA_Montage")
+	TObjectPtr<UAnimMontage> HitReact_01;
+	
+	UPROPERTY(EditAnywhere, Category = "GAS|GA_Montage")
+	TObjectPtr<UAnimMontage> HitReact_02;
+	
+	UPROPERTY(EditAnywhere, Category = "GAS|MeleeAttack", DisplayName = "MeleeTraceRadius (근접공격 폭 범위)")
 	float MeleeTraceRadius = 20.0f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GAS|MeleeAttack")
@@ -40,11 +46,11 @@ public:
 	FName MeleeSocket_End = "MeleeSocket_End";
 	
 	
-	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "InComingEXPAmount(양수)")
-	float PlayerKillExp = 80.0f;
-	
 	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "MeleeAttackDamage(양수)")
-	float MeleeAttackDamage = 110.0f;
+	float MeleeAttackDamage = 10.0f;
+	
+	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "InComingEXPAmount(양수)")
+	float ExpByPlayerKill = 80.0f;
 	
 	UPROPERTY(EditAnywhere, Category = "GAS|PayLoad", DisplayName = "ShieldRecoveryAmount(양수)")
 	float ShieldRecoveryAmount = 0.1f;
