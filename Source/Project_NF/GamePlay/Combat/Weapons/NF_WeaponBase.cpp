@@ -26,7 +26,7 @@ ANF_WeaponBase::ANF_WeaponBase()
 
 	WeaponMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
 	SetRootComponent(WeaponMeshComponent);
-	WeaponMeshComponent->SetRelativeScale3D(FVector(0.7f));
+	WeaponMeshComponent->SetRelativeScale3D(FVector(1.0f));
 	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
