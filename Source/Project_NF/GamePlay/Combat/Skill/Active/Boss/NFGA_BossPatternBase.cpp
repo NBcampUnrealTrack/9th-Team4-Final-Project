@@ -10,6 +10,8 @@
 #include "GamePlay/Combat/Projectiles/NF_BossAreaProjectile.h"
 #include "GameplayEffect.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
+#include "GAS/Data/NF_BossGEDataAsset.h"
+#include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "Materials/MaterialInterface.h"
 #include "Player/Character/NF_Player.h"
 #include "TimerManager.h"
@@ -35,6 +37,22 @@ void UNFGA_BossPatternBase::EndAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	bLastExecutionCancelled = bWasCancelled;
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+TSubclassOf<UGameplayEffect> UNFGA_BossPatternBase::ResolveBossEffect(const TSubclassOf<UGameplayEffect> Override,
+	TSubclassOf<UGameplayEffect> UNF_BossGEDataAsset::* Member, const TCHAR* DebugName) const
+{
+	if (Override)
+	{
+		return Override;
+	}
+	const TSubclassOf<UGameplayEffect> EffectClass = UNF_GEManagerSubsystem::FindEffect(GetBoss(), Member);
+	if (!EffectClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[BossGE] %s is not set in DA_NF_BossGE (GE Manager). GA=%s"),
+			DebugName, *GetNameSafe(GetClass()));
+	}
+	return EffectClass;
 }
 
 FGameplayEffectSpecHandle UNFGA_BossPatternBase::MakeBossEffectSpec(

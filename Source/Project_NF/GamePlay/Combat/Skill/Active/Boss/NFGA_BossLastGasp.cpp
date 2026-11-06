@@ -4,6 +4,7 @@
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
 #include "GAS/Effects/NF_CommonDamageEffects.h"
+#include "GAS/Data/NF_BossGEDataAsset.h"
 #include "GameplayEffect.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
 #include "EngineUtils.h"
@@ -15,7 +16,6 @@ UNFGA_BossLastGasp::UNFGA_BossLastGasp()
 	GetMutableActiveDefaults().ExecutionDuration = TelegraphDuration;
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
-	StunEffectClass = UNFGE_BossStun::StaticClass();
 }
 
 void UNFGA_BossLastGasp::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -51,7 +51,9 @@ void UNFGA_BossLastGasp::DetonateMarkedZones()
 	const ANF_BossBase* Boss = GetBoss();
 	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag,
 		Boss ? Boss->GetPatternDamage(ENF_BossPatternId::LastGasp, Damage) : Damage);
-	const FGameplayEffectSpecHandle StunSpec = MakeBossEffectSpec(StunEffectClass, FGameplayTag(), 0.0f);
+	const FGameplayEffectSpecHandle StunSpec = MakeBossEffectSpec(
+		ResolveBossEffect(StunEffectClass, &UNF_BossGEDataAsset::BossStunEffectClass, TEXT("BossStunEffectClass")),
+		FGameplayTag(), 0.0f);
 	for (const TPair<TWeakObjectPtr<ANF_Player>, FVector>& Entry : MarkedLocations)
 	{
 		ANF_Player* Player = Entry.Key.Get();

@@ -5,6 +5,7 @@
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
 #include "GAS/Effects/NF_CommonDamageEffects.h"
+#include "GAS/Data/NF_BossGEDataAsset.h"
 #include "GAS/Tags/NFGameplayCueTags.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
 #include "GameplayEffect.h"
@@ -18,7 +19,6 @@ UNFGA_BossRelocate::UNFGA_BossRelocate()
 	GetMutableActiveDefaults().ExecutionDuration = 7.45f;
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
-	AirborneEffectClass = UNFGE_BossAirborne::StaticClass();
 }
 
 void UNFGA_BossRelocate::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -173,7 +173,9 @@ void UNFGA_BossRelocate::Emerge()
 
 	const FGameplayEffectSpecHandle DamageSpec = MakeBossEffectSpec(DamageEffectClass, DamageMagnitudeTag,
 		Boss->GetPatternDamage(ENF_BossPatternId::Relocate, Damage));
-	const FGameplayEffectSpecHandle AirborneSpec = MakeBossEffectSpec(AirborneEffectClass, FGameplayTag(), 0.0f);
+	const FGameplayEffectSpecHandle AirborneSpec = MakeBossEffectSpec(
+		ResolveBossEffect(AirborneEffectClass, &UNF_BossGEDataAsset::BossAirborneEffectClass, TEXT("BossAirborneEffectClass")),
+		FGameplayTag(), 0.0f);
 	for (ANF_Player* Player : FindPlayersInRange(EmergencePoint, EmergenceRadius))
 	{
 		ApplyEffectToActor(Player, DamageSpec);

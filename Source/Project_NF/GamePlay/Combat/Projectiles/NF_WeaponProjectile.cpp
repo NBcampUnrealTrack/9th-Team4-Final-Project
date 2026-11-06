@@ -12,7 +12,8 @@
 #include "GAS/Tags/NFTag_BossCombat.h"
 #include "GAS/Tags/NFTag_AttackType.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
-#include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
+#include "GAS/Data/NF_BossGEDataAsset.h"
+#include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
 #include "GamePlay/Combat/Armor/NF_ArmorBase.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -183,15 +184,25 @@ void ANF_WeaponProjectile::OnProjectileHit(UPrimitiveComponent* HitComponent, AA
 
 		if (IsValid(SourceASC) && IsValid(BossASC) && ImpactDamage > 0.f)
 		{
-			FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
-			EffectContext.AddSourceObject(this);
-			FGameplayEffectSpecHandle DamageSpec = SourceASC->MakeOutgoingSpec(
-				UNFGE_PlayerDamageToBoss::StaticClass(), 1.f, EffectContext);
-
-			if (DamageSpec.IsValid())
+			const auto PlayerDamageToBossGEClass = UNF_GEManagerSubsystem::FindEffect(
+				this, &UNF_BossGEDataAsset::PlayerDamageToBossEffectClass);
+			if (!PlayerDamageToBossGEClass)
 			{
-				DamageSpec.Data->SetSetByCallerMagnitude(NFTag_BossCombat::Data_Damage, ImpactDamage);
-				BossASC->ApplyGameplayEffectSpecToSelf(*DamageSpec.Data.Get());
+				UE_LOG(LogTemp, Error,
+					TEXT("[WeaponProjectile] PlayerDamageToBossEffectClass is not set in DA_NF_BossGE; boss damage skipped."));
+			}
+			else
+			{
+				FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+				EffectContext.AddSourceObject(this);
+				FGameplayEffectSpecHandle DamageSpec = SourceASC->MakeOutgoingSpec(
+					PlayerDamageToBossGEClass, 1.f, EffectContext);
+
+				if (DamageSpec.IsValid())
+				{
+					DamageSpec.Data->SetSetByCallerMagnitude(NFTag_BossCombat::Data_Damage, ImpactDamage);
+					BossASC->ApplyGameplayEffectSpecToSelf(*DamageSpec.Data.Get());
+				}
 			}
 		}
 		else
