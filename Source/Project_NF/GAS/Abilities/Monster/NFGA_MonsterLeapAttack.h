@@ -53,6 +53,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|Leap")
 	TObjectPtr<UAnimMontage> LeapMontage;
 
+	// 착지몽타주
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|Leap")
+	TObjectPtr<UAnimMontage> LandingMontage;
+	
 	// 높이 배율을 적용하기 전의 평지 기준 체공 시간
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly,
 		Category = "NF|Monster|Leap",

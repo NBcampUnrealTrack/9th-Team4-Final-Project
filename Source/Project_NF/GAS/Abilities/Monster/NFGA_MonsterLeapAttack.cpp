@@ -1,7 +1,9 @@
 #include "GAS/Abilities/Monster/NFGA_MonsterLeapAttack.h"
 
+#include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
+#include "Animation/AnimMontage.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GAS/Tags/NFTag_Monster.h"
@@ -244,12 +246,18 @@ void UNFGA_MonsterLeapAttack::HandlePreparationFinished()
 		true,
 		true);
 
-	if (LeapMontage)
+	if (LeapMontage && LeapMontage->RateScale > 0.0f)
 	{
-		// 몽타주 길이와 별개로 실제 착지 이벤트에서 피해와 후딜 처리
+		// 이동 틱과 지면 높이 차이를 감안해 착지 전에 블렌드 아웃이 시작되지 않도록 한다.
+		constexpr float LandingTimingMargin = 0.2f;
+		const float BlendOutLeadTime = FMath::Max(
+			LeapMontage->BlendOutTriggerTime, LeapMontage->BlendOut.GetBlendTime());
+		const float MontageDuration = SafeFlightTime + LandingTimingMargin + BlendOutLeadTime;
+		const float PlayRate = LeapMontage->GetPlayLength() / (MontageDuration * LeapMontage->RateScale);
+
 		UAbilityTask_PlayMontageAndWait* MontageTask =
 			UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-				this, NAME_None, LeapMontage);
+				this, NAME_None, LeapMontage, PlayRate);
 		MontageTask->ReadyForActivation();
 	}
 }
@@ -266,11 +274,29 @@ void UNFGA_MonsterLeapAttack::HandleMonsterLanded(
 		return;
 	}
 
+	if (UAbilitySystemComponent* MonsterASC = Monster->GetAbilitySystemComponent())
+	{
+		if (LeapMontage && MonsterASC->GetAnimatingAbility() == this
+			&& MonsterASC->GetCurrentMontage() == LeapMontage)
+		{
+			MonsterASC->CurrentMontageStop();
+		}
+	}
+
 	FVector LandingLocation = Monster->GetActorLocation();
 
 	if (Hit.bBlockingHit)
 	{
 		LandingLocation = FVector(Hit.ImpactPoint);
+	}
+	
+	if (LandingMontage)
+	{
+		UAbilityTask_PlayMontageAndWait* LandingTask =
+			UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+				this, TEXT("LandingMontage"), LandingMontage);
+
+		LandingTask->ReadyForActivation();
 	}
 	
 	UE_LOG(
