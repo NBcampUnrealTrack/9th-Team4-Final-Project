@@ -24,6 +24,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|Attack")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Monster|Attack")
+	TArray<TObjectPtr<UAnimMontage>> AttackMontages;
+	
 	UFUNCTION()
 	void HandleMontageCompleted();
 

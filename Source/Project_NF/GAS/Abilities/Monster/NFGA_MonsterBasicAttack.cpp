@@ -1,5 +1,6 @@
 #include "NFGA_MonsterBasicAttack.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Animation/AnimMontage.h"
 #include "GAS/Tags/NFTag_Monster.h"
 
 UNFGA_MonsterBasicAttack::UNFGA_MonsterBasicAttack()
@@ -30,7 +31,22 @@ void UNFGA_MonsterBasicAttack::ActivateAbility(
     const FGameplayAbilityActivationInfo ActivationInfo,
     const FGameplayEventData* TriggerEventData)
 {     
-    if (!AttackMontage || !CommitAbility(
+    TArray<UAnimMontage*> ValidMontages;
+    for (UAnimMontage* Montage : AttackMontages)
+    {
+        if (IsValid(Montage))
+        {
+            ValidMontages.Add(Montage);
+        }
+    }
+
+    UAnimMontage* SelectedMontage = AttackMontage;
+    if (!ValidMontages.IsEmpty())
+    {
+        SelectedMontage = ValidMontages[FMath::RandHelper(ValidMontages.Num())];
+    }
+    
+    if (!SelectedMontage || !CommitAbility(
         Handle,
         ActorInfo,
         ActivationInfo))
@@ -49,7 +65,7 @@ void UNFGA_MonsterBasicAttack::ActivateAbility(
         UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
             this,
             NAME_None,
-            AttackMontage);
+            SelectedMontage);
 
     MontageTask->OnCompleted.AddDynamic(
         this,
