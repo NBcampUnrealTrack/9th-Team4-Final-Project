@@ -23,7 +23,7 @@ public:
 	
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, InComingDamage)
 	
-	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, TotalDefence);
+	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, Defence);
 	
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, AdditionalDefence);
 	ATTRIBUTE_ACCESSORS_BASIC(ThisClass, AdditionalDefence_Head);
@@ -57,8 +57,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_InComingDamage, Category = "Player|Attribute")
 	FGameplayAttributeData InComingDamage = 0.0f;
 	
-	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_TotalDefence, Category = "Player|Attribute")
-	FGameplayAttributeData TotalDefence = 0.0f;
+	UPROPERTY(EditAnywhere, ReplicatedUsing = OnRep_Defence, Category = "Player|Attribute")
+	FGameplayAttributeData Defence = 0.0f;
 	
 	
 	//방어구 담당이 만질 어트리뷰트 단락
@@ -91,7 +91,7 @@ protected:
 	void OnRep_InComingDamage(const FGameplayAttributeData& OldInComingDamage);
 	
 	UFUNCTION()
-	void OnRep_TotalDefence(const FGameplayAttributeData& OldDefence);
+	void OnRep_Defence(const FGameplayAttributeData& OldDefence);
 	
 	
 	UFUNCTION()
