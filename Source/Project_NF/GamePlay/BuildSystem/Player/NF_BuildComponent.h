@@ -15,6 +15,7 @@ class UAbilitySystemComponent;
 class UDataAsset;
 class UNF_BuildItemDefinitionDataAsset;
 class UNF_BuildRules;
+class UNF_BuildInitialSettings;
 
 /** @Owner: 황준현 | 2026-11-01. 장착 항목만 소유 클라이언트에 전달하는 확정 데이터. */
 USTRUCT()
@@ -49,7 +50,7 @@ struct FNF_BuildGrantHandles
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildChanged);
 
-// @Owner: 황준현 | 2026-10-20. 개인별 코스트 상한과 사용 가능 목록 변경 알림.
+// @Owner: 황준현 | 2026-10-20. 코스트 상한 초기화·변경 알림. 기존 UI 바인딩 이름을 유지한다.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNF_OnBuildEntitlementsChanged);
 
 // @Owner: 황준현 | 2026-10-20
@@ -73,6 +74,11 @@ public:
 
 	// @Owner: 황준현 | 2026-10-20. 권한 있는 진행·획득 시스템에서 호출한다.
 	// 클라이언트 RPC로 제공하지 않는다.
+	/** 서버 전용 코스트 갱신. 아이템 목록은 현재 상점 Catalog를 사용한다. */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build")
+	bool UpdateBuildCostLimit(int32 NewCostLimit);
+
+	/** 기존 C++ 호출 호환용. NewUnlockedItemIds는 더 이상 사용하지 않는다. */
 	bool UpdateBuildEntitlements(int32 NewCostLimit, const TArray<FName>& NewUnlockedItemIds);
 	
 	
@@ -102,7 +108,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|Draft")
 	bool RemoveDraftItem(FName ItemId);
 
-	/** 이번 방문에서 고른 항목을 취소한다. 그 칸에 장착돼 있던 항목이 있으면 되돌려 놓는다. */
+	/** 이번 방문에서 고른 항목을 취소한다. 칸 선택을 기다리는 액티브 스킬이면 대기만 취소한다. */
 	UFUNCTION(BlueprintCallable, Category = "NF|Build|Draft")
 	bool RevertDraftItem(FName ItemId);
 
@@ -154,9 +160,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build")
 	bool InitializeAbilitySystem(UAbilitySystemComponent* InAbilitySystem);
 
-	/** 기존 호출 호환용 레벨 기록. 상한과 사용 권한은 UpdateBuildEntitlements로 갱신한다. */
+	/** 기존 호출 호환용 레벨 기록. 상한은 UpdateBuildCostLimit로 갱신한다. */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Build",
-		meta = (DeprecatedFunction, DeprecationMessage = "Use UpdateBuildEntitlements for cost and unlock changes."))
+		meta = (DeprecatedFunction, DeprecationMessage = "Use UpdateBuildCostLimit for cost changes."))
 	bool SetPlayerLevel(int32 NewLevel);
 
 	UFUNCTION(BlueprintPure, Category = "NF|Build")
@@ -192,17 +198,16 @@ public:
 
 protected:
 	// @Owner: 황준현 | 2026-10-22. 외부 진행 시스템 연결 전 명시적으로 설정한 초기 조건을 사용한다.
-	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|Initial Entitlements")
+	/** 지정하면 서버 BeginPlay에서 초기 코스트를 읽는다. 외부에서 먼저 초기화한 값은 유지한다. */
+	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|Initial Settings")
+	TObjectPtr<UNF_BuildInitialSettings> InitialSettings;
+
+	// 기존 BP 저장값을 읽기 위한 이행용 필드. DA 지정 시 사용하지 않는다.
+	UPROPERTY()
 	bool bInitializeEntitlementsFromDefaults = false;
 
-	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|Initial Entitlements",
-		meta = (ClampMin = "0", EditCondition = "bInitializeEntitlementsFromDefaults"))
+	UPROPERTY()
 	int32 InitialCostLimit = 0;
-
-	// Rules의 Catalog에 존재하는 ItemId만 지정한다. 전체 카탈로그를 자동 해금하지 않는다.
-	UPROPERTY(EditDefaultsOnly, Category = "NF|Build|Initial Entitlements",
-		meta = (EditCondition = "bInitializeEntitlementsFromDefaults"))
-	TArray<FName> InitialUnlockedItemIds;
 
 	virtual void BeginPlay() override;
 	virtual void
@@ -314,9 +319,6 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_BuildEntitlements)
 	int32 CostLimit = 0;
-
-	UPROPERTY(ReplicatedUsing = OnRep_BuildEntitlements)
-	TArray<FName> UnlockedItemIds;
 
 	UPROPERTY(ReplicatedUsing = OnRep_BuildEntitlements)
 	bool bEntitlementsInitialized = false;

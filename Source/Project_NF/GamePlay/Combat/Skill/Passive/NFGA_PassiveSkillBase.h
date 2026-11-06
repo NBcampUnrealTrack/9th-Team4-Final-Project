@@ -9,6 +9,12 @@ class PROJECT_NF_API UNFGA_PassiveSkillBase : public UNFGA_SkillBase
 	GENERATED_BODY()
 public:
 	UNFGA_PassiveSkillBase();
+	virtual bool CanContinueSkillExecution() const override;
+	virtual bool CanActivateAbility(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+	UFUNCTION(BlueprintPure, Category = "NF|Skill|Definition")
+	const UNF_PassiveSkillDataAsset* GetPassiveData() const;
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual void OnAvatarSet(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
@@ -21,24 +27,15 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "NF|Skill|Passive|Visual")
 	void StopPassiveActiveCue();
 protected:
+	const UNF_PassiveSkillDataAsset& GetPassiveSettings() const;
+	UNF_PassiveSkillDataAsset& GetMutablePassiveDefaults();
 	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Skill|Passive")
 	void PassiveEquipped();
 	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Skill|Passive")
 	void PassiveUnequipped();
 	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Skill|Passive")
 	void PassiveGameplayEvent(FGameplayTag EventTag, const FGameplayEventData& Payload);
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive|Visual", meta = (Categories = "GameplayCue"))
-	FGameplayTag ActivationCueTag;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive|Visual", meta = (Categories = "GameplayCue"))
-	FGameplayTag ActiveCueTag;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive")
-	TArray<TSubclassOf<UGameplayEffect>> PassiveEffects;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive")
-	FGameplayTagContainer PassiveEventTags;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Skill|Passive")
-	bool bActivatePassiveOnGrant = false;
 private:
-	friend class UNF_PassiveSkillDataAsset;
 	friend class FNF_BerserkerTest;
 	void InitializePassive();
 	void CleanupPassive();

@@ -173,9 +173,15 @@ bool FNF_BuildCostTest::RunTest(const FString& Parameters)
 	TestEqual(
 		TEXT("상한 0에서는 유료 빌드 거절"), FNF_BuildValidator::Validate(Rules, 0, MakeAllowedItemIds(Rules), ExactLimit).Result,
 		ENF_BuildResult::CostLimitExceeded);
-	TestEqual(TEXT("카탈로그에 있어도 미획득 항목 거절"),
+	TestEqual(TEXT("이전 개인 목록에 없어도 카탈로그 항목 허용"),
 	          FNF_BuildValidator::Validate(Rules, 8, {FName(TEXT("Rifle"))}, ExactLimit).Result,
-	          ENF_BuildResult::ItemNotUnlocked);
+	          ENF_BuildResult::Success);
+	TestEqual(TEXT("개인 목록 없이도 전체 카탈로그 선택 허용"),
+	          FNF_BuildValidator::Validate(Rules, 8, ExactLimit).Result,
+	          ENF_BuildResult::Success);
+	TestEqual(TEXT("전체 공개여도 카탈로그 외 항목 거절"),
+	          FNF_BuildValidator::Validate(Rules, 8, {Select(TEXT("UnknownCatalogItem"))}).Result,
+	          ENF_BuildResult::UnknownItem);
 	const FNF_BuildValidation OwnedResult =
 		FNF_BuildValidator::Validate(Rules, 8, MakeAllowedItemIds(Rules), OverLimit, nullptr, &ExactLimit);
 	TestEqual(TEXT("이미 장착한 항목은 코스트에서 제외"), OwnedResult.Result, ENF_BuildResult::Success);
@@ -378,10 +384,10 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("외부 서버에서 코스트 상한 갱신"), Build->UpdateBuildEntitlements(12, MakeAllowedItemIds(Rules)));
 	World->Tick(LEVELTICK_All, 0.25f);
 	TestTrue(TEXT("거리 안의 상점을 조회할 수 있다"), Build->GetShopsInRange().Contains(Shop));
-	TestTrue(TEXT("개인 해금 목록을 공용 카탈로그와 별도로 갱신한다"),
+	TestTrue(TEXT("기존 API는 코스트 갱신 호환성을 유지한다"),
 	         Build->UpdateBuildEntitlements(12, {FName(TEXT("Rifle"))}));
-	TestEqual(TEXT("공용 DA에 있어도 미해금 액티브 스킬은 표시하지 않는다"),
-	          Build->GetCatalogItems(ENF_ItemType::ActiveSkill, ENF_ArmorSlot::None).Num(), 0);
+	TestTrue(TEXT("이전 개인 목록과 무관하게 상점 액티브 스킬을 표시한다"),
+	         Build->GetCatalogItems(ENF_ItemType::ActiveSkill, ENF_ArmorSlot::None).Num() > 0);
 	TestTrue(TEXT("개인 해금 조건 복원"), Build->UpdateBuildEntitlements(12, MakeAllowedItemIds(Rules)));
 	ANF_BuildShopZone* OtherShop = World->SpawnActor<ANF_BuildShopZone>();
 	ShopTypeProperty->GetUnderlyingProperty()->SetIntPropertyValue(

@@ -23,6 +23,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 #include "UI/Widget/NF_MonsterStatusWidget.h"
+#include "Player/State/NF_PlayerState.h"
+#include "Player/Character/NF_PlayerLevelAttribute.h"
 #include "GAS/Tags/NFTag_BossCombat.h"
 
 #include "Player/Character/NF_PlayerStatusAttribute.h"
@@ -214,6 +216,7 @@ void ANF_Monster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ANF_Monster, MonsterDisplayName);
+	DOREPLIFETIME(ANF_Monster, bIsDead);
 }
 
 void ANF_Monster::OnRep_MonsterDisplayName()
@@ -242,7 +245,7 @@ void ANF_Monster::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ANF_Monster::UpdateLocalStatusVisibility()
 {
-	if (!IsValid(MonsterStatusWidgetComponent)) return;
+	if (!IsValid(MonsterStatusWidgetComponent)) { return; }
 	APlayerController* LocalController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
 	const APawn* LocalPawn = IsValid(LocalController) && LocalController->IsLocalController()
 		? LocalController->GetPawn() : nullptr;
@@ -255,9 +258,9 @@ void ANF_Monster::UpdateLocalStatusVisibility()
 
 void ANF_Monster::MulticastRevealStatusToAttacker_Implementation(APlayerState* Attacker)
 {
-	if (GetNetMode() == NM_DedicatedServer || !IsValid(Attacker)) return;
+	if (GetNetMode() == NM_DedicatedServer || !IsValid(Attacker)) { return; }
 	APlayerController* LocalController = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-	if (!IsValid(LocalController) || !LocalController->IsLocalController() || LocalController->PlayerState != Attacker) return;
+	if (!IsValid(LocalController) || !LocalController->IsLocalController() || LocalController->PlayerState != Attacker) { return; }
 	StatusRevealedUntil = GetWorld()->GetTimeSeconds() + StatusDamageVisibleDuration;
 	UpdateLocalStatusVisibility();
 }
@@ -402,6 +405,8 @@ FMath::Max(MonsterAttributeSet->GetAttackPower(), 0.0f));
 
 void ANF_Monster::HandleMonsterDamaged(float Damage, AActor* DamageSource)
 {
+	if (bIsDead) { return; }
+
 	if (HasAuthority())
 	{
 		const APawn* SourcePawn = Cast<APawn>(DamageSource);
@@ -492,15 +497,12 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 	TEXT("HandleMonsterOutOfHealth executed: %s"),
 	*GetName());
 	
-	if (bIsDead || !MonsterASC)	{ return; }
+	if (!HasAuthority() || bIsDead || !MonsterASC) { return; }
 
 	bIsDead = true;
-	if (IsValid(MonsterStatusWidgetComponent)) MonsterStatusWidgetComponent->SetVisibility(false);
-	
-	if (HasAuthority())
-	{
-		SpawnMonsterDrops();
-	}
+	GetWorldTimerManager().ClearTimer(HitReactTimerHandle);
+	GrantExperienceToKiller();
+	SpawnMonsterDrops();
 	
 	OnMonsterDied.Broadcast(this);
 
@@ -522,6 +524,8 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 		Cast<AAIController>(GetController()))
 	{
 		MonsterAIController->StopMovement();
+		// ClearCurrentTargetActor가 가드 주시점을 복원하는 경우까지 제거한다.
+		MonsterAIController->ClearFocus(EAIFocusPriority::Gameplay);
 
 		if (UBrainComponent* BrainComponent =
 			MonsterAIController->GetBrainComponent())
@@ -530,14 +534,50 @@ void ANF_Monster::HandleMonsterOutOfHealth()
 		}
 	}
 
-	GetCharacterMovement()->DisableMovement();
+	// 서버의 AI 소유를 해제해 시체가 새 타깃을 따라 회전하지 않도록 한다.
+	DetachFromControllerPendingDestroy();
 
-	GetCapsuleComponent()->SetCollisionEnabled(
-		ECollisionEnabled::NoCollision);
-
-	PlayAnimMontage(DeathMontage);
+	// 서버에서는 RepNotify가 자동 실행되지 않으므로 공통 사망 처리를 직접 적용한다.
+	OnRep_IsDead();
+	ForceNetUpdate();
 
 	SetLifeSpan(CorpseLifeSpan);
+}
+
+void ANF_Monster::OnRep_IsDead()
+{
+	if (!bIsDead) { return; }
+
+	GetWorldTimerManager().ClearTimer(StatusVisibilityTimerHandle);
+	if (IsValid(MonsterStatusWidgetComponent))
+	{
+		MonsterStatusWidgetComponent->SetVisibility(false);
+	}
+
+	bUseControllerRotationYaw = false;
+	bUseControllerRotationPitch = false;
+	bUseControllerRotationRoll = false;
+
+	if (UCharacterMovementComponent* MovementComponent = GetCharacterMovement())
+	{
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->bUseControllerDesiredRotation = false;
+		MovementComponent->bOrientRotationToMovement = false;
+		MovementComponent->DisableMovement();
+	}
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 사망 상태를 수신한 각 클라이언트에서 연출을 재생한다.
+	if (GetNetMode() != NM_DedicatedServer && DeathMontage)
+	{
+		const float MontageDuration = PlayAnimMontage(DeathMontage);
+		if (MontageDuration <= 0.0f)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Monster death montage failed: Monster=%s / Montage=%s"),
+				*GetNameSafe(this), *GetNameSafe(DeathMontage));
+		}
+	}
 }
 
 void ANF_Monster::HandleMoveSpeedChanged(
@@ -552,9 +592,7 @@ void ANF_Monster::SetMonsterMoveSpeed(float NewMoveSpeed)
 		GetCharacterMovement();
 
 	if (!MonsterMovementComponent)
-	{
-		return;
-	}
+	{ return; }
 
 	MonsterMovementComponent->MaxWalkSpeed = NewMoveSpeed;
 }
@@ -805,3 +843,39 @@ void ANF_Monster::ApplyLandingDamage(
 	}
 }
 
+void ANF_Monster::GrantExperienceToKiller()
+{
+	if (!HasAuthority() || !IsValid(MonsterAttributeSet)) { return; }
+
+	if (!ExperienceRewardEffect
+		|| !ExperienceRewardMagnitudeTag.IsValid()
+		|| !FMath::IsFinite(ExperienceReward)
+		|| ExperienceReward <= 0.0f) { return; }
+
+	ANF_PlayerState* KillerPlayerState = Cast<ANF_PlayerState>(
+		MonsterAttributeSet->GetLethalDamageInstigatorPlayerState());
+
+	if (!IsValid(KillerPlayerState)) { return; }
+
+	UAbilitySystemComponent* KillerASC =
+		KillerPlayerState->GetAbilitySystemComponent();
+
+	if (!IsValid(KillerASC)
+		|| !KillerASC->GetSet<UNF_PlayerLevelAttribute>()) { return; }
+
+	FGameplayEffectContextHandle Context = KillerASC->MakeEffectContext();
+	Context.AddSourceObject(this);
+
+	FGameplayEffectSpecHandle Spec = KillerASC->MakeOutgoingSpec(
+		ExperienceRewardEffect,
+		1.0f,
+		Context);
+
+	if (!Spec.IsValid()) { return; }
+
+	Spec.Data->SetSetByCallerMagnitude(
+		ExperienceRewardMagnitudeTag,
+		ExperienceReward);
+
+	KillerASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+}

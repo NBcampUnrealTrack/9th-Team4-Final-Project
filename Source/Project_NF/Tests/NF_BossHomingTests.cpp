@@ -4,18 +4,20 @@
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossHomingVolley.h"
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossRelocate.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BossHomingMovementTest, "NF.Boss.Homing.WorldXZTracking",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_BossHomingMovementTest, "NF.Boss.Homing.Tracking3D",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FNF_BossHomingMovementTest::RunTest(const FString& Parameters)
 {
 	const FVector Origin(0, 125, 0);
 	const FVector Target(300, -900, 400);
 	const FVector Moved = ANF_BossHomingProjectile::CalculateTrackingLocation(Origin, Target, 100.f, 1.f);
-	TestTrue(TEXT("Tracks X/Z while preserving launch Y"), Moved.Equals(FVector(60, 125, 80), 0.001));
-	const FVector Arrived = ANF_BossHomingProjectile::CalculateTrackingLocation(Origin, Target, 1000.f, 1.f);
-	TestTrue(TEXT("Does not overshoot the target plane projection"), Arrived.Equals(FVector(300, 125, 400), 0.001));
-	const FVector Sideways = ANF_BossHomingProjectile::CalculateTrackingLocation(Origin, FVector(0, 1000, 0), 1000.f, 1.f);
-	TestTrue(TEXT("A player moving only along Y cannot drag the missile sideways"), Sideways.Equals(Origin));
+	TestTrue(TEXT("Moves exactly Speed * DeltaSeconds"), FMath::IsNearlyEqual(FVector::Dist(Origin, Moved), 100.0, 0.001));
+	TestTrue(TEXT("Moves straight toward the target in 3D"),
+		(Moved - Origin).GetSafeNormal().Equals((Target - Origin).GetSafeNormal(), 0.001));
+	const FVector Arrived = ANF_BossHomingProjectile::CalculateTrackingLocation(Origin, Target, 5000.f, 1.f);
+	TestTrue(TEXT("Does not overshoot the target"), Arrived.Equals(Target, 0.001));
+	const FVector Sideways = ANF_BossHomingProjectile::CalculateTrackingLocation(Origin, FVector(0, 1000, 0), 100.f, 1.f);
+	TestTrue(TEXT("Follows a player moving along Y"), Sideways.Equals(FVector(0, 225, 0), 0.001));
 	FVector Substeps = Origin;
 	for (int32 Index = 0; Index < 10; ++Index)
 	{

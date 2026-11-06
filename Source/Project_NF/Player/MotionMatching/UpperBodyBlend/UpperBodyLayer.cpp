@@ -108,7 +108,20 @@ void UUpperBodyLayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		AimBlendSpeed = 1.0f / DataAsset->AimBlendTime;
 	}
 
-	AimAlpha = FMath::FInterpConstantTo(AimAlpha, bIsAiming == true ? 1.0f : 0.0f, DeltaSeconds, AimBlendSpeed);
+	// [변경] 진입은 AimBlendTime, 복귀(조준 → 평상시)만 AimBlendOutTime 속도로 섞음
+	float AimTargetAlpha = 0.0f;
+	if (bIsAiming == true)
+	{
+		AimTargetAlpha = 1.0f;
+	}
+
+	float AimAlphaSpeed = AimBlendSpeed;
+	if (AimTargetAlpha < AimAlpha && IsValid(DataAsset) == true && DataAsset->AimBlendOutTime > KINDA_SMALL_NUMBER)
+	{
+		AimAlphaSpeed = 1.0f / DataAsset->AimBlendOutTime;
+	}
+
+	AimAlpha = FMath::FInterpConstantTo(AimAlpha, AimTargetAlpha, DeltaSeconds, AimAlphaSpeed);
 
 	UAnimSequenceBase* TargetAnimation = nullptr;
 	float BlendTime = 0.2f;

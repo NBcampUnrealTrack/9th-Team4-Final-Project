@@ -46,4 +46,10 @@ namespace NFTag_Monster
 		Ability_Monster_LeapAttack,
 		"Ability.Monster.LeapAttack",
 		"몬스터가 목표 지점으로 도약하여 착지 피해를 주는 Ability");
+	
+	// @Owner 지우 | 2026-11-04
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(
+		Data_Monster_Experience,
+		"Data.Monster.Experience",
+		"몬스터 경험치 지급");
 }

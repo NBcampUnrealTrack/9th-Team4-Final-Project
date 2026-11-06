@@ -169,9 +169,12 @@ void ANF_BossBase::HandleGameplayCue(UObject* Self, const FGameplayTag GameplayC
 				ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 			if (Marker)
 			{
-				const float TelegraphDuration = static_cast<float>(FMath::Max(Parameters.AbilityLevel, 1));
-				const float MarkerLifetime = Parameters.NormalizedMagnitude > 0.0f
-					? Parameters.NormalizedMagnitude : TelegraphDecalLifetime;
+				// A pattern-provided lifetime is the exact time until the attack lands, so the warning
+				// also fills over that time. AbilityLevel is an integer and is only the fallback.
+				const bool bHasPatternLifetime = Parameters.NormalizedMagnitude > 0.0f;
+				const float MarkerLifetime = bHasPatternLifetime ? Parameters.NormalizedMagnitude : TelegraphDecalLifetime;
+				const float TelegraphDuration = bHasPatternLifetime
+					? MarkerLifetime : static_cast<float>(FMath::Max(Parameters.AbilityLevel, 1));
 				Marker->InitializeMarker(Parameters.Location, Parameters.RawMagnitude,
 					TelegraphDuration, MarkerLifetime, MarkerMaterial,
 					TelegraphProgressParameterName, TelegraphProjectionDepth, TelegraphHeightOffset);
@@ -364,9 +367,9 @@ bool ANF_BossBase::GrantPatternAbilities()
 		const UNF_ActiveSkillDataAsset* Data = Entry.Value;
 		if (!Entry.Key || !Classes.Contains(Entry.Key) || !IsValid(Data) ||
 			!Data->HasValidSettings() || Data->AbilityClass.Get() != Entry.Key.Get() ||
-			!IsSupportedBossPatternClass(Entry.Key.Get()) || Data->bOverrideActiveSettings)
+			!IsSupportedBossPatternClass(Entry.Key.Get()))
 		{
-			UE_LOG(LogTemp, Error, TEXT("[BossSkillData] Invalid definition for %s on %s. Use the exact configured boss GA and disable bOverrideActiveSettings; boss patterns own their timers."),
+			UE_LOG(LogTemp, Error, TEXT("[BossSkillData] Invalid definition for %s on %s. The DA must be a valid active skill DA whose AbilityClass is the exact configured boss GA."),
 				*GetNameSafe(Entry.Key.Get()), *GetName());
 			return false;
 		}
@@ -388,8 +391,14 @@ bool ANF_BossBase::GrantPatternAbilities()
 		{
 			// Existing BPs need no asset migration to keep working. Hold the generated
 			// definition in the reflected map because Spec.SourceObject is weak.
+			// The generated DA becomes the skill's definition source (it outranks the GA's
+			// native preset), so it carries the boss pattern classification itself.
+			// Authored DAs in PatternSkillData are preferred and used as-is.
 			Data = NewObject<UNF_ActiveSkillDataAsset>(this, NAME_None, RF_Transient);
 			Data->AbilityClass = AbilityClass.Get();
+			Data->SkillCategory = ENF_SkillCategory::Attack;
+			Data->SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
+			Data->ExecutionMode = ENF_SkillExecutionMode::Timed;
 			PatternSkillData.Add(AbilityClass, Data);
 		}
 		if (const FGameplayAbilitySpec* Existing = AbilitySystemComponent->FindAbilitySpecFromClass(AbilityClass))
@@ -398,7 +407,12 @@ bool ANF_BossBase::GrantPatternAbilities()
 			UE_LOG(LogTemp, Error, TEXT("[BossSkillData] Conflicting grant for %s on %s."), *GetNameSafe(AbilityClass.Get()), *GetName());
 			return false;
 		}
-		if (!Data->GrantTo(AbilitySystemComponent).IsValid()) return false;
+		if (!Data->GrantTo(AbilitySystemComponent).IsValid())
+		{
+			UE_LOG(LogTemp, Error, TEXT("[BossSkillData] Grant failed Boss=%s GA=%s DA=%s"),
+				*GetName(), *GetPathNameSafe(AbilityClass.Get()), *GetPathNameSafe(Data));
+			return false;
+		}
 	}
 	return true;
 }

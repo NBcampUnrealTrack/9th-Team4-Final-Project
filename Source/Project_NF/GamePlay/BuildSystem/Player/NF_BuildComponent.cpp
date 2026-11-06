@@ -5,6 +5,7 @@
 #include "GamePlay/BuildSystem/Core/NF_BuildValidator.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
+#include "GamePlay/BuildSystem/Data/NF_BuildInitialSettings.h"
 #include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
 #include "GAS/Tags/NFTag_Build.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
@@ -44,15 +45,16 @@ void UNF_BuildComponent::InitializeDefaultBuildEntitlements()
 {
 	// 외부 시스템이 먼저 전달한 개인별 조건을 기본값으로 덮어쓰지 않는다.
 	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() ||
-		!bInitializeEntitlementsFromDefaults || bEntitlementsInitialized)
+		bEntitlementsInitialized || (!IsValid(InitialSettings) && !bInitializeEntitlementsFromDefaults))
 	{
 		return;
 	}
 
-	if (!UpdateBuildEntitlements(InitialCostLimit, InitialUnlockedItemIds))
+	const int32 StartingCostLimit = IsValid(InitialSettings) ? InitialSettings->InitialCostLimit : InitialCostLimit;
+	if (!UpdateBuildCostLimit(StartingCostLimit))
 	{
 		UE_LOG(LogTemp, Warning,
-		       TEXT("빌드 초기 조건 적용 실패: %s. 초기 코스트와 ItemId를 확인하세요."),
+		       TEXT("빌드 초기 조건 적용 실패: %s. 초기 설정 DA의 코스트를 확인하세요."),
 		       *GetNameSafe(GetOwner()));
 	}
 }
@@ -246,7 +248,6 @@ TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
 	{
 		if (!IsValid(Definition)) { continue; }
 		// 획득하지 않은 아이템은 목록에서 제외한다.
-		if (!UnlockedItemIds.Contains(Definition->ItemId)) { continue; }
 		FNF_BuildItemData Data;
 		if (!ResolveItemData(Definition->ItemId, Data) || Data.ItemType != ItemType) { continue; }
 		// 방어구는 지정한 부위만 표시한다. None이면 전체 부위.
@@ -376,43 +377,15 @@ bool UNF_BuildComponent::RevertDraftItem(FName ItemId)
 		OnDraftChanged.Broadcast();
 		return true;
 	}
-	const FNF_BuildSelection* Picked = DraftBuild.FindByPredicate([ItemId](const FNF_BuildSelection& Selection)
+	const bool bRemoved = DraftBuild.RemoveAll([ItemId](const FNF_BuildSelection& Selection)
 	{
 		return Selection.ItemId == ItemId;
-	});
-	FNF_BuildItemData Data;
-	if (!Picked || !ResolveItemData(ItemId, Data))
+	}) > 0;
+	if (!bRemoved)
 	{
 		return false;
 	}
-	const int32 SlotIndex = Picked->SlotIndex;
-	DraftBuild.RemoveAll([ItemId](const FNF_BuildSelection& Selection)
-	{
-		return Selection.ItemId == ItemId;
-	});
 	PickedItemIds.Remove(ItemId);
-	// 장착돼 있던 항목을 원래 칸으로 되돌린다.
-	// 취소한 칸에 원래 있던 항목, 그리고 취소한 항목 자신이 장착 중이었다면 그 항목이 대상이다.
-	for (const FNF_BuildSelection& Equipped : CurrentBuild)
-	{
-		FNF_BuildItemData EquippedData;
-		if (!ResolveItemData(Equipped.ItemId, EquippedData) || EquippedData.ItemType != Data.ItemType ||
-			(Equipped.SlotIndex != SlotIndex && Equipped.ItemId != ItemId))
-		{
-			continue;
-		}
-		const bool bBlocked = DraftBuild.ContainsByPredicate([this, &Equipped, &Data](const FNF_BuildSelection& Selection)
-		{
-			FNF_BuildItemData Existing;
-			return Selection.ItemId == Equipped.ItemId ||
-				(ResolveItemData(Selection.ItemId, Existing) && Existing.ItemType == Data.ItemType &&
-					Selection.SlotIndex == Equipped.SlotIndex);
-		});
-		if (!bBlocked)
-		{
-			DraftBuild.Add(Equipped);
-		}
-	}
 	bDraftDirty = true;
 	OnDraftChanged.Broadcast();
 	return true;
@@ -434,7 +407,9 @@ void UNF_BuildComponent::OnRep_CurrentShop()
 	const APawn* Pawn = Cast<APawn>(GetOwner());
 	if (Pawn && Pawn->IsLocallyControlled())
 	{
-		DraftBuild = CurrentBuild;
+		// 상점을 열 때마다 빈 빌드에서 시작한다. 적용하면 이번에 고른 항목만 남고 이전 빌드는 모두 빠진다.
+		// 적용하지 않고 닫으면 CurrentBuild는 그대로다.
+		DraftBuild.Reset();
 		PendingActiveSkill = NAME_None;
 		PickedItemIds.Reset();
 		bDraftDirty = false;
@@ -503,7 +478,6 @@ FNF_BuildValidation UNF_BuildComponent::PreviewBuild(
 	return FNF_BuildValidator::Validate(
 		GetRules(),
 		CostLimit,
-		UnlockedItemIds,
 		Selections,
 		nullptr,
 		&FreeSelections);
@@ -620,7 +594,7 @@ bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop
 	}
 	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다.
 	if (!CurrentBuild.IsEmpty() && bEntitlementsInitialized &&
-		FNF_BuildValidator::Validate(Rules, CostLimit, UnlockedItemIds, CurrentBuild, nullptr, &CurrentBuild).Result ==
+		FNF_BuildValidator::Validate(Rules, CostLimit, CurrentBuild, nullptr, &CurrentBuild).Result ==
 		ENF_BuildResult::Success
 		&&
 		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
@@ -698,7 +672,7 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 		return PreviewBuild(Selections);
 	}
 	const TArray<FNF_BuildSelection> FreeSelections = GetFreeSelections(PaidItemIds);
-	Validation = FNF_BuildValidator::Validate(Rules, CostLimit, UnlockedItemIds, Selections, &SelectedData,
+	Validation = FNF_BuildValidator::Validate(Rules, CostLimit, Selections, &SelectedData,
 	                                          &FreeSelections);
 	if (Validation.Result != ENF_BuildResult::Success)
 	{
@@ -732,7 +706,7 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 		UNF_BuildItemDefinitionDataAsset* Definition = nullptr;
 		for (UNF_BuildItemDefinitionDataAsset* Candidate : Rules->Catalog)
 		{
-			if (Candidate->ItemId == Selection.ItemId)
+			if (IsValid(Candidate) && Candidate->ItemId == Selection.ItemId)
 			{
 				Definition = Candidate;
 				break;
@@ -989,7 +963,8 @@ void UNF_BuildComponent::RevokeItem(const FNF_BuildGrantHandles& Handles)
 
 void UNF_BuildComponent::OnRep_CurrentBuild()
 {
-	if (CurrentShop && (!bDraftDirty || bAwaitingBuildResult))
+	// 적용 결과를 기다릴 때만 확정된 빌드로 맞춘다. 상점을 연 동안 이전 빌드가 다시 채워지면 안 된다.
+	if (CurrentShop && bAwaitingBuildResult)
 	{
 		DraftBuild = CurrentBuild;
 		OnDraftChanged.Broadcast();
@@ -1031,13 +1006,17 @@ void UNF_BuildComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 
 
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CostLimit, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UNF_BuildComponent, UnlockedItemIds, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, bEntitlementsInitialized, COND_OwnerOnly);
 }
 
 bool UNF_BuildComponent::UpdateBuildEntitlements(
 	int32 NewCostLimit,
 	const TArray<FName>& NewUnlockedItemIds)
+{
+	return UpdateBuildCostLimit(NewCostLimit);
+}
+
+bool UNF_BuildComponent::UpdateBuildCostLimit(int32 NewCostLimit)
 {
 	if (!IsValid(GetOwner()) ||
 		!GetOwner()->HasAuthority() ||
@@ -1047,21 +1026,7 @@ bool UNF_BuildComponent::UpdateBuildEntitlements(
 		return false;
 	}
 
-	// 지급은 상점 진입 전에 가능하다. 현재 상점의 Catalog/원본/해금 여부는 적용 시 함께 검증한다.
-	TArray<FName> ValidatedIds;
-
-	for (FName ItemId : NewUnlockedItemIds)
-	{
-		if (ItemId.IsNone())
-		{
-			return false;
-		}
-
-		ValidatedIds.AddUnique(ItemId);
-	}
-
 	CostLimit = NewCostLimit;
-	UnlockedItemIds = MoveTemp(ValidatedIds);
 	bEntitlementsInitialized = true;
 
 	GetOwner()->ForceNetUpdate();

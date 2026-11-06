@@ -250,7 +250,7 @@ UStateTree* UNF_BossStateTreeAssetLibrary::CreateBossPatternCycleStateTree()
 	GroundDamageZone.Description = TEXT("Mark up to three players, then create two-second zones that pulse damage every 0.25 seconds.");
 	LineStrike.Description = TEXT("Snapshot up to three random player locations, warn rectangles for two seconds, then strike once.");
 	Relocate.Description = TEXT("Launch up to three ground-born X/Z homing missiles. Explode on proximity or after four seconds and apply one-second airborne.");
-	CenterBlast.Description = TEXT("Telegraph the boss-centered blast, then damage, knock back, and stun nearby players.");
+	CenterBlast.Description = TEXT("Three frontal rectangle strikes: warning decal, strike montage, then Niagara + damage, knockback, and stun.");
 	LastGasp.Description = TEXT("On boss defeat, mark each player's location and detonate after four seconds.");
 
 	FixedVolley.AddTransition(EStateTreeTransitionTrigger::OnStateCompleted, EStateTreeTransitionType::NextState);

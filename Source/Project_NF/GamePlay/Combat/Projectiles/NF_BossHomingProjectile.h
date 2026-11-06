@@ -9,7 +9,7 @@ class ANF_Player;
 class UStaticMeshComponent;
 class UNiagaraSystem;
 
-/** Server-driven projectile. World Y is fixed at launch; only X/Z track the target. */
+/** Server-driven projectile that tracks the target player in 3D and faces its movement direction. */
 UCLASS(Blueprintable)
 class PROJECT_NF_API ANF_BossHomingProjectile : public AActor
 {

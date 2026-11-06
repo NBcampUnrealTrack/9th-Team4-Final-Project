@@ -10,7 +10,7 @@ UNFGA_WeaponPassive::UNFGA_WeaponPassive()
 	GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive;
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Attack;
 	GetMutableSkillDefaults().SkillActivationMethod = ENF_SkillActivationMethod::OnGranted;
-	bActivatePassiveOnGrant = false;
+	GetMutablePassiveDefaults().bActivatePassiveOnGrant = false;
 }
 void UNFGA_WeaponPassive::PrepareOffenseAttributes(const FGameplayAbilityActorInfo* ActorInfo)
 {

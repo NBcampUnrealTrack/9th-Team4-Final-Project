@@ -1,7 +1,12 @@
 #include "GamePlay/Combat/Skill/Active/Boss/NFGA_BossGroundDamageZone.h"
 
 #include "AbilitySystemComponent.h"
+#include "Animation/AnimMontage.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
+#include "GamePlay/Combat/Skill/Execution/NF_SkillCastVisual.h"
+#include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Engine/World.h"
 #include "GamePlay/Combat/Boss/NF_BossBase.h"
 #include "GamePlay/Combat/Boss/NF_BossCombatEffects.h"
@@ -16,6 +21,30 @@ UNFGA_BossGroundDamageZone::UNFGA_BossGroundDamageZone()
 {
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> CircleTelegraph(
+		TEXT("/Game/ProjectNF/Dev/GamePlay/Boss/M_BossCircleTelegraph.M_BossCircleTelegraph"));
+	TelegraphMaterial = CircleTelegraph.Object;
+}
+
+void UNFGA_BossGroundDamageZone::PlayBossMontage(UAnimMontage* Montage, const float PlayRate, const FName StartSection) const
+{
+	ANF_BossBase* Boss = GetBoss();
+	if (!IsActive() || !IsValid(Boss) || !Boss->HasAuthority() || Boss->IsDefeated() || !Montage) return;
+	if (USkeletalMeshComponent* Mesh = Boss->GetBossSkeletalMesh(); IsValid(Mesh))
+	{
+		// Replicated relay: plays the montage on the boss mesh for every relevant client.
+		ANF_SkillCastVisual::SpawnForCast(Boss, Mesh->GetFName(), Montage, FMath::Max(PlayRate, 0.01f), StartSection);
+	}
+}
+
+void UNFGA_BossGroundDamageZone::PlayWarningMontage_Implementation()
+{
+	PlayBossMontage(WarningMontage, WarningMontagePlayRate, WarningMontageStartSection);
+}
+
+void UNFGA_BossGroundDamageZone::PlayZoneStartMontage_Implementation()
+{
+	PlayBossMontage(ZoneStartMontage, ZoneStartMontagePlayRate, ZoneStartMontageStartSection);
 }
 
 void UNFGA_BossGroundDamageZone::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -61,7 +90,9 @@ void UNFGA_BossGroundDamageZone::ActivateAbility(const FGameplayAbilitySpecHandl
 		if (FindGroundPoint(Candidates[Index], GroundLocation))
 		{
 			ZoneLocations.Add(GroundLocation);
-			ShowTelegraph(GroundLocation, ZoneRadius, WarningDuration);
+			// The decal warns where the zone will start dealing damage; it lives exactly until BeginDamageZones.
+			ShowTelegraph(GroundLocation, ZoneRadius, WarningDuration, false, FMath::Max(WarningDuration, 0.01f),
+				TelegraphMaterial.Get());
 		}
 	}
 
@@ -70,6 +101,10 @@ void UNFGA_BossGroundDamageZone::ActivateAbility(const FGameplayAbilitySpecHandl
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+
+	// Montage 1: pattern start, while the warning decals fill.
+	PlayWarningMontage();
+	if (!IsActive()) return;
 
 	World->GetTimerManager().SetTimer(WarningTimer, this, &ThisClass::BeginDamageZones,
 		FMath::Max(WarningDuration, 0.0f), false);
@@ -87,6 +122,10 @@ void UNFGA_BossGroundDamageZone::BeginDamageZones()
 		}
 		return;
 	}
+
+	// Montage 2: the moment the zones turn on.
+	PlayZoneStartMontage();
+	if (!IsActive()) return;
 
 	bZonesActive = true;
 	DamageTickCount = 0;

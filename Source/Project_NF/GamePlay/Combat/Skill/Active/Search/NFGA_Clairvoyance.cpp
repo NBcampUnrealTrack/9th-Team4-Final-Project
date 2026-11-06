@@ -14,16 +14,16 @@
 UNFGA_Clairvoyance::UNFGA_Clairvoyance()
 {
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Search;
-	SkillExecutionMode = ENF_SkillExecutionMode::Timed;
-	ExecutionDuration = 5.0f;
+	GetMutableActiveDefaults().ExecutionMode = ENF_SkillExecutionMode::Timed;
+	GetMutableActiveDefaults().ExecutionDuration = 5.0f;
 	GetMutableSkillDefaults().BuildCost = 3;
 }
 bool UNFGA_Clairvoyance::HasValidClairvoyanceSettings() const
 {
-	return !ExecutionActorClass
-		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly && !bRequiresConfirmedTargetData
-		&& SkillExecutionMode == ENF_SkillExecutionMode::Timed && FMath::IsFinite(ExecutionDuration) && ExecutionDuration > 0.0f
-		&& FMath::IsFinite(CastTime) && CastTime >= 0.0f && FMath::IsFinite(DetectionRadius) && DetectionRadius > 0.0f
+	return !GetActiveSettings().ExecutionActorClass
+		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly && !GetActiveSettings().bRequiresConfirmedTargetData
+		&& GetSkillExecutionMode() == ENF_SkillExecutionMode::Timed && FMath::IsFinite(GetExecutionDuration()) && GetExecutionDuration() > 0.0f
+		&& FMath::IsFinite(GetCastTime()) && GetCastTime() >= 0.0f && FMath::IsFinite(DetectionRadius) && DetectionRadius > 0.0f
 		&& FMath::IsFinite(DetectionInterval) && DetectionInterval >= 0.05f;
 }
 bool UNFGA_Clairvoyance::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -46,7 +46,7 @@ void UNFGA_Clairvoyance::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 	Registry = Recipient->GetMinimapRevealRegistry();
 	ActivationAvatar = GetAvatarActorFromActorInfo();
 	RevealSourceId = FGuid::NewGuid();
-	if (CastTime > 0.0f) { GetWorld()->GetTimerManager().SetTimer(CastTimer, this, &ThisClass::StartDetection, CastTime, false); }
+	if (GetCastTime() > 0.0f) { GetWorld()->GetTimerManager().SetTimer(CastTimer, this, &ThisClass::StartDetection, GetCastTime(), false); }
 	else { StartDetection(); }
 }
 
@@ -61,8 +61,8 @@ void UNFGA_Clairvoyance::StartDetection()
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true); return;
 	}
 	if (!IsActive()) { return; }
-	EndsAt = GetWorld()->GetTimeSeconds() + ExecutionDuration;
-	GetWorld()->GetTimerManager().SetTimer(EndTimer, this, &ThisClass::FinishDetection, ExecutionDuration, false);
+	EndsAt = GetWorld()->GetTimeSeconds() + GetExecutionDuration();
+	GetWorld()->GetTimerManager().SetTimer(EndTimer, this, &ThisClass::FinishDetection, GetExecutionDuration(), false);
 	GetWorld()->GetTimerManager().SetTimer(ScanTimer, this, &ThisClass::ScanTargets, DetectionInterval, true);
 	ScanTargets();
 }

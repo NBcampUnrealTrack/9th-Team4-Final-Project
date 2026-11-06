@@ -8,24 +8,21 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "TimerManager.h"
-#include "UObject/ConstructorHelpers.h"
 
 UNFGA_Sonar::UNFGA_Sonar()
 {
 	GetMutableSkillDefaults().SkillCategory = ENF_SkillCategory::Search; GetMutableSkillDefaults().BuildCost = 2;
-	SkillExecutionMode = ENF_SkillExecutionMode::Timed; ExecutionDuration = 5.0f;
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> Material(TEXT("/Game/ProjectNF/Skills/Sonar/M_PP_Sonar.M_PP_Sonar"));
-	if (Material.Succeeded()) { SilhouetteMaterial = Material.Object; }
+	GetMutableActiveDefaults().ExecutionMode = ENF_SkillExecutionMode::Timed; GetMutableActiveDefaults().ExecutionDuration = 5.0f;
 }
 
 bool UNFGA_Sonar::HasValidSettings() const
 {
-	return !ExecutionActorClass && !bRequiresConfirmedTargetData && SilhouetteMaterial
+	return !GetActiveSettings().ExecutionActorClass && !GetActiveSettings().bRequiresConfirmedTargetData && SilhouetteMaterial
 		&& SilhouetteMaterial->GetMaterial()->MaterialDomain == MD_PostProcess && SilhouetteStyle.IsValid()
-		&& GetSkillType() == ENF_SkillType::Active && SkillExecutionMode == ENF_SkillExecutionMode::Timed
+		&& GetSkillType() == ENF_SkillType::Active && GetSkillExecutionMode() == ENF_SkillExecutionMode::Timed
 		&& NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly
 		&& FMath::IsFinite(DetectionRadius) && DetectionRadius > 0
-		&& FMath::IsFinite(CastTime) && CastTime >= 0 && FMath::IsFinite(ExecutionDuration) && ExecutionDuration > 0;
+		&& FMath::IsFinite(GetCastTime()) && GetCastTime() >= 0 && FMath::IsFinite(GetExecutionDuration()) && GetExecutionDuration() > 0;
 }
 
 bool UNFGA_Sonar::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -43,7 +40,7 @@ void UNFGA_Sonar::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true); return;
 	}
 	OriginalAvatar = GetAvatarActorFromActorInfo();
-	if (CastTime > 0) { GetWorld()->GetTimerManager().SetTimer(CastTimer, this, &ThisClass::EmitPulse, CastTime, false); }
+	if (GetCastTime() > 0) { GetWorld()->GetTimerManager().SetTimer(CastTimer, this, &ThisClass::EmitPulse, GetCastTime(), false); }
 	else { EmitPulse(); }
 }
 
@@ -75,11 +72,11 @@ void UNFGA_Sonar::EmitPulse()
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true); return;
 	}
 	if (!IsActive()) { return; }
-	if (!Reveal->Initialize(Recipient, Targets, ExecutionDuration, SilhouetteMaterial, SilhouetteStyle))
+	if (!Reveal->Initialize(Recipient, Targets, GetExecutionDuration(), SilhouetteMaterial, SilhouetteStyle))
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true); return;
 	}
-	EndsAt = GetWorld()->GetTimeSeconds() + ExecutionDuration;
+	EndsAt = GetWorld()->GetTimeSeconds() + GetExecutionDuration();
 	GetWorld()->GetTimerManager().SetTimer(LifetimeTimer, this, &ThisClass::CheckLifetime, 0.05f, true);
 }
 

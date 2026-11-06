@@ -23,7 +23,7 @@
 
 UNFGA_BossAreaVolley::UNFGA_BossAreaVolley()
 {
-	ExecutionDuration = PatternDuration;
+	GetMutableActiveDefaults().ExecutionDuration = PatternDuration;
 	ProjectileClass = ANF_BossAreaProjectile::StaticClass();
 	DamageEffectClass = UNFGE_CommonDamage::StaticClass();
 	DamageMagnitudeTag = NFTag_BossCombat::Data_Damage;
@@ -47,7 +47,7 @@ void UNFGA_BossAreaVolley::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 		+ FMath::Max(TelegraphDuration, 0.0f) + FMath::Max(ProjectileLaunchDelay, 0.f) + 0.1f;
 	const float LatestEndTime = FMath::Max(PatternDuration, 1.0f)
 		+ FMath::Max(TelegraphDuration, 0.f) + FMath::Max(ProjectileLaunchDelay, 0.f) + 0.1f;
-	ExecutionDuration = FMath::Min(LatestEndTime, PlannedEndTime);
+	SetRuntimeExecutionDuration(FMath::Min(LatestEndTime, PlannedEndTime));
 	AActor* AvatarActor = ActorInfo->AvatarActor.Get();
 	UWorld* World = IsValid(AvatarActor) ? AvatarActor->GetWorld() : nullptr;
 	if (!World)
@@ -117,10 +117,26 @@ void UNFGA_BossAreaVolley::StartVolley()
 
 		if (BossASC)
 		{
+			// The decal warns where the projectile will land, so it must stay until the impact:
+			// telegraph + launch delay + flight time (same distance/speed formula the projectile uses).
+			FVector LaunchOrigin = Boss->GetActorLocation();
+			if (USkeletalMeshComponent* BossMesh = Boss->GetBossSkeletalMesh();
+				IsValid(BossMesh) && BossMesh->DoesSocketExist(ProjectileSpawnSocketName))
+			{
+				LaunchOrigin = BossMesh->GetSocketLocation(ProjectileSpawnSocketName);
+			}
+			const float FlightTime = FVector::Distance(LaunchOrigin, GroundPoint) / FMath::Max(ProjectileSpeed, 1.0f);
+			const float TimeToImpact = FMath::Max(TelegraphDuration, 0.f) + FMath::Max(ProjectileLaunchDelay, 0.f)
+				+ FMath::Max(FlightTime, 0.01f);
+
 			FGameplayCueParameters CueParameters;
 			CueParameters.Location = GroundPoint;
 			CueParameters.RawMagnitude = ImpactRadius;
-			CueParameters.AbilityLevel = FMath::CeilToInt(FMath::Max(TelegraphDuration, 0.f) + FMath::Max(ProjectileLaunchDelay, 0.f));
+			CueParameters.AbilityLevel = FMath::CeilToInt(TimeToImpact);
+			// Per-marker lifetime override (see UNFGA_BossPatternBase::ShowTelegraph).
+			CueParameters.NormalizedMagnitude = TimeToImpact;
+			// GameplayCue parameters have no material field; SourceObject carries the optional override.
+			CueParameters.SourceObject = TelegraphMaterial;
 			CueParameters.EffectCauser = Boss;
 			BossASC->ExecuteGameplayCue(NFGameplayCueTags::GameplayCue_Boss_Telegraph, CueParameters);
 		}

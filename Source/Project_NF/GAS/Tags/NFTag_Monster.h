@@ -20,4 +20,7 @@ namespace NFTag_Monster
 	
 	// @Owner: 경환 | 2026-10-19
 	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Monster_LeapAttack);
+	
+	// @Owner: 지우 | 2026-11-04
+	PROJECT_NF_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Data_Monster_Experience);
 }

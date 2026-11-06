@@ -8,7 +8,7 @@ class ANF_BossHomingProjectile;
 class UAnimMontage;
 class UNiagaraSystem;
 
-/** Select up to three nearby players and launch ground-born X/Z homing missiles. */
+/** Select up to three nearby players and launch homing missiles from LaunchEffectSocket that track them in 3D. */
 UCLASS(Blueprintable)
 class PROJECT_NF_API UNFGA_BossHomingVolley : public UNFGA_BossPatternBase
 {
@@ -24,7 +24,7 @@ protected:
 	void OnHomingMissileLaunched(ANF_BossBase* Boss, ANF_BossHomingProjectile* Projectile, FTransform BossEffectTransform);
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Homing|VFX")
 	TObjectPtr<UNiagaraSystem> LaunchNiagaraSystem;
-	/** None uses the boss mesh transform. Missing socket falls back to the mesh transform. */
+	/** Missile spawn point and launch Niagara location. None or a missing socket falls back to the mesh transform. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Homing|VFX")
 	FName LaunchEffectSocket = NAME_None;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Homing|VFX")
@@ -45,9 +45,6 @@ protected:
 	float DetectionRadius = 120.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Homing", meta = (ClampMin = "1"))
 	float ExplosionRadius = 300.f;
-	/** Spawn along world X toward the boss from each target; world Y stays on the target's launch plane. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Homing", meta = (ClampMin = "1"))
-	float SpawnOffset = 600.f;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Homing", meta = (ClampMin = "0"))
 	float AirborneLaunchVelocity = 650.f;
 	/** Uses the existing DT_BossCombat RelocateDamage column for asset compatibility. */

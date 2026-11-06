@@ -5,8 +5,13 @@
 #include "NFGA_BossGroundDamageZone.generated.h"
 
 class UGameplayEffect;
+class UAnimMontage;
 
-/** Marks up to three random players, then creates short-lived damaging ground zones at their locations. */
+/**
+ * Marks up to three random players, then creates short-lived damaging ground zones at their locations.
+ * Flow: pattern start -> WarningMontage + warning decals (WarningDuration)
+ *       -> zones turn on (ZoneStartMontage + GroundDamageZone.Start cue) -> damage ticks for ZoneDuration.
+ */
 UCLASS(Blueprintable)
 class PROJECT_NF_API UNFGA_BossGroundDamageZone : public UNFGA_BossPatternBase
 {
@@ -28,6 +33,16 @@ protected:
 	/** Fired on the server for each zone when its damaging area expires. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "NF|Boss|Ground Damage Zone")
 	void OnGroundDamageZoneEnded(FVector GroundLocation, float Radius);
+
+	/** Server event when the pattern starts (warning decals appear). Parent implementation plays WarningMontage. */
+	UFUNCTION(BlueprintNativeEvent, Category = "NF|Boss|Ground Damage Zone|Presentation")
+	void PlayWarningMontage();
+	virtual void PlayWarningMontage_Implementation();
+
+	/** Server event at the moment the zones turn on. Parent implementation plays ZoneStartMontage. */
+	UFUNCTION(BlueprintNativeEvent, Category = "NF|Boss|Ground Damage Zone|Presentation")
+	void PlayZoneStartMontage();
+	virtual void PlayZoneStartMontage_Implementation();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (ClampMin = "1.0", Units = "cm"))
 	float TargetRange = 3000.0f;
@@ -56,7 +71,33 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Damage")
 	FGameplayTag DamageMagnitudeTag;
 
+	/** Warning decal shown on each zone until it turns on. Defaults to M_BossCircleTelegraph. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph",
+		meta = (DisplayName = "Ground Damage Zone Telegraph Decal Material"))
+	TObjectPtr<UMaterialInterface> TelegraphMaterial;
+
+	/** Played once when the pattern starts, while the warning decals fill. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Animation")
+	TObjectPtr<UAnimMontage> WarningMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Animation", meta = (ClampMin = "0.01"))
+	float WarningMontagePlayRate = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Animation")
+	FName WarningMontageStartSection;
+
+	/** Played once at the moment the zones turn on (same frame as the first damage window opens). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Animation")
+	TObjectPtr<UAnimMontage> ZoneStartMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Animation", meta = (ClampMin = "0.01"))
+	float ZoneStartMontagePlayRate = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Animation")
+	FName ZoneStartMontageStartSection;
+
 private:
+	void PlayBossMontage(UAnimMontage* Montage, float PlayRate, FName StartSection) const;
 	void BeginDamageZones();
 	void ApplyDamageTick();
 	void EndDamageZones();

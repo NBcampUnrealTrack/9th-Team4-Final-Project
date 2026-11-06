@@ -5,9 +5,11 @@
 #include "Data/Interface/NF_MeleeAttackInterface.h"
 #include "GameFramework/Character.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
+#include "Player/Data/NF_CustomVisualMeshType.h"
 #include "Player/Data/NF_PlayerActionType.h"
 #include "NF_Player.generated.h"
 
+enum class ENF_CustomVisualMeshType : uint8;
 class UNF_ConsumableComponent;
 class UNF_PlayerDataAsset;
 class UNF_PlayerLifeComponent;
@@ -45,14 +47,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
 	
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentVisualMeshType)
+	ENF_CustomVisualMeshType CurrentVisualMeshType = ENF_CustomVisualMeshType::None;
+	
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<UStaticMeshComponent> MeleeAttackMeshComponent;
 	
 	//상점에서 총기류 구매가 가능해지면 초기값 None으로 바꾸기
 	UPROPERTY(EditAnywhere, Replicated)
 	ENF_WeaponType NF_WeaponType = ENF_WeaponType::None;
-	
-	
 	
 protected:
 	virtual void PostInitializeComponents() override;
@@ -92,8 +96,19 @@ protected:
 	
 	
 private:
+	UFUNCTION(Server, Reliable)
+	void ServerRPC_TryChangeVisualMesh(ENF_CustomVisualMeshType VisualMeshType);
+	
+	UFUNCTION()
+	void OnRep_CurrentVisualMeshType();
+	
+	void TryChangeVisualMesh(ENF_CustomVisualMeshType VisualMeshType);
+	void ApplyCustomVisualMesh();
+	
+	
 	void ConfigBindDelegate();
 	void ConfigData();
+	void ConfigCameraData();
 	
 	void ConfigStatusAttribute();
 	void ConfigLevelAttribute();
@@ -106,10 +121,10 @@ private:
 	float InteractionRange = 0.0f;
 	
 #pragma region CameraCollision
-public:
+public: 
 	//막힘이 없을 때 SpringArm 기본 길이
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
-	float DefaultCameraArmLength = 300.0f;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
+	float DefaultCameraArmLength = 200.0f;
 	
 	//벽에 막혀 당겨질 때 보간 속도
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")

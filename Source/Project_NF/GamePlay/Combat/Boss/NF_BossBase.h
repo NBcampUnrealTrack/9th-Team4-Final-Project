@@ -35,6 +35,7 @@ class PROJECT_NF_API ANF_BossBase : public AActor, public IAbilitySystemInterfac
 
 public:
 	TSubclassOf<UGameplayAbility> GetLineStrikeAbilityClass() const;
+	TSubclassOf<UGameplayAbility> GetLastGaspAbilityClass() const { return LastGaspAbility; }
 	ANF_BossBase();
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	USkeletalMeshComponent* GetBossSkeletalMesh() const;
@@ -135,7 +136,8 @@ protected:
 	TSubclassOf<UGameplayAbility> InitialPatternAbility;
 
 	/** Optional definitions keyed by the exact GA class used by the StateTree/legacy slots.
-	 * Patterns retain their own timers: bOverrideActiveSettings must remain false. */
+	 * A mapped DA is the pattern's skill definition source (preferred). Unmapped patterns
+	 * get a generated transient DA. Patterns keep their own runtime timers either way. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Abilities")
 	TMap<TSubclassOf<UGameplayAbility>, TObjectPtr<UNF_ActiveSkillDataAsset>> PatternSkillData;
 

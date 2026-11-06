@@ -15,6 +15,7 @@ public class Project_NF : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"DeveloperSettings", // GE Manager Setting의 UDeveloperSettings 사용
 			"NetCore", // GAS TargetData의 FVector_NetQuantize 직렬화에 필요.
 			"InputCore",
 			"EnhancedInput",
@@ -42,6 +43,7 @@ public class Project_NF : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[] {"CoreOnline", "OnlineSubsystem", "OnlineSubsystemUtils", "EngineCameras" });
 		PrivateDependencyModuleNames.Add("Niagara");
+		PrivateDependencyModuleNames.AddRange(new string[] {"CoreOnline", "OnlineSubsystem", "OnlineSubsystemUtils", "EngineCameras", "Niagara" });
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] { "StateTreeEditorModule", "PropertyBindingUtils", "UnrealEd", "AssetRegistry" });

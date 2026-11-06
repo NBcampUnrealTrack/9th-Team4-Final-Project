@@ -36,12 +36,22 @@ EStateTreeRunStatus FNF_BossAbilityTask::EnterState(FStateTreeExecutionContext& 
 		return EStateTreeRunStatus::Failed;
 	}
 
+	// A death state authored with the native LastGasp class runs the boss's configured (e.g. BP child) LastGasp GA.
+	if (InstanceData.bAllowWhenBossDefeated)
+	{
+		const TSubclassOf<UGameplayAbility> ConfiguredLastGasp = Boss->GetLastGaspAbilityClass();
+		if (ConfiguredLastGasp && ConfiguredLastGasp->IsChildOf(InstanceData.AbilityClass))
+		{
+			InstanceData.RunningAbilityClass = ConfiguredLastGasp;
+		}
+	}
+
 	UE_LOG(LogTemp, Display, TEXT("[BossStateTreeDiag] Entering pattern state Boss=%s Ability=%s"),
-		*Boss->GetName(), *GetNameSafe(InstanceData.AbilityClass.Get()));
-	if (!Boss->ActivateAbilityClass(InstanceData.AbilityClass, InstanceData.bAllowWhenBossDefeated))
+		*Boss->GetName(), *GetNameSafe(InstanceData.RunningAbilityClass.Get()));
+	if (!Boss->ActivateAbilityClass(InstanceData.RunningAbilityClass, InstanceData.bAllowWhenBossDefeated))
 	{
 		UE_LOG(LogTemp, Error, TEXT("[BossStateTreeDiag] Pattern state failed to activate GA Boss=%s Ability=%s"),
-			*Boss->GetName(), *GetNameSafe(InstanceData.AbilityClass.Get()));
+			*Boss->GetName(), *GetNameSafe(InstanceData.RunningAbilityClass.Get()));
 		if (Boss && InstanceData.bAllowWhenBossDefeated)
 		{
 			Boss->CompleteDeathSequence();

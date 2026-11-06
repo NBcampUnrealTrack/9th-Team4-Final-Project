@@ -8,6 +8,7 @@ class ANF_BossAreaProjectile;
 class UGameplayEffect;
 class UAnimMontage;
 class UNiagaraSystem;
+class UMaterialInterface;
 
 /** Server-authoritative boss pattern: target snapshot, telegraph, then fixed-point volleys. */
 UCLASS(Blueprintable)
@@ -47,6 +48,11 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (ClampMin = "0.0"))
 	float TelegraphDuration = 2.0f;
+
+	/** Warning decal shown at each landing point until the projectile hits. Empty uses the boss's TelegraphDecalMaterial. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Telegraph",
+		meta = (DisplayName = "Area Volley Telegraph Decal Material"))
+	TObjectPtr<UMaterialInterface> TelegraphMaterial = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Boss|Pattern", meta = (ClampMin = "1.0", Units = "cm"))
 	float TargetRange = 3000.0f;

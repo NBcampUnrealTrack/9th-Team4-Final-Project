@@ -11,7 +11,9 @@ UNFGA_Revive::UNFGA_Revive()
 	
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 	
-	AbilityTags.AddTag(NFTag_LifeState::Ability_Life_Revive);
+	FGameplayTagContainer AssetTags = GetAssetTags();
+	AssetTags.AddTag(NFTag_LifeState::Ability_Life_Revive);
+	SetAssetTags(AssetTags);
 }
 
 bool UNFGA_Revive::SetReviveTarget(APawn* InTargetPawn)

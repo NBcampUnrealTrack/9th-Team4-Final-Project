@@ -72,9 +72,12 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 	AActor* UpdatedActor,
 	FAIStimulus Stimulus)
 {
+	const ANF_Monster* Monster = Cast<ANF_Monster>(GetPawn());
+	if (!IsValid(Monster) || Monster->IsDead()) { return; }
+
 	APawn* DetectedPawn = Cast<APawn>(UpdatedActor);
 
-	if (!DetectedPawn || !DetectedPawn->IsPlayerControlled()) {	return;	}
+	if (!DetectedPawn || !DetectedPawn->IsPlayerControlled()) { return; }
 
 	UBlackboardComponent* BlackboardComponent =
 		GetBlackboardComponent();
@@ -91,9 +94,7 @@ void ANF_MonsterAIController::HandleTargetPerceptionUpdated(
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
-		const ANF_Monster* Monster = Cast<ANF_Monster>(GetPawn());
-		if (Monster
-			&& Monster->RequiresDamageToAggro()
+		if (Monster->RequiresDamageToAggro()
 			&& !bPersistentDamageAggro) { return; }
 
 		ConsiderTargetActor(UpdatedActor);
@@ -431,14 +432,12 @@ void ANF_MonsterAIController::SetCurrentTargetActor(
 	APawn* TargetPawn = Cast<APawn>(NewTargetActor);
 
 	if (!TargetPawn || !TargetPawn->IsPlayerControlled())
-	{
-		return;
-	}
+	{ return; }
 
 	UBlackboardComponent* BlackboardComponent =
 		GetBlackboardComponent();
 
-	if (!BlackboardComponent) {	return;	}
+	if (!BlackboardComponent) { return; }
 
 	const bool bTargetChanged =
 	GetCurrentTargetActor() != NewTargetActor;
@@ -487,14 +486,12 @@ void ANF_MonsterAIController::SetCurrentTargetActor(
 void ANF_MonsterAIController::ClearCurrentTargetActor(bool bForceClear)
 {
 	if (bPersistentDamageAggro && !bForceClear)
-	{
-		return;
-	}
+	{ return; }
 
 	UBlackboardComponent* BlackboardComponent =
 		GetBlackboardComponent();
 
-	if (!BlackboardComponent) {	return;	}
+	if (!BlackboardComponent) { return; }
 
 	ClearFocus(EAIFocusPriority::Gameplay);
 	UBTTask_NF_MonsterReserveCombatSlot::ReleaseReservation(GetPawn());
@@ -530,13 +527,13 @@ void ANF_MonsterAIController::UpdateLastKnownLocation()
 	UBlackboardComponent* BlackboardComponent =
 		GetBlackboardComponent();
 
-	if (!BlackboardComponent) {	return;	}
+	if (!BlackboardComponent) { return; }
 
 	const bool bHasLineOfSight =
 		BlackboardComponent->GetValueAsBool(
 			HasLineOfSightKeyName);
 
-	if (!bHasLineOfSight && !bPersistentDamageAggro) {	return;	}
+	if (!bHasLineOfSight && !bPersistentDamageAggro) { return; }
 
 	AActor* TargetActor = GetCurrentTargetActor();
 

@@ -31,7 +31,7 @@ bool FNF_EMPTest::RunTest(const FString& Parameters)
 	{
 		GEngine->DestroyWorldContext(World); World->DestroyWorld(false); return false;
 	}
-	Skill->CastTime = 30.0f;
+	Skill->GetMutableActiveDefaults().CastTime = 30.0f;
 	TestTrue(TEXT("Skill starts casting before EMP"), ASC->TryActivateAbility(SkillHandle));
 	// Even a deployed result still retained by a Timed GA must detach instead of being removed by EMP.
 	ANF_SkillExecutionActor* Independent = World->SpawnActor<ANF_SkillExecutionActor>();
@@ -68,9 +68,10 @@ bool FNF_EMPTest::RunTest(const FString& Parameters)
 	Skill->GetMutableSkillDefaults().SkillType = ENF_SkillType::Passive;
 	TestFalse(TEXT("Passive skills do not consider EMP a block"), Skill->IsBlockedByEMP());
 	Skill->GetMutableSkillDefaults().SkillType = ENF_SkillType::Active;
-	Skill->bAffectedByEMP = false;
+	const auto SavedEMPRules = Skill->GetMutableActiveDefaults().StateRules;
+	Skill->GetMutableActiveDefaults().StateRules.Reset();
 	TestTrue(TEXT("Explicit EMP exemption allows activation checks"), Skill->CanActivateAbility(SkillHandle, ASC->AbilityActorInfo.Get()));
-	Skill->bAffectedByEMP = true;
+	Skill->GetMutableActiveDefaults().StateRules = SavedEMPRules;
 	const auto SecondEMP = ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
 	ASC->RemoveActiveGameplayEffect(FirstEMP);
 	TestTrue(TEXT("Overlapping EMP retains the seal when one ends"), Skill->IsBlockedByEMP());

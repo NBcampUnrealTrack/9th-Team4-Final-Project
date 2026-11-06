@@ -51,8 +51,7 @@ void ANF_BossHomingProjectile::BeginPlay()
 FVector ANF_BossHomingProjectile::CalculateTrackingLocation(const FVector& Current, const FVector& Target,
 	float Speed, float DeltaSeconds)
 {
-	FVector Delta = Target - Current;
-	Delta.Y = 0.f;
+	const FVector Delta = Target - Current;
 	return Current + Delta.GetSafeNormal() * FMath::Min(Delta.Size(), FMath::Max(Speed, 0.f) * FMath::Max(DeltaSeconds, 0.f));
 }
 
@@ -87,7 +86,9 @@ void ANF_BossHomingProjectile::Tick(float DeltaSeconds)
 		Explode();
 		return;
 	}
-	SetActorLocation(End);
+	const FVector Step = End - Start;
+	if (Step.IsNearlyZero()) SetActorLocation(End);
+	else SetActorLocationAndRotation(End, Step.Rotation());
 	// Also covers stationary missiles and initial overlaps.
 	TArray<FOverlapResult> Overlaps;
 	GetWorld()->OverlapMultiByObjectType(Overlaps, End, FQuat::Identity, Objects,

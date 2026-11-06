@@ -21,7 +21,7 @@
 UNFGA_BossHomingVolley::UNFGA_BossHomingVolley()
 {
 	ProjectileClass = ANF_BossHomingProjectile::StaticClass();
-	ExecutionDuration = RoundCount * (3 - 1) * ShotInterval + (RoundCount - 1) * RoundInterval
+	GetMutableActiveDefaults().ExecutionDuration = RoundCount * (3 - 1) * ShotInterval + (RoundCount - 1) * RoundInterval
 		+ ANF_BossHomingProjectile::TrackingLifetime;
 }
 
@@ -120,19 +120,17 @@ bool UNFGA_BossHomingVolley::FireMissile(ANF_Player* Target)
 	}
 	AirborneSpec.Data->SetDuration(1.f, true);
 	{
-		FVector Candidate = Target->GetActorLocation();
-		const float Direction = Boss->GetActorLocation().X < Candidate.X ? -1.f : 1.f;
-		Candidate.X += Direction * FMath::Max(SpawnOffset, DetectionRadius + 100.f);
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(BossHomingGround), false, Boss);
-		Params.AddIgnoredActor(Target);
-		FHitResult Ground;
-		if (!GetWorld()->LineTraceSingleByChannel(Ground, Candidate + FVector(0, 0, 1000),
-			Candidate - FVector(0, 0, 5000), ECC_WorldStatic, Params))
+		// The missile launches from the same point as the launch Niagara (socket + local offset).
+		FTransform EffectTransform = Boss->GetActorTransform();
+		if (USkeletalMeshComponent* BossMesh = Boss->GetBossSkeletalMesh(); IsValid(BossMesh))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[BossHoming] No floor for target %s; skipping missile."), *GetNameSafe(Target));
-			return false;
+			EffectTransform = !LaunchEffectSocket.IsNone() && BossMesh->DoesSocketExist(LaunchEffectSocket)
+				? BossMesh->GetSocketTransform(LaunchEffectSocket) : BossMesh->GetComponentTransform();
 		}
-		const FTransform Transform(FRotator::ZeroRotator, Ground.ImpactPoint + FVector(0, 0, 25));
+		EffectTransform.SetLocation(EffectTransform.TransformPosition(LaunchEffectLocalOffset));
+		const FVector LaunchLocation = EffectTransform.GetLocation();
+		const FVector ToTarget = Target->GetActorLocation() - LaunchLocation;
+		const FTransform Transform(ToTarget.IsNearlyZero() ? Boss->GetActorRotation() : ToTarget.Rotation(), LaunchLocation);
 		auto* Projectile = GetWorld()->SpawnActorDeferred<ANF_BossHomingProjectile>(ProjectileClass, Transform,
 			Boss, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 		if (!Projectile) { UE_LOG(LogTemp, Warning, TEXT("[BossHomingDiag] SpawnActorDeferred failed Class=%s"), *GetPathNameSafe(ProjectileClass.Get())); return false; }
@@ -148,13 +146,6 @@ bool UNFGA_BossHomingVolley::FireMissile(ANF_Player* Target)
 				FMath::Max(ShotMontagePlayRate, 0.01f), ShotMontageStartSection);
 		UE_LOG(LogTemp, Display, TEXT("[BossHomingDiag] Montage request Relay=%s Montage=%s"), *GetNameSafe(MontageRelay), *GetPathNameSafe(ShotMontage.Get()));
 		}
-		FTransform EffectTransform = Boss->GetActorTransform();
-		if (USkeletalMeshComponent* BossMesh = Boss->GetBossSkeletalMesh(); IsValid(BossMesh))
-		{
-			EffectTransform = !LaunchEffectSocket.IsNone() && BossMesh->DoesSocketExist(LaunchEffectSocket)
-				? BossMesh->GetSocketTransform(LaunchEffectSocket) : BossMesh->GetComponentTransform();
-		}
-		EffectTransform.SetLocation(EffectTransform.TransformPosition(LaunchEffectLocalOffset));
 		EffectTransform.SetScale3D(LaunchNiagaraScale);
 		ANF_BossNiagaraBurst::SpawnBurst(Boss, LaunchNiagaraSystem, EffectTransform.GetLocation(),
 			EffectTransform.Rotator(), LaunchNiagaraScale);

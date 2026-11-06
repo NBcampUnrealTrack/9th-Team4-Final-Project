@@ -1,5 +1,6 @@
 #include "GAS/Attributes/NF_MonsterAttributeSet.h"
 #include "GameplayEffectExtension.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
 #include "Net/UnrealNetwork.h"
 
@@ -155,10 +156,25 @@ void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
 	{
 		bIsOutOfHealth = true;
 
+		AActor* Instigator =
+			Data.EffectSpec.GetContext().GetOriginalInstigator();
+
+		APlayerState* KillerPlayerState =
+			Cast<APlayerState>(Instigator);
+		
+		if (!IsValid(KillerPlayerState))
+		{
+			if (const APawn* InstigatorPawn = Cast<APawn>(Instigator))
+			{
+				KillerPlayerState = InstigatorPawn->GetPlayerState();
+			}
+		}
+
+		LethalDamageInstigatorPlayerState = KillerPlayerState;
+
 		UE_LOG(LogTemp, Warning, TEXT("Monster out of health"));
 
 		OnMonsterOutOfHealth.Broadcast();
-
 		return;
 	}
 
@@ -179,4 +195,10 @@ void UNF_MonsterAttributeSet::PostGameplayEffectExecute(
 	}
 
 	OnMonsterDamaged.Broadcast(Damage, DamageSource);
+}
+
+APlayerState*
+UNF_MonsterAttributeSet::GetLethalDamageInstigatorPlayerState() const
+{
+	return LethalDamageInstigatorPlayerState.Get();
 }

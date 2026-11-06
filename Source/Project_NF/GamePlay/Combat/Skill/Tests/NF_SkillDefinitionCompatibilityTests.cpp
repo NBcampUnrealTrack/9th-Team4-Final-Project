@@ -10,6 +10,7 @@
 #include "GamePlay/Combat/Skill/Passive/NFGA_PassiveSkillBase.h"
 #include "GamePlay/Combat/Skill/Passive/Utility/NFGA_DoubleJump.h"
 #include "GAS/Tags/NFTag_Skill.h"
+#include "GAS/Effects/NFGE_DoubleJump.h"
 #include "UObject/UnrealType.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNF_SkillDefinitionCompatibilityTest, "NF.Skills.Data.CompatibleDefinition",
@@ -20,17 +21,18 @@ bool FNF_SkillDefinitionCompatibilityTest::RunTest(const FString& Parameters)
 	TestNull(TEXT("Common base no longer owns passive GE settings"), FindFProperty<FProperty>(UNFGA_SkillBase::StaticClass(), TEXT("PassiveEffects")));
 	TestNull(TEXT("Common base no longer owns category scalar"), FindFProperty<FProperty>(UNFGA_SkillBase::StaticClass(), TEXT("SkillCategory")));
 	TestNull(TEXT("Common base no longer owns cost scalar"), FindFProperty<FProperty>(UNFGA_SkillBase::StaticClass(), TEXT("BuildCost")));
-	TestNotNull(TEXT("Active owns preview settings"), FindFProperty<FProperty>(UNFGA_ActiveSkillBase::StaticClass(), TEXT("PreviewActorClass")));
+	TestNull(TEXT("Active does not own editable preview settings"), FindFProperty<FProperty>(UNFGA_ActiveSkillBase::StaticClass(), TEXT("PreviewActorClass")));
 	TestNull(TEXT("Active has no passive GE settings"), FindFProperty<FProperty>(UNFGA_ActiveSkillBase::StaticClass(), TEXT("PassiveEffects")));
-	TestNotNull(TEXT("Passive owns equip GE settings"), FindFProperty<FProperty>(UNFGA_PassiveSkillBase::StaticClass(), TEXT("PassiveEffects")));
+	TestNull(TEXT("Passive does not own editable equip GE settings"), FindFProperty<FProperty>(UNFGA_PassiveSkillBase::StaticClass(), TEXT("PassiveEffects")));
 	TestNull(TEXT("Passive has no preview settings"), FindFProperty<FProperty>(UNFGA_PassiveSkillBase::StaticClass(), TEXT("PreviewActorClass")));
 	TestTrue(TEXT("Existing active class retains common-base compatibility"), UNFGA_Acceleration::StaticClass()->IsChildOf(UNFGA_ActiveSkillBase::StaticClass()));
 	TestTrue(TEXT("Existing passive class has passive parent"), UNFGA_DoubleJump::StaticClass()->IsChildOf(UNFGA_PassiveSkillBase::StaticClass()));
 	auto* LegacyData = NewObject<UNF_SkillDataAsset>();
 	LegacyData->AbilityClass = UNFGA_Acceleration::StaticClass();
+	LegacyData->BuildCost = 9;
 	FNF_BuildItemData Item;
-	TestTrue(TEXT("Old DA still resolves build contract"), LegacyData->GetBuildItemData_Implementation(Item));
-	TestEqual(TEXT("Old DA retains GA cost"), Item.Cost, GetDefault<UNFGA_Acceleration>()->GetBuildCost());
+	TestFalse(TEXT("Old common-only DA requires explicit migration"), LegacyData->GetBuildItemData_Implementation(Item));
+	TestEqual(TEXT("Unmigrated DA is not treated as a free skill"), Item.Cost, -1);
 
 	const auto Values = UWorld::InitializationValues().AllowAudioPlayback(false).CreatePhysicsScene(false)
 		.CreateNavigation(false).CreateAISystem(false).ShouldSimulatePhysics(false).SetTransactional(false);
@@ -42,7 +44,9 @@ bool FNF_SkillDefinitionCompatibilityTest::RunTest(const FString& Parameters)
 	Owner->AddInstanceComponent(ASC); ASC->RegisterComponent(); ASC->InitAbilityActorInfo(Owner, Owner);
 	auto* Definition = NewObject<UNF_ActiveSkillDataAsset>();
 	Definition->AbilityClass = UNFGA_Acceleration::StaticClass();
-	Definition->bOverrideIdentity = true; Definition->BuildCost = 7;
+	Definition->BuildCost = 7;
+	Definition->ExecutionMode = ENF_SkillExecutionMode::Timed;
+	Definition->ExecutionDuration = 5.f;
 	FNF_SkillStateRule Rule;
 	Rule.StateTag = NFTag_Skill::State_DoubleJumpEnabled;
 	Rule.bBlockActivation = true; Rule.bCancelRunning = false;
@@ -54,7 +58,12 @@ bool FNF_SkillDefinitionCompatibilityTest::RunTest(const FString& Parameters)
 	{
 		TestTrue(TEXT("Instance retains exact skill DA"), Skill->GetSkillData() == Definition);
 		TestEqual(TEXT("Instance uses DA cost"), Skill->GetBuildCost(), 7);
+		Definition->BuildCost = 8;
+		TestEqual(TEXT("DA changes are read directly without copying into the GA"), Skill->GetBuildCost(), 8);
+		Definition->CastTime = 2.5f;
+		TestEqual(TEXT("Active timing is read directly from DA"), Skill->GetCastTime(), 2.5f);
 		TestTrue(TEXT("Class default was not modified"), GetDefault<UNFGA_Acceleration>()->GetBuildCost() != 7);
+		TestTrue(TEXT("Valid definition permits activation before the restricted state"), Skill->CanActivateAbility(Handle, ASC->AbilityActorInfo.Get()));
 		ASC->AddLooseGameplayTag(Rule.StateTag);
 		TestFalse(TEXT("DA state rule blocks new activation"), Skill->CanActivateAbility(Handle, ASC->AbilityActorInfo.Get()));
 		ASC->RemoveLooseGameplayTag(Rule.StateTag);
@@ -67,7 +76,7 @@ bool FNF_SkillDefinitionCompatibilityTest::RunTest(const FString& Parameters)
 	auto* LegacySkill = LegacySpec ? Cast<UNFGA_SkillBase>(LegacySpec->GetPrimaryInstance()) : nullptr;
 	if (TestNotNull(TEXT("Non-DA source still grants"), LegacySkill))
 	{
-		TestNull(TEXT("Legacy source is not silently treated as skill DA"), LegacySkill->GetSkillData());
+		TestNotNull(TEXT("Non-DA source uses a native typed DA preset"), LegacySkill->GetSkillData());
 		TestEqual(TEXT("Legacy instance retains its original cost"), LegacySkill->GetBuildCost(), GetDefault<UNFGA_Acceleration>()->GetBuildCost());
 	}
 	ASC->ClearAbility(LegacyHandle);
@@ -75,6 +84,7 @@ bool FNF_SkillDefinitionCompatibilityTest::RunTest(const FString& Parameters)
 	PassiveData->AbilityClass = UNFGA_Acceleration::StaticClass();
 	TestFalse(TEXT("Passive DA rejects active GA"), PassiveData->HasValidSettings());
 	PassiveData->AbilityClass = UNFGA_DoubleJump::StaticClass();
+	PassiveData->PassiveEffects.Add(UNFGE_DoubleJump::StaticClass());
 	const auto PassiveHandle = PassiveData->GrantTo(ASC);
 	TestTrue(TEXT("New passive DA preserves existing default equip effects"), ASC->HasMatchingGameplayTag(NFTag_Skill::State_DoubleJumpEnabled));
 	ASC->ClearAbility(PassiveHandle);

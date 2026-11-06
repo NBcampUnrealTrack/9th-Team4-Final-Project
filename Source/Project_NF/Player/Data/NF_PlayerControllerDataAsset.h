@@ -14,6 +14,9 @@ class PROJECT_NF_API UNF_PlayerControllerDataAsset : public UDataAsset
 	GENERATED_BODY()
 	
 public:
+	UPROPERTY(EditAnywhere, Category = "Test")
+	bool bIsTestMode = false;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "PlayerController|UI")
 	TSubclassOf<UNF_GameHUDWidget> GameHUDClass;
 	
@@ -52,6 +55,12 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
 	TObjectPtr<UInputAction> ZoomToggleSettingButton;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputAction> TestVisualMesh_Boy_Button;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PlayerController|Input")
+	TObjectPtr<UInputAction> TestVisualMesh_Girl_Button;
 	
 
 };
