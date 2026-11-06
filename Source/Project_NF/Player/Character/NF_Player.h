@@ -49,14 +49,33 @@ public:
 	TObjectPtr<USkeletalMeshComponent> VisualMesh;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
-	TObjectPtr<UNF_PlayerVisualMeshCustomizedComponent> NF_PlayerVisualMeshCustomizedComponent;
+	TObjectPtr<UStaticMeshComponent> MeleeAttackMeshComponent;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
-	TObjectPtr<UStaticMeshComponent> MeleeAttackMeshComponent;
+	TObjectPtr<UNF_PlayerVisualMeshCustomizedComponent> NF_PlayerVisualMeshCustomizedComponent;
+	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Build")
+	TObjectPtr<UNF_BuildComponent> NF_BuildComponent;
+	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
+	TObjectPtr<UNF_WeaponComponent> NF_WeaponComponent;
+	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
+	TObjectPtr<UNF_ArmorComponent> NF_ArmorComponent;
+	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
+	TObjectPtr<UNF_PlayerLifeComponent> NF_PlayerLifeComponent;
+	
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
+	TObjectPtr<UNF_ConsumableComponent> NF_ConsumableComponent;
+	
 	
 	//상점에서 총기류 구매가 가능해지면 초기값 None으로 바꾸기
 	UPROPERTY(EditAnywhere, Replicated)
-	ENF_WeaponType NF_WeaponType = ENF_WeaponType::None;
+	ENF_WeaponType NF_WeaponType = ENF_WeaponType::Dagger;
+	
+	ENF_WeaponType GetNF_WeaponType() { return NF_WeaponType; }
+	void SetNF_WeaponType(ENF_WeaponType NewWeaponType) { NF_WeaponType = NewWeaponType; }
 	
 protected:
 	virtual void PostInitializeComponents() override;
@@ -78,26 +97,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|MotionMatching")
 	TObjectPtr<UMotionMatchingComponent> MotionMatchingComponent;
 	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Build")
-	TObjectPtr<UNF_BuildComponent> NF_BuildComponent;
-	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
-	TObjectPtr<UNF_WeaponComponent> NF_WeaponComponent;
-	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Equipment")
-	TObjectPtr<UNF_ArmorComponent> NF_ArmorComponent;
-	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
-	TObjectPtr<UNF_PlayerLifeComponent> NF_PlayerLifeComponent;
-	
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Life")
-	TObjectPtr<UNF_ConsumableComponent> NF_ConsumableComponent;
+
 	
 	
 	
 private:
-	int32 TestCustomizedIndex = 0;
-	
 	void TryChangeVisualMesh(int32 Index);
 	
 	void ConfigBindDelegate();
@@ -111,8 +115,13 @@ private:
 	
 	void OnEquippedWeaponChanged(ANF_WeaponBase* NewWeapon);
 	
+	int32 TestCustomizedIndex = 0;
+	
 	FName MeleeAttackSocket = "MeleeAttackSocket";
+	FName WeaponKeepSocket = "WeaponKeepSocket";
+	
 	float InteractionRange = 0.0f;
+
 	
 #pragma region CameraCollision
 public: 

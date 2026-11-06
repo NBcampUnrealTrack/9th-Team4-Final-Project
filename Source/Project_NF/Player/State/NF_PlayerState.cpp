@@ -41,7 +41,7 @@ void ANF_PlayerState::InitAbilitySystem(APawn* AvatarPawn)
 	{
 		const float MaxHealth = PlayerStatusAttribute->GetMaxHealth();
 		const float MaxShield = PlayerStatusAttribute->GetMaxShield();
-        
+		
 		PlayerASC->SetNumericAttributeBase(UNF_PlayerStatusAttribute::GetHealthAttribute(), MaxHealth);
 		PlayerASC->SetNumericAttributeBase(UNF_PlayerStatusAttribute::GetShieldAttribute(), MaxShield);
 	}

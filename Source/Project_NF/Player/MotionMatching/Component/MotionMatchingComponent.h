@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
@@ -120,6 +120,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MotionMatching|Movement")
 	void ToggleWantsToWalk();
 
+	// [추가] 외부(줌 등)에서 걷기 강제 on/off. 끌 때는 강제 전 걷기 상태로 복원 (조종하는 클라이언트에서 호출)
+	UFUNCTION(BlueprintCallable, Category = "MotionMatching|Movement")
+	void SetForceWalk(bool bIsForceWalk);
+
 	UFUNCTION(BlueprintCallable, Category = "MotionMatching|Movement")
 	void ToggleWantsToStrafe();
 
@@ -199,16 +203,16 @@ protected:
 protected:
 	// [추가] 각 Gait의 최대 속도 (X = 앞, Y = 옆, Z = 뒤)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "MotionMatching|Movement|Speed")
-	FVector WalkSpeeds = FVector(200.0f, 180.0f, 150.0f);
+	FVector WalkSpeeds = FVector(200.0f, 200.0f, 200.0f);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "MotionMatching|Movement|Speed")
-	FVector RunSpeeds = FVector(500.0f, 350.0f, 300.0f);
+	FVector RunSpeeds = FVector(400.0f, 400.0f, 400.0f);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "MotionMatching|Movement|Speed")
-	FVector SprintSpeeds = FVector(700.0f, 700.0f, 700.0f);
+	FVector SprintSpeeds = FVector(630.0f, 630.0f, 630.0f);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "MotionMatching|Movement|Speed")
-	FVector CrouchSpeeds = FVector(225.0f, 200.0f, 180.0f);
+	FVector CrouchSpeeds = FVector(170.0f, 170.0f, 170.0f);
 
 	// [추가] 옆걸음(Strafe) 중 이동 방향 → 0 = 앞, 1 = 옆, 2 = 뒤 로 바꾸는 커브
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "MotionMatching|Movement|Speed")
@@ -263,6 +267,10 @@ protected:
 	// [추가] 다른 클라이언트에도 보여야 하는 입력 상태 (소유 클라이언트는 직접 바꾸므로 제외)
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category = "MotionMatching|Movement|State")
 	FMotionMatchingInputState CharacterInputState;
+
+	// [추가] 걷기 강제 중 여부 / 강제 전 걷기 상태 (조종하는 클라이언트 전용)
+	bool bIsForceWalking = false;
+	bool bIsWalkingBeforeForce = false;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "MotionMatching|Movement|State")
 	FVector LandVelocity = FVector::ZeroVector;

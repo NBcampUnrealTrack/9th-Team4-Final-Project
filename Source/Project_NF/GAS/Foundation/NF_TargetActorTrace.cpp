@@ -28,6 +28,8 @@ void ANF_TargetActorTrace::StartTargeting(UGameplayAbility* Ability)
 	MeleeTraceRadius = NF_PlayerDataAsset->MeleeTraceRadius;
 	MeleeSocket_Start = NF_PlayerDataAsset->MeleeSocket_Start;
 	MeleeSocket_End = NF_PlayerDataAsset->MeleeSocket_End;
+	
+	bIsDebugDraw = NF_PlayerDataAsset->bIsTest;
 }
 
 

@@ -102,6 +102,16 @@ void UUpperBodyLayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		}
 	}
 
+	// [추가] 조준 시작 시 DA 기억, 조준이 끝나면 비움
+	if (bIsAiming == false)
+	{
+		AimStartDataAsset.Reset();
+	}
+	else if (AimStartDataAsset.IsValid() == false)
+	{
+		AimStartDataAsset = DataAsset;
+	}
+
 	float AimBlendSpeed = 1000.0f;
 	if (IsValid(DataAsset) == true && DataAsset->AimBlendTime > KINDA_SMALL_NUMBER)
 	{
@@ -129,7 +139,8 @@ void UUpperBodyLayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	{
 		TargetAnimation = DataAsset->GetPoseAnimation(StateIndex);
 		BlendTime = DataAsset->BlendTime;
-		if (bIsAiming == true && IsValid(DataAsset->AimIdle) == true)
+		// [변경] 조준을 시작한 DA와 같을 때만 AimIdle 사용
+		if (bIsAiming == true && IsValid(DataAsset->AimIdle) == true && DataAsset == AimStartDataAsset.Get())
 		{
 			TargetAnimation = DataAsset->AimIdle;
 			BlendTime = DataAsset->AimBlendTime;

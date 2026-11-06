@@ -40,11 +40,9 @@ void UNFGA_MultiPurposeBase::AttachWeaponToSocket(UStaticMeshComponent* WeaponMe
 	auto* NF_Player = Cast<ANF_Player>(GetAvatarActorFromActorInfo());
 	if (IsValid(NF_Player) == false) return;
 	
-	WeaponMeshComponent = NF_Player->MeleeAttackMeshComponent;
-	if (IsValid(WeaponMeshComponent) == false) return;
-	
 	const auto& VisualMesh = NF_Player->VisualMesh;
 	if (IsValid(VisualMesh) == false) return;
 	
+	if (IsValid(WeaponMeshComponent) == false) return;
 	WeaponMeshComponent->AttachToComponent(VisualMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocketNameToUsed);
 }

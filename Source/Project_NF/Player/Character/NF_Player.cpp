@@ -23,11 +23,9 @@
 #include "Engine/LocalPlayer.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/ConsumableItems/NF_ConsumableComponent.h"
-#include "GAS/Abilities/NFGA_PlayerDeath.h"
 #include "GAS/Data/NF_PlayerGEDataAsset.h"
 #include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "Player/Component/NF_AvatarCustomizedComponent.h"
-#include "Player/Data/NF_CustomVisualMeshDataAsset.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UpperBodyBlend/UpperBodyLayer.h"
@@ -84,7 +82,7 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	NF_ArmorComponent = CreateDefaultSubobject<UNF_ArmorComponent>(TEXT("NF_ArmorComponent"));
 	
 	MeleeAttackMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeleeAttackMeshComponent"));
-	MeleeAttackMeshComponent->SetupAttachment(VisualMesh, MeleeAttackSocket);
+	MeleeAttackMeshComponent->SetupAttachment(VisualMesh, WeaponKeepSocket);
 	MeleeAttackMeshComponent->SetHiddenInGame(true);
 	MeleeAttackMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	
@@ -135,9 +133,6 @@ void ANF_Player::OnRep_PlayerState()
 }
 
 
-
-
-
 void ANF_Player::ConfigBindDelegate()
 {
 	NF_BINDING_FUNCTION_TO_PLAYER_DELEGATE(OnPlayerAction, OnTryAction);
@@ -160,9 +155,11 @@ void ANF_Player::ConfigData()
 		
 	InteractionRange = NF_PlayerDataAsset->InteractionRange;
 	MeleeAttackSocket = NF_PlayerDataAsset->MeleeAttackSocket;
+	WeaponKeepSocket = NF_PlayerDataAsset->WeaponKeepSocket;
 	
-	MeleeAttackMeshComponent->AttachToComponent(VisualMesh, FAttachmentTransformRules::KeepRelativeTransform, MeleeAttackSocket);
+	MeleeAttackMeshComponent->AttachToComponent(VisualMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponKeepSocket);
 }
+
 
 void ANF_Player::ConfigCameraData()
 {
@@ -180,6 +177,7 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 		
 	if (ActionType == ENF_PlayerActionType::MeleeAttack)
 	{
+		
 		TryMeleeAttack();
 		return;
 	}
@@ -273,16 +271,22 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 
 	void ANF_Player::TryZoom(ENF_PlayerActionType ActionType)
 	{
+		if (NF_WeaponType == ENF_WeaponType::Dagger || NF_WeaponType == ENF_WeaponType::None) return;
+	
 		if (ActionType == ENF_PlayerActionType::ZoomIn)
 		{
 			NF_WeaponComponent->StartZoom();
 			UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByZoom(this, true);
+			
+			MotionMatchingComponent->SetForceWalk(true);
 		}
 	
 		if (ActionType == ENF_PlayerActionType::ZoomOut)
 		{
 			NF_WeaponComponent->StopZoom();
 			UUpperBodyLayerLibrary::SetUpperBodyCombatStanceByZoom(this, false);
+			
+			MotionMatchingComponent->SetForceWalk(false);
 		}	
 	}
 
@@ -303,10 +307,7 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 	{
 		FHitResult TraceResult = GetActorFromLineTrace();
 		
-		//해당 수정 사항 제대로 검증 되는지 테스트하기
-		
 		ServerRPC_TryInteraction(SendController, TraceResult.GetActor());
-	
 	}
 
 	void ANF_Player::TryUseItem()
@@ -387,7 +388,6 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 #pragma endregion 
 
 
-
 void ANF_Player::UpdateCameraArmLength(float DeltaSeconds)
 {
 	if (IsLocallyControlled() == true)
@@ -440,6 +440,7 @@ void ANF_Player::OnSkillBind(APlayerController* SendController, ENF_PlayerAction
 		NF_BuildComponent->AssignSelectedActiveSkill(SkillButtonB_InputID);
 		return;
 	}
+	return;
 }
 
 

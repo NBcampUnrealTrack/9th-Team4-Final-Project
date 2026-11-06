@@ -75,7 +75,7 @@ void UNFGA_WeaponFire::TryFire()
 		WaitForNextShot(0.02f);
 		return;
 	}
-
+	
 	
 	if (Weapon->FireProjectile() == false)
 	{
