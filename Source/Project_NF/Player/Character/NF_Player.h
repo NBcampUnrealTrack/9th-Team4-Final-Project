@@ -9,6 +9,7 @@
 #include "Player/Data/NF_PlayerActionType.h"
 #include "NF_Player.generated.h"
 
+class UNF_PlayerCameraCosmeticComponent;
 class UNF_PlayerVisualMeshCustomizedComponent;
 enum class ENF_CustomVisualMeshType : uint8;
 class UNF_ConsumableComponent;
@@ -51,7 +52,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
 	TObjectPtr<UStaticMeshComponent> MeleeAttackMeshComponent;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Mesh")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Cosmetic")
 	TObjectPtr<UNF_PlayerVisualMeshCustomizedComponent> NF_PlayerVisualMeshCustomizedComponent;
 	
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "NF_Player|Build")
@@ -81,7 +82,6 @@ protected:
 	virtual void PostInitializeComponents() override;
 	
 	virtual void BeginPlay() override;
-	virtual void Tick( float DeltaTime ) override;
 	
 	virtual void PossessedBy(AController* NewController) override;
 	
@@ -97,16 +97,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|MotionMatching")
 	TObjectPtr<UMotionMatchingComponent> MotionMatchingComponent;
 	
+	UPROPERTY(EditDefaultsOnly, Category = "NF_Player|Cosmetic")
+	TObjectPtr<UNF_PlayerCameraCosmeticComponent> NF_PlayerCameraCosmeticComponent;
 
-	
-	
 	
 private:
 	void TryChangeVisualMesh(int32 Index);
 	
 	void ConfigBindDelegate();
 	void ConfigData();
-	void ConfigCameraData();
 	
 	void ConfigStatusAttribute();
 	void ConfigLevelAttribute();
@@ -122,25 +121,7 @@ private:
 	
 	float InteractionRange = 0.0f;
 
-	
-#pragma region CameraCollision
-public: 
-	//막힘이 없을 때 SpringArm 기본 길이
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
-	float DefaultCameraArmLength = 200.0f;
-	
-	//벽에 막혀 당겨질 때 보간 속도
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
-	float CameraArmPullInSpeed = 30.0f;
-	
-	//막힘이 풀려 돌아갈 때 보간 속도
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NF_Player|Camera")
-	float CameraArmReturnSpeed = 5.0f;
-	
-private:
-	//벽(WorldStatic/WorldDynamic)만 검사해서 SpringArm 길이를 보간
-	void UpdateCameraArmLength(float DeltaSeconds);
-#pragma endregion 
+
 	
 #pragma region TryAction
 private:
