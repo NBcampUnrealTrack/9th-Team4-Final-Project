@@ -2,18 +2,32 @@
 
 #include "CoreMinimal.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
-#include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
 #include "Engine/DataAsset.h"
 #include "NF_BuildRules.generated.h"
 
-class UNF_BuildItemDefinitionDataAsset;
-
-// 한 번의 조회에서만 사용하는 원본 데이터. 해석 실패 시 Data.Cost는 -1이다.
-struct FNF_BuildCatalogItem
+/** @Owner: 황준현 | 2026-10-26. 상점 식별자와 표시 이름만 소유한다. */
+UCLASS(BlueprintType)
+class PROJECT_NF_API UNF_BuildItemDefinitionDataAsset : public UPrimaryDataAsset
 {
-	UNF_BuildItemDefinitionDataAsset* Definition = nullptr;
-	FNF_BuildItemData Data;
-	UDataAsset* Source = nullptr;
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build")
+	FName ItemId;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build")
+	FText DisplayName;
+};
+
+/** @Owner: 황준현 | 2026-11-04. 공통 시작 설정. 런타임 플레이어 상태는 컴포넌트가 보관한다. */
+UCLASS(BlueprintType)
+class PROJECT_NF_API UNF_BuildInitialSettings : public UDataAsset
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF|Build", meta = (ClampMin = "0"))
+	int32 InitialCostLimit = 10;
 };
 
 UCLASS(BlueprintType)

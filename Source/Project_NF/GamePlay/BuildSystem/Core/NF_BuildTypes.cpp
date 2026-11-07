@@ -1,4 +1,4 @@
-#include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 
 bool INF_BuildItemSource::GetBuildItemData_Implementation(FNF_BuildItemData& OutData) const
 {

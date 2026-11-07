@@ -44,6 +44,10 @@ public:
 	void SetShopEnabled(bool bEnabled);
 
 protected:
+	virtual void PostInitializeComponents() override;
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_Rules, Category = "NF|BuildShop")
 	TObjectPtr<UNF_BuildRules> Rules;
 

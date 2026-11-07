@@ -1,11 +1,8 @@
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
-
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
-#include "GamePlay/BuildSystem/Core/NF_BuildValidator.h"
-#include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildMatchSubsystem.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
-#include "GamePlay/BuildSystem/Data/NF_BuildInitialSettings.h"
 #include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
 #include "GAS/Tags/NFTag_Build.h"
 #include "GamePlay/BuildSystem/GamePlay/BuildShop/NF_BuildShopZone.h"
@@ -13,14 +10,14 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayEffect.h"
 #include "Engine/World.h"
-#include "EngineUtils.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponBase.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponComponent.h"
 #include "GamePlay/Combat/Weapons/NF_WeaponDataAsset.h"
-#include "GamePlay/BuildSystem/Player/NF_BuildEquipmentAdapter.h"
 #include "Net/UnrealNetwork.h"
 #include "Player/Data/NF_PlayerActionDelegateSubsystem.h"
-#include "Core/NF_GameState.h"
+#include "GamePlay/Combat/Armor/NF_ArmorBase.h"
+#include "GamePlay/Combat/Armor/NF_ArmorComponent.h"
+#include "GamePlay/Combat/Armor/NF_ArmorDataAsset.h"
 
 UNF_BuildComponent::UNF_BuildComponent()
 {
@@ -74,14 +71,9 @@ TArray<ANF_BuildShopZone*> UNF_BuildComponent::GetShopsInRange() const
 
 void UNF_BuildComponent::UpdateShopsInRange()
 {
-	TArray<TObjectPtr<ANF_BuildShopZone>> NewShops;
-	for (TActorIterator<ANF_BuildShopZone> Iterator(GetWorld()); Iterator; ++Iterator)
-	{
-		if (Iterator->IsActorInRange(GetOwner()))
-		{
-			NewShops.Add(*Iterator);
-		}
-	}
+	const UNF_BuildMatchSubsystem* Service = GetBuildService();
+	if (!Service) return;
+	TArray<TObjectPtr<ANF_BuildShopZone>> NewShops = Service->GetShopsInRange(GetOwner());
 	if (ShopsInRange.Num() == NewShops.Num() &&
 		NewShops.ContainsByPredicate([this](const TObjectPtr<ANF_BuildShopZone>& Shop)
 		{
@@ -199,62 +191,35 @@ void UNF_BuildComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	}
 }
 
+UNF_BuildMatchSubsystem* UNF_BuildComponent::GetBuildService() const
+{
+	return GetWorld() ? GetWorld()->GetSubsystem<UNF_BuildMatchSubsystem>() : nullptr;
+}
+
+FNF_BuildQueryContext UNF_BuildComponent::MakeQueryContext() const
+{
+	return {GetRules(), CostLimit, bEntitlementsInitialized, CurrentBuild, DraftBuild, PickedItemIds, EquippedItems};
+}
+
 UNF_BuildItemDefinitionDataAsset* UNF_BuildComponent::FindItemDefinition(FName ItemId) const
 {
-	const UNF_BuildRules* Rules = GetRules();
-	if (IsValid(Rules))
-	{
-		if (UNF_BuildItemDefinitionDataAsset* Definition = Rules->FindItemDefinition(ItemId)) { return Definition; }
-	}
-	for (const FNF_BuildEquippedItem& Item : EquippedItems)
-	{
-		if (IsValid(Item.Definition) && Item.Definition->ItemId == ItemId) { return Item.Definition; }
-	}
-	return nullptr;
+	const UNF_BuildMatchSubsystem* Service = GetBuildService();
+	return Service ? Service->FindItemDefinition(MakeQueryContext(), ItemId) : nullptr;
 }
 
 bool UNF_BuildComponent::ResolveItemData(FName ItemId, FNF_BuildItemData& OutData) const
 {
-	const UNF_BuildRules* Rules = GetRules();
 	OutData = FNF_BuildItemData();
-	if (IsValid(Rules) && Rules->FindItemDefinition(ItemId))
-	{
-		return Rules->ResolveItemData(ItemId, OutData);
-	}
-	for (const FNF_BuildEquippedItem& Item : EquippedItems)
-	{
-		if (IsValid(Item.Definition) && Item.Definition->ItemId == ItemId)
-		{
-			OutData = Item.ItemData;
-			return true;
-		}
-	}
-	return false;
+	const UNF_BuildMatchSubsystem* Service = GetBuildService();
+	return Service && Service->ResolveItemData(MakeQueryContext(), ItemId, OutData);
 }
 
 TArray<UNF_BuildItemDefinitionDataAsset*> UNF_BuildComponent::GetCatalogItems(
-	ENF_ItemType ItemType,
-	ENF_ArmorSlot ArmorPart) const
+	ENF_ItemType ItemType, ENF_ArmorSlot ArmorPart) const
 {
-	const UNF_BuildRules* Rules = GetRules();
-	TArray<UNF_BuildItemDefinitionDataAsset*> Result;
-
-	if (!IsValid(Rules) || !bEntitlementsInitialized)
-	{
-		return Result;
-	}
-
-	for (const FNF_BuildCatalogItem& Item : Rules->ReadCatalog())
-	{
-		if (!IsValid(Item.Definition) || Item.Data.Cost < 0 || Item.Data.ItemType != ItemType) { continue; }
-		// 방어구는 지정한 부위만 표시한다. None이면 전체 부위.
-		if (ItemType == ENF_ItemType::Armor &&
-			ArmorPart != ENF_ArmorSlot::None &&
-			Item.Data.ArmorSlot != ArmorPart) { continue; }
-		Result.Add(Item.Definition);
-	}
-
-	return Result;
+	const UNF_BuildMatchSubsystem* Service = GetBuildService();
+	return Service ? Service->GetCatalogItems(MakeQueryContext(), ItemType, ArmorPart)
+		: TArray<UNF_BuildItemDefinitionDataAsset*>{};
 }
 
 UNF_BuildItemDefinitionDataAsset* UNF_BuildComponent::GetSlotItem(
@@ -454,108 +419,27 @@ bool UNF_BuildComponent::SetPlayerLevel(int32 NewLevel)
 	return true;
 }
 
-FNF_BuildValidation UNF_BuildComponent::PreviewBuild(
-	const TArray<FNF_BuildSelection>& Selections) const
+FNF_BuildValidation UNF_BuildComponent::PreviewBuild(const TArray<FNF_BuildSelection>& Selections) const
 {
-	if (!bEntitlementsInitialized)
+	if (const UNF_BuildMatchSubsystem* Service = GetBuildService())
 	{
-		FNF_BuildValidation Validation;
-		Validation.Result = ENF_BuildResult::InvalidRules;
-		Validation.Message =
-			FText::FromString(TEXT("플레이어의 빌드 조건이 아직 준비되지 않았습니다."));
-		return Validation;
+		return Service->PreviewBuild(MakeQueryContext(), Selections);
 	}
-
-	const TArray<FNF_BuildSelection> FreeSelections = GetFreeSelections(PickedItemIds.Array());
-	return FNF_BuildValidator::Validate(
-		GetRules(),
-		CostLimit,
-		Selections,
-		nullptr,
-		&FreeSelections);
+	FNF_BuildValidation Result;
+	Result.Result = ENF_BuildResult::InvalidRules;
+	Result.Message = FText::FromString(TEXT("빌드 서브시스템이 준비되지 않았습니다."));
+	return Result;
 }
 
 FNF_BuildShopPreview UNF_BuildComponent::GetShopPreview() const
 {
+	if (const UNF_BuildMatchSubsystem* Service = GetBuildService())
+	{
+		return Service->GetShopPreview(MakeQueryContext());
+	}
 	FNF_BuildShopPreview Preview;
-	const UNF_BuildRules* Rules = GetRules();
-	const TArray<FNF_BuildCatalogItem> Items = IsValid(Rules) ? Rules->ReadCatalog() : TArray<FNF_BuildCatalogItem>{};
-	const TArray<FNF_BuildSelection> FreeSelections = GetFreeSelections(PickedItemIds.Array());
-	Preview.Validation = bEntitlementsInitialized
-		? FNF_BuildValidator::ValidateCatalog(Rules, Items, CostLimit, DraftBuild, nullptr, &FreeSelections)
-		: PreviewBuild(DraftBuild);
-
-	TMap<FName, const FNF_BuildCatalogItem*> ById;
-	for (const FNF_BuildCatalogItem& Item : Items)
-	{
-		if (IsValid(Item.Definition))
-		{
-			ById.FindOrAdd(Item.Definition->ItemId, &Item);
-		}
-	}
-
-	TSet<FName> FreeIds;
-	for (const FNF_BuildSelection& Selection : FreeSelections)
-	{
-		FreeIds.Add(Selection.ItemId);
-	}
-
-	int64 Total = 0;
-	for (const FNF_BuildSelection& Selection : DraftBuild)
-	{
-		FNF_BuildPreviewItem Row;
-		if (const FNF_BuildCatalogItem* const* Item = ById.Find(Selection.ItemId))
-		{
-			Row = FNF_BuildPreviewItem(**Item);
-		}
-		else
-		{
-			// 현재 상점에 없는 기존 장착품은 복제된 장착 스냅샷으로 표시한다.
-			Row.Definition = FindItemDefinition(Selection.ItemId);
-			ResolveItemData(Selection.ItemId, Row.Data);
-		}
-		if (!IsValid(Row.Definition) || Row.Data.Cost < 0) continue;
-		Row.SlotIndex = Selection.SlotIndex;
-		if (!FreeIds.Contains(Selection.ItemId)) Total += Row.Data.Cost;
-		Preview.Draft.Add(MoveTemp(Row));
-	}
-	// 검증이 중간에 실패해도 UI에는 전체 선택 금액을 표시한다.
-	Preview.DisplayCost = static_cast<int32>(FMath::Min<int64>(Total, MAX_int32));
-
-	if (!bEntitlementsInitialized) return Preview;
-	for (const FNF_BuildCatalogItem& Item : Items)
-	{
-		if (!IsValid(Item.Definition) || Item.Data.Cost < 0) continue;
-		FNF_BuildPreviewItem& Row = Preview.Catalog.Emplace_GetRef(Item);
-		if (Item.Data.ItemType == ENF_ItemType::ActiveSkill) continue;
-
-		Row.SlotIndex = FNF_BuildItemSlots::GetDefaultSlotIndex(Item.Data);
-		int64 CandidateCost = Total + Item.Data.Cost;
-		for (const FNF_BuildPreviewItem& Existing : Preview.Draft)
-		{
-			const bool bReplaced = Existing.Data.ItemType == Item.Data.ItemType && Existing.SlotIndex == Row.SlotIndex;
-			if ((bReplaced || Existing.Definition->ItemId == Item.Definition->ItemId) &&
-				!FreeIds.Contains(Existing.Definition->ItemId))
-			{
-				CandidateCost -= Existing.Data.Cost;
-			}
-		}
-		Row.CostAfterSelection = static_cast<int32>(FMath::Min<int64>(CandidateCost, MAX_int32));
-	}
+	Preview.Validation = PreviewBuild(DraftBuild);
 	return Preview;
-}
-
-TArray<FNF_BuildSelection> UNF_BuildComponent::GetFreeSelections(const TArray<FName>& PaidItemIds) const
-{
-	TArray<FNF_BuildSelection> FreeSelections;
-	for (const FNF_BuildSelection& Equipped : CurrentBuild)
-	{
-		if (!PaidItemIds.Contains(Equipped.ItemId))
-		{
-			FreeSelections.Add(Equipped);
-		}
-	}
-	return FreeSelections;
 }
 
 void UNF_BuildComponent::RequestApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone)
@@ -592,9 +476,6 @@ void UNF_BuildComponent::ClientBuildRequestCompleted_Implementation(const FNF_Bu
 void UNF_BuildComponent::CompleteLocalBuildRequest(const FNF_BuildValidation& Validation)
 {
 	bAwaitingBuildResult = false;
-	if (Validation.Result == ENF_BuildResult::Success)
-	{
-	}
 	OnDraftChanged.Broadcast();
 	OnBuildRequestCompleted.Broadcast(Validation);
 }
@@ -641,14 +522,13 @@ FNF_BuildValidation UNF_BuildComponent::ApplyBuildOnServer(
 
 bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop)
 {
-	const UNF_BuildRules* Rules = IsValid(Shop) ? Shop->GetRules() : nullptr;
-	const ANF_GameState* GameState = GetWorld() ? GetWorld()->GetGameState<ANF_GameState>() : nullptr;
-	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || bApplyingBuild ||
-		!IsValid(GameState) || GameState->GetMatchPhase() != ENF_MatchPhase::Build || !IsValid(Rules) ||
-		Shop->GetWorld() != GetWorld() || !Shop->CanProvideFallbackBuild(GetOwner()))
+	UNF_BuildMatchSubsystem* Service = GetBuildService();
+	if (!Service || !IsValid(GetOwner()) || !GetOwner()->HasAuthority() || bApplyingBuild ||
+		!Service->CanApplyFallbackBuild(Shop, GetOwner()))
 	{
 		return false;
 	}
+	const UNF_BuildRules* Rules = Shop->GetRules();
 	if (!InitializeAbilitySystem(ResolveAbilitySystem()))
 	{
 		return false;
@@ -666,15 +546,12 @@ bool UNF_BuildComponent::ApplyFallbackBuildForMatchStart(ANF_BuildShopZone* Shop
 		       *GetNameSafe(GetOwner()));
 		return false;
 	}
-	// 이미 유효하게 준비된 빌드는 반복 요청으로 덮어쓰지 않는다. 장착 항목도 무료로 보지 않고 전체 코스트로 판정한다.
-	if (!CurrentBuild.IsEmpty() &&
-		FNF_BuildValidator::Validate(Rules, CostLimit, CurrentBuild).Result == ENF_BuildResult::Success &&
-		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready))
-	{
-		return true;
-	}
-	// 적용 중 콜백으로 원본 구성이 바뀌지 않도록 복사한다.
-	const TArray<FNF_BuildSelection> Selections = Rules->FallbackBuild;
+	TArray<FNF_BuildSelection> Selections;
+	const ENF_BuildFallbackAction Action = Service->PrepareFallbackBuild(
+		Shop, GetOwner(), CostLimit, CurrentBuild,
+		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Ready), Selections);
+	if (Action == ENF_BuildFallbackAction::Reject) return false;
+	if (Action == ENF_BuildFallbackAction::KeepCurrent) return true;
 	// 기본 빌드는 모든 항목을 유료로 계산한다. 기존 장착 항목이 겹쳐도 상한 검사를 건너뛰지 않는다.
 	TArray<FName> PaidItemIds;
 	for (const FNF_BuildSelection& Selection : Selections)
@@ -757,9 +634,9 @@ FNF_BuildValidation UNF_BuildComponent::CommitBuildOnServer(
 	{
 		return PreviewBuild(Selections);
 	}
-	const TArray<FNF_BuildSelection> FreeSelections = GetFreeSelections(PaidItemIds);
-	Validation = FNF_BuildValidator::Validate(Rules, CostLimit, Selections, &SelectedData,
-	                                          &FreeSelections);
+	const UNF_BuildMatchSubsystem* Service = GetBuildService();
+	if (!Service) return Fail(ENF_BuildResult::InvalidRules, TEXT("빌드 서브시스템이 준비되지 않았습니다."));
+	Validation = Service->ValidateBuild(Rules, CostLimit, Selections, CurrentBuild, PaidItemIds, &SelectedData);
 	if (Validation.Result != ENF_BuildResult::Success)
 	{
 		return Validation;
@@ -910,7 +787,7 @@ bool UNF_BuildComponent::ApplyWeaponSelection(const TArray<FNF_BuildSelection>& 
 	{
 		return false;
 	}
-	if (!FNF_BuildEquipmentAdapter::ApplyWeaponData(NewWeapon, *SelectedWeapon))
+	if (!ApplyWeaponData(NewWeapon, *SelectedWeapon))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("빌드 무기 DA 적용 실패: ItemId=%s, Source=%s, Class=%s. "
 			       "공용 BP의 티어 교체에는 INF_BuildWeaponDataReceiver 구현이 필요합니다."),
@@ -1126,13 +1003,163 @@ UNF_BuildRules* UNF_BuildComponent::GetRules() const
 
 UDataAsset* UNF_BuildComponent::GetItemSource(FName ItemId) const
 {
-	if (const UNF_BuildRules* Rules = GetRules())
+	const UNF_BuildMatchSubsystem* Service = GetBuildService();
+	return Service ? Service->GetItemSource(MakeQueryContext(), ItemId) : nullptr;
+}
+
+// @Owner: 황준현 | 2026-10-28. 방어구를 준비하고, 무기까지 성공한 뒤 이전 액터를 정리한다.
+bool UNF_BuildComponent::ApplyEquipmentSelection(const TArray<FNF_BuildSelection>& Selections,
+                                                 const TMap<FName, FNF_BuildItemData>& SelectedData)
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority()) return false;
+	UNF_ArmorComponent* Armors = GetOwner()->FindComponentByClass<UNF_ArmorComponent>();
+
+	struct FArmorChange
 	{
-		if (Rules->FindItemDefinition(ItemId)) { return Rules->ItemSources.FindRef(ItemId); }
-	}
-	for (const FNF_BuildEquippedItem& Item : EquippedItems)
+		ENF_ArmorSlot Slot;
+		ANF_ArmorBase* Previous = nullptr;
+		ANF_ArmorBase* Next = nullptr;
+	};
+	TArray<FArmorChange> Changes;
+	TArray<ANF_ArmorBase*> Spawned;
+	TMap<FName, TWeakObjectPtr<ANF_ArmorBase>> NextArmors;
+	TSet<ENF_ArmorSlot> SelectedSlots;
+	auto DiscardSpawned = [&Spawned]()
 	{
-		if (IsValid(Item.Definition) && Item.Definition->ItemId == ItemId) { return Item.Source; }
+		for (ANF_ArmorBase* Armor : Spawned)
+		{
+			if (IsValid(Armor)) Armor->Destroy();
+		}
+	};
+
+	// 먼저 전 부위의 생성과 DA 적용을 마친다. 이 단계에서는 기존 장비를 건드리지 않는다.
+	for (const FNF_BuildSelection& Selection : Selections)
+	{
+		const FNF_BuildItemData& Data = SelectedData.FindChecked(Selection.ItemId);
+		if (Data.ItemType != ENF_ItemType::Armor || !Data.ArmorClass) continue;
+		if (!IsValid(Armors) || !UNF_BuildMatchSubsystem::IsArmorDefinitionCompatible(Data) ||
+			SelectedSlots.Contains(Data.ArmorSlot))
+		{
+			DiscardSpawned();
+			return false;
+		}
+		SelectedSlots.Add(Data.ArmorSlot);
+		ANF_ArmorBase* Previous = Armors->GetEquippedArmor(Data.ArmorSlot);
+		const TWeakObjectPtr<ANF_ArmorBase>* Tracked = BuildArmors.Find(Selection.ItemId);
+		if (Tracked && Tracked->IsValid() && Tracked->Get() == Previous &&
+			Previous->GetClass() == Data.ArmorClass.Get() && Previous->GetArmorData() == Data.ArmorData.Get())
+		{
+			NextArmors.Add(Selection.ItemId, Previous);
+			continue;
+		}
+
+		FActorSpawnParameters Params;
+		Params.Owner = GetOwner();
+		Params.Instigator = Cast<APawn>(GetOwner());
+		ANF_ArmorBase* Next = GetWorld()->SpawnActor<ANF_ArmorBase>(
+			Data.ArmorClass, GetOwner()->GetActorTransform(), Params);
+		if (Next) Spawned.Add(Next);
+		if (!IsValid(Next) || !Next->SetArmorData(Data.ArmorData.Get()))
+		{
+			DiscardSpawned();
+			return false;
+		}
+		NextArmors.Add(Selection.ItemId, Next);
+		Changes.Add({Data.ArmorSlot, Previous, Next});
 	}
-	return nullptr;
+
+	// 선택에서 빠진 부위는 빌드가 추적하는 액터만 해제한다.
+	for (const auto& Entry : BuildArmors)
+	{
+		ANF_ArmorBase* Armor = Entry.Value.Get();
+		if (!IsValid(Armor) || SelectedSlots.Contains(Armor->GetArmorSlot())) continue;
+		if (IsValid(Armors) && Armors->GetEquippedArmor(Armor->GetArmorSlot()) == Armor)
+		{
+			Changes.Add({Armor->GetArmorSlot(), Armor, nullptr});
+		}
+	}
+
+	int32 AppliedCount = 0;
+	auto Rollback = [&]()
+	{
+		for (int32 Index = AppliedCount - 1; Index >= 0; --Index)
+		{
+			const FArmorChange& Change = Changes[Index];
+			if (IsValid(Change.Previous))
+			{
+				if (!Armors->EquipArmor(Change.Previous))
+				{
+					UE_LOG(LogTemp, Error, TEXT("빌드 방어구 복원 실패: %s, Slot=%d"),
+					       *GetNameSafe(GetOwner()), static_cast<int32>(Change.Slot));
+				}
+			}
+			else if (Armors->GetEquippedArmor(Change.Slot) == Change.Next)
+			{
+				Armors->UnequipArmor(Change.Slot);
+			}
+		}
+		DiscardSpawned();
+	};
+	for (const FArmorChange& Change : Changes)
+	{
+		const bool bApplied = Change.Next
+			                      ? Armors->EquipArmor(Change.Next)
+			                      : Armors->UnequipArmor(Change.Slot) == Change.Previous;
+		if (!bApplied)
+		{
+			Rollback();
+			return false;
+		}
+		++AppliedCount;
+	}
+
+	// 무기는 실패 시 기존 액터를 보존한다. 성공 이후에는 실패 가능한 장착 단계를 두지 않는다.
+	if (!ApplyWeaponSelection(Selections, SelectedData))
+	{
+		Rollback();
+		return false;
+	}
+
+	TSet<ANF_ArmorBase*> Retired;
+	for (const FArmorChange& Change : Changes)
+	{
+		if (IsValid(Change.Previous)) Retired.Add(Change.Previous);
+	}
+	for (const auto& Entry : BuildArmors)
+	{
+		const TWeakObjectPtr<ANF_ArmorBase>* Kept = NextArmors.Find(Entry.Key);
+		if (Entry.Value.IsValid() && (!Kept || Kept->Get() != Entry.Value.Get()))
+		{
+			Retired.Add(Entry.Value.Get());
+		}
+	}
+	BuildArmors = MoveTemp(NextArmors);
+	for (ANF_ArmorBase* Armor : Retired) Armor->Destroy();
+	return true;
+}
+
+void UNF_BuildComponent::ReleaseBuildArmors()
+{
+	UNF_ArmorComponent* Armors = GetOwner()->FindComponentByClass<UNF_ArmorComponent>();
+	for (const auto& Entry : BuildArmors)
+	{
+		if (ANF_ArmorBase* Armor = Entry.Value.Get())
+		{
+			if (IsValid(Armors) && Armors->GetEquippedArmor(Armor->GetArmorSlot()) == Armor)
+			{
+				Armors->UnequipArmor(Armor->GetArmorSlot());
+			}
+			Armor->Destroy();
+		}
+	}
+	BuildArmors.Reset();
+}
+
+bool UNF_BuildComponent::ApplyWeaponData(ANF_WeaponBase* Weapon, const FNF_BuildItemData& Data)
+{
+	if (!IsValid(Weapon) || !Weapon->HasAuthority() || !IsValid(Data.WeaponData)) return false;
+	if (Weapon->GetWeaponData() == Data.WeaponData.Get()) return true;
+	INF_BuildWeaponDataReceiver* Receiver = Cast<INF_BuildWeaponDataReceiver>(Weapon);
+	return Receiver && Receiver->ApplyBuildWeaponData(Data.WeaponData.Get()) &&
+		Weapon->GetWeaponData() == Data.WeaponData.Get();
 }

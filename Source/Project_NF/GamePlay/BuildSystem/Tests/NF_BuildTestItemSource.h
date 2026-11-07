@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
 #include "GamePlay/Combat/Skill/Active/NFGA_ActiveSkillBase.h"
 #include "GamePlay/Combat/Skill/Data/NF_SkillDataAsset.h"
 #include "GamePlay/Combat/Skill/Passive/NFGA_PassiveSkillBase.h"

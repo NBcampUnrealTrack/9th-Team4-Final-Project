@@ -1,7 +1,5 @@
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
-#include "GamePlay/BuildSystem/Data/NF_BuildItemDefinitionDataAsset.h"
-#include "GamePlay/BuildSystem/Data/NF_BuildInitialSettings.h"
-#include "GamePlay/BuildSystem/Core/NF_BuildValidator.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildMatchSubsystem.h"
 #if WITH_EDITOR
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -143,7 +141,7 @@ EDataValidationResult UNF_BuildRules::IsDataValid(FDataValidationContext& Contex
 	}
 
 	// 기본 빌드: 런타임과 같은 검증기로 구성·슬롯을 검사한다. 코스트는 아래에서 초기 설정과 비교한다.
-	const FNF_BuildValidation FallbackValidation = FNF_BuildValidator::Validate(this, MAX_int32, FallbackBuild);
+	const FNF_BuildValidation FallbackValidation = UNF_BuildMatchSubsystem::ValidateSelections(this, MAX_int32, FallbackBuild);
 	if (FallbackValidation.Result != ENF_BuildResult::Success)
 	{
 		AddError(FString::Printf(TEXT("FallbackBuild가 유효하지 않습니다: %s"), *FallbackValidation.Message.ToString()));

@@ -2,6 +2,7 @@
 
 #include "Components/BoxComponent.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildMatchSubsystem.h"
 #include "GamePlay/BuildSystem/Player/NF_BuildComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -23,6 +24,34 @@ ANF_BuildShopZone::ANF_BuildShopZone()
 	BuildArea->SetCollisionResponseToAllChannels(ECR_Ignore);
 	BuildArea->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	BuildArea->SetGenerateOverlapEvents(false);
+}
+
+void ANF_BuildShopZone::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	if (UNF_BuildMatchSubsystem* Service = GetWorld()->GetSubsystem<UNF_BuildMatchSubsystem>())
+	{
+		Service->RegisterShop(this);
+	}
+}
+
+void ANF_BuildShopZone::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UNF_BuildMatchSubsystem* Service = GetWorld()->GetSubsystem<UNF_BuildMatchSubsystem>())
+	{
+		Service->UnregisterShop(this);
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void ANF_BuildShopZone::BeginPlay()
+{
+	Super::BeginPlay();
+	// 스트리밍으로 EndPlay 후 같은 액터가 다시 활성화되는 경우에도 등록한다.
+	if (UNF_BuildMatchSubsystem* Service = GetWorld()->GetSubsystem<UNF_BuildMatchSubsystem>())
+	{
+		Service->RegisterShop(this);
+	}
 }
 
 void ANF_BuildShopZone::NF_Interaction(

@@ -4,7 +4,6 @@
 #include "ActiveGameplayEffectHandle.h"
 #include "Components/ActorComponent.h"
 #include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
-#include "GamePlay/BuildSystem/Core/NF_BuildItemSource.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "NF_BuildComponent.generated.h"
@@ -16,39 +15,7 @@ class UAbilitySystemComponent;
 class UDataAsset;
 class UNF_BuildItemDefinitionDataAsset;
 class UNF_BuildInitialSettings;
-
-struct FNF_BuildPreviewItem : FNF_BuildCatalogItem
-{
-	FNF_BuildPreviewItem() = default;
-	explicit FNF_BuildPreviewItem(const FNF_BuildCatalogItem& Item) : FNF_BuildCatalogItem(Item) {}
-
-	int32 SlotIndex = INDEX_NONE;
-	int32 CostAfterSelection = INDEX_NONE;
-};
-
-struct FNF_BuildShopPreview
-{
-	FNF_BuildValidation Validation;
-	int32 DisplayCost = 0;
-	TArray<FNF_BuildPreviewItem> Draft;
-	TArray<FNF_BuildPreviewItem> Catalog;
-};
-
-/** @Owner: 황준현 | 2026-11-01. 장착 항목만 소유 클라이언트에 전달하는 확정 데이터. */
-USTRUCT()
-struct FNF_BuildEquippedItem
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	TObjectPtr<UNF_BuildItemDefinitionDataAsset> Definition;
-
-	UPROPERTY()
-	TObjectPtr<UDataAsset> Source;
-
-	UPROPERTY()
-	FNF_BuildItemData ItemData;
-};
+class UNF_BuildMatchSubsystem;
 
 USTRUCT()
 struct FNF_BuildGrantHandles
@@ -230,6 +197,8 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
+	UNF_BuildMatchSubsystem* GetBuildService() const;
+	FNF_BuildQueryContext MakeQueryContext() const;
 	friend class FNF_BuildEquipmentTransactionTest;
 	void InitializeDefaultBuildEntitlements();
 
@@ -263,7 +232,6 @@ private:
 	FName PendingActiveSkill;
 	// 상점을 열고 닫을 때 비운다. 장착 중이면서 여기 없는 항목만 코스트 없이 유지된다.
 	TSet<FName> PickedItemIds;
-	bool bDraftDirty = false;
 	bool bAwaitingBuildResult = false;
 	TWeakObjectPtr<APlayerController> SessionController;
 	UFUNCTION(Server, Reliable)
@@ -273,8 +241,6 @@ private:
 	void SendApplyBuild(const TArray<FNF_BuildSelection>& Selections, ANF_BuildShopZone* ShopZone,
 	                    const TArray<FName>& PaidItemIds);
 
-	// 장착 중인 항목 중 PaidItemIds에 없는 것. 검증에서 코스트를 받지 않는 항목이다.
-	TArray<FNF_BuildSelection> GetFreeSelections(const TArray<FName>& PaidItemIds) const;
 
 	UFUNCTION(Client, Reliable)
 	void ClientBuildRequestCompleted(const FNF_BuildValidation& Validation);
@@ -294,6 +260,7 @@ private:
 	bool GrantItem(UNF_BuildItemDefinitionDataAsset* Definition, UObject* ItemSource, 
 		const FNF_BuildItemData& Data, int32 SlotIndex, FNF_BuildGrantHandles& OutHandles);
 	
+	static bool ApplyWeaponData(ANF_WeaponBase* Weapon, const FNF_BuildItemData& Data);
 	bool ApplyWeaponSelection(const TArray<FNF_BuildSelection>& Selections,
 	                          const TMap<FName, FNF_BuildItemData>& SelectedData);
 	bool ApplyEquipmentSelection(const TArray<FNF_BuildSelection>& Selections,
