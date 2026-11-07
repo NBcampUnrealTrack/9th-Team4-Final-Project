@@ -26,6 +26,7 @@
 #include "GAS/Data/NF_PlayerGEDataAsset.h"
 #include "GAS/Manager/NF_GEManagerSubsystem.h"
 #include "Player/Component/NF_AvatarCustomizedComponent.h"
+#include "Player/Component/NF_PlayerCameraCosmeticComponent.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
 #include "UI/SubSystem/NF_ViewModelSubsystem.h"
 #include "UpperBodyBlend/UpperBodyLayer.h"
@@ -56,8 +57,10 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//CameraSet
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArmComponent->SetupAttachment(GetRootComponent());
-	SpringArmComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 20.0f));
-	SpringArmComponent->TargetArmLength = DefaultCameraArmLength;
+	SpringArmComponent->SetRelativeLocation(FVector::ZeroVector);
+	SpringArmComponent->SocketOffset = FVector(0.0f, 100.0f, 0.0f);	
+	SpringArmComponent->TargetOffset = FVector(0.0f, 0.0f, 65.0f);
+	SpringArmComponent->TargetArmLength = 200.0f;
 	SpringArmComponent->bUsePawnControlRotation = true;
 	SpringArmComponent->bEnableCameraLag = true;
 	SpringArmComponent->CameraLagSpeed = 10.0f;
@@ -92,23 +95,17 @@ ANF_Player::ANF_Player(const FObjectInitializer& ObjectInitializer)
 	//Consumable
 	NF_ConsumableComponent = CreateDefaultSubobject<UNF_ConsumableComponent>(TEXT("NF_ConsumableComponent"));
 	
-	//Customized
+	//Cosmetic
 	NF_PlayerVisualMeshCustomizedComponent = CreateDefaultSubobject<UNF_PlayerVisualMeshCustomizedComponent>(TEXT("NF_PlayerVisualMeshCustomizedComponent"));
+	NF_PlayerCameraCosmeticComponent = CreateDefaultSubobject<UNF_PlayerCameraCosmeticComponent>(TEXT("NF_PlayerCameraCosmeticComponent"));
 }
 
 
 void ANF_Player::BeginPlay()
 {
 	Super::BeginPlay();
-	ConfigCameraData();
-	ConfigBindDelegate();
-}
-
-void ANF_Player::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
 	
-	UpdateCameraArmLength(DeltaTime);
+	ConfigBindDelegate();
 }
 
 
@@ -158,15 +155,6 @@ void ANF_Player::ConfigData()
 	WeaponKeepSocket = NF_PlayerDataAsset->WeaponKeepSocket;
 	
 	MeleeAttackMeshComponent->AttachToComponent(VisualMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponKeepSocket);
-}
-
-
-void ANF_Player::ConfigCameraData()
-{
-	if (IsValid(SpringArmComponent) == true)
-	{
-		DefaultCameraArmLength = SpringArmComponent->TargetArmLength;
-	}
 }
 
 
@@ -388,7 +376,7 @@ void ANF_Player::OnTryAction(APlayerController* SendController, ENF_PlayerAction
 #pragma endregion 
 
 
-void ANF_Player::UpdateCameraArmLength(float DeltaSeconds)
+/*void ANF_Player::UpdateCameraArmLength(float DeltaSeconds)
 {
 	if (IsLocallyControlled() == true)
 	{
@@ -422,7 +410,7 @@ void ANF_Player::UpdateCameraArmLength(float DeltaSeconds)
 		SpringArmComponent->TargetArmLength = 
 			FMath::FInterpTo(SpringArmComponent->TargetArmLength, TargetCameraArmLength, DeltaSeconds, CameraArmInterpSpeed);
 	}
-}
+}*/
 
 
 void ANF_Player::OnSkillBind(APlayerController* SendController, ENF_PlayerActionType ActionType)

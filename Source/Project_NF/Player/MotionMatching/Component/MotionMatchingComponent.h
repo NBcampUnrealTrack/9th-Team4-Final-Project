@@ -144,6 +144,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "MotionMatching|Movement")
 	EMotionMatchingGait GetGait() const { return Gait; }
 
+	// [추가] 달리기 최고 속도 (X = 앞, Y = 옆, Z = 뒤). 질주 카메라 연출의 시작 지점으로 사용
+	UFUNCTION(BlueprintPure, Category = "MotionMatching|Movement|Speed")
+	FVector GetRunSpeeds() const { return RunSpeeds; }
+
+	// [추가] 질주 최고 속도 (X = 앞, Y = 옆, Z = 뒤). 질주 카메라 연출의 최대 지점으로 사용
+	UFUNCTION(BlueprintPure, Category = "MotionMatching|Movement|Speed")
+	FVector GetSprintSpeeds() const { return SprintSpeeds; }
+
 	UFUNCTION(BlueprintPure, Category = "MotionMatching|Movement")
 	FMotionMatchingInputState GetCharacterInputState() const { return CharacterInputState; }
 
