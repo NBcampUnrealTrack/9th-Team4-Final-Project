@@ -280,20 +280,6 @@ void UNF_BuildMatchSubsystem::UnregisterShop(ANF_BuildShopZone* Shop)
 	});
 }
 
-TArray<TObjectPtr<ANF_BuildShopZone>> UNF_BuildMatchSubsystem::GetShopsInRange(AActor* Player) const
-{
-	TArray<TObjectPtr<ANF_BuildShopZone>> Result;
-	if (!IsValid(Player) || Player->GetWorld() != GetWorld()) return Result;
-	for (const TWeakObjectPtr<ANF_BuildShopZone>& Entry : Shops)
-	{
-		if (ANF_BuildShopZone* Shop = Entry.Get())
-		{
-			if (Shop->IsActorInRange(Player)) Result.Add(Shop);
-		}
-	}
-	return Result;
-}
-
 FNF_BuildValidation UNF_BuildMatchSubsystem::ValidateBuild(
 	const UNF_BuildRules* Rules, int32 CostLimit, const TArray<FNF_BuildSelection>& Selections,
 	const TArray<FNF_BuildSelection>& CurrentBuild, const TArray<FName>& PaidItemIds,

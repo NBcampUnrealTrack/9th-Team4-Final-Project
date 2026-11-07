@@ -43,8 +43,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildShopStateChanged, ENF_Bui
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNF_OnBuildRequestCompleted, const FNF_BuildValidation&, Validation);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNF_OnBuildShopRangeChanged, ANF_BuildShopZone*, Shop,
-                                             ENF_BuildShopRangeState, RangeState);
 
 
 /** Attach to an owned replicated Pawn. The shop is never the client RPC owner. */
@@ -124,12 +122,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NF|Build|Slots")
 	UNF_BuildItemDefinitionDataAsset* GetSlotItem(ENF_ItemType ItemType, int32 SlotIndex, bool bUseDraft) const;
 
-	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Shop")
-	FNF_OnBuildShopRangeChanged OnBuildShopRangeChanged;
-
-	/** 이벤트 바인딩 전부터 범위 안에 있던 상점도 조회할 수 있다. */
-	UFUNCTION(BlueprintPure, Category = "NF|Build|Shop")
-	TArray<ANF_BuildShopZone*> GetShopsInRange() const;
 
 	UPROPERTY(BlueprintAssignable, Category = "NF|Build|Draft")
 	FNF_OnBuildChanged OnDraftChanged;
@@ -202,13 +194,6 @@ private:
 	friend class FNF_BuildEquipmentTransactionTest;
 	void InitializeDefaultBuildEntitlements();
 
-	// @Owner: 황준현 | 2026-10-15. 범위 상태는 사용 세션과 분리하여 소유 클라이언트에 복제한다.
-	void UpdateShopsInRange();
-	UFUNCTION()
-	void OnRep_ShopsInRange();
-	UPROPERTY(ReplicatedUsing = OnRep_ShopsInRange)
-	TArray<TObjectPtr<ANF_BuildShopZone>> ShopsInRange;
-	TArray<TWeakObjectPtr<ANF_BuildShopZone>> NotifiedShopsInRange;
 
 	UFUNCTION(Server, Reliable)
 	void ServerCloseBuildSession();

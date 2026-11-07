@@ -30,11 +30,9 @@ UNF_BuildComponent::UNF_BuildComponent()
 void UNF_BuildComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	SetComponentTickEnabled(GetOwner()->HasAuthority());
 	if (GetOwner()->HasAuthority())
 	{
 		InitializeDefaultBuildEntitlements();
-		UpdateShopsInRange();
 	}
 }
 
@@ -53,67 +51,6 @@ void UNF_BuildComponent::InitializeDefaultBuildEntitlements()
 		UE_LOG(LogTemp, Warning,
 		       TEXT("빌드 초기 조건 적용 실패: %s. 초기 설정 DA의 코스트를 확인하세요."),
 		       *GetNameSafe(GetOwner()));
-	}
-}
-
-TArray<ANF_BuildShopZone*> UNF_BuildComponent::GetShopsInRange() const
-{
-	TArray<ANF_BuildShopZone*> Result;
-	for (ANF_BuildShopZone* Shop : ShopsInRange)
-	{
-		if (IsValid(Shop))
-		{
-			Result.Add(Shop);
-		}
-	}
-	return Result;
-}
-
-void UNF_BuildComponent::UpdateShopsInRange()
-{
-	const UNF_BuildMatchSubsystem* Service = GetBuildService();
-	if (!Service) return;
-	TArray<TObjectPtr<ANF_BuildShopZone>> NewShops = Service->GetShopsInRange(GetOwner());
-	if (ShopsInRange.Num() == NewShops.Num() &&
-		NewShops.ContainsByPredicate([this](const TObjectPtr<ANF_BuildShopZone>& Shop)
-		{
-			return !ShopsInRange.Contains(Shop);
-		}) == false)
-	{
-		return;
-	}
-	ShopsInRange = MoveTemp(NewShops);
-	GetOwner()->ForceNetUpdate();
-	OnRep_ShopsInRange();
-}
-
-void UNF_BuildComponent::OnRep_ShopsInRange()
-{
-	// 알림 중 실행되는 외부 콜백이 영향을 주지 않도록 이전/현재 목록을 먼저 확정한다.
-	const TArray<TWeakObjectPtr<ANF_BuildShopZone>> Previous = NotifiedShopsInRange;
-	TArray<TWeakObjectPtr<ANF_BuildShopZone>> Current;
-	for (ANF_BuildShopZone* Shop : ShopsInRange)
-	{
-		if (IsValid(Shop))
-		{
-			Current.Add(Shop);
-		}
-	}
-	NotifiedShopsInRange = Current;
-	for (const TWeakObjectPtr<ANF_BuildShopZone>& Shop : Previous)
-	{
-		if (!Current.Contains(Shop))
-		{
-			// 상점이 파괴된 경우 참조는 nullptr일 수 있다.
-			OnBuildShopRangeChanged.Broadcast(Shop.Get(), ENF_BuildShopRangeState::Outside);
-		}
-	}
-	for (const TWeakObjectPtr<ANF_BuildShopZone>& Shop : Current)
-	{
-		if (!Previous.Contains(Shop))
-		{
-			OnBuildShopRangeChanged.Broadcast(Shop.Get(), ENF_BuildShopRangeState::Inside);
-		}
 	}
 }
 
@@ -156,13 +93,13 @@ void UNF_BuildComponent::CloseBuildSession()
 		ServerCloseBuildSession();
 		return;
 	}
+	SetComponentTickEnabled(false);
 	if (!CurrentShop && !SessionController.IsValid())
 	{
 		return;
 	}
 	CurrentShop = nullptr;
 	SessionController.Reset();
-	// 닫은 뒤에도 범위 진입·이탈 검사는 계속한다.
 	GetOwner()->ForceNetUpdate();
 	OnRep_CurrentShop();
 }
@@ -179,13 +116,12 @@ void UNF_BuildComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	{
 		return;
 	}
-	UpdateShopsInRange();
 	APawn* Pawn = Cast<APawn>(GetOwner());
-	if ((CurrentShop || SessionController.IsValid()) && (!IsValid(CurrentShop) || !CurrentShop->CanBuild(GetOwner()) ||
+	if (!IsValid(CurrentShop) || !CurrentShop->CanBuild(GetOwner()) ||
 		!Pawn || !SessionController.IsValid() || Pawn->GetController() != SessionController.Get() || !IsValid(
 			AbilitySystem) ||
 		AbilitySystem->GetAvatarActor() != GetOwner() ||
-		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Locked)))
+		AbilitySystem->HasMatchingGameplayTag(NFTag_Build::State_Build_Locked))
 	{
 		CloseBuildSession();
 	}
@@ -965,7 +901,6 @@ void UNF_BuildComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, PlayerLevel, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, EquippedItems, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CurrentShop, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UNF_BuildComponent, ShopsInRange, COND_OwnerOnly);
 
 
 	DOREPLIFETIME_CONDITION(UNF_BuildComponent, CostLimit, COND_OwnerOnly);

@@ -33,7 +33,6 @@ public:
 
 	void RegisterShop(ANF_BuildShopZone* Shop);
 	void UnregisterShop(ANF_BuildShopZone* Shop);
-	TArray<TObjectPtr<ANF_BuildShopZone>> GetShopsInRange(AActor* Player) const;
 
 	UNF_BuildItemDefinitionDataAsset* FindItemDefinition(const FNF_BuildQueryContext& Context, FName ItemId) const;
 	bool ResolveItemData(const FNF_BuildQueryContext& Context, FName ItemId, FNF_BuildItemData& OutData) const;

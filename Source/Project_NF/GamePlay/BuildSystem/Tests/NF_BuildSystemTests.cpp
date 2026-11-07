@@ -437,7 +437,7 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("음수 코스트 상한 갱신 거절"), Build->UpdateBuildCostLimit(-1));
 	TestTrue(TEXT("외부 서버에서 코스트 상한 갱신"), Build->UpdateBuildCostLimit(12));
 	TickWorld(0.25f);
-	TestTrue(TEXT("거리 안의 상점을 조회할 수 있다"), Build->GetShopsInRange().Contains(Shop));
+	TestTrue(TEXT("열린 세션의 서버 검사가 활성화된다"), Build->IsComponentTickEnabled());
 	TestTrue(TEXT("현재 카탈로그의 액티브 스킬을 표시한다"),
 	         Build->GetCatalogItems(ENF_ItemType::ActiveSkill, ENF_ArmorSlot::None).Num() > 0);
 	ANF_BuildShopZone* OtherShop = World->SpawnActor<ANF_BuildShopZone>();
@@ -454,18 +454,12 @@ bool FNF_BuildServerTest::RunTest(const FString& Parameters)
 	          Build->GetCurrentBuild()[1].SlotIndex, BeforeShopChange[1].SlotIndex);
 	TestTrue(TEXT("기존 상점으로 복귀"), Build->BeginBuildSession(Shop));
 	Build->CloseBuildSession();
+	TestFalse(TEXT("닫힌 세션은 Tick하지 않는다"), Build->IsComponentTickEnabled());
 	TestNull(TEXT("상점을 닫으면 규칙 연결을 해제한다"), Build->GetRules());
 	TestNotNull(TEXT("상점을 닫아도 장착 항목 정의가 유지된다"), Build->FindItemDefinition(TEXT("Dash")));
 	FNF_BuildItemData EquippedData;
 	TestTrue(TEXT("상점을 닫아도 장착 스킬 데이터가 유지된다"), Build->ResolveItemData(TEXT("Dash"), EquippedData));
 	TestNotNull(TEXT("상점을 닫아도 장착 원본이 유지된다"), Build->GetItemSource(TEXT("Dash")));
-	TestTrue(TEXT("상점을 닫아도 범위 안 상태는 유지된다"), Build->GetShopsInRange().Contains(Shop));
-	Player->SetActorLocation(FVector(2000.f, 0.f, 0.f));
-	TickWorld(0.25f);
-	TestFalse(TEXT("사용 세션이 없어도 범위 이탈을 감지한다"), Build->GetShopsInRange().Contains(Shop));
-	Player->SetActorLocation(FVector::ZeroVector);
-	TickWorld(0.25f);
-	TestTrue(TEXT("상호작용 전에도 범위 재진입을 감지한다"), Build->GetShopsInRange().Contains(Shop));
 	Build->RequestApplyBuild({Select(TEXT("Rifle"))}, Shop);
 	TestEqual(TEXT("Closed session cannot apply another build"), Build->GetCurrentBuild().Num(), 2);
 	Shop->NF_Interaction(Controller);
@@ -648,18 +642,6 @@ bool FNF_BuildServiceTest::RunTest(const FString& Parameters)
 	World->BeginPlay();
 	UNF_BuildMatchSubsystem* Service = World->GetSubsystem<UNF_BuildMatchSubsystem>();
 	if (!TestNotNull(TEXT("월드에 빌드 서비스 생성"), Service)) return false;
-
-	AActor* Player = World->SpawnActor<AActor>();
-	ANF_BuildShopZone* Shop = World->SpawnActor<ANF_BuildShopZone>();
-	if (!TestNotNull(TEXT("범위 조회 대상"), Player) || !TestNotNull(TEXT("등록할 상점"), Shop)) return false;
-	TestTrue(TEXT("동적으로 생성한 상점 자동 등록"), Service->GetShopsInRange(Player).Contains(Shop));
-	Service->RegisterShop(Shop);
-	TestEqual(TEXT("초기화와 BeginPlay의 중복 등록 방지"), Service->GetShopsInRange(Player).Num(), 1);
-	Player->SetActorLocation(FVector(10000.f, 0.f, 0.f));
-	TestTrue(TEXT("기존 거리 기준으로 범위 밖 제외"), Service->GetShopsInRange(Player).IsEmpty());
-	Player->SetActorLocation(FVector::ZeroVector);
-	Shop->Destroy();
-	TestTrue(TEXT("상점 종료 시 등록 해제"), Service->GetShopsInRange(Player).IsEmpty());
 
 	UNF_BuildRules* FirstRules = MakeRules();
 	UNF_BuildRules* SecondRules = MakeRules();

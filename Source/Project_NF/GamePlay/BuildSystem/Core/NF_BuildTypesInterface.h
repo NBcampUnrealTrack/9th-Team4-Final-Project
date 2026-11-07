@@ -29,14 +29,6 @@ enum class ENF_BuildResult : uint8
 	ItemNotUnlocked
 };
 
-// @Owner: 황준현 | 2026-10-15
-// 플레이어의 빌드 상점 범위 진입·이탈 상태.
-UENUM(BlueprintType)
-enum class ENF_BuildShopRangeState : uint8
-{
-	Outside UMETA(DisplayName = "상점 범위 밖"),
-	Inside UMETA(DisplayName = "상점 범위 안")
-};
 
 // @Owner: 황준현 | 2026-10-15
 // 로컬 플레이어의 빌드 상점 UI 표시 상태.
