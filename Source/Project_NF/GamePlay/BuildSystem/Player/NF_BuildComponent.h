@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "ActiveGameplayEffectHandle.h"
 #include "Components/ActorComponent.h"
-#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypesInterface.h"
 #include "GamePlay/BuildSystem/Data/NF_BuildRules.h"
 #include "GameplayAbilitySpecHandle.h"
 #include "NF_BuildComponent.generated.h"

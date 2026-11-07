@@ -5,7 +5,7 @@
 #include "GamePlay/Combat/Armor/NF_ArmorTypes.h"
 #include "Engine/DataAsset.h"
 #include "UObject/Interface.h"
-#include "NF_BuildTypes.generated.h"
+#include "NF_BuildTypesInterface.generated.h"
 
 class UNF_BuildRules;
 class UNF_BuildItemDefinitionDataAsset;

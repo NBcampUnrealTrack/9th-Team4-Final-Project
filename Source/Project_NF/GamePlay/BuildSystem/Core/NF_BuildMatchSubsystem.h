@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypesInterface.h"
 #include "NF_BuildMatchSubsystem.generated.h"
 
 class ANF_GameMode;

@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
-#include "GamePlay/BuildSystem/Core/NF_BuildTypes.h"
+#include "GamePlay/BuildSystem/Core/NF_BuildTypesInterface.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
 #include "NF_BuildUISubsystem.generated.h"
