@@ -78,7 +78,4 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "PlayerState|Player_Level")
 	TObjectPtr<UDataTable> PlayerLevelDataTable;
-	
-	UPROPERTY(EditAnywhere, Category = "VisualMesh")
-	TMap<ENF_CustomVisualMeshType, TObjectPtr<UNF_CustomVisualMeshDataAsset>> CustomVisualMeshMap;
 };

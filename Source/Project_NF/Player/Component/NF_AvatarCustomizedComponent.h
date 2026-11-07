@@ -8,6 +8,7 @@
 
 
 class UNF_CustomVisualMeshDataAsset;
+class UNF_PlayerCosmeticDataAsset;
 enum class ENF_PlayerDataType : uint8;
 class ANF_PlayerState;
 
@@ -23,7 +24,12 @@ public:
 	
 	
 protected:
+	virtual void BeginPlay() override;
+	
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "NF_Cosmetic")
+	TObjectPtr<UNF_PlayerCosmeticDataAsset> NF_PlayerCosmeticDataAsset;
 	
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentCustomVisualMeshDataAsset)
 	TObjectPtr<UNF_CustomVisualMeshDataAsset> CurrentCustomVisualMeshDataAsset;

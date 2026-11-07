@@ -4,6 +4,7 @@
 #include "Player/Character/NF_Player.h"
 #include "Player/Data/NF_PlayerDataType.h"
 #include "Player/Data/NF_CustomVisualMeshDataAsset.h"
+#include "Player/Data/NF_PlayerCosmeticDataAsset.h"
 #include "Player/Data/NF_PlayerDataAsset.h"
 #include "Player/State/NF_PlayerState.h"
 
@@ -12,6 +13,15 @@ UNF_PlayerVisualMeshCustomizedComponent::UNF_PlayerVisualMeshCustomizedComponent
 {
 	SetIsReplicatedByDefault(true);
 }
+
+
+void UNF_PlayerVisualMeshCustomizedComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	checkf(IsValid(NF_PlayerCosmeticDataAsset) == true, TEXT("[%s]의 [NF_PlayerVisualMeshCustomizedComponent]의 [NF_PlayerCosmeticDataAsset]가 삽입되어있지않습니다."), *GetNameSafe(GetOwner()));
+}
+
 
 void UNF_PlayerVisualMeshCustomizedComponent::TryChangeVisualMesh(int32 Index)
 {
@@ -70,10 +80,9 @@ void UNF_PlayerVisualMeshCustomizedComponent::GetLifetimeReplicatedProps(
 
 void UNF_PlayerVisualMeshCustomizedComponent::ServerRPC_TryChangeVisualMesh_Implementation(ENF_CustomVisualMeshType VisualMeshType)
 {
-	auto* NF_PlayerDataAsset = Cast<UNF_PlayerDataAsset>(GetNF_PlayerData(ENF_PlayerDataType::NF_PlayerDataAsset));
-	if (IsValid(NF_PlayerDataAsset) == false) return;
+	if (IsValid(NF_PlayerCosmeticDataAsset) == false) return;
 	
-	UNF_CustomVisualMeshDataAsset* CustomVisualMeshDataAsset = NF_PlayerDataAsset->CustomVisualMeshMap.FindRef(VisualMeshType);
+	UNF_CustomVisualMeshDataAsset* CustomVisualMeshDataAsset = NF_PlayerCosmeticDataAsset->CustomVisualMeshMap.FindRef(VisualMeshType);
 	if (IsValid(CustomVisualMeshDataAsset) == false) return;
 	
 	CurrentCustomVisualMeshDataAsset = CustomVisualMeshDataAsset;

@@ -120,58 +120,67 @@ void ANF_PlayerController::BindInputButton()
 		return;
 	}
 	
-	auto* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent);
-	if (IsValid(EnhancedInputComponent) == false) return;
+	auto* EIC = Cast<UEnhancedInputComponent>(InputComponent);
+	if (IsValid(EIC) == false) return;
 	
 	//Test
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomToggleSettingButton, ETriggerEvent::Started, this, 
+	EIC->BindAction(NF_PlayerControllerDataAsset->ZoomToggleSettingButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ToggleSettingButton);
 	
 	
 	//Attack
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->MeleeAttack, ETriggerEvent::Started, this, 
+	EIC->BindAction(NF_PlayerControllerDataAsset->MeleeAttack, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::MeleeAttack);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->FireButton, ETriggerEvent::Started, this, 
+	EIC->BindAction(NF_PlayerControllerDataAsset->FireButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::Fire);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->FireButton, ETriggerEvent::Completed, this, 
+	EIC->BindAction(NF_PlayerControllerDataAsset->FireButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->FireButton, ETriggerEvent::Canceled, this, 
+	EIC->BindAction(NF_PlayerControllerDataAsset->FireButton, ETriggerEvent::Canceled, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::StopFire);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ReloadButton, ETriggerEvent::Started, this, 
+	EIC->BindAction(NF_PlayerControllerDataAsset->ReloadButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::Reload);
 	
 	
 	//Zoom
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Started, this, 
+	EIC->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomIn);
 	
 	if (NF_PlayerControllerDataAsset->bIsTestMode == false)
 	{
-		EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
+		EIC->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Completed, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
-		EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Canceled, this, 
+		EIC->BindAction(NF_PlayerControllerDataAsset->ZoomButton, ETriggerEvent::Canceled, this, 
 			&ThisClass::TryAction, ENF_PlayerActionType::ZoomOut);
 	}
 	
 	
 	//Skill
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
+	EIC->BindAction(NF_PlayerControllerDataAsset->SkillButton_A, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillA);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->SkillButton_B, ETriggerEvent::Started, this, 
+	/*EIC->BindAction(NF_PlayerControllerDataAsset->SkillButton_A, ETriggerEvent::Completed, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::SkillA);
+	EIC->BindAction(NF_PlayerControllerDataAsset->SkillButton_A, ETriggerEvent::Canceled, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::SkillA);*/
+	
+	EIC->BindAction(NF_PlayerControllerDataAsset->SkillButton_B, ETriggerEvent::Started, this, 
 		&ThisClass::TryAction, ENF_PlayerActionType::SkillB);
+	/*EIC->BindAction(NF_PlayerControllerDataAsset->SkillButton_B, ETriggerEvent::Completed, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::SkillB);
+	EIC->BindAction(NF_PlayerControllerDataAsset->SkillButton_B, ETriggerEvent::Canceled, this, 
+		&ThisClass::TryAction, ENF_PlayerActionType::SkillB);*/
 	
 	
 	//상호작용
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->InteractButton, ETriggerEvent::Started, this,
+	EIC->BindAction(NF_PlayerControllerDataAsset->InteractButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::Interaction);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->UseItemButton, ETriggerEvent::Started, this,
+	EIC->BindAction(NF_PlayerControllerDataAsset->UseItemButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::UseItem);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->OpenOptionButton, ETriggerEvent::Started, this,
+	EIC->BindAction(NF_PlayerControllerDataAsset->OpenOptionButton, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::OpenOption);
 	
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Next_Button, ETriggerEvent::Started, this,
+	EIC->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Next_Button, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::TestMeshSwap_Next);
-	EnhancedInputComponent->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Pre_Button, ETriggerEvent::Started, this,
+	EIC->BindAction(NF_PlayerControllerDataAsset->TestVisualMesh_Pre_Button, ETriggerEvent::Started, this,
 		&ThisClass::TryAction, ENF_PlayerActionType::TestMeshSwap_Pre);
 }
 
@@ -184,7 +193,6 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	IsBuildShopAction(PlayerActionType);
 }
 
-
 	#pragma region Actions
 	void ANF_PlayerController::IsBuildShopAction(ENF_PlayerActionType PlayerActionType)
 	{
@@ -194,7 +202,6 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 			return;
 		}
 	}
-
 
 	void ANF_PlayerController::IsCombatAction(ENF_PlayerActionType PlayerActionType)
 	{
@@ -216,7 +223,6 @@ void ANF_PlayerController::TryAction(ENF_PlayerActionType PlayerActionType)
 	
 		NF_BROADCAST_TO_PLAYER_DELEGATE_TwoParams(OnPlayerAction, this, PlayerActionType);
 	}
-
 
 	void ANF_PlayerController::ZoomSelector(ENF_PlayerActionType PlayerActionType)
 	{
